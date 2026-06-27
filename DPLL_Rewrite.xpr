@@ -220,6 +220,13 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PSRCDIR/sources_1/DigitalPLL/hybrid_loop/hybrid_fll_pll_filter_stage_a.v">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PSRCDIR/sources_1/ReadPitaya/red_pitaya_ams.v">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>

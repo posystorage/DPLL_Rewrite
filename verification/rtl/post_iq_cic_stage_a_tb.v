@@ -89,6 +89,12 @@ module post_iq_cic_stage_a_tb;
             $finish;
         end
 
+        repeat (16) tick_sample(18'sd1, -18'sd1);
+        if (valid_count !== 4) begin
+            $display("FAIL: illegal config flushed CIC state, valid_count=%0d", valid_count);
+            $finish;
+        end
+
         $display("PASS: post_iq_cic_stage_a_tb");
         $finish;
     end

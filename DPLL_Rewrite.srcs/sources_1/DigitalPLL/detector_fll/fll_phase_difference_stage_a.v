@@ -15,14 +15,12 @@ module fll_phase_difference_stage_a #(
     output reg                               ambiguous
 );
 
-    reg signed [PHASE_WIDTH-1:0] phase_z1;
-    reg signed [PHASE_WIDTH-1:0] phase_z2;
-    reg signed [PHASE_WIDTH-1:0] phase_z4;
-    reg signed [PHASE_WIDTH-1:0] phase_z8;
+    reg signed [PHASE_WIDTH-1:0] phase_delay [0:7];
     reg [3:0] valid_count;
+    integer idx;
 
     wire signed [PHASE_WIDTH-1:0] delayed_phase;
-    wire signed [PHASE_WIDTH:0] phase_delta_ext;
+    wire signed [PHASE_WIDTH-1:0] phase_delta_wrapped;
     wire [3:0] selected_delay;
 
     assign selected_delay =
@@ -31,18 +29,17 @@ module fll_phase_difference_stage_a #(
         (delay_sel == 2'd2) ? 4'd4 : 4'd8;
 
     assign delayed_phase =
-        (delay_sel == 2'd0) ? phase_z1 :
-        (delay_sel == 2'd1) ? phase_z2 :
-        (delay_sel == 2'd2) ? phase_z4 : phase_z8;
+        (delay_sel == 2'd0) ? phase_delay[0] :
+        (delay_sel == 2'd1) ? phase_delay[1] :
+        (delay_sel == 2'd2) ? phase_delay[3] : phase_delay[7];
 
-    assign phase_delta_ext = {phase_in[PHASE_WIDTH-1], phase_in} - {delayed_phase[PHASE_WIDTH-1], delayed_phase};
+    assign phase_delta_wrapped = phase_in - delayed_phase;
 
     always @(posedge clk_125m) begin
         if (rst_125m) begin
-            phase_z1 <= {PHASE_WIDTH{1'b0}};
-            phase_z2 <= {PHASE_WIDTH{1'b0}};
-            phase_z4 <= {PHASE_WIDTH{1'b0}};
-            phase_z8 <= {PHASE_WIDTH{1'b0}};
+            for (idx = 0; idx < 8; idx = idx + 1) begin
+                phase_delay[idx] <= {PHASE_WIDTH{1'b0}};
+            end
             valid_count <= 4'd0;
             freq_error_valid <= 1'b0;
             freq_error <= {FERR_WIDTH{1'b0}};
@@ -51,18 +48,18 @@ module fll_phase_difference_stage_a #(
             freq_error_valid <= 1'b0;
 
             if (phase_valid) begin
-                phase_z1 <= phase_in;
-                phase_z2 <= phase_z1;
-                phase_z4 <= phase_z2;
-                phase_z8 <= phase_z4;
+                phase_delay[0] <= phase_in;
+                for (idx = 1; idx < 8; idx = idx + 1) begin
+                    phase_delay[idx] <= phase_delay[idx-1];
+                end
                 if (valid_count != 4'd15) begin
                     valid_count <= valid_count + 1'b1;
                 end
 
                 if (valid_count >= selected_delay) begin
-                    freq_error <= {{(FERR_WIDTH-PHASE_WIDTH-1){phase_delta_ext[PHASE_WIDTH]}}, phase_delta_ext};
-                    ambiguous <= (phase_delta_ext == {1'b0, {PHASE_WIDTH{1'b1}}})
-                              || (phase_delta_ext == {1'b1, {PHASE_WIDTH{1'b0}}});
+                    freq_error <= {{(FERR_WIDTH-PHASE_WIDTH){phase_delta_wrapped[PHASE_WIDTH-1]}}, phase_delta_wrapped};
+                    ambiguous <= (phase_delta_wrapped == {1'b0, {(PHASE_WIDTH-1){1'b1}}})
+                              || (phase_delta_wrapped == {1'b1, {(PHASE_WIDTH-1){1'b0}}});
                     freq_error_valid <= 1'b1;
                 end
             end

@@ -58,8 +58,8 @@ module fll_phase_difference_stage_a_tb;
         push_phase(18'sd150);
         push_phase(18'sd175);
         push_phase(18'sd200);
-        if (freq_error_valid !== 1'b1 || freq_error !== 22'sd60) begin
-            $display("FAIL: delay4 expected +60, got valid=%b error=%0d", freq_error_valid, freq_error);
+        if (freq_error_valid !== 1'b1 || freq_error !== 22'sd75) begin
+            $display("FAIL: delay4 expected +75, got valid=%b error=%0d", freq_error_valid, freq_error);
             $finish;
         end
 

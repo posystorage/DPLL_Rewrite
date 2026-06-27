@@ -45,24 +45,36 @@ module dpll_single_clock_core_stage_a #(
     output wire signed [15:0]                    lo_sin
 );
 
-    localparam signed [15:0] LO_ONE = 16'sd16384;
-
     reg [WORD_WIDTH-1:0] tracking_word_hold;
     wire [WORD_WIDTH-1:0] nco_word;
     wire [WORD_WIDTH-1:0] phase_accum;
     wire [PHASE_WIDTH-1:0] phase_word;
-    wire phase_valid;
+    wire phase_tick;
+    wire dds_valid;
+    wire [31:0] dds_data;
 
-    reg signed [ADC_WIDTH-1:0] adc_sample_r;
-    reg signed [15:0] lo_cos_r;
-    reg signed [15:0] lo_sin_r;
-    reg mixer_input_valid_r;
-    wire signed [15:0] lo_cos_next;
-    wire signed [15:0] lo_sin_next;
+    wire dc_valid;
+    wire signed [ADC_WIDTH-1:0] adc_dc_blocked;
+    reg signed [ADC_WIDTH-1:0] adc_sample_r0;
+    reg signed [ADC_WIDTH-1:0] adc_sample_r1;
+    reg signed [15:0] lo_cos_r0;
+    reg signed [15:0] lo_sin_r0;
+    reg signed [15:0] lo_cos_r1;
+    reg signed [15:0] lo_sin_r1;
+    reg mixer_input_valid_r0;
+    reg mixer_input_valid_r1;
+    wire signed [31:0] mixer_i_product;
+    wire signed [31:0] mixer_q_product;
+    wire signed [15:0] mixer_i_rounded;
+    wire signed [15:0] mixer_q_rounded;
     wire mixer_valid;
     wire signed [MIXER_WIDTH-1:0] mixer_i;
     wire signed [MIXER_WIDTH-1:0] mixer_q;
-    wire signed [PHASE_WIDTH-1:0] phase_error_next;
+    wire cordic_valid;
+    wire [31:0] cordic_data;
+    wire signed [15:0] cordic_phase;
+    wire signed [15:0] cordic_magnitude;
+    reg signed [PHASE_WIDTH-1:0] phase_error_hold;
     wire correction_valid;
     wire [WORD_WIDTH-1:0] correction_tracking_word;
 
@@ -88,54 +100,84 @@ module dpll_single_clock_core_stage_a #(
     ) tracking_phase_accumulator_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_125m),
-        .enable(sample_valid),
+        .enable(1'b1),
         .tracking_word(nco_word),
         .phase_accum(phase_accum),
         .phase_word(phase_word),
-        .phase_valid(phase_valid)
+        .phase_valid(phase_tick)
     );
 
-    assign lo_cos_next = (phase_word[PHASE_WIDTH-1:PHASE_WIDTH-2] == 2'b00) ?  LO_ONE :
-                         (phase_word[PHASE_WIDTH-1:PHASE_WIDTH-2] == 2'b10) ? -LO_ONE : 16'sd0;
-    assign lo_sin_next = (phase_word[PHASE_WIDTH-1:PHASE_WIDTH-2] == 2'b01) ?  LO_ONE :
-                         (phase_word[PHASE_WIDTH-1:PHASE_WIDTH-2] == 2'b11) ? -LO_ONE : 16'sd0;
-    assign lo_cos = lo_cos_r;
-    assign lo_sin = lo_sin_r;
+    LO_DDS_H tracking_lo_dds_inst (
+        .aclk(clk_125m),
+        .s_axis_phase_tvalid(1'b1),
+        .s_axis_phase_tdata(nco_word),
+        .m_axis_data_tvalid(dds_valid),
+        .m_axis_data_tdata(dds_data),
+        .m_axis_phase_tvalid(),
+        .m_axis_phase_tdata()
+    );
+
+    assign lo_cos = lo_cos_r1;
+    assign lo_sin = lo_sin_r1;
+
+    dc_blocker_valid_stage_a #(
+        .DATA_WIDTH(ADC_WIDTH),
+        .ACC_WIDTH(48),
+        .LEAK_SHIFT(7)
+    ) dc_blocker_inst (
+        .clk_125m(clk_125m),
+        .rst_125m(rst_125m),
+        .in_valid(sample_valid),
+        .sample_in(adc_sample),
+        .out_valid(dc_valid),
+        .sample_out(adc_dc_blocked)
+    );
 
     always @(posedge clk_125m) begin
         if (rst_125m) begin
-            adc_sample_r <= {ADC_WIDTH{1'b0}};
-            lo_cos_r <= 16'sd0;
-            lo_sin_r <= 16'sd0;
-            mixer_input_valid_r <= 1'b0;
+            adc_sample_r0 <= {ADC_WIDTH{1'b0}};
+            adc_sample_r1 <= {ADC_WIDTH{1'b0}};
+            lo_cos_r0 <= 16'sd0;
+            lo_sin_r0 <= 16'sd0;
+            lo_cos_r1 <= 16'sd0;
+            lo_sin_r1 <= 16'sd0;
+            mixer_input_valid_r0 <= 1'b0;
+            mixer_input_valid_r1 <= 1'b0;
         end else begin
-            mixer_input_valid_r <= phase_valid;
-            if (sample_valid) begin
-                adc_sample_r <= adc_sample;
+            mixer_input_valid_r0 <= dc_valid;
+            mixer_input_valid_r1 <= mixer_input_valid_r0;
+            if (dc_valid) begin
+                adc_sample_r0 <= adc_dc_blocked;
+                lo_cos_r0 <= dds_data[15:0];
+                lo_sin_r0 <= dds_data[31:16];
             end
-            if (phase_valid) begin
-                lo_cos_r <= lo_cos_next;
-                lo_sin_r <= lo_sin_next;
+            if (mixer_input_valid_r0) begin
+                adc_sample_r1 <= adc_sample_r0;
+                lo_cos_r1 <= lo_cos_r0;
+                lo_sin_r1 <= lo_sin_r0;
             end
         end
     end
 
-    iq_mixer_stage_a #(
-        .SAMPLE_WIDTH(ADC_WIDTH),
-        .LO_WIDTH(16),
-        .OUTPUT_WIDTH(MIXER_WIDTH),
-        .LO_FRAC_BITS(14)
-    ) iq_mixer_inst (
-        .clk_125m(clk_125m),
-        .rst_125m(rst_125m),
-        .in_valid(mixer_input_valid_r),
-        .sample_in(adc_sample_r),
-        .cos_in(lo_cos_r),
-        .sin_in(lo_sin_r),
-        .out_valid(mixer_valid),
-        .i_out(mixer_i),
-        .q_out(mixer_q)
+    input_multiplier input_multiplier_i_inst (
+        .CLK(clk_125m),
+        .A(adc_sample_r1),
+        .B(lo_cos_r1),
+        .P(mixer_i_product)
     );
+
+    input_multiplier input_multiplier_q_inst (
+        .CLK(clk_125m),
+        .A(adc_sample_r1),
+        .B(-lo_sin_r1),
+        .P(mixer_q_product)
+    );
+
+    assign mixer_i_rounded = (mixer_i_product + 32'sd16384) >>> 15;
+    assign mixer_q_rounded = (mixer_q_product + 32'sd16384) >>> 15;
+    assign mixer_i = {{(MIXER_WIDTH-16){mixer_i_rounded[15]}}, mixer_i_rounded};
+    assign mixer_q = {{(MIXER_WIDTH-16){mixer_q_rounded[15]}}, mixer_q_rounded};
+    assign mixer_valid = mixer_input_valid_r1;
 
     post_iq_cic_stage_a #(
         .INPUT_WIDTH(MIXER_WIDTH),
@@ -162,8 +204,25 @@ module dpll_single_clock_core_stage_a #(
         .illegal_config_seen(cic_illegal_config_seen)
     );
 
-    assign phase_error_next = q_baseband[CIC_WIDTH-1 -: PHASE_WIDTH];
-    assign phase_error = phase_error_next;
+    angle_CORDIC phase_cordic_inst (
+        .aclk(clk_125m),
+        .s_axis_cartesian_tvalid(iq_valid),
+        .s_axis_cartesian_tdata({q_baseband[CIC_WIDTH-1 -: 16], i_baseband[CIC_WIDTH-1 -: 16]}),
+        .m_axis_dout_tvalid(cordic_valid),
+        .m_axis_dout_tdata(cordic_data)
+    );
+
+    assign cordic_phase = cordic_data[31:16];
+    assign cordic_magnitude = cordic_data[15:0];
+    always @(posedge clk_125m) begin
+        if (rst_125m) begin
+            phase_error_hold <= {PHASE_WIDTH{1'b0}};
+        end else if (cordic_valid) begin
+            phase_error_hold <= {cordic_phase, 2'b00};
+        end
+    end
+
+    assign phase_error = phase_error_hold;
 
     fll_phase_difference_stage_a #(
         .PHASE_WIDTH(PHASE_WIDTH),
@@ -171,8 +230,8 @@ module dpll_single_clock_core_stage_a #(
     ) fll_phase_difference_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_125m),
-        .phase_valid(iq_valid),
-        .phase_in(phase_error_next),
+        .phase_valid(cordic_valid),
+        .phase_in({cordic_phase, 2'b00}),
         .delay_sel(fll_delay_sel),
         .freq_error_valid(freq_error_valid),
         .freq_error(freq_error),
@@ -193,7 +252,7 @@ module dpll_single_clock_core_stage_a #(
         .enable_fll(loop_enable),
         .enable_pll_i(loop_enable),
         .enable_pll_p(loop_enable),
-        .phase_error(phase_error_next),
+        .phase_error(phase_error_hold),
         .freq_error(freq_error),
         .kf(kf),
         .ki(ki),

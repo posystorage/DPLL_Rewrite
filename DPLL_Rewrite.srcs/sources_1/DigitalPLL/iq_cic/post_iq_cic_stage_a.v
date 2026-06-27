@@ -126,7 +126,7 @@ module post_iq_cic_stage_a #(
     end
 
     always @(posedge clk_125m) begin
-        if (rst_125m || flush || config_apply) begin
+        if (rst_125m || flush || (config_apply && apply_is_legal)) begin
             i_int0 <= {ACC_WIDTH{1'b0}};
             i_int1 <= {ACC_WIDTH{1'b0}};
             i_int2 <= {ACC_WIDTH{1'b0}};

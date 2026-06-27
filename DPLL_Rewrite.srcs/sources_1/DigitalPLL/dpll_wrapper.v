@@ -210,7 +210,10 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(1), .REGISTER_DEFAULT_VALU
 assign pll0_lock = pll0_lock_i;
 
 wire rst_125m_stage_a;
-wire sample_3m125_valid_stage_a;
+wire sample_3m125_valid_stage_a_unused;
+wire [15:0] pre_cic_sample;
+wire        pre_cic_valid;
+wire        pre_cic_ready;
 
 dpll_clock_valid_stage_a #(
     .G_SAMPLE_DIV(40)
@@ -219,7 +222,16 @@ dpll_clock_valid_stage_a #(
     .rst_n_async(rst),
     .sw_reset_pulse(ok_reset),
     .rst_125m(rst_125m_stage_a),
-    .sample_valid(sample_3m125_valid_stage_a)
+    .sample_valid(sample_3m125_valid_stage_a_unused)
+);
+
+cic_compiler_0 pre_iq_cic_40_inst (
+    .aclk(clk1),
+    .s_axis_data_tdata(ADCraw0),
+    .s_axis_data_tvalid(~rst_125m_stage_a),
+    .s_axis_data_tready(pre_cic_ready),
+    .m_axis_data_tdata(pre_cic_sample),
+    .m_axis_data_tvalid(pre_cic_valid)
 );
 
 wire [47:0] dpll_tracking_word;
@@ -248,9 +260,9 @@ wire        config_apply_pulse = ok_reset | config_apply_flag;
 dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .clk_125m(clk1),
     .rst_125m(rst_125m_stage_a),
-    .sample_valid(sample_3m125_valid_stage_a),
+    .sample_valid(pre_cic_valid),
     .loop_enable(pll0_lock),
-    .adc_sample(ADCraw0),
+    .adc_sample(pre_cic_sample),
     .center_word({Centre_Freq, 16'h0000}),
     .config_apply(config_apply_pulse),
     .cic_rate_r(post_iq_cic_rate_r),
@@ -288,7 +300,7 @@ wire [15:0] vco_mul_safe = (VCO_Mul_Factor0 == 16'h0000) ? 16'h0001 : VCO_Mul_Fa
 
 PLL_VCO_MUL_DIV PLL_VCO_MUL_DIV_inst (
     .clk(clk1),
-    .sample_valid(sample_3m125_valid_stage_a),
+    .sample_valid(dpll_tracking_valid),
     .data_in(vco_tracking_word),
     .data_out(VCO_Input0),
     .PLL_Mul_factor(vco_mul_safe),

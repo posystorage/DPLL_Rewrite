@@ -2,14 +2,22 @@ $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $VivadoBin = 'D:\Xilinx\Vivado\2018.3\bin'
-$OutDir = Join-Path $RepoRoot 'reports\xsim\single_clock_core_stage_a_cli'
+$RunStamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
+$OutDir = Join-Path $RepoRoot "reports\xsim\single_clock_core_stage_a_cli_$RunStamp"
 
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 Push-Location $OutDir
 
 try {
+    $snapshot = 'dpll_single_clock_core_stage_a_tb'
+    $vhdl = @(
+        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\Freq_Meter\DDC\ip\LO_DDS_H\synth\LO_DDS_H.vhd'
+        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\DDC\ip\input_multiplier\sim\input_multiplier.vhd'
+        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\DDC\ip\angle_CORDIC\sim\angle_CORDIC.vhd'
+    )
     $rtl = @(
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\frontend\tracking_phase_accumulator_stage_a.v'
+        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\frontend\dc_blocker_valid_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\frontend\iq_mixer_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\iq_cic\post_iq_cic_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\detector_fll\fll_phase_difference_stage_a.v'
@@ -18,13 +26,24 @@ try {
         Join-Path $RepoRoot 'verification\rtl\dpll_single_clock_core_stage_a_tb.v'
     )
 
+    & (Join-Path $VivadoBin 'xvhdl.bat') $vhdl
+    if ($LASTEXITCODE -ne 0) { throw "xvhdl failed with exit code $LASTEXITCODE" }
+
     & (Join-Path $VivadoBin 'xvlog.bat') $rtl
     if ($LASTEXITCODE -ne 0) { throw "xvlog failed with exit code $LASTEXITCODE" }
 
-    & (Join-Path $VivadoBin 'xelab.bat') dpll_single_clock_core_stage_a_tb -snapshot dpll_single_clock_core_stage_a_tb
-    if ($LASTEXITCODE -ne 0) { throw "xelab failed with exit code $LASTEXITCODE" }
+    $xelabLog = Join-Path $OutDir 'xelab_stdout.log'
+    & (Join-Path $VivadoBin 'xelab.bat') dpll_single_clock_core_stage_a_tb -snapshot $snapshot 2>&1 |
+        Tee-Object -FilePath $xelabLog
+    $xelabExit = $LASTEXITCODE
+    $xelabText = Get-Content -LiteralPath $xelabLog -Raw
+    $snapshotBuilt = $xelabText -match "Built simulation snapshot $snapshot"
+    $cleanupOnly = $xelabText -match 'Could not remove the obj directory'
+    if ($xelabExit -ne 0 -and -not ($snapshotBuilt -and $cleanupOnly)) {
+        throw "xelab failed with exit code $xelabExit"
+    }
 
-    & (Join-Path $VivadoBin 'xsim.bat') dpll_single_clock_core_stage_a_tb -runall -log xsim.log
+    & (Join-Path $VivadoBin 'xsim.bat') $snapshot -runall -log xsim.log
     if ($LASTEXITCODE -ne 0) { throw "xsim failed with exit code $LASTEXITCODE" }
 
     $content = Get-Content -LiteralPath (Join-Path $OutDir 'xsim.log') -Raw

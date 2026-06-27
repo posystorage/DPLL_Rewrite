@@ -358,22 +358,22 @@ void CMD_06_READ_PLL_LIMIT_SETTING(void)
 void CMD_07_READ_PLL_PID_SETTING(void)
 {
 	uint32_t i;
-	i = Xil_In32(PLL0_PID_GainP_Addr);
+	i = Xil_In32(DPLL_PLL_KP_TRACK_Addr);
 	Uart0_TX_Buff[4] = i&0xFF;
 	Uart0_TX_Buff[5] = (i>>8)&0xFF;
 	Uart0_TX_Buff[6] = (i>>16)&0xFF;
 	Uart0_TX_Buff[7] = (i>>24)&0xFF;
-	i = Xil_In32(PLL0_PID_GainI_Addr);
+	i = Xil_In32(DPLL_PLL_KI_TRACK_Addr);
 	Uart0_TX_Buff[8] = i&0xFF;
 	Uart0_TX_Buff[9] = (i>>8)&0xFF;
 	Uart0_TX_Buff[10] = (i>>16)&0xFF;
 	Uart0_TX_Buff[11] = (i>>24)&0xFF;
-	i = Xil_In32(PLL0_PID_GainI2_Addr);
+	i = Xil_In32(DPLL_FLL_KF_ACQUIRE_Addr);
 	Uart0_TX_Buff[12] = i&0xFF;
 	Uart0_TX_Buff[13] = (i>>8)&0xFF;
 	Uart0_TX_Buff[14] = (i>>16)&0xFF;
 	Uart0_TX_Buff[15] = (i>>24)&0xFF;
-	i = Xil_In32(PLL0_PID_GainD_Addr);
+	i = Xil_In32(DPLL_FLL_KF_BLEND_Addr);
 	Uart0_TX_Buff[16] = i&0xFF;
 	Uart0_TX_Buff[17] = (i>>8)&0xFF;
 	Uart0_TX_Buff[18] = (i>>16)&0xFF;
@@ -667,10 +667,10 @@ void CMD_86_WRITE_PLL_PID(void)
 	//*((uint32_t*)&STM8_EEPROM_Data[12+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[8]);
 	//*((uint32_t*)&STM8_EEPROM_Data[16+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[12]);
 	//*((uint32_t*)&STM8_EEPROM_Data[20+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[16]);
-    Xil_Out32(PLL0_PID_GainP_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));
-    Xil_Out32(PLL0_PID_GainI_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[8]));
-    Xil_Out32(PLL0_PID_GainI2_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[12]));
-    Xil_Out32(PLL0_PID_GainD_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[16]));
+    Xil_Out32(DPLL_PLL_KP_TRACK_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));
+    Xil_Out32(DPLL_PLL_KI_TRACK_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[8]));
+    Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[12]));
+    Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[16]));
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_87_WRITE_PLL_AMP(void)
@@ -1133,10 +1133,10 @@ void STM_HOST_Write_PLL_Data(void)
 	Xil_Out32(DAC0_Centre_Frequency_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[0]));//中心频率
 	Xil_Out32(VOC_Fre_Mul_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[4]));//MUL
 	Xil_Out32(VOC_Fre_Div_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[6]));//DIV
-    Xil_Out32(PLL0_PID_GainP_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[8]));
-    Xil_Out32(PLL0_PID_GainI_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[12]));
-    Xil_Out32(PLL0_PID_GainI2_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[16]));
-    Xil_Out32(PLL0_PID_GainD_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[20]));
+    Xil_Out32(DPLL_PLL_KP_TRACK_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[8]));
+    Xil_Out32(DPLL_PLL_KI_TRACK_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[12]));
+    Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[16]));
+    Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[20]));
     data = *((uint16_t*)&STM_HOST_CMD_data_Buff[24]);
     Xil_Out32(PID_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
     data = *((uint16_t*)&STM_HOST_CMD_data_Buff[26]);
@@ -1220,12 +1220,12 @@ int main()
     Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,1000);//32Bit
     Xil_Out32(DAC0_Phase_Residuals_Offset_Addr,0);//32Bit
 
-    Xil_Out32(PLL0_PID_GainP_Addr,40000);
-    Xil_Out32(PLL0_PID_GainI_Addr,117200);
-    Xil_Out32(PLL0_PID_GainI2_Addr,78900);//减少残差 加快最后的慢收敛
-    Xil_Out32(PLL0_PID_GainD_Addr,100000);
-    //Xil_Out32(PLL0_Coefd_Filter_Addr,0x0ffff);//18Bit
-    Xil_Out32(PLL0_Coefd_Filter_Addr,0x0002F);//18Bit
+    Xil_Out32(DPLL_PLL_KP_TRACK_Addr,40000);
+    Xil_Out32(DPLL_PLL_KI_TRACK_Addr,117200);
+    Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,78900);//减少残差 加快最后的慢收敛
+    Xil_Out32(DPLL_FLL_KF_BLEND_Addr,100000);
+    //Xil_Out32(DPLL_FLL_KF_TRACK_Addr,0x0ffff);//DPLL_KF_TRACK[23:0]
+    Xil_Out32(DPLL_FLL_KF_TRACK_Addr,0x0002F);//DPLL_KF_TRACK[23:0]
 
 
     Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);//rst;

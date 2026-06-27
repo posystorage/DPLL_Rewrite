@@ -72,16 +72,15 @@
 #define DAC0_DDC_Angle_Select_Addr (DPLL_BASE_ADDR|(0x0011<<2))//4bit angleSelect_0
 
 
-//DPLL v1 loop control. Legacy PID macro names are kept for source compatibility.
+//DPLL v1 loop control.
 #define PLL0_Lock_Ctrl_Addr (DPLL_BASE_ADDR|(0x0020<<2))//1bit
-#define PLL0_PID_GainP_Addr (DPLL_BASE_ADDR|(0x0021<<2))//DPLL_KP[23:0]
-#define PLL0_PID_GainI_Addr (DPLL_BASE_ADDR|(0x0022<<2))//DPLL_KI[23:0]
-#define PLL0_PID_GainI2_Addr (DPLL_BASE_ADDR|(0x0023<<2))//DPLL_KF[23:0]
-#define PLL0_PID_GainD_Addr (DPLL_BASE_ADDR|(0x0024<<2))//reserved compatibility register
-#define PLL0_Coefd_Filter_Addr (DPLL_BASE_ADDR|(0x0025<<2))//reserved compatibility register
-#define DPLL_KP_Addr PLL0_PID_GainP_Addr
-#define DPLL_KI_Addr PLL0_PID_GainI_Addr
-#define DPLL_KF_Addr PLL0_PID_GainI2_Addr
+#define DPLL_PLL_KP_TRACK_Addr (DPLL_BASE_ADDR|(0x0021<<2))//DPLL_KP_TRACK[23:0]
+#define DPLL_PLL_KI_TRACK_Addr (DPLL_BASE_ADDR|(0x0022<<2))//DPLL_KI_TRACK[23:0]
+#define DPLL_FLL_KF_ACQUIRE_Addr (DPLL_BASE_ADDR|(0x0023<<2))//DPLL_KF_ACQUIRE[23:0]
+#define DPLL_FLL_KF_BLEND_Addr (DPLL_BASE_ADDR|(0x0024<<2))//DPLL_KF_BLEND[23:0]
+#define DPLL_FLL_KF_TRACK_Addr (DPLL_BASE_ADDR|(0x0025<<2))//DPLL_KF_TRACK[23:0]
+#define DPLL_PLL_KP_BLEND_Addr (DPLL_BASE_ADDR|(0x0026<<2))//DPLL_KP_BLEND[23:0]
+#define DPLL_PLL_KI_BLEND_Addr (DPLL_BASE_ADDR|(0x0027<<2))//DPLL_KI_BLEND[23:0]
 
 #define PID_Freq_Pos_Limit_Addr (DPLL_BASE_ADDR|(0x0028<<2))//16bit positive_limit_dac0
 #define PID_Freq_Neg_Limit_Addr (DPLL_BASE_ADDR|(0x0029<<2))//16bit negative_limit_dac0
@@ -104,12 +103,19 @@
 #define DAC0_Phase_Residuals_Threshold_Addr (DPLL_BASE_ADDR|(0x0050<<2))//Phase_Residuals 32bit
 #define DAC0_Phase_Residuals_Offset_Addr (DPLL_BASE_ADDR|(0x0051<<2))//Phase_Residuals 32bit
 #define DAC0_Freq_Residuals_Threshold_Addr (DPLL_BASE_ADDR|(0x0052<<2))//Frequency_Residuals 10bit
+#define DPLL_MAG_ENTER_THRESHOLD_Addr (DPLL_BASE_ADDR|(0x0053<<2))
+#define DPLL_MAG_EXIT_THRESHOLD_Addr (DPLL_BASE_ADDR|(0x0054<<2))
+#define DPLL_ACQUIRE_DWELL_Addr (DPLL_BASE_ADDR|(0x0055<<2))
+#define DPLL_BLEND_DWELL_Addr (DPLL_BASE_ADDR|(0x0056<<2))
+#define DPLL_LOSS_DWELL_Addr (DPLL_BASE_ADDR|(0x0057<<2))
+#define DPLL_HOLDOVER_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0058<<2))
 
 //DPLL v1 post-IQ CIC/FLL configuration. R/shift writes are shadowed; write
 //DPLL_CONFIG_APPLY_Addr to atomically apply them in the DPLL clock-valid domain.
 #define DPLL_POST_IQ_CIC_R_Addr (DPLL_BASE_ADDR|(0x0060<<2))
 #define DPLL_POST_IQ_CIC_SHIFT_Addr (DPLL_BASE_ADDR|(0x0061<<2))
 #define DPLL_FLL_DELAY_SEL_Addr (DPLL_BASE_ADDR|(0x0062<<2))
+#define DPLL_WARMUP_SAMPLES_Addr (DPLL_BASE_ADDR|(0x0063<<2))
 #define DPLL_CONFIG_APPLY_Addr (DPLL_BASE_ADDR|(0x006F<<2))
 
 
@@ -126,6 +132,7 @@
 #define PLL0_Output_Limit_Average    (DPLL_BASE_ADDR|(0x0107<<2))//freq_state[31:0]
 
 #define DPLL_CORE_FLAGS_Addr (DPLL_BASE_ADDR|(0x0108<<2))
+#define DPLL_LOOP_STATE_LOSS_REASON_Addr DPLL_CORE_FLAGS_Addr
 #define DPLL_ACTIVE_CIC_CONFIG_Addr (DPLL_BASE_ADDR|(0x0109<<2))
 #define DPLL_TRACKING_WORD_HI_Addr (DPLL_BASE_ADDR|(0x010A<<2))
 #define DPLL_VCO_WORD_LO_Addr (DPLL_BASE_ADDR|(0x010B<<2))

@@ -25,6 +25,20 @@ module dpll_single_clock_core_stage_a #(
     input  wire signed [COEFF_WIDTH-1:0]         kf,
     input  wire signed [COEFF_WIDTH-1:0]         ki,
     input  wire signed [COEFF_WIDTH-1:0]         kp,
+    input  wire signed [COEFF_WIDTH-1:0]         kf_blend,
+    input  wire signed [COEFF_WIDTH-1:0]         kf_track,
+    input  wire signed [COEFF_WIDTH-1:0]         kp_blend,
+    input  wire signed [COEFF_WIDTH-1:0]         ki_blend,
+    input  wire signed [PHASE_WIDTH-1:0]         phase_setpoint,
+    input  wire [PHASE_WIDTH-1:0]                phase_lock_threshold,
+    input  wire [FERR_WIDTH-1:0]                 freq_lock_threshold,
+    input  wire [15:0]                           mag_enter_threshold,
+    input  wire [15:0]                           mag_exit_threshold,
+    input  wire [15:0]                           acquire_dwell,
+    input  wire [15:0]                           blend_dwell,
+    input  wire [15:0]                           loss_dwell,
+    input  wire [23:0]                           holdover_timeout,
+    input  wire [15:0]                           warmup_samples,
     input  wire signed [STATE_WIDTH-1:0]         positive_limit,
     input  wire signed [STATE_WIDTH-1:0]         negative_limit,
     output wire [WORD_WIDTH-1:0]                 tracking_word,
@@ -37,6 +51,13 @@ module dpll_single_clock_core_stage_a #(
     output wire                                  iq_valid,
     output wire signed [STATE_WIDTH-1:0]         freq_state,
     output wire signed [STATE_WIDTH-1:0]         freq_correction,
+    output wire [15:0]                           magnitude,
+    output wire [3:0]                            loop_state,
+    output wire [3:0]                            loss_reason,
+    output wire                                  signal_present,
+    output wire                                  phase_locked,
+    output wire                                  frequency_locked,
+    output wire                                  locked,
     output wire [8:0]                            active_cic_rate_r,
     output wire [5:0]                            active_cic_output_shift,
     output wire                                  cic_overflow_seen,
@@ -73,14 +94,27 @@ module dpll_single_clock_core_stage_a #(
     wire cordic_valid;
     wire [31:0] cordic_data;
     wire signed [15:0] cordic_phase;
-    wire signed [15:0] cordic_magnitude;
+    wire [15:0] cordic_magnitude;
+    wire signed [PHASE_WIDTH-1:0] cordic_phase_word;
+    wire signed [PHASE_WIDTH-1:0] phase_error_next;
+    wire [PHASE_WIDTH-1:0] phase_abs;
+    wire [FERR_WIDTH-1:0] freq_abs;
     reg signed [PHASE_WIDTH-1:0] phase_error_hold;
     wire correction_valid;
     wire [WORD_WIDTH-1:0] correction_tracking_word;
+    wire loop_enable_fll;
+    wire loop_enable_pll_i;
+    wire loop_enable_pll_p;
+    wire signed [COEFF_WIDTH-1:0] active_kf;
+    wire signed [COEFF_WIDTH-1:0] active_ki;
+    wire signed [COEFF_WIDTH-1:0] active_kp;
+    wire saturated_high;
+    wire saturated_low;
 
     assign nco_word = tracking_word_hold;
     assign tracking_word = tracking_word_hold;
     assign tracking_valid = correction_valid;
+    assign magnitude = cordic_magnitude;
 
     always @(posedge clk_125m) begin
         if (rst_125m) begin
@@ -214,15 +248,72 @@ module dpll_single_clock_core_stage_a #(
 
     assign cordic_phase = cordic_data[31:16];
     assign cordic_magnitude = cordic_data[15:0];
+    assign cordic_phase_word = {cordic_phase, 2'b00};
+    assign phase_error_next = cordic_phase_word - phase_setpoint;
+    assign phase_abs = phase_error_hold[PHASE_WIDTH-1] ?
+                       (~phase_error_hold + {{(PHASE_WIDTH-1){1'b0}}, 1'b1}) :
+                       phase_error_hold;
+    assign freq_abs = freq_error[FERR_WIDTH-1] ?
+                      (~freq_error + {{(FERR_WIDTH-1){1'b0}}, 1'b1}) :
+                      freq_error;
+
     always @(posedge clk_125m) begin
         if (rst_125m) begin
             phase_error_hold <= {PHASE_WIDTH{1'b0}};
         end else if (cordic_valid) begin
-            phase_error_hold <= {cordic_phase, 2'b00};
+            phase_error_hold <= phase_error_next;
         end
     end
 
     assign phase_error = phase_error_hold;
+
+    loop_state_manager_stage_a #(
+        .PHASE_WIDTH(PHASE_WIDTH),
+        .FERR_WIDTH(FERR_WIDTH),
+        .MAG_WIDTH(16),
+        .COEFF_WIDTH(COEFF_WIDTH),
+        .DWELL_WIDTH(16),
+        .TIMEOUT_WIDTH(24)
+    ) loop_state_manager_inst (
+        .clk_125m(clk_125m),
+        .rst_125m(rst_125m),
+        .loop_enable(loop_enable),
+        .config_apply(config_apply),
+        .measurement_valid(cordic_valid),
+        .phase_abs(phase_abs),
+        .freq_abs(freq_abs),
+        .magnitude(cordic_magnitude),
+        .cic_fault(cic_illegal_config_seen),
+        .correction_saturated(saturated_high | saturated_low),
+        .phase_lock_threshold(phase_lock_threshold),
+        .freq_lock_threshold(freq_lock_threshold),
+        .mag_enter_threshold(mag_enter_threshold),
+        .mag_exit_threshold(mag_exit_threshold),
+        .acquire_dwell(acquire_dwell),
+        .blend_dwell(blend_dwell),
+        .loss_dwell(loss_dwell),
+        .holdover_timeout(holdover_timeout),
+        .warmup_samples(warmup_samples),
+        .kf_acquire(kf),
+        .kf_blend(kf_blend),
+        .kf_track(kf_track),
+        .kp_blend(kp_blend),
+        .ki_blend(ki_blend),
+        .kp_track(kp),
+        .ki_track(ki),
+        .enable_fll(loop_enable_fll),
+        .enable_pll_i(loop_enable_pll_i),
+        .enable_pll_p(loop_enable_pll_p),
+        .active_kf(active_kf),
+        .active_ki(active_ki),
+        .active_kp(active_kp),
+        .loop_state(loop_state),
+        .loss_reason(loss_reason),
+        .signal_present(signal_present),
+        .phase_locked(phase_locked),
+        .frequency_locked(frequency_locked),
+        .locked(locked)
+    );
 
     fll_phase_difference_stage_a #(
         .PHASE_WIDTH(PHASE_WIDTH),
@@ -231,7 +322,7 @@ module dpll_single_clock_core_stage_a #(
         .clk_125m(clk_125m),
         .rst_125m(rst_125m),
         .phase_valid(cordic_valid),
-        .phase_in({cordic_phase, 2'b00}),
+        .phase_in(phase_error_next),
         .delay_sel(fll_delay_sel),
         .freq_error_valid(freq_error_valid),
         .freq_error(freq_error),
@@ -249,14 +340,14 @@ module dpll_single_clock_core_stage_a #(
         .clk_125m(clk_125m),
         .rst_125m(rst_125m),
         .error_valid(freq_error_valid),
-        .enable_fll(loop_enable),
-        .enable_pll_i(loop_enable),
-        .enable_pll_p(loop_enable),
+        .enable_fll(loop_enable_fll),
+        .enable_pll_i(loop_enable_pll_i),
+        .enable_pll_p(loop_enable_pll_p),
         .phase_error(phase_error_hold),
         .freq_error(freq_error),
-        .kf(kf),
-        .ki(ki),
-        .kp(kp),
+        .kf(active_kf),
+        .ki(active_ki),
+        .kp(active_kp),
         .center_word(center_word),
         .positive_limit(positive_limit),
         .negative_limit(negative_limit),
@@ -264,8 +355,8 @@ module dpll_single_clock_core_stage_a #(
         .freq_state(freq_state),
         .freq_correction(freq_correction),
         .tracking_word(correction_tracking_word),
-        .saturated_high(),
-        .saturated_low()
+        .saturated_high(saturated_high),
+        .saturated_low(saturated_low)
     );
 
 endmodule

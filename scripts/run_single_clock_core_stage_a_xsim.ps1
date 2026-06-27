@@ -21,6 +21,7 @@ try {
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\frontend\iq_mixer_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\iq_cic\post_iq_cic_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\detector_fll\fll_phase_difference_stage_a.v'
+        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\hybrid_loop\loop_state_manager_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\hybrid_loop\hybrid_fll_pll_filter_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\core\dpll_single_clock_core_stage_a.v'
         Join-Path $RepoRoot 'verification\rtl\dpll_single_clock_core_stage_a_tb.v'

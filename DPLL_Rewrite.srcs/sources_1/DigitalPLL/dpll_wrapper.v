@@ -34,6 +34,10 @@ localparam [31:0] DEFAULT_FREQ_MUL  = 32'h0000_0001;
 localparam [31:0] DEFAULT_FREQ_DIV  = 32'h0000_0001;
 localparam [31:0] DEFAULT_PHASE_THR = 32'h0000_7FFF;
 localparam [31:0] DEFAULT_FREQ_THR  = 32'h0000_7FFF;
+localparam [31:0] DEFAULT_MAG_ENTER = 32'h0000_0100;
+localparam [31:0] DEFAULT_MAG_EXIT  = 32'h0000_0040;
+localparam [31:0] DEFAULT_DWELL     = 32'h0000_0004;
+localparam [31:0] DEFAULT_HOLDOVER  = 32'h0000_0400;
 
 wire [15:0] cmd_addr;
 wire [31:0] cmd_datain;
@@ -51,8 +55,10 @@ wire        pll0_lock;
 wire [31:0] pll0_gainp;
 wire [31:0] pll0_gaini;
 wire [31:0] pll0_gainii;
-wire [31:0] pll0_gaind;
-wire [17:0] pll0_coefdfilter;
+wire [31:0] fll_kf_blend;
+wire [31:0] fll_kf_track;
+wire [31:0] pll_kp_blend;
+wire [31:0] pll_ki_blend;
 wire signed [31:0] positive_limit_dac0;
 wire signed [31:0] negative_limit_dac0;
 wire signed [31:0] manual_offset_dac0;
@@ -67,17 +73,21 @@ wire [31:0] debug_dac_format;
 wire [31:0] Phase_Residuals_Threshold0;
 wire [31:0] Phase_Residuals_Offset0;
 wire [31:0] Freq_Residuals_Threshold0;
+wire [31:0] Magnitude_Enter_Threshold0;
+wire [31:0] Magnitude_Exit_Threshold0;
+wire [31:0] Acquire_Dwell0;
+wire [31:0] Blend_Dwell0;
+wire [31:0] Loss_Dwell0;
+wire [31:0] Holdover_Timeout0;
 wire [8:0]  post_iq_cic_rate_r;
 wire [5:0]  post_iq_cic_shift;
 wire [1:0]  fll_delay_sel;
+wire [15:0] warmup_samples;
 wire        config_apply_flag;
 
 wire unused_sys_sel = |sys_sel;
 wire unused_adc1 = |ADCraw1;
 wire unused_angle = |angleSelect_0;
-wire unused_gaind = |pll0_gaind;
-wire unused_coef = |pll0_coefdfilter;
-wire unused_phase_offset = |Phase_Residuals_Offset0;
 wire unused_debug_format = |debug_dac_format;
 
 parallel_bus_register_32bits_or_less #(
@@ -141,11 +151,17 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VAL
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(8), .ADDRESS(16'h0023)) reg_kf (
     .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll0_gainii), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0024)) reg_gain_d_compat (
-    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll0_gaind), .update_flag()
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(4), .ADDRESS(16'h0024)) reg_kf_blend (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(fll_kf_blend), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(18), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0025)) reg_coef_compat (
-    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll0_coefdfilter), .update_flag()
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(1), .ADDRESS(16'h0025)) reg_kf_track (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(fll_kf_track), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(2), .ADDRESS(16'h0026)) reg_kp_blend (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll_kp_blend), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(1), .ADDRESS(16'h0027)) reg_ki_blend (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll_ki_blend), .update_flag()
 );
 
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_POS_LIMIT), .ADDRESS(16'h0028)) reg_pos_limit (
@@ -193,6 +209,24 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VAL
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_FREQ_THR), .ADDRESS(16'h0052)) reg_freq_thr (
     .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Freq_Residuals_Threshold0), .update_flag()
 );
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_MAG_ENTER), .ADDRESS(16'h0053)) reg_mag_enter (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Magnitude_Enter_Threshold0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_MAG_EXIT), .ADDRESS(16'h0054)) reg_mag_exit (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Magnitude_Exit_Threshold0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_DWELL), .ADDRESS(16'h0055)) reg_acquire_dwell (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Acquire_Dwell0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_DWELL), .ADDRESS(16'h0056)) reg_blend_dwell (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Blend_Dwell0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_DWELL), .ADDRESS(16'h0057)) reg_loss_dwell (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Loss_Dwell0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_HOLDOVER), .ADDRESS(16'h0058)) reg_holdover_timeout (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Holdover_Timeout0), .update_flag()
+);
 
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(9), .REGISTER_DEFAULT_VALUE(8), .ADDRESS(16'h0060)) reg_cic_rate (
     .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(post_iq_cic_rate_r), .update_flag()
@@ -202,6 +236,9 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(6), .REGISTER_DEFAULT_VALU
 );
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(2), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0062)) reg_fll_delay (
     .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(fll_delay_sel), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(4), .ADDRESS(16'h0063)) reg_warmup_samples (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(warmup_samples), .update_flag()
 );
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(1), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h006F)) reg_config_apply (
     .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(), .update_flag(config_apply_flag)
@@ -244,6 +281,13 @@ wire signed [19:0] dpll_q_baseband;
 wire        dpll_iq_valid;
 wire signed [55:0] dpll_freq_state;
 wire signed [55:0] dpll_freq_correction;
+wire [15:0] dpll_magnitude;
+wire [3:0]  dpll_loop_state;
+wire [3:0]  dpll_loss_reason;
+wire        dpll_signal_present;
+wire        dpll_phase_locked;
+wire        dpll_frequency_locked;
+wire        dpll_locked;
 wire [8:0]  dpll_active_cic_rate_r;
 wire [5:0]  dpll_active_cic_shift;
 wire        dpll_cic_overflow;
@@ -272,6 +316,20 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .kf(pll0_gainii[23:0]),
     .ki(pll0_gaini[23:0]),
     .kp(pll0_gainp[23:0]),
+    .kf_blend(fll_kf_blend[23:0]),
+    .kf_track(fll_kf_track[23:0]),
+    .kp_blend(pll_kp_blend[23:0]),
+    .ki_blend(pll_ki_blend[23:0]),
+    .phase_setpoint(Phase_Residuals_Offset0[17:0]),
+    .phase_lock_threshold(Phase_Residuals_Threshold0[17:0]),
+    .freq_lock_threshold(Freq_Residuals_Threshold0[21:0]),
+    .mag_enter_threshold(Magnitude_Enter_Threshold0[15:0]),
+    .mag_exit_threshold(Magnitude_Exit_Threshold0[15:0]),
+    .acquire_dwell(Acquire_Dwell0[15:0]),
+    .blend_dwell(Blend_Dwell0[15:0]),
+    .loss_dwell(Loss_Dwell0[15:0]),
+    .holdover_timeout(Holdover_Timeout0[23:0]),
+    .warmup_samples(warmup_samples),
     .positive_limit(correction_limit_pos),
     .negative_limit(correction_limit_neg),
     .tracking_word(dpll_tracking_word),
@@ -284,6 +342,13 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .iq_valid(dpll_iq_valid),
     .freq_state(dpll_freq_state),
     .freq_correction(dpll_freq_correction),
+    .magnitude(dpll_magnitude),
+    .loop_state(dpll_loop_state),
+    .loss_reason(dpll_loss_reason),
+    .signal_present(dpll_signal_present),
+    .phase_locked(dpll_phase_locked),
+    .frequency_locked(dpll_frequency_locked),
+    .locked(dpll_locked),
     .active_cic_rate_r(dpll_active_cic_rate_r),
     .active_cic_output_shift(dpll_active_cic_shift),
     .cic_overflow_seen(dpll_cic_overflow),
@@ -346,6 +411,8 @@ function signed [31:0] debug_source_mux;
             4'h6: debug_source_mux = {{12{dpll_q_baseband[19]}}, dpll_q_baseband};
             4'h7: debug_source_mux = {{16{dpll_lo_cos[15]}}, dpll_lo_cos};
             4'h8: debug_source_mux = {{16{dpll_lo_sin[15]}}, dpll_lo_sin};
+            4'h9: debug_source_mux = {16'h0000, dpll_magnitude};
+            4'hA: debug_source_mux = {28'h0, dpll_loop_state};
             default: debug_source_mux = {{14{dpll_phase_error[17]}}, dpll_phase_error};
         endcase
     end
@@ -360,13 +427,11 @@ assign DACout1 = debug_shifted[31] ?
 
 wire [31:0] phase_abs = abs18_extend(dpll_phase_error);
 wire [31:0] freq_abs = abs22_extend(dpll_freq_error);
-wire residuals0_are_above_threshold_phase = phase_abs > Phase_Residuals_Threshold0;
-wire residuals0_are_above_threshold_freq = freq_abs > Freq_Residuals_Threshold0;
+wire residuals0_are_above_threshold_phase = ~dpll_phase_locked;
+wire residuals0_are_above_threshold_freq = ~dpll_frequency_locked;
 wire dac0_railed_positive = dpll_freq_correction >= correction_limit_pos;
 wire dac0_railed_negative = dpll_freq_correction <= correction_limit_neg;
-wire pll0_locked_instant = pll0_lock & ~(residuals0_are_above_threshold_phase |
-                                          residuals0_are_above_threshold_freq |
-                                          dpll_cic_illegal);
+wire pll0_locked_instant = dpll_locked;
 reg residuals0_are_above_threshold;
 reg LED_G0;
 reg LED_R0;
@@ -382,13 +447,13 @@ always @(posedge clk1) begin
         residuals0_are_above_threshold <= residuals0_are_above_threshold_phase |
                                            residuals0_are_above_threshold_freq;
         status_counter <= status_counter + 24'h1;
-        LED_G0 <= pll0_locked_instant;
-        LED_R0 <= ~pll0_locked_instant;
+        LED_G0 <= dpll_locked;
+        LED_R0 <= ~dpll_locked;
     end
 end
 
-assign led = {status_counter[23], dpll_cic_illegal, dpll_cic_overflow, pll0_lock,
-              pll0_locked_instant, LED_R0, LED_G0};
+assign led = {status_counter[23], dpll_cic_illegal, dpll_cic_overflow, dpll_signal_present,
+              dpll_locked, LED_R0, LED_G0};
 
 always @(posedge clk1) begin
     if (rst == 1'b0) begin
@@ -407,8 +472,10 @@ always @(posedge clk1) begin
                 16'h0021: sys_rdata <= pll0_gainp;
                 16'h0022: sys_rdata <= pll0_gaini;
                 16'h0023: sys_rdata <= pll0_gainii;
-                16'h0024: sys_rdata <= pll0_gaind;
-                16'h0025: sys_rdata <= {14'h0, pll0_coefdfilter};
+                16'h0024: sys_rdata <= fll_kf_blend;
+                16'h0025: sys_rdata <= fll_kf_track;
+                16'h0026: sys_rdata <= pll_kp_blend;
+                16'h0027: sys_rdata <= pll_ki_blend;
                 16'h0028: sys_rdata <= positive_limit_dac0;
                 16'h0029: sys_rdata <= effective_negative_limit_dac0;
                 16'h002A: sys_rdata <= manual_offset_dac0;
@@ -423,9 +490,16 @@ always @(posedge clk1) begin
                 16'h0050: sys_rdata <= Phase_Residuals_Threshold0;
                 16'h0051: sys_rdata <= Phase_Residuals_Offset0;
                 16'h0052: sys_rdata <= Freq_Residuals_Threshold0;
+                16'h0053: sys_rdata <= Magnitude_Enter_Threshold0;
+                16'h0054: sys_rdata <= Magnitude_Exit_Threshold0;
+                16'h0055: sys_rdata <= Acquire_Dwell0;
+                16'h0056: sys_rdata <= Blend_Dwell0;
+                16'h0057: sys_rdata <= Loss_Dwell0;
+                16'h0058: sys_rdata <= Holdover_Timeout0;
                 16'h0060: sys_rdata <= {23'h0, post_iq_cic_rate_r};
                 16'h0061: sys_rdata <= {26'h0, post_iq_cic_shift};
                 16'h0062: sys_rdata <= {30'h0, fll_delay_sel};
+                16'h0063: sys_rdata <= {16'h0, warmup_samples};
                 16'h006F: sys_rdata <= 32'h0000_0000;
                 16'h0100: sys_rdata <= {24'h0, residuals0_are_above_threshold,
                                           residuals0_are_above_threshold_freq,
@@ -433,15 +507,17 @@ always @(posedge clk1) begin
                                           dac0_railed_negative,
                                           dac0_railed_positive,
                                           pll0_locked_instant, LED_R0, LED_G0};
-                16'h0101: sys_rdata <= {12'h0, dpll_i_baseband[19] ? (~dpll_i_baseband + 20'd1) : dpll_i_baseband} +
-                                        {12'h0, dpll_q_baseband[19] ? (~dpll_q_baseband + 20'd1) : dpll_q_baseband};
+                16'h0101: sys_rdata <= {16'h0, dpll_magnitude};
                 16'h0102: sys_rdata <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
                 16'h0103: sys_rdata <= {{10{dpll_freq_error[21]}}, dpll_freq_error};
                 16'h0104: sys_rdata <= dpll_freq_correction[31:0];
                 16'h0105: sys_rdata <= dpll_tracking_word[31:0];
                 16'h0106: sys_rdata <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
                 16'h0107: sys_rdata <= dpll_freq_state[31:0];
-                16'h0108: sys_rdata <= {27'h0, dpll_tracking_valid, dpll_freq_error_valid,
+                16'h0108: sys_rdata <= {15'h0, dpll_loop_state, dpll_loss_reason,
+                                          dpll_signal_present, dpll_phase_locked,
+                                          dpll_frequency_locked, dpll_locked,
+                                          dpll_tracking_valid, dpll_freq_error_valid,
                                           dpll_iq_valid, dpll_cic_illegal, dpll_cic_overflow};
                 16'h0109: sys_rdata <= {17'h0, dpll_active_cic_shift, dpll_active_cic_rate_r};
                 16'h010A: sys_rdata <= {16'h0, dpll_tracking_word[47:32]};

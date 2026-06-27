@@ -270,7 +270,6 @@ wire                  pll_dac_clk_1x;
 wire                  pll_dac_clk_2x;
 wire                  pll_dac_clk_2p;
 wire                  pll_clk_adc_2x;
-wire                  pll_dpll_clk_div10;
 wire                  pll_locked;
 
 // fast serial signals
@@ -295,10 +294,6 @@ reg          [14-1:0] dac_dat_a, dac_dat_b;
 wire         [14-1:0] dac_a    , dac_b    ;
 wire  signed [15-1:0] dac_a_sum, dac_b_sum;
 
-//DPLL signals
-wire                  DPLL_clk ;
-reg                  pll_dpll_clk_div20;
-reg                  pll_dpll_clk_div40;
 
 // ASG
 wire  signed [14-1:0] asg_a    , asg_b    ;
@@ -326,34 +321,15 @@ red_pitaya_pll pll (
   .clk_dac_2x  (pll_dac_clk_2x),  // DAC clock 250MHz
   .clk_dac_2p  (pll_dac_clk_2p),  // DAC clock 250MHz -45DGR
   .clk_adc_2x  (pll_clk_adc_2x),  // fast serial clock
-  .clk_DPLL_Div10 (pll_dpll_clk_div10),  // DPLL clock 125MHz/40=3.125MHz
   // status outputs
   .pll_locked  (pll_locked)
 );
-
-always @(posedge pll_dpll_clk_div10)
-if (frstn[0] == 1'b0) begin
-    pll_dpll_clk_div20 <= 1'b0;
-end
-else
-begin
-    pll_dpll_clk_div20<=~pll_dpll_clk_div20;
-end
-always @(posedge pll_dpll_clk_div20)
-if (frstn[0] == 1'b0) begin
-    pll_dpll_clk_div40 <= 1'b0;
-end
-else
-begin
-    pll_dpll_clk_div40<=~pll_dpll_clk_div40;
-end
 
 BUFG bufg_adc_clk    (.O (adc_clk   ), .I (pll_adc_clk   ));
 BUFG bufg_dac_clk_1x (.O (dac_clk_1x), .I (pll_dac_clk_1x));
 BUFG bufg_dac_clk_2x (.O (dac_clk_2x), .I (pll_dac_clk_2x));
 BUFG bufg_dac_clk_2p (.O (dac_clk_2p), .I (pll_dac_clk_2p));
 BUFG bufg_ser_clk    (.O (adc_clk_2x), .I (pll_clk_adc_2x));
-BUFG bufg_dpll_clk    (.O (DPLL_clk), .I (pll_dpll_clk_div40));
 //BUFG bufg_pwm_clk    (.O (pwm_clk   ), .I (pll_pwm_clk   ));
 assign pwm_clk = adc_clk_2x;
 
@@ -475,8 +451,6 @@ assign ADCraw1 = {adc_b, 2'b0};
 dpll_wrapper dpll_wrapper_inst (
   
   .clk1                    (  adc_clk                    ), // global clock, designed for 100 MHz clock rate
-  .clk1_timesN             (  adc_clk_2x                 ), // this should be N times the clock, phase-locked to clk1, N matching what was input in the FIR compiler for fir_compiler_minimumphase_N_times_clk
-  .clk_dpll                (  DPLL_clk                   ),
   .rst                     (  adc_rstn                   ), // 低有效
 
   // analog data input/output interface
@@ -505,7 +479,7 @@ dpll_wrapper dpll_wrapper_inst (
 
 Digital_Freq_Meter Digital_Freq_Meter_inst (
   .clk1                    (  adc_clk                    ), // global clock, designed for 100 MHz clock rate
-  .clk1_timesN             (  adc_clk_2x                 ), // this should be N times the clock, phase-locked to clk1, N matching what was input in the FIR compiler for fir_compiler_minimumphase_N_times_clk
+  .clk1_timesN             (  adc_clk_2x                 ), // 2x clock for the frequency-meter FIR path
   //.clk_10M_ref             (  ref_10m_clk_in             ),//10MHz标准参考时钟
   .rst                     (  adc_rstn                   ), // 低有效
 

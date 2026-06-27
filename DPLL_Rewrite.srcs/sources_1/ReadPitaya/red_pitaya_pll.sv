@@ -20,7 +20,6 @@ module red_pitaya_pll (
   output logic clk_dac_2x,  // DAC clock
   output logic clk_dac_2p,  // DAC clock
   output logic clk_adc_2x,  // 2x ADC clock
-  output logic clk_DPLL_Div10   ,  // DPLL Slow clock 用于低速鉴相器
   // status outputs
   output logic pll_locked
 );
@@ -62,7 +61,7 @@ PLLE2_ADV #(
    .CLKOUT2      (clk_dac_2x),
    .CLKOUT3      (clk_dac_2p),
    .CLKOUT4      (clk_adc_2x),
-   .CLKOUT5      (clk_DPLL_Div10   ),
+   .CLKOUT5      (     ),
    // Input clock control
    .CLKFBIN      (clk_fb_in ),
    .CLKIN1       (clk       ),

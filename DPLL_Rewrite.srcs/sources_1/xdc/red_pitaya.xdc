@@ -220,7 +220,4 @@ create_clock -period 4.000 -name rx_clk  [get_ports daisy_p_i[1]]
 #set_false_path -from [get_clocks dac_clk_out] -to [get_clocks dac_2clk_out]
 #set_false_path -from [get_clocks dac_clk_out] -to [get_clocks dac_2ph_out]
 
-create_generated_clock -name DPLL_clk -source [get_ports adc_clk_p_i] -divide_by 40 [get_nets DPLL_clk]
-
-create_generated_clock -name pll_dpll_clk_div20 -source [get_ports adc_clk_p_i] -divide_by 20 [get_nets pll_dpll_clk_div20]
 create_generated_clock -name dna_clk -source [get_ports adc_clk_p_i] -divide_by 8 [get_nets -hierarchical dna_clk]

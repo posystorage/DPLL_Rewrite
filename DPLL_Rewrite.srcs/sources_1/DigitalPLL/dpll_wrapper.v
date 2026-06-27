@@ -1,111 +1,218 @@
 // Digital-PLL wrapper
-// JDD 2016
+// Single-clock active DPLL path, ABI v1 compatible register shell.
 
-`default_nettype none   // This disables implicit variable declaration, which I really don't like as a feature as it lets bugs go unreported
+`default_nettype none
 
 module dpll_wrapper(
-
-    
-    input  wire               clk1,         // global clock, designed for 125 MHz clock rate
-    input  wire               clk1_timesN,  //3.125MHZ*16=50M this should be N times the clock, phase-locked to clk1, N matching what was input in the FIR compiler for fir_compiler_minimumphase_N_times_clk
-    input  wire               clk_dpll,  //dpll clock 3.125MHz
+    input  wire               clk1,
     input  wire               rst,
 
-    // analog data input/output interface
     input  wire signed [15:0] ADCraw0,
     input  wire signed [15:0] ADCraw1,
     output wire signed [15:0] DACout0,
     output wire signed [15:0] DACout1,
 
-    // Data logger port:
-//    output wire [16-1:0]      LoggerData,
-//    output wire               LoggerData_clk_enable,
-//    input  wire               LoggerIsWriting,
+    input  wire [31:0]        sys_addr,
+    input  wire [31:0]        sys_wdata,
+    input  wire [3:0]         sys_sel,
+    input  wire               sys_wen,
+    input  wire               sys_ren,
+    output reg  [31:0]        sys_rdata,
+    output reg                sys_err,
+    output reg                sys_ack,
 
-    // System bus
-    input  wire [ 32-1:0]     sys_addr   ,  // bus address
-    input  wire [ 32-1:0]     sys_wdata  ,  // bus write data
-    input  wire [  4-1:0]     sys_sel    ,  // bus write byte select
-    input  wire               sys_wen    ,  // bus write enable
-    input  wire               sys_ren    ,  // bus read enable
-    output reg [ 32-1:0]     sys_rdata  ,  // bus read data
-    output reg               sys_err    ,  // bus error indicator
-    output reg               sys_ack    ,   // bus acknowledge signal
-
-    output wire [  7-1:0]     led
+    output wire [6:0]         led
 );
 
-// Parameters
-localparam SIGNAL_SIZE = 16;
+localparam [31:0] ABI_VERSION       = 32'h0000_0001;
+localparam [31:0] CONFIG_VERSION    = 32'h0001_0000;
+localparam [31:0] FPGA_BUILD_ID     = 32'hD911_0002;
+localparam [31:0] DEFAULT_POS_LIMIT = 32'h7FFF_FFFF;
+localparam [31:0] DEFAULT_NEG_LIMIT = 32'h8000_0000;
+localparam [31:0] DEFAULT_DAC_AMP   = 32'h0000_7FFF;
+localparam [31:0] DEFAULT_FREQ_MUL  = 32'h0000_0001;
+localparam [31:0] DEFAULT_FREQ_DIV  = 32'h0000_0001;
+localparam [31:0] DEFAULT_PHASE_THR = 32'h0000_7FFF;
+localparam [31:0] DEFAULT_FREQ_THR  = 32'h0000_7FFF;
 
+wire [15:0] cmd_addr;
+wire [31:0] cmd_datain;
+wire        cmd_trig;
 
-///////////////////////////////////////////////////////////////////////////////
-// Wires for the configuration bus
-//整理地址总线
-wire [15:0]          cmd_addr;
-wire [32:0]          cmd_datain;
-wire                 cmd_trig;
-
-
-// conversion from Zynq-style parallel bus to the legacy Opal-Kelly-style bus:
-assign cmd_trig    = sys_wen;
-assign cmd_addr    = sys_addr [16-1+2:2];   // note that we divide the Zynq addresses by 4 when mapping to the DPLL addresses.  This is because the Zynq cannot address memory locations that are not on 32-bits boundaries, but the legacy bus didn't have this restriction.
+assign cmd_trig   = sys_wen;
+assign cmd_addr   = sys_addr[17:2];
 assign cmd_datain = sys_wdata;
 
-
-
-///////////////////////////////////////////////////////////////////////////////
-// Replacement for the Opal Kelly "Triggers"
-
-// 2015-01-27 Modification by Hugo Bergeron: added wire in for resetting the fifo
-// wire [15:0] WireIn00, WireIn01, WireIn02, WireIn03, WireIn04_Clock_source_select, WireIn05_fifo_reset;
-// wire [15:0] WireOut20, WireOut21, WireOut22, WireOut23, WireOut24, WireOut25StatusFlags;
-// wire [15:0] TrigIn40;
-
-// new style triggers:
-// each "trigger" is actually the update_flag signal of an empty register:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(8),
-    .REGISTER_DEFAULT_VALUE(32'b0),
-    .ADDRESS(16'h0000)
-)
-parallel_bus_register_ok_reset (
-     .clk(clk1), 
-     .bus_strobe(cmd_trig), 
-     .bus_address(cmd_addr), 
-     .bus_data(cmd_datain), 
-     .register_output(), 
-     .update_flag(ok_reset)
-     );
-
-//parallel_bus_register_32bits_or_less # (
-//    .REGISTER_SIZE(8),
-//    .REGISTER_DEFAULT_VALUE(32'b0),
-//    .ADDRESS(16'h0044)
-//)
-//parallel_bus_register_phase_ok_reset_frontend (
-//     .clk(clk1), 
-//     .bus_strobe(cmd_trig), 
-//     .bus_address(cmd_addr), 
-//     .bus_data({cmd_data2in, cmd_data1in}), 
-//     .register_output(), 
-//     .update_flag(ok_reset_frontend)
-//     );
-
-
-///////////////////////////////////////////////////////////////////////////////
-// Reset signals
-//wire bus_rst;
-
 wire ok_reset;
-//wire ok_reset_frontend;
-wire [32-1:0] Centre_Freq;
-wire pll0_lock;
+wire [31:0] Centre_Freq;
+wire [3:0]  angleSelect_0;
+wire        pll0_lock_i;
+wire        pll0_lock;
+wire [31:0] pll0_gainp;
+wire [31:0] pll0_gaini;
+wire [31:0] pll0_gainii;
+wire [31:0] pll0_gaind;
+wire [17:0] pll0_coefdfilter;
+wire signed [31:0] positive_limit_dac0;
+wire signed [31:0] negative_limit_dac0;
+wire signed [31:0] manual_offset_dac0;
+wire signed [13:0] VCO_Voffset0;
+wire signed [15:0] VCO_Vamplitude0;
+wire [15:0] VCO_Mul_Factor0;
+wire [15:0] VCO_Div_Factor0;
+wire signed [13:0] debug_dac_offset;
+wire signed [15:0] debug_dac_gain;
+wire [31:0] debug_dac_source;
+wire [31:0] debug_dac_format;
+wire [31:0] Phase_Residuals_Threshold0;
+wire [31:0] Phase_Residuals_Offset0;
+wire [31:0] Freq_Residuals_Threshold0;
+wire [8:0]  post_iq_cic_rate_r;
+wire [5:0]  post_iq_cic_shift;
+wire [1:0]  fll_delay_sel;
+wire        config_apply_flag;
 
-(* keep = "true" *) wire rst_125m_stage_a;
-(* keep = "true" *) wire sample_3m125_valid_stage_a;
+wire unused_sys_sel = |sys_sel;
+wire unused_adc1 = |ADCraw1;
+wire unused_angle = |angleSelect_0;
+wire unused_gaind = |pll0_gaind;
+wire unused_coef = |pll0_coefdfilter;
+wire unused_phase_offset = |Phase_Residuals_Offset0;
+wire unused_debug_format = |debug_dac_format;
 
-(* dont_touch = "true" *) dpll_clock_valid_stage_a #(
+parallel_bus_register_32bits_or_less #(
+    .REGISTER_SIZE(8),
+    .REGISTER_DEFAULT_VALUE(0),
+    .ADDRESS(16'h0000)
+) reg_ok_reset (
+    .clk(clk1),
+    .bus_strobe(cmd_trig),
+    .bus_address(cmd_addr),
+    .bus_data(cmd_datain),
+    .register_output(),
+    .update_flag(ok_reset)
+);
+
+parallel_bus_register_32bits_or_less #(
+    .REGISTER_SIZE(32),
+    .REGISTER_DEFAULT_VALUE(0),
+    .ADDRESS(16'h0010)
+) reg_center_freq (
+    .clk(clk1),
+    .bus_strobe(cmd_trig),
+    .bus_address(cmd_addr),
+    .bus_data(cmd_datain),
+    .register_output(Centre_Freq),
+    .update_flag()
+);
+
+parallel_bus_register_32bits_or_less #(
+    .REGISTER_SIZE(4),
+    .REGISTER_DEFAULT_VALUE(0),
+    .ADDRESS(16'h0011)
+) reg_angle_select (
+    .clk(clk1),
+    .bus_strobe(cmd_trig),
+    .bus_address(cmd_addr),
+    .bus_data(cmd_datain),
+    .register_output(angleSelect_0),
+    .update_flag()
+);
+
+parallel_bus_register_32bits_or_less #(
+    .REGISTER_SIZE(1),
+    .REGISTER_DEFAULT_VALUE(0),
+    .ADDRESS(16'h0020)
+) reg_pll_lock (
+    .clk(clk1),
+    .bus_strobe(cmd_trig),
+    .bus_address(cmd_addr),
+    .bus_data(cmd_datain),
+    .register_output(pll0_lock_i),
+    .update_flag()
+);
+
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(4), .ADDRESS(16'h0021)) reg_kp (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll0_gainp), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(2), .ADDRESS(16'h0022)) reg_ki (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll0_gaini), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(8), .ADDRESS(16'h0023)) reg_kf (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll0_gainii), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0024)) reg_gain_d_compat (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll0_gaind), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(18), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0025)) reg_coef_compat (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(pll0_coefdfilter), .update_flag()
+);
+
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_POS_LIMIT), .ADDRESS(16'h0028)) reg_pos_limit (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(positive_limit_dac0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0029)) reg_neg_limit (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(negative_limit_dac0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h002A)) reg_manual_offset (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(manual_offset_dac0), .update_flag()
+);
+
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(14), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0030)) reg_dac0_offset (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(VCO_Voffset0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(DEFAULT_DAC_AMP), .ADDRESS(16'h0031)) reg_dac0_amp (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(VCO_Vamplitude0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(DEFAULT_FREQ_MUL), .ADDRESS(16'h0032)) reg_freq_mul (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(VCO_Mul_Factor0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(DEFAULT_FREQ_DIV), .ADDRESS(16'h0033)) reg_freq_div (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(VCO_Div_Factor0), .update_flag()
+);
+
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(14), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0040)) reg_debug_offset (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_offset), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(DEFAULT_DAC_AMP), .ADDRESS(16'h0041)) reg_debug_gain (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_gain), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0042)) reg_debug_source (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_source), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0043)) reg_debug_format (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_format), .update_flag()
+);
+
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_PHASE_THR), .ADDRESS(16'h0050)) reg_phase_thr (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Phase_Residuals_Threshold0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0051)) reg_phase_offset (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Phase_Residuals_Offset0), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_FREQ_THR), .ADDRESS(16'h0052)) reg_freq_thr (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Freq_Residuals_Threshold0), .update_flag()
+);
+
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(9), .REGISTER_DEFAULT_VALUE(8), .ADDRESS(16'h0060)) reg_cic_rate (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(post_iq_cic_rate_r), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(6), .REGISTER_DEFAULT_VALUE(9), .ADDRESS(16'h0061)) reg_cic_shift (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(post_iq_cic_shift), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(2), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0062)) reg_fll_delay (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(fll_delay_sel), .update_flag()
+);
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(1), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h006F)) reg_config_apply (
+    .clk(clk1), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(), .update_flag(config_apply_flag)
+);
+
+assign pll0_lock = pll0_lock_i;
+
+wire rst_125m_stage_a;
+wire sample_3m125_valid_stage_a;
+
+dpll_clock_valid_stage_a #(
     .G_SAMPLE_DIV(40)
 ) dpll_clock_valid_stage_a_inst (
     .clk_125m(clk1),
@@ -115,843 +222,228 @@ wire pll0_lock;
     .sample_valid(sample_3m125_valid_stage_a)
 );
 
-(* keep = "true" *) wire [47:0] dpll_single_clock_tracking_word_stage_a;
-(* keep = "true" *) wire dpll_single_clock_tracking_valid_stage_a;
-(* keep = "true" *) wire signed [17:0] dpll_single_clock_phase_error_stage_a;
-(* keep = "true" *) wire signed [21:0] dpll_single_clock_freq_error_stage_a;
-(* keep = "true" *) wire dpll_single_clock_freq_error_valid_stage_a;
-(* keep = "true" *) wire signed [19:0] dpll_single_clock_i_baseband_stage_a;
-(* keep = "true" *) wire signed [19:0] dpll_single_clock_q_baseband_stage_a;
-(* keep = "true" *) wire dpll_single_clock_iq_valid_stage_a;
-(* keep = "true" *) wire signed [55:0] dpll_single_clock_freq_state_stage_a;
-(* keep = "true" *) wire signed [55:0] dpll_single_clock_freq_correction_stage_a;
-(* keep = "true" *) wire [8:0] dpll_single_clock_active_cic_rate_stage_a;
-(* keep = "true" *) wire [5:0] dpll_single_clock_active_cic_shift_stage_a;
-(* keep = "true" *) wire dpll_single_clock_cic_overflow_stage_a;
-(* keep = "true" *) wire dpll_single_clock_cic_illegal_stage_a;
-(* keep = "true" *) wire signed [15:0] dpll_single_clock_lo_cos_stage_a;
-(* keep = "true" *) wire signed [15:0] dpll_single_clock_lo_sin_stage_a;
+wire [47:0] dpll_tracking_word;
+wire        dpll_tracking_valid;
+wire signed [17:0] dpll_phase_error;
+wire signed [21:0] dpll_freq_error;
+wire        dpll_freq_error_valid;
+wire signed [19:0] dpll_i_baseband;
+wire signed [19:0] dpll_q_baseband;
+wire        dpll_iq_valid;
+wire signed [55:0] dpll_freq_state;
+wire signed [55:0] dpll_freq_correction;
+wire [8:0]  dpll_active_cic_rate_r;
+wire [5:0]  dpll_active_cic_shift;
+wire        dpll_cic_overflow;
+wire        dpll_cic_illegal;
+wire signed [15:0] dpll_lo_cos;
+wire signed [15:0] dpll_lo_sin;
 
-(* dont_touch = "true" *) dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
+wire signed [31:0] effective_negative_limit_dac0 =
+    (negative_limit_dac0 == 32'sd0) ? $signed(DEFAULT_NEG_LIMIT) : negative_limit_dac0;
+wire signed [55:0] correction_limit_pos = {{24{positive_limit_dac0[31]}}, positive_limit_dac0};
+wire signed [55:0] correction_limit_neg = {{24{effective_negative_limit_dac0[31]}}, effective_negative_limit_dac0};
+wire        config_apply_pulse = ok_reset | config_apply_flag;
+
+dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .clk_125m(clk1),
     .rst_125m(rst_125m_stage_a),
     .sample_valid(sample_3m125_valid_stage_a),
     .loop_enable(pll0_lock),
     .adc_sample(ADCraw0),
     .center_word({Centre_Freq, 16'h0000}),
-    .config_apply(ok_reset),
-    .cic_rate_r(9'd8),
-    .cic_output_shift(6'd9),
+    .config_apply(config_apply_pulse),
+    .cic_rate_r(post_iq_cic_rate_r),
+    .cic_output_shift(post_iq_cic_shift),
     .cic_flush(ok_reset),
-    .fll_delay_sel(2'd0),
-    .kf(24'sd8),
-    .ki(24'sd2),
-    .kp(24'sd4),
-    .positive_limit(56'sd140737488355327),
-    .negative_limit(-56'sd140737488355328),
-    .tracking_word(dpll_single_clock_tracking_word_stage_a),
-    .tracking_valid(dpll_single_clock_tracking_valid_stage_a),
-    .phase_error(dpll_single_clock_phase_error_stage_a),
-    .freq_error(dpll_single_clock_freq_error_stage_a),
-    .freq_error_valid(dpll_single_clock_freq_error_valid_stage_a),
-    .i_baseband(dpll_single_clock_i_baseband_stage_a),
-    .q_baseband(dpll_single_clock_q_baseband_stage_a),
-    .iq_valid(dpll_single_clock_iq_valid_stage_a),
-    .freq_state(dpll_single_clock_freq_state_stage_a),
-    .freq_correction(dpll_single_clock_freq_correction_stage_a),
-    .active_cic_rate_r(dpll_single_clock_active_cic_rate_stage_a),
-    .active_cic_output_shift(dpll_single_clock_active_cic_shift_stage_a),
-    .cic_overflow_seen(dpll_single_clock_cic_overflow_stage_a),
-    .cic_illegal_config_seen(dpll_single_clock_cic_illegal_stage_a),
-    .lo_cos(dpll_single_clock_lo_cos_stage_a),
-    .lo_sin(dpll_single_clock_lo_sin_stage_a)
+    .fll_delay_sel(fll_delay_sel),
+    .kf(pll0_gainii[23:0]),
+    .ki(pll0_gaini[23:0]),
+    .kp(pll0_gainp[23:0]),
+    .positive_limit(correction_limit_pos),
+    .negative_limit(correction_limit_neg),
+    .tracking_word(dpll_tracking_word),
+    .tracking_valid(dpll_tracking_valid),
+    .phase_error(dpll_phase_error),
+    .freq_error(dpll_freq_error),
+    .freq_error_valid(dpll_freq_error_valid),
+    .i_baseband(dpll_i_baseband),
+    .q_baseband(dpll_q_baseband),
+    .iq_valid(dpll_iq_valid),
+    .freq_state(dpll_freq_state),
+    .freq_correction(dpll_freq_correction),
+    .active_cic_rate_r(dpll_active_cic_rate_r),
+    .active_cic_output_shift(dpll_active_cic_shift),
+    .cic_overflow_seen(dpll_cic_overflow),
+    .cic_illegal_config_seen(dpll_cic_illegal),
+    .lo_cos(dpll_lo_cos),
+    .lo_sin(dpll_lo_sin)
 );
 
-//reg rst_peripherals, rst_peripherals_output1, rst_peripherals_output2, rst_peripherals_internal, rst_peripherals_output1_internal, rst_peripherals_output2_internal;    // we split the reset signal in a tree to try help with the fanout, and hope that xst won't combine our register
-reg rst_frontend0, rst_frontend1, rst_frontend0_internal, rst_frontend1_internal;
+wire [47:0] manual_offset_word = {{16{manual_offset_dac0[31]}}, manual_offset_dac0};
+wire [47:0] vco_tracking_word = dpll_tracking_word + manual_offset_word;
+wire [47:0] VCO_Input0;
+wire [15:0] vco_divisor_safe = (VCO_Div_Factor0 == 16'h0000) ? 16'h0001 : VCO_Div_Factor0;
+wire [15:0] vco_mul_safe = (VCO_Mul_Factor0 == 16'h0000) ? 16'h0001 : VCO_Mul_Factor0;
 
-reg [15:0] reset_counter = 16'b1111111111111111;    // 2**16 cycles * 10 ns/cycle = 655 us of maximum reset time
-reg [15:0] reset_counter_frontend = 16'b1111111111111111;   // 2**16 cycles * 10 ns/cycle = 655 us of maximum reset time
-
-
-//assign DOUT[2] = rst_frontend0;
-//always @(posedge clk1) begin
-    
-//    if (rst == 1'b1 | bus_rst == 1'b1) begin
-//        reset_counter <= 16'b1111111111111111;
-//    end
-//    else begin
-//        if (reset_counter > 0) begin
-//            reset_counter <= reset_counter - 1'b1;
-//        end
-        
-//        // The different reset groups are compared each to a different value,
-//        // to make sure that Xilinx doesn't combine the registers into a single reset signal driving a very large fanout
-//        rst_peripherals_internal         <= ((reset_counter > 3) ? 1'b1 : 1'b0);
-//        rst_peripherals_output1_internal <= ((reset_counter > 4) ? 1'b1 : 1'b0);
-//        rst_peripherals_output2_internal <= ((reset_counter > 5) ? 1'b1 : 1'b0);
-        
-//        // An extra register stage to help with routing
-//        rst_peripherals <= rst_peripherals_internal;
-//        rst_peripherals_output1 <= rst_peripherals_output1_internal;
-//        rst_peripherals_output2 <= rst_peripherals_output2_internal;
-        
-//    end
-//end
-
-always @(posedge clk1) begin
-    
-    //if ((ok_reset == 1'b1) || (ok_reset_frontend == 1'b1)) 
-    if (ok_reset == 1'b1)
-    begin
-        reset_counter_frontend <= 16'b1111111111111111;
-    end
-    else begin
-        if (reset_counter_frontend > 0) begin
-            reset_counter_frontend <= reset_counter_frontend - 1'b1;
-        end
-        
-        // The different reset groups are compared each to a different value,
-        // to make sure that Xilinx doesn't combine the registers into a single reset signal driving a very large fanout
-        rst_frontend0_internal              <= ((reset_counter_frontend > 1) ? 1'b1 : 1'b0);
-        rst_frontend1_internal              <= ((reset_counter_frontend > 2) ? 1'b1 : 1'b0);
-        
-        // An extra register stage to help with routing
-        rst_frontend0 <= rst_frontend0_internal;
-        rst_frontend1 <= rst_frontend1_internal;
-        
-    end
-end
-
-
-
-
-
-///////////////////////////////////////////////////////////////////////////////
-//鉴相器
-// Direct-digital converter (brings a signal to baseband, low-pass filters it, and outputs the phase and frequency) for ADC 0
-///////////////////////////////////////////////////////////////////////////////
-wire        [14-1:0]       wrapped_phase0;     // phi/(2*pi) * 2^14
-wire        [14-1:0]       inst_frequency0;        // diff(phi)/(2*pi) * 2^14
-
-//wire select_phase_or_freq0;
-wire [3:0] angleSelect_0;
-
-    reg  [47:0]reference_frequency0 ;
-    wire [48-1:0]DDC_Phase;
-    wire [32-1:0]PID_OUT_With_Limit;
-    wire [48-1:0]PID_OUT_ADD;
-    
-   //中心频率       
-   parallel_bus_register_32bits_or_less # (
-        .REGISTER_SIZE(32),
-        .REGISTER_DEFAULT_VALUE(32'h0A3D70A3),//125khz
-        .ADDRESS(16'h0010)
-    ) parallel_bus_register_32_bits_or_less_freq_c0 (
-         .clk(clk1), 
-         .bus_strobe(cmd_trig), 
-         .bus_address(cmd_addr), 
-         .bus_data(cmd_datain), 
-         .register_output(Centre_Freq), 
-         .update_flag()
-    );     
-       
-   parallel_bus_register_32bits_or_less # (
-        .REGISTER_SIZE(4),
-        .REGISTER_DEFAULT_VALUE(4'b0),
-        .ADDRESS(16'h0011)
-    ) parallel_bus_register_32_bits_or_less_angleSelect (
-         .clk(clk1), 
-         .bus_strobe(cmd_trig), 
-         .bus_address(cmd_addr), 
-         .bus_data(cmd_datain), 
-         .register_output(angleSelect_0), 
-         .update_flag()
-    );
-    
-
-//    parallel_bus_register_32bits_or_less # (
-//        .REGISTER_SIZE(1),
-//        .REGISTER_DEFAULT_VALUE(1'b0),
-//        .ADDRESS(16'h1002)
-//    )
-//    parallel_bus_register_ddc_filter_select (
-//         .clk(clk1), 
-//         .bus_strobe(cmd_trig), 
-//         .bus_address(cmd_addr), 
-//         .bus_data({cmd_data2in, cmd_data1in}), 
-//         .register_output(select_phase_or_freq0), 
-//         .update_flag()
-//         );
-
-assign PID_OUT_ADD = {{4{PID_OUT_With_Limit[32-1]}},PID_OUT_With_Limit,12'h000};
-assign DDC_Phase = {Centre_Freq,16'h0000};
-wire [16-1:0]         ref_cosine_0, ref_sine_0;
-wire [16-1:0]         DDC_Amplitude_0;
-
-always @(posedge clk_dpll) begin
-    reference_frequency0 <= DDC_Phase+PID_OUT_ADD;
-    //reference_frequency0 <= DDC_Phase;
-end
-
-
-DDC_wideband_filters DDC0_inst (
-    .rst(rst_frontend0), 
-    .clk(clk1), 
-    .clk_times_N(clk1_timesN),
-    .clk_dpll(clk_dpll),
-    .data_input(ADCraw0),     // 
-     
-     // Configuration
-    .reference_frequency(reference_frequency0), 
-     //.ddc_filter_select(ddc0_filter_select),
-     
-    // Reference tone output:
-    .ref_cosine_out(ref_cosine_0),
-    .ref_sine_out(ref_sine_0),
-    
-    // Used for nulling the lock phase offset:
-    .lock(pll0_lock),
-    .angleSelect(angleSelect_0),
-     
-     // Output
-    .amplitude(DDC_Amplitude_0), 
-    .wrapped_phase(wrapped_phase0), 
-    .inst_frequency(inst_frequency0)
-    );
-
-
-
-
-///////////////////////////////////////////////////////////////////////////////
-// Loop filters for DAC 0:  
-//PID
-wire pll0_lock_i, pll0_gain_changedp, pll0_gain_changedi, pll0_gain_changedii, pll0_gain_changedd, pll0_coef_changedd;
-wire pll0_gain_changed;
-wire [32-1:0] pll0_gainp, pll0_gaini, pll0_gainii, pll0_gaind, pll0_coefdfilter;
-wire [32-1:0] pll0_output;
-
-// Then the registers which controls the gain and locked/unlocked behavior of the filters:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(1),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0020)
-)
-parallel_bus_register_pll0_settings (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(pll0_lock_i), 
-    .update_flag()
-    );
-BUFG bufg_dpll_clk    (.O (pll0_lock), .I (pll0_lock_i));   
-     
-     
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0021)
-)
-parallel_bus_register_pll0_gainp (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(pll0_gainp), 
-    .update_flag(pll0_gain_changedp)
-    );
-     
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0022)
-)
-parallel_bus_register_pll0_gaini (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(pll0_gaini), 
-    .update_flag(pll0_gain_changedi)
-    );
-     
-     
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0023)
-)
-parallel_bus_register_pll0_gainii (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(pll0_gainii), 
-    .update_flag(pll0_gain_changedii)
-    );
-     
-     
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0024)
-)
-parallel_bus_register_pll0_gaind (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(pll0_gaind), 
-    .update_flag(pll0_gain_changedd)
-    );
-    
-    
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(18),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0025)
-)
-parallel_bus_register_pll0_coefdfilter (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(pll0_coefdfilter), 
-    .update_flag(pll0_coef_changedd)
-    );
-     
-// This is used for bumpless change of the gain settings (TODO, most probably in the output summing block)
-assign pll0_gain_changed = pll0_gain_changedp | pll0_gain_changedi | pll0_gain_changedii | pll0_gain_changedd | pll0_coef_changedd;
-     
-// Finally the PLL itself:
-PLL_loop_filters_with_saturation # (
-    .N_DIVIDE_P(6),  
-    .N_DIVIDE_I(8), 
-    .N_DIVIDE_II(19),
-    .N_DIVIDE_D(0),
-    .N_OUTPUT(32)
-)
-PLL0_loop_filters (
-    .clk(clk_dpll), 
-    .lock(pll0_lock), 
-    .gain_changed(pll0_gain_changed), 
-    .data_in(inst_frequency0), 
-    .gain_p(pll0_gainp), 
-    .gain_i(pll0_gaini), 
-    .gain_ii(pll0_gainii),
-    .gain_d(pll0_gaind),
-    .coef_d_filter(pll0_coefdfilter),
-    .phase_residuals(phase_residuals0),
-    .data_out(pll0_output),
-    .saturated_low(),
-    .saturated_high()
-    );
-    
-
-///////////////////////////////////////////////////////////////////////////////
-// Output combiners before sending the results to the DACs:
-//范围限制
-wire [32-1:0] manual_offset_dac0, positive_limit_dac0, negative_limit_dac0;
-reg [32-1:0] positive_limit_dac0_r,negative_limit_dac0_r;
-wire dac0_railed_negative, dac0_railed_positive;
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(32'h7fffffff),
-    .ADDRESS(16'h0028)
-)
-parallel_bus_register_positive_limit_dac0 (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(positive_limit_dac0), 
-    .update_flag()
-    );    
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(32'h80000001),
-    .ADDRESS(16'h0029)
-)
-parallel_bus_register_negative_limit_dac0 (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(negative_limit_dac0), 
-    .update_flag()
-    );    
- // Register which adds a manual offset to the dac1 output:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h002A)
-)
-parallel_bus_register_manual_offset_dac0 (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(manual_offset_dac0), 
-    .update_flag()
-    ); 
- 
-always @(posedge clk1)
-begin
- positive_limit_dac0_r <= positive_limit_dac0;
- negative_limit_dac0_r <= negative_limit_dac0;
-end    
-    
-    
-output_summing #(
-    .INPUT_SIZE(32),
-    .OUTPUT_SIZE(32)
-)
-output_summing_dac0
-    (
-        .clk(clk_dpll),
-        .in0(pll0_output),
-        .in1(manual_offset_dac0),
-        .data_output(PID_OUT_With_Limit),
-        .positive_limit(positive_limit_dac0_r),
-        .negative_limit(negative_limit_dac0_r),
-        .railed_positive(dac0_railed_positive),
-        .railed_negative(dac0_railed_negative)
-    );
-    
-
-     
-///////////////////////////////////////////////////////////////////////////////
-//VCO_0
-    wire [13:0]VCO_Voffset0; 
-    wire [15:0]VCO_Vamplitude0; 
-    wire [15:0]PLL_Mul_factor; 
-    wire [15:0]PLL_Div_factor;  
-    wire signed [48-1:0] VCO_Input0;
-    reg  [15:0]PLL_Mul_factor_r,PLL_Div_factor_r;
-// Register which adds a manual offset to the dac0 output:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(14),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0030)
-)
-parallel_bus_register_VCO0_offset (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(VCO_Voffset0), 
-    .update_flag()
-    );    
- // Register which adds a amplitude to the dac0 output:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(16),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0031)
-)
-parallel_bus_register_VCO0_amplitude (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(VCO_Vamplitude0), 
-    .update_flag()
-    );     
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(16),
-    .REGISTER_DEFAULT_VALUE(16'h0008),
-    .ADDRESS(16'h0032)
-)
-parallel_bus_register_PLL_Mul_factor (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(PLL_Mul_factor), 
-    .update_flag()
-    );  
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(16),
-    .REGISTER_DEFAULT_VALUE(16'h0001),
-    .ADDRESS(16'h0033)
-)
-parallel_bus_register_PLL_Div_factor (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(PLL_Div_factor), 
-    .update_flag()
-    );
-
-always @(posedge clk1)
-begin
- PLL_Mul_factor_r <= PLL_Mul_factor;
- PLL_Div_factor_r <= PLL_Div_factor;
-end  
-        
-//倍频和除频处理
-PLL_VCO_MUL_DIV VCO0_mul_div(
+PLL_VCO_MUL_DIV PLL_VCO_MUL_DIV_inst (
     .clk(clk1),
     .sample_valid(sample_3m125_valid_stage_a),
-    .data_in(reference_frequency0),
+    .data_in(vco_tracking_word),
     .data_out(VCO_Input0),
-    .PLL_Mul_factor(PLL_Mul_factor_r),
-    .PLL_Div_factor(PLL_Div_factor_r)
+    .PLL_Mul_factor(vco_mul_safe),
+    .PLL_Div_factor(vco_divisor_safe)
 );
 
-    VCO_48bits DAC_VCO_CH0(
-    .clk                       (clk1),
-    .VCO_input                 (VCO_Input0),
-    .VCO_offset                (VCO_Voffset0),
-    .VCO_amplitude             (VCO_Vamplitude0),
-    .VCO_DAC_out               (DACout0)
-    );      
-    
-    
-//VCO1     
-    wire [13:0]VCO_Voffset1; 
-    wire [15:0]VCO_Vamplitude1; 
-    wire [31:0]VCO_Fre_Input1;  
-    wire [31:0]VCO_Phase_Input1; 
-    
-// Register which adds a manual offset to the dac1 output:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(14),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0040)
-)
-parallel_bus_register_VCO1_offset (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(VCO_Voffset1), 
-    .update_flag()
-    );    
- // Register which adds a manual offset to the dac1 output:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(16),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0041)
-)
-parallel_bus_register_VCO1_amplitude (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(VCO_Vamplitude1), 
-    .update_flag()
-    );   
-    
- parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0042)
-)
-parallel_bus_register_VCO1_Fre (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(VCO_Fre_Input1), 
-    .update_flag()
-    );   
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(0),
-    .ADDRESS(16'h0043)
-)
-parallel_bus_register_VCO1_Phase (
-    .clk(clk1), 
-    .bus_strobe(cmd_trig), 
-    .bus_address(cmd_addr), 
-    .bus_data(cmd_datain), 
-    .register_output(VCO_Phase_Input1), 
-    .update_flag()
-    );        
-    
-//VCO_32bits DAC_VCO_CH1(
-//    .clk                       (clk1),
-//    .VCO_Fre_input             (VCO_Fre_Input1),
-//    .VCO_Phase_input           (VCO_Phase_Input1),
-//    .VCO_offset                (VCO_Voffset1),
-//    .VCO_amplitude             (VCO_Vamplitude1),
-//    .VCO_DAC_out               (DACout1)
-//    );  
-    
-    wire [15:0]PID_OUT2_DAC_L;
-    assign PID_OUT2_DAC_L = PID_OUT_With_Limit[23:8];
-    reg [15:0]PID_OUT2_DAC_H;
-    assign DACout1 = PID_OUT2_DAC_H;
-   // 低速时钟域信号
-    reg req, req_d1;
-    reg ack_sync1, ack_sync2;
+VCO_48bits VCO_inst0 (
+    .clk(clk1),
+    .VCO_input(VCO_Input0),
+    .VCO_offset(VCO_Voffset0),
+    .VCO_amplitude(VCO_Vamplitude0),
+    .VCO_DAC_out(DACout0)
+);
 
-    // 高速时钟域信号
-    reg ack, ack_d1;
-    reg req_sync1, req_sync2;
-
-    // 低速时钟域：请求信号生成
-    always @(posedge clk_dpll) begin
-        req <= ~req;  // 每个周期切换请求信号
-        //req_d1 <= req;
+function [31:0] abs18_extend;
+    input signed [17:0] value;
+    reg signed [31:0] extended;
+    begin
+        extended = {{14{value[17]}}, value};
+        abs18_extend = extended[31] ? (~extended + 32'd1) : extended;
     end
+endfunction
 
-    // 高速时钟域：请求信号同步
-    always @(posedge clk1 or posedge ok_reset) begin
-        if (ok_reset) begin
-            req_sync1 <= 0;
-            req_sync2 <= 0;
-        end else begin
-            req_sync1 <= req;
-            req_sync2 <= req_sync1;
-        end
+function [31:0] abs22_extend;
+    input signed [21:0] value;
+    reg signed [31:0] extended;
+    begin
+        extended = {{10{value[21]}}, value};
+        abs22_extend = extended[31] ? (~extended + 32'd1) : extended;
     end
+endfunction
 
-    // 高速时钟域：数据接收与确认
-    always @(posedge clk1 or posedge ok_reset) begin
-        if (ok_reset) begin
-            PID_OUT2_DAC_H <= 0;
-            ack <= 0;
-            ack_d1 <= 0;
-        end else if (req_sync2 != ack) begin  // 请求信号变化
-            PID_OUT2_DAC_H <= PID_OUT2_DAC_L;
-            ack <= req_sync2;  // 发送确认信号
-        end
-    end    
-    
- ///////////////////////////////////////////////////////////////////////////////   
-//系统监控 超出阈值//LED控制等
+function signed [31:0] debug_source_mux;
+    input [3:0] sel;
+    begin
+        case (sel)
+            4'h0: debug_source_mux = dpll_freq_correction[55:24];
+            4'h1: debug_source_mux = {16'h0000, vco_tracking_word[47:32]};
+            4'h2: debug_source_mux = dpll_freq_state[55:24];
+            4'h3: debug_source_mux = {{14{dpll_phase_error[17]}}, dpll_phase_error};
+            4'h4: debug_source_mux = {{10{dpll_freq_error[21]}}, dpll_freq_error};
+            4'h5: debug_source_mux = {{12{dpll_i_baseband[19]}}, dpll_i_baseband};
+            4'h6: debug_source_mux = {{12{dpll_q_baseband[19]}}, dpll_q_baseband};
+            4'h7: debug_source_mux = {{16{dpll_lo_cos[15]}}, dpll_lo_cos};
+            4'h8: debug_source_mux = {{16{dpll_lo_sin[15]}}, dpll_lo_sin};
+            default: debug_source_mux = {{14{dpll_phase_error[17]}}, dpll_phase_error};
+        endcase
+    end
+endfunction
 
-//系统监控
-// This module outputs high if the abs value of the phase residuals is above a certain threshold
-// the output of this module triggers the crash monitor
-wire [31:0] phase_residuals0, phase_residuals0_threshold, phase_residuals0_offset;
-wire [9:0] freq_residuals0, freq_residuals0_threshold;
-reg [31:0] phase_residuals0_threshold_r;
-reg [9:0] freq_residuals0_threshold_r;
-wire residuals0_are_above_threshold_phase, residuals0_are_above_threshold_freq;
-reg residuals0_are_above_threshold,rail_are_above_threshold;
-//相位残差
-// sets the phase residuals threshold for DAC0:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(32'b0),
-    .ADDRESS(16'h0050)
-)
-parallel_bus_register_phase_residuals0_threshold (
-     .clk(clk1), 
-     .bus_strobe(cmd_trig), 
-     .bus_address(cmd_addr), 
-     .bus_data(cmd_datain), 
-     .register_output(phase_residuals0_threshold), 
-     .update_flag()
-     );
-     
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(32),
-    .REGISTER_DEFAULT_VALUE(32'b0),
-    .ADDRESS(16'h0051)
-)
-parallel_bus_register_phase_residuals0_offset (
-     .clk(clk1), 
-     .bus_strobe(cmd_trig), 
-     .bus_address(cmd_addr), 
-     .bus_data(cmd_datain), 
-     .register_output(phase_residuals0_offset), 
-     .update_flag()
-     ); 
-        
-always @(posedge clk1)
-begin
- phase_residuals0_threshold_r <= phase_residuals0_threshold;
- freq_residuals0_threshold_r <= freq_residuals0_threshold;
-end   
-     
-residuals_monitor_with_offset # (
-    .N_BITS_DATA(32)
-)
-residuals_monitor_inst0 (
-     .clk(clk_dpll), 
-     .phase_residuals(phase_residuals0), 
-     .residuals_offset(phase_residuals0_offset),
-     .residuals_threshold(phase_residuals0_threshold_r), 
-     .residuals_are_above_threshold(residuals0_are_above_threshold_phase)
-     );
- //瞬时频率
-// sets the frequency residuals threshold for DAC0:
-parallel_bus_register_32bits_or_less # (
-    .REGISTER_SIZE(10),
-    .REGISTER_DEFAULT_VALUE(32'b0),
-    .ADDRESS(16'h0052)
-)
-parallel_bus_register_freq_residuals0_threshold (
-     .clk(clk1), 
-     .bus_strobe(cmd_trig), 
-     .bus_address(cmd_addr), 
-     .bus_data(cmd_datain), 
-     .register_output(freq_residuals0_threshold), 
-     .update_flag()
-     );
-     
-residuals_monitor # (
-    .N_BITS_DATA(14)
-)
-residuals_monitor_inst0_freq (
-     .clk(clk_dpll), 
-     .phase_residuals(inst_frequency0), 
-     .residuals_threshold(freq_residuals0_threshold_r), 
-     .residuals_are_above_threshold(residuals0_are_above_threshold_freq)
-     );
- 
-// The two trigger conditions are ORed together:
-wire pll0_locked_Instant;
-wire pll0_locked_Stable;
-reg pll0_locked_neg;
-always @(posedge clk_dpll)
-begin
- residuals0_are_above_threshold <= residuals0_are_above_threshold_phase | residuals0_are_above_threshold_freq;
- rail_are_above_threshold <= dac0_railed_positive | dac0_railed_negative;
- pll0_locked_neg <= dac0_railed_positive | dac0_railed_negative | residuals0_are_above_threshold_freq | residuals0_are_above_threshold_phase;
-end
-not G2(pll0_locked_Instant,pll0_locked_neg);
+wire signed [31:0] debug_word = debug_source_mux(debug_dac_source[3:0]);
+wire signed [47:0] debug_scaled = debug_word * debug_dac_gain;
+wire signed [31:0] debug_shifted = debug_scaled[46:15] + {{18{debug_dac_offset[13]}}, debug_dac_offset};
+assign DACout1 = debug_shifted[31] ?
+                 ((debug_shifted < -32'sd32768) ? -16'sd32768 : debug_shifted[15:0]) :
+                 ((debug_shifted >  32'sd32767) ?  16'sd32767 : debug_shifted[15:0]);
 
-//////////////////////////////////////////////////////////////////////
-// The module which drives the front panel LEDs:
-// These LEDs don't map directly to LEDs on the RedPitaya, but they still show up in the Python PC GUI so we left them there.
-// they could eventually be mapped to some of the LEDs on the RP, although we don't have the nice Reg/Green LEDS anymore.
-wire  LED_G0, LED_G1;
-wire  LED_R0, LED_R1;
+wire [31:0] phase_abs = abs18_extend(dpll_phase_error);
+wire [31:0] freq_abs = abs22_extend(dpll_freq_error);
+wire residuals0_are_above_threshold_phase = phase_abs > Phase_Residuals_Threshold0;
+wire residuals0_are_above_threshold_freq = freq_abs > Freq_Residuals_Threshold0;
+wire dac0_railed_positive = dpll_freq_correction >= correction_limit_pos;
+wire dac0_railed_negative = dpll_freq_correction <= correction_limit_neg;
+wire pll0_locked_instant = pll0_lock & ~(residuals0_are_above_threshold_phase |
+                                          residuals0_are_above_threshold_freq |
+                                          dpll_cic_illegal);
+reg residuals0_are_above_threshold;
+reg LED_G0;
+reg LED_R0;
+reg [23:0] status_counter;
 
-wire residuals0_threshold_phase_Stable, residuals0_threshold_freq_Stable;
-wire positive_railed_Stable,negative_railed_Stable;
-//assign LED_G0 = 1'b1;
-
-
-Status_LED_driver # (
-    .N_BITS_COUNTER(22) // 3.125 MHz/2^21 = 0.75 Hz
-) Status_LED_driver0 (
-    .clk(clk_dpll), 
-    .lock_on(pll0_lock), 
-    .residuals_above_threshold(residuals0_are_above_threshold), 
-    .railed(rail_are_above_threshold), 
-    //.railed(dac0_railed_positive|dac0_railed_negative), 
-    .red_LED(LED_R0), 
-    .green_LED(LED_G0), // LED_G0
-    .Locked_LED(pll0_locked_Stable)
-    );
-
-Status_Delay_Show #
-    (.N_BITS_COUNTER(20))// 3.125 MHz/2^20 = 3 Hz
-    Status_Delay_Show_freq
-    (
-        .clk(clk_dpll), 
-        .lock_on(pll0_lock), 
-        .above_threshold(residuals0_are_above_threshold_freq),
-        .delay_show(residuals0_threshold_freq_Stable)
-    );
-Status_Delay_Show #
-    (.N_BITS_COUNTER(20))// 3.125 MHz/2^20 = 3 Hz
-    Status_Delay_Show_phase
-    (
-        .clk(clk_dpll), 
-        .lock_on(pll0_lock), 
-        .above_threshold(residuals0_are_above_threshold_phase),
-        .delay_show(residuals0_threshold_phase_Stable)
-    );
-Status_Delay_Show #
-    (.N_BITS_COUNTER(20))// 3.125 MHz/2^20 = 3 Hz
-    Status_Delay_Show_pos_rail
-    (
-        .clk(clk_dpll), 
-        .lock_on(pll0_lock), 
-        .above_threshold(dac0_railed_positive),
-        .delay_show(positive_railed_Stable)
-    );
-Status_Delay_Show #
-    (.N_BITS_COUNTER(20))// 3.125 MHz/2^20 = 3 Hz
-    Status_Delay_Show_neg_rail
-    (
-        .clk(clk_dpll), 
-        .lock_on(pll0_lock), 
-        .above_threshold(dac0_railed_negative),
-        .delay_show(negative_railed_Stable)
-    );
-//assign pll0_locked = dac0_railed_positive | dac0_railed_negative | residuals0_are_above_threshold_freq;
-//and G1(pll0_locked,~dac0_railed_positive,~dac0_railed_negative,~residuals0_are_above_threshold_freq,~residuals0_are_above_threshold_phase);
-assign led = {LED_G0,LED_R0,dac0_railed_positive,dac0_railed_negative,residuals0_are_above_threshold_freq,residuals0_are_above_threshold_phase,pll0_locked_Instant};
-
-//////////////////////////////////////////////////////////////////////
-//输出平均
-wire [31:0]pll_output_average_value;
-PLL_output_average#
-    (.N_BITS_COUNTER(19))//3.125MHz/2^18=11.9Hz
-    PLL_output_average0
-    (
-        .clk(clk_dpll),
-        .lock_on(pll0_lock),
-        .pll_pid_output_value(PID_OUT_With_Limit), 
-        .pll_average_value(pll_output_average_value) 
-    );
-////////////////////////////////////////////////////////////////////////////////
-//读总线
-wire sys_en;
-assign sys_en = sys_wen | sys_ren;
-
-always @(posedge clk1)
-if (rst == 1'b0) begin
-   sys_err <= 1'b0 ;
-   sys_ack <= 1'b0 ;
-end else begin
-   sys_err <= 1'b0 ;
-   casez (cmd_addr[16-1:0])
-        16'h0010 : begin sys_ack <= sys_en;          sys_rdata <= Centre_Freq;                          end  
-        16'h0011 : begin sys_ack <= sys_en;          sys_rdata <= {{32-4{1'b0}}, angleSelect_0};        end 
-        
-        16'h0020 : begin sys_ack <= sys_en;          sys_rdata <= {{32-1{1'b0}}, pll0_lock};            end
-        16'h0021 : begin sys_ack <= sys_en;          sys_rdata <= pll0_gainp;                           end 
-        16'h0022 : begin sys_ack <= sys_en;          sys_rdata <= pll0_gaini;                           end 
-        16'h0023 : begin sys_ack <= sys_en;          sys_rdata <= pll0_gainii;                          end 
-        16'h0024 : begin sys_ack <= sys_en;          sys_rdata <= pll0_gaind;                           end 
-        16'h0025 : begin sys_ack <= sys_en;          sys_rdata <= {{32-18{1'b0}}, pll0_coefdfilter};    end
-        
-        16'h0028 : begin sys_ack <= sys_en;          sys_rdata <=  positive_limit_dac0;                 end
-        16'h0029 : begin sys_ack <= sys_en;          sys_rdata <=  negative_limit_dac0;                 end
-        16'h002A : begin sys_ack <= sys_en;          sys_rdata <=  manual_offset_dac0;                  end
-        
-        16'h0030 : begin sys_ack <= sys_en;          sys_rdata <= {{32-14{1'b0}}, VCO_Voffset0};        end 
-        16'h0031 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, VCO_Vamplitude0};     end
-        16'h0032 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, PLL_Mul_factor};      end 
-        16'h0033 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, PLL_Div_factor};      end       
-        
-        16'h0040 : begin sys_ack <= sys_en;          sys_rdata <= {{32-14{1'b0}}, VCO_Voffset1};        end 
-        16'h0041 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, VCO_Vamplitude1};     end
-        16'h0042 : begin sys_ack <= sys_en;          sys_rdata <= VCO_Fre_Input1;                       end 
-        16'h0043 : begin sys_ack <= sys_en;          sys_rdata <= VCO_Phase_Input1;                     end 
-        
-        16'h0050 : begin sys_ack <= sys_en;          sys_rdata <= phase_residuals0_threshold;           end 
-        16'h0051 : begin sys_ack <= sys_en;          sys_rdata <= phase_residuals0_offset;              end 
-        16'h0052 : begin sys_ack <= sys_en;          sys_rdata <= freq_residuals0_threshold;            end 
-        //纯读取
-        //pll0_locked-瞬时锁定 LED_R0-长时不锁定 pll0_lock-PLL启动使能 LED_G0-长时锁定 
-        //16'h0100 : begin sys_ack <= sys_en;          sys_rdata <= {{32-6{1'b0}}, pll0_locked,LED_R0,pll0_lock,LED_G0,dac0_railed_positive,dac0_railed_negative,residuals0_are_above_threshold_freq,residuals0_are_above_threshold_phase};     end//系统状态
-        16'h0100 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, 
-                LED_R0,LED_G0,pll0_locked_Instant,dac0_railed_positive,dac0_railed_negative,residuals0_are_above_threshold_freq,residuals0_are_above_threshold_phase,
-                2'b0,pll0_lock,pll0_locked_Stable,positive_railed_Stable,negative_railed_Stable,residuals0_threshold_freq_Stable,residuals0_threshold_phase_Stable};end
-        16'h0101 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, DDC_Amplitude_0};     end
-        16'h0102 : begin sys_ack <= sys_en;          sys_rdata <= {{32-14{1'b0}}, wrapped_phase0};      end
-        16'h0103 : begin sys_ack <= sys_en;          sys_rdata <= {{32-14{1'b0}}, inst_frequency0};     end        
-        
-        16'h0104 : begin sys_ack <= sys_en;          sys_rdata <=  pll0_output;                         end
-        16'h0105 : begin sys_ack <= sys_en;          sys_rdata <=  PID_OUT_With_Limit;                  end
-        16'h0106 : begin sys_ack <= sys_en;          sys_rdata <= phase_residuals0;                     end
-        16'h0107 : begin sys_ack <= sys_en;          sys_rdata <= pll_output_average_value;             end
-        16'h010F : begin sys_ack <= sys_en;          sys_rdata <= 32'h12345678;                         end
-
-        default  : begin sys_ack <= sys_en;          sys_rdata <=  32'h0;                               end
-   endcase
+always @(posedge clk1) begin
+    if (rst_125m_stage_a) begin
+        residuals0_are_above_threshold <= 1'b0;
+        LED_G0 <= 1'b0;
+        LED_R0 <= 1'b1;
+        status_counter <= 24'h0;
+    end else begin
+        residuals0_are_above_threshold <= residuals0_are_above_threshold_phase |
+                                           residuals0_are_above_threshold_freq;
+        status_counter <= status_counter + 24'h1;
+        LED_G0 <= pll0_locked_instant;
+        LED_R0 <= ~pll0_locked_instant;
+    end
 end
 
+assign led = {status_counter[23], dpll_cic_illegal, dpll_cic_overflow, pll0_lock,
+              pll0_locked_instant, LED_R0, LED_G0};
+
+always @(posedge clk1) begin
+    if (rst == 1'b0) begin
+        sys_err <= 1'b0;
+        sys_ack <= 1'b0;
+        sys_rdata <= 32'h0000_0000;
+    end else begin
+        sys_err <= 1'b0;
+        sys_ack <= sys_wen | sys_ren;
+        if (sys_ren) begin
+            case (cmd_addr)
+                16'h0000: sys_rdata <= 32'h0000_0000;
+                16'h0010: sys_rdata <= Centre_Freq;
+                16'h0011: sys_rdata <= {28'h0, angleSelect_0};
+                16'h0020: sys_rdata <= {31'h0, pll0_lock};
+                16'h0021: sys_rdata <= pll0_gainp;
+                16'h0022: sys_rdata <= pll0_gaini;
+                16'h0023: sys_rdata <= pll0_gainii;
+                16'h0024: sys_rdata <= pll0_gaind;
+                16'h0025: sys_rdata <= {14'h0, pll0_coefdfilter};
+                16'h0028: sys_rdata <= positive_limit_dac0;
+                16'h0029: sys_rdata <= effective_negative_limit_dac0;
+                16'h002A: sys_rdata <= manual_offset_dac0;
+                16'h0030: sys_rdata <= {{18{VCO_Voffset0[13]}}, VCO_Voffset0};
+                16'h0031: sys_rdata <= {{16{VCO_Vamplitude0[15]}}, VCO_Vamplitude0};
+                16'h0032: sys_rdata <= {16'h0, VCO_Mul_Factor0};
+                16'h0033: sys_rdata <= {16'h0, VCO_Div_Factor0};
+                16'h0040: sys_rdata <= {{18{debug_dac_offset[13]}}, debug_dac_offset};
+                16'h0041: sys_rdata <= {{16{debug_dac_gain[15]}}, debug_dac_gain};
+                16'h0042: sys_rdata <= debug_dac_source;
+                16'h0043: sys_rdata <= debug_dac_format;
+                16'h0050: sys_rdata <= Phase_Residuals_Threshold0;
+                16'h0051: sys_rdata <= Phase_Residuals_Offset0;
+                16'h0052: sys_rdata <= Freq_Residuals_Threshold0;
+                16'h0060: sys_rdata <= {23'h0, post_iq_cic_rate_r};
+                16'h0061: sys_rdata <= {26'h0, post_iq_cic_shift};
+                16'h0062: sys_rdata <= {30'h0, fll_delay_sel};
+                16'h006F: sys_rdata <= 32'h0000_0000;
+                16'h0100: sys_rdata <= {24'h0, residuals0_are_above_threshold,
+                                          residuals0_are_above_threshold_freq,
+                                          residuals0_are_above_threshold_phase,
+                                          dac0_railed_negative,
+                                          dac0_railed_positive,
+                                          pll0_locked_instant, LED_R0, LED_G0};
+                16'h0101: sys_rdata <= {12'h0, dpll_i_baseband[19] ? (~dpll_i_baseband + 20'd1) : dpll_i_baseband} +
+                                        {12'h0, dpll_q_baseband[19] ? (~dpll_q_baseband + 20'd1) : dpll_q_baseband};
+                16'h0102: sys_rdata <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
+                16'h0103: sys_rdata <= {{10{dpll_freq_error[21]}}, dpll_freq_error};
+                16'h0104: sys_rdata <= dpll_freq_correction[31:0];
+                16'h0105: sys_rdata <= dpll_tracking_word[31:0];
+                16'h0106: sys_rdata <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
+                16'h0107: sys_rdata <= dpll_freq_state[31:0];
+                16'h0108: sys_rdata <= {27'h0, dpll_tracking_valid, dpll_freq_error_valid,
+                                          dpll_iq_valid, dpll_cic_illegal, dpll_cic_overflow};
+                16'h0109: sys_rdata <= {17'h0, dpll_active_cic_shift, dpll_active_cic_rate_r};
+                16'h010A: sys_rdata <= {16'h0, dpll_tracking_word[47:32]};
+                16'h010B: sys_rdata <= VCO_Input0[31:0];
+                16'h010C: sys_rdata <= {16'h0, VCO_Input0[47:32]};
+                16'h010D: sys_rdata <= CONFIG_VERSION;
+                16'h010E: sys_rdata <= ABI_VERSION;
+                16'h010F: sys_rdata <= FPGA_BUILD_ID;
+                default:  sys_rdata <= 32'h0000_0000;
+            endcase
+        end
+    end
+end
 
 endmodule
+
+`default_nettype wire

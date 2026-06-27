@@ -51,6 +51,8 @@ DPLL_Rewrite.sdk/**/Release/**
 *.a
 *.pdom
 *.index
+__pycache__/
+*.py[cod]
 
 # Local/editor files
 *.tmp

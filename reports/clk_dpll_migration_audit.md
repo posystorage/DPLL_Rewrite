@@ -34,17 +34,17 @@ Active hits excluding `.bk`: 33
 - `frontend-nco-mixer-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/DDC_wideband_filters.vhd:378`: `process (clk_dpll)`
 - `frontend-nco-mixer-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/DDC_wideband_filters.vhd:380`: `if rising_edge(clk_dpll) then`
 - `stage-a-wrapper-boundary` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:11`: `input  wire               clk_dpll,  //dpll clock 3.125MHz`
-- `clock-valid-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:239`: `always @(posedge clk_dpll) begin`
-- `frontend-nco-mixer-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:249`: `.clk_dpll(clk_dpll),`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:383`: `.clk(clk_dpll),`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:459`: `.clk(clk_dpll),`
-- `clock-valid-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:643`: `always @(posedge clk_dpll) begin`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:723`: `.clk(clk_dpll),`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:749`: `.clk(clk_dpll),`
-- `clock-valid-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:759`: `always @(posedge clk_dpll)`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:782`: `.clk(clk_dpll),`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:796`: `.clk(clk_dpll),`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:805`: `.clk(clk_dpll),`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:814`: `.clk(clk_dpll),`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:823`: `.clk(clk_dpll),`
-- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:839`: `.clk(clk_dpll),`
+- `clock-valid-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:292`: `always @(posedge clk_dpll) begin`
+- `frontend-nco-mixer-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:302`: `.clk_dpll(clk_dpll),`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:436`: `.clk(clk_dpll),`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:512`: `.clk(clk_dpll),`
+- `clock-valid-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:696`: `always @(posedge clk_dpll) begin`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:776`: `.clk(clk_dpll),`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:802`: `.clk(clk_dpll),`
+- `clock-valid-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:812`: `always @(posedge clk_dpll)`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:835`: `.clk(clk_dpll),`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:849`: `.clk(clk_dpll),`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:858`: `.clk(clk_dpll),`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:867`: `.clk(clk_dpll),`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:876`: `.clk(clk_dpll),`
+- `register-dac-owner` `DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_wrapper.v:892`: `.clk(clk_dpll),`

@@ -50,26 +50,36 @@ module iq_mixer_stage_a_tb;
         @(negedge clk_125m);
         rst_125m = 1'b0;
 
+        @(negedge clk_125m);
         sample_in = 16'sd1000;
         cos_in = 16'sd16384;
         sin_in = 16'sd0;
         in_valid = 1'b1;
         @(posedge clk_125m);
-        expect_mix(18'sd1000, 18'sd0);
+        #1;
+        if (out_valid !== 1'b0) begin
+            $display("FAIL: out_valid should stay low during mixer pipeline fill");
+            $finish;
+        end
 
+        @(negedge clk_125m);
         sample_in = 16'sd1000;
         cos_in = 16'sd0;
         sin_in = 16'sd16384;
         @(posedge clk_125m);
-        expect_mix(18'sd0, -18'sd1000);
+        expect_mix(18'sd1000, 18'sd0);
 
+        @(negedge clk_125m);
         sample_in = -16'sd2000;
         cos_in = 16'sd8192;
         sin_in = -16'sd8192;
         @(posedge clk_125m);
-        expect_mix(-18'sd1000, -18'sd1000);
+        expect_mix(18'sd0, -18'sd1000);
 
+        @(negedge clk_125m);
         in_valid = 1'b0;
+        @(posedge clk_125m);
+        expect_mix(-18'sd1000, -18'sd1000);
         @(posedge clk_125m);
         #1;
         if (out_valid !== 1'b0) begin

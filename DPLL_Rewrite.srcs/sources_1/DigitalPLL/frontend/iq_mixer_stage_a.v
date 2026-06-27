@@ -23,14 +23,17 @@ module iq_mixer_stage_a #(
     wire signed [PRODUCT_WIDTH-1:0] i_product;
     wire signed [PRODUCT_WIDTH-1:0] q_product;
     wire signed [LO_WIDTH-1:0]      neg_sin;
+    reg                             product_valid;
+    reg signed [PRODUCT_WIDTH-1:0]  i_product_r;
+    reg signed [PRODUCT_WIDTH-1:0]  q_product_r;
     wire signed [PRODUCT_WIDTH-1:0] i_scaled;
     wire signed [PRODUCT_WIDTH-1:0] q_scaled;
 
     assign neg_sin   = -sin_in;
     assign i_product = sample_in * cos_in;
     assign q_product = sample_in * neg_sin;
-    assign i_scaled  = i_product >>> LO_FRAC_BITS;
-    assign q_scaled  = q_product >>> LO_FRAC_BITS;
+    assign i_scaled  = i_product_r >>> LO_FRAC_BITS;
+    assign q_scaled  = q_product_r >>> LO_FRAC_BITS;
 
     function signed [OUTPUT_WIDTH-1:0] saturate_to_output;
         input signed [PRODUCT_WIDTH-1:0] value;
@@ -51,12 +54,20 @@ module iq_mixer_stage_a #(
 
     always @(posedge clk_125m) begin
         if (rst_125m) begin
+            product_valid <= 1'b0;
             out_valid <= 1'b0;
+            i_product_r <= {PRODUCT_WIDTH{1'b0}};
+            q_product_r <= {PRODUCT_WIDTH{1'b0}};
             i_out <= {OUTPUT_WIDTH{1'b0}};
             q_out <= {OUTPUT_WIDTH{1'b0}};
         end else begin
-            out_valid <= in_valid;
+            product_valid <= in_valid;
+            out_valid <= product_valid;
             if (in_valid) begin
+                i_product_r <= i_product;
+                q_product_r <= q_product;
+            end
+            if (product_valid) begin
                 i_out <= saturate_to_output(i_scaled);
                 q_out <= saturate_to_output(q_scaled);
             end

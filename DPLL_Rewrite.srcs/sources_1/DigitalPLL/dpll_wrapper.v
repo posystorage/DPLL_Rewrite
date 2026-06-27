@@ -99,6 +99,8 @@ parallel_bus_register_ok_reset (
 
 wire ok_reset;
 //wire ok_reset_frontend;
+wire [32-1:0] Centre_Freq;
+wire pll0_lock;
 
 (* keep = "true" *) wire rst_125m_stage_a;
 (* keep = "true" *) wire sample_3m125_valid_stage_a;
@@ -111,6 +113,58 @@ wire ok_reset;
     .sw_reset_pulse(ok_reset),
     .rst_125m(rst_125m_stage_a),
     .sample_valid(sample_3m125_valid_stage_a)
+);
+
+(* keep = "true" *) wire [47:0] dpll_single_clock_tracking_word_stage_a;
+(* keep = "true" *) wire dpll_single_clock_tracking_valid_stage_a;
+(* keep = "true" *) wire signed [17:0] dpll_single_clock_phase_error_stage_a;
+(* keep = "true" *) wire signed [21:0] dpll_single_clock_freq_error_stage_a;
+(* keep = "true" *) wire dpll_single_clock_freq_error_valid_stage_a;
+(* keep = "true" *) wire signed [19:0] dpll_single_clock_i_baseband_stage_a;
+(* keep = "true" *) wire signed [19:0] dpll_single_clock_q_baseband_stage_a;
+(* keep = "true" *) wire dpll_single_clock_iq_valid_stage_a;
+(* keep = "true" *) wire signed [55:0] dpll_single_clock_freq_state_stage_a;
+(* keep = "true" *) wire signed [55:0] dpll_single_clock_freq_correction_stage_a;
+(* keep = "true" *) wire [8:0] dpll_single_clock_active_cic_rate_stage_a;
+(* keep = "true" *) wire [5:0] dpll_single_clock_active_cic_shift_stage_a;
+(* keep = "true" *) wire dpll_single_clock_cic_overflow_stage_a;
+(* keep = "true" *) wire dpll_single_clock_cic_illegal_stage_a;
+(* keep = "true" *) wire signed [15:0] dpll_single_clock_lo_cos_stage_a;
+(* keep = "true" *) wire signed [15:0] dpll_single_clock_lo_sin_stage_a;
+
+(* dont_touch = "true" *) dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
+    .clk_125m(clk1),
+    .rst_125m(rst_125m_stage_a),
+    .sample_valid(sample_3m125_valid_stage_a),
+    .loop_enable(pll0_lock),
+    .adc_sample(ADCraw0),
+    .center_word({Centre_Freq, 16'h0000}),
+    .config_apply(ok_reset),
+    .cic_rate_r(9'd8),
+    .cic_output_shift(6'd9),
+    .cic_flush(ok_reset),
+    .fll_delay_sel(2'd0),
+    .kf(24'sd8),
+    .ki(24'sd2),
+    .kp(24'sd4),
+    .positive_limit(56'sd140737488355327),
+    .negative_limit(-56'sd140737488355328),
+    .tracking_word(dpll_single_clock_tracking_word_stage_a),
+    .tracking_valid(dpll_single_clock_tracking_valid_stage_a),
+    .phase_error(dpll_single_clock_phase_error_stage_a),
+    .freq_error(dpll_single_clock_freq_error_stage_a),
+    .freq_error_valid(dpll_single_clock_freq_error_valid_stage_a),
+    .i_baseband(dpll_single_clock_i_baseband_stage_a),
+    .q_baseband(dpll_single_clock_q_baseband_stage_a),
+    .iq_valid(dpll_single_clock_iq_valid_stage_a),
+    .freq_state(dpll_single_clock_freq_state_stage_a),
+    .freq_correction(dpll_single_clock_freq_correction_stage_a),
+    .active_cic_rate_r(dpll_single_clock_active_cic_rate_stage_a),
+    .active_cic_output_shift(dpll_single_clock_active_cic_shift_stage_a),
+    .cic_overflow_seen(dpll_single_clock_cic_overflow_stage_a),
+    .cic_illegal_config_seen(dpll_single_clock_cic_illegal_stage_a),
+    .lo_cos(dpll_single_clock_lo_cos_stage_a),
+    .lo_sin(dpll_single_clock_lo_sin_stage_a)
 );
 
 //reg rst_peripherals, rst_peripherals_output1, rst_peripherals_output2, rst_peripherals_internal, rst_peripherals_output1_internal, rst_peripherals_output2_internal;    // we split the reset signal in a tree to try help with the fanout, and hope that xst won't combine our register
@@ -183,7 +237,6 @@ wire        [14-1:0]       inst_frequency0;        // diff(phi)/(2*pi) * 2^14
 //wire select_phase_or_freq0;
 wire [3:0] angleSelect_0;
 
-    wire [32-1:0]Centre_Freq;    
     reg  [47:0]reference_frequency0 ;
     wire [48-1:0]DDC_Phase;
     wire [32-1:0]PID_OUT_With_Limit;
@@ -273,7 +326,7 @@ DDC_wideband_filters DDC0_inst (
 ///////////////////////////////////////////////////////////////////////////////
 // Loop filters for DAC 0:  
 //PID
-wire pll0_lock,pll0_lock_i,  pll0_gain_changedp, pll0_gain_changedi, pll0_gain_changedii, pll0_gain_changedd, pll0_coef_changedd;
+wire pll0_lock_i, pll0_gain_changedp, pll0_gain_changedi, pll0_gain_changedii, pll0_gain_changedd, pll0_coef_changedd;
 wire pll0_gain_changed;
 wire [32-1:0] pll0_gainp, pll0_gaini, pll0_gainii, pll0_gaind, pll0_coefdfilter;
 wire [32-1:0] pll0_output;

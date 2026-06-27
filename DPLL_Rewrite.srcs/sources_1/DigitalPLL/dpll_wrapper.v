@@ -540,7 +540,7 @@ end
 //±¶ÆµºÍ³ýÆµ´¦Àí
 PLL_VCO_MUL_DIV VCO0_mul_div(
     .clk(clk1),
-    .clk_dpll(clk_dpll),
+    .sample_valid(sample_3m125_valid_stage_a),
     .data_in(reference_frequency0),
     .data_out(VCO_Input0),
     .PLL_Mul_factor(PLL_Mul_factor_r),

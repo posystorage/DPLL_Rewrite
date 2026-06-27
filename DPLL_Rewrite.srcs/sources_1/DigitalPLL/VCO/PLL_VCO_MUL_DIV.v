@@ -21,15 +21,12 @@
 
 module PLL_VCO_MUL_DIV(
     input wire clk,
-    input wire clk_dpll,
+    input wire sample_valid,
     input wire [47:0] data_in,
     output reg [47:0] data_out,
     input wire [15:0] PLL_Mul_factor,
     input wire [15:0] PLL_Div_factor
     );
-    reg flag_times_slow = 0;
-    
-    reg clk_flag_times_slow = 0;
     reg [48-1:0]clk_data_in = 0;
     reg [48-1:0]clk_data_in_reg = 0;
     reg clk_data_ready = 0;
@@ -38,15 +35,10 @@ module PLL_VCO_MUL_DIV(
     wire [48+16-1:0]PLL_Mul_Data; 
     wire [48+16-1:0]PLL_Div_Data ;
     wire m_axis_data_tvalid;  
-    reg [48-1:0]PLL_Div_Data_reg;  
-    //跨时钟数据处理
-always @(posedge clk_dpll) begin
-    flag_times_slow <= ~flag_times_slow;
-end    
+    reg [48-1:0]PLL_Div_Data_reg;
+    // Capture the lower-rate DPLL word with a one-cycle valid pulse in clk domain.
 always @(posedge clk) begin
-    
-    clk_flag_times_slow <= flag_times_slow;
-    if (clk_flag_times_slow != flag_times_slow)
+    if (sample_valid)
     begin
         clk_data_ready <= 1;
         clk_data_in <= data_in;

@@ -1,0 +1,40 @@
+Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
+| Date         : Sat Jun 27 22:26:11 2026
+| Host         : MiaoZhi-PC running 64-bit major release  (build 9200)
+| Command      : report_clock_interaction -delay_type min_max -file E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_audit/audit_clock_interaction.rpt
+| Design       : red_pitaya_top
+| Device       : 7z010-clg400
+| Speed File   : -1  PRODUCTION 1.11 2014-09-11
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Clock Interaction Report
+
+Clock Interaction Table
+-----------------------
+
+                                                            WNS                             TNS Failing  TNS Total    WNS Path         WHS                            THS Failing  THS Total    WHS Path         Clock-Pair           Inter-Clock  
+From Clock                    To Clock                      Clock Edges  WNS(ns)   TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Clock Edges  WHS(ns)  THS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints  
+----------------------------  ----------------------------  -----------  -------  --------  -----------  -----------  ---------------  -----------  -------  -------  -----------  -----------  ---------------  -------------------  -----------  
+DPLL_clk                      DPLL_clk                      rise - rise   308.67      0.00            0         4330           320.00  rise - rise     0.05     0.00            0         4330             0.00  Clean                Timed        
+DPLL_clk                      pll_adc_clk                   rise - rise    -1.93    -15.89           20          121             8.00  rise - rise     0.62     0.00            0          121             0.00  Clean                Timed        
+DPLL_clk                      pll_clk_adc_2x                rise - rise    -0.47     -5.34           34           34             4.00  rise - rise     0.58     0.00            0           34             0.00  Clean                Timed        
+adc_clk                       adc_clk                       rise - rise    -2.31    -25.69           14          381             8.00  rise - rise     0.10     0.00            0          381             0.00  Clean                Timed        
+adc_clk                       pll_adc_clk                   rise - rise    -4.23  -4508.30         2278         2394             8.00  rise - rise     1.87     0.00            0         2394             0.00  Clean                Timed        
+clk_fpga_3                    clk_fpga_3                    rise - rise    -0.06     -0.16            3         1579             5.00  rise - rise     0.06     0.00            0         1579             0.00  Clean                Timed        
+dna_clk                       pll_adc_clk                   rise - rise     1.68      0.00            0            1             8.00  rise - rise     2.71     0.00            0            1             0.00  Clean                Timed        
+pll_adc_clk                   DPLL_clk                      rise - rise    -2.23     -5.35            5         1451             8.00  rise - rise     0.05     0.00            0         1451             0.00  Clean                Timed        
+pll_adc_clk                   adc_clk                       rise - rise     2.50      0.00            0           46             8.00  rise - rise     0.32     0.00            0           46             0.00  Clean                Timed        
+pll_adc_clk                   dna_clk                       rise - rise     0.63      0.00            0            2             8.00  rise - rise     0.34     0.00            0            2             0.00  Clean                Timed        
+pll_adc_clk                   pll_adc_clk                   rise - rise    -0.53    -31.19           92        10252             8.00  rise - rise     0.05     0.00            0        10252             0.00  Clean                Timed        
+pll_adc_clk                   pll_clk_adc_2x                rise - rise     0.48      0.00            0          164             4.00  rise - rise     0.06     0.00            0          164             0.00  Clean                Timed        
+pll_adc_clk                   pll_dac_clk_1x                rise - rise     2.48      0.00            0           28             8.00  rise - rise     0.06     0.00            0           28             0.00  Clean                Timed        
+pll_clk_adc_2x                DPLL_clk                      rise - rise    -0.34     -0.40            2           32             4.00  rise - rise     0.05     0.00            0           32             0.00  Clean                Timed        
+pll_clk_adc_2x                pll_adc_clk                   rise - rise     1.22      0.00            0           32             4.00  rise - rise     0.08     0.00            0           32             0.00  Clean                Timed        
+pll_clk_adc_2x                pll_clk_adc_2x                rise - rise    -0.46     -1.23            4         4238             4.00  rise - rise     0.05     0.00            0         4238             0.00  Clean                Timed        
+pll_dac_clk_1x                pll_dac_clk_1x                rise - fall     0.66      0.00            0           45             4.00  rise - rise     0.11     0.00            0           45             0.00  Clean                Timed        
+pll_dpll_clk_div20            pll_dpll_clk_div10            rise - rise    78.10      0.00            0            1            80.00  fall - rise     0.16     0.00            0            1             0.00  Clean                Timed        
+pll_dpll_clk_div20            pll_dpll_clk_div20            rise - rise   158.23      0.00            0            1           160.00  rise - rise     0.49     0.00            0            1             0.00  Clean                Timed        
+
+

@@ -1,0 +1,5 @@
+Vivado audit report manifest
+project_file=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.xpr
+run_name=impl_1
+out_dir=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_audit
+generated_at=2026-06-27 22:25:36

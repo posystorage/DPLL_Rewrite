@@ -27,6 +27,22 @@ DPLL_Rewrite.runs/**
 *.wpc
 usage_statistics_webtalk.*
 usage_statistics_ext_sdk.*
+webtalk*.jou
+webtalk*.log
+xsim*.jou
+xsim*.log
+xelab.pb
+xvlog.pb
+*.wdb
+
+# Local xsim project scratch. Keep selected reports/logs by force-adding.
+reports/xsim/**/xsim.dir/
+reports/xsim/**/.Xil/
+reports/xsim/clock_valid_stage_a/
+reports/xsim/**/clock_valid_stage_a.cache/
+reports/xsim/**/clock_valid_stage_a.hw/
+reports/xsim/**/clock_valid_stage_a.ip_user_files/
+reports/xsim/**/clock_valid_stage_a.sim/
 
 # Xilinx SDK / Eclipse workspace metadata
 DPLL_Rewrite.sdk/.metadata/

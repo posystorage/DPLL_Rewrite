@@ -1,0 +1,20 @@
+#-----------------------------------------------------------
+# xsim v2018.3 (64-bit)
+# SW Build 2405991 on Thu Dec  6 23:38:27 MST 2018
+# IP Build 2404404 on Fri Dec  7 01:43:56 MST 2018
+# Start of session at: Sat Jun 27 23:22:22 2026
+# Process ID: 106008
+# Current directory: E:/FPGA/DPLL_Rewrite/worktrees/agent-clock-valid/reports/xsim/clock_valid_stage_a_cli
+# Command line: xsim.exe -mode tcl -source {xsim.dir/dpll_clock_valid_stage_a_tb/xsim_script.tcl}
+# Log file: E:/FPGA/DPLL_Rewrite/worktrees/agent-clock-valid/reports/xsim/clock_valid_stage_a_cli/xsim.log
+# Journal file: E:/FPGA/DPLL_Rewrite/worktrees/agent-clock-valid/reports/xsim/clock_valid_stage_a_cli\xsim.jou
+#-----------------------------------------------------------
+source xsim.dir/dpll_clock_valid_stage_a_tb/xsim_script.tcl
+# xsim {dpll_clock_valid_stage_a_tb} -autoloadwcfg -runall
+Vivado Simulator 2018.3
+Time resolution is 1 ps
+run -all
+PASS dpll_clock_valid_stage_a_tb
+$finish called at time : 420 ns : File "E:/FPGA/DPLL_Rewrite/worktrees/agent-clock-valid/verification/rtl/dpll_clock_valid_stage_a_tb.v" Line 85
+exit
+INFO: [Common 17-206] Exiting xsim at Sat Jun 27 23:22:24 2026...

@@ -100,6 +100,19 @@ parallel_bus_register_ok_reset (
 wire ok_reset;
 //wire ok_reset_frontend;
 
+(* keep = "true" *) wire rst_125m_stage_a;
+(* keep = "true" *) wire sample_3m125_valid_stage_a;
+
+(* dont_touch = "true" *) dpll_clock_valid_stage_a #(
+    .G_SAMPLE_DIV(40)
+) dpll_clock_valid_stage_a_inst (
+    .clk_125m(clk1),
+    .rst_n_async(rst),
+    .sw_reset_pulse(ok_reset),
+    .rst_125m(rst_125m_stage_a),
+    .sample_valid(sample_3m125_valid_stage_a)
+);
+
 //reg rst_peripherals, rst_peripherals_output1, rst_peripherals_output2, rst_peripherals_internal, rst_peripherals_output1_internal, rst_peripherals_output2_internal;    // we split the reset signal in a tree to try help with the fanout, and hope that xst won't combine our register
 reg rst_frontend0, rst_frontend1, rst_frontend0_internal, rst_frontend1_internal;
 

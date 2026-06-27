@@ -1,0 +1,4 @@
+INFO: [VRFC 10-2263] Analyzing Verilog file "E:/FPGA/DPLL_Rewrite/worktrees/agent-clock-valid/DPLL_Rewrite.srcs/sources_1/DigitalPLL/clocking/dpll_clock_valid_stage_a.v" into library work
+INFO: [VRFC 10-311] analyzing module dpll_clock_valid_stage_a
+INFO: [VRFC 10-2263] Analyzing Verilog file "E:/FPGA/DPLL_Rewrite/worktrees/agent-clock-valid/verification/rtl/dpll_clock_valid_stage_a_tb.v" into library work
+INFO: [VRFC 10-311] analyzing module dpll_clock_valid_stage_a_tb

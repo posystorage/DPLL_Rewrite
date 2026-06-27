@@ -1,0 +1,60 @@
+# Vivado transient state
+.Xil/
+DPLL_Rewrite.cache/
+DPLL_Rewrite.hw/
+DPLL_Rewrite.ip_user_files/
+DPLL_Rewrite.sim/
+
+# Vivado run directories: ignore intermediates, keep build outputs and reports.
+DPLL_Rewrite.runs/**
+!DPLL_Rewrite.runs/
+!DPLL_Rewrite.runs/**/
+!DPLL_Rewrite.runs/**/*.bit
+!DPLL_Rewrite.runs/**/*.dcp
+!DPLL_Rewrite.runs/**/*.hwdef
+!DPLL_Rewrite.runs/**/*.sysdef
+!DPLL_Rewrite.runs/**/*.ltx
+!DPLL_Rewrite.runs/**/*.rpt
+!DPLL_Rewrite.runs/**/*.rpx
+
+# Vivado logs/journals and webtalk noise
+*.jou
+*.log
+*.backup.jou
+*.backup.log
+*.pb
+*.wdf
+*.wpc
+usage_statistics_webtalk.*
+usage_statistics_ext_sdk.*
+
+# Xilinx SDK / Eclipse workspace metadata
+DPLL_Rewrite.sdk/.metadata/
+DPLL_Rewrite.sdk/.sdk/
+DPLL_Rewrite.sdk/RemoteSystemsTempFiles/
+DPLL_Rewrite.sdk/webtalk/
+
+# SDK build directories: keep final firmware/application artifacts.
+DPLL_Rewrite.sdk/**/Debug/**
+DPLL_Rewrite.sdk/**/Release/**
+!DPLL_Rewrite.sdk/**/Debug/
+!DPLL_Rewrite.sdk/**/Release/
+!DPLL_Rewrite.sdk/**/Debug/*.elf
+!DPLL_Rewrite.sdk/**/Debug/*.elf.size
+!DPLL_Rewrite.sdk/**/Release/*.elf
+!DPLL_Rewrite.sdk/**/Release/*.elf.size
+
+# Compiled objects and dependency files
+*.o
+*.obj
+*.d
+*.a
+*.pdom
+*.index
+
+# Local/editor files
+*.tmp
+*.bak
+*.swp
+Thumbs.db
+desktop.ini

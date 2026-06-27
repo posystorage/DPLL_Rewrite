@@ -1,0 +1,7 @@
+//arch = zynq; split = false; format = BIN
+the_ROM_image:
+{
+	[bootloader]E:\JiangSiyi\FPGA\DPLL_Rewrite_THbox_T3\DPLL_Rewrite.sdk\DPLL_fsbl\Debug\DPLL_fsbl.elf
+	E:\JiangSiyi\FPGA\DPLL_Rewrite_THbox_T3\DPLL_Rewrite.sdk\red_pitaya_top_hw_platform_0\red_pitaya_top.bit
+	E:\JiangSiyi\FPGA\DPLL_Rewrite_THbox_T3\DPLL_Rewrite.sdk\DPLL_2COM\Debug\DPLL_2COM.elf
+}

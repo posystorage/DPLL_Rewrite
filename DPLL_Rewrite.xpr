@@ -206,6 +206,13 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PSRCDIR/sources_1/DigitalPLL/iq_cic/post_iq_cic_stage_a.v">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PSRCDIR/sources_1/ReadPitaya/red_pitaya_ams.v">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>

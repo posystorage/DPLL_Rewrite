@@ -87,6 +87,14 @@ def main() -> int:
         "Active IQ LO uses DDS Streaming PINC without a redundant local phase accumulator",
         "`LO_DDS_H` is configured for streaming phase increment",
     ))
+    checks.append(check(
+        ".ambiguous(fll_ambiguous)" in core
+        and "assign freq_error_usable = freq_error_valid && !fll_ambiguous;" in core
+        and "hybrid_error_valid_r <= freq_error_usable;" in core
+        and "state_measurement_valid_r <= freq_error_valid_d;" in core,
+        "Ambiguous FLL measurements are blocked before state and hybrid-loop updates",
+        "`fll_ambiguous` masks `freq_error_valid` through `freq_error_usable`",
+    ))
 
     lines = [
         "# Review2 Closure Audit",

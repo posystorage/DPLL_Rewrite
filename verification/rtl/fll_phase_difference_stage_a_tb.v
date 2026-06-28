@@ -88,6 +88,20 @@ module fll_phase_difference_stage_a_tb;
             $finish;
         end
 
+        @(negedge clk_125m);
+        clear = 1'b1;
+        delay_sel = 2'd0;
+        @(posedge clk_125m);
+        #1;
+        clear = 1'b0;
+        push_phase(18'sd0);
+        push_phase(18'sd131071);
+        if (freq_error_valid !== 1'b1 || ambiguous !== 1'b1) begin
+            $display("FAIL: half-scale phase difference should be marked ambiguous, valid=%b ambiguous=%b error=%0d",
+                     freq_error_valid, ambiguous, freq_error);
+            $finish;
+        end
+
         $display("PASS: fll_phase_difference_stage_a_tb");
         $finish;
     end

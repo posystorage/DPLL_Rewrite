@@ -100,6 +100,8 @@ module dpll_single_clock_core_stage_a #(
     wire [FERR_WIDTH-1:0] freq_abs;
     wire cordic_signal_usable;
     wire fll_phase_valid;
+    wire fll_ambiguous;
+    wire freq_error_usable;
     reg signed [PHASE_WIDTH-1:0] phase_error_hold;
     reg [15:0] cordic_magnitude_hold;
     reg freq_error_valid_d;
@@ -301,6 +303,7 @@ module dpll_single_clock_core_stage_a #(
     assign cordic_signal_usable = (mag_enter_threshold == 16'd0) ||
                                   (cordic_magnitude >= mag_enter_threshold);
     assign fll_phase_valid = cordic_valid && cordic_signal_usable;
+    assign freq_error_usable = freq_error_valid && !fll_ambiguous;
 
     always @(posedge clk_125m) begin
         if (rst_measure_r) begin
@@ -312,7 +315,7 @@ module dpll_single_clock_core_stage_a #(
             state_freq_abs_r <= {FERR_WIDTH{1'b0}};
             state_magnitude_r <= 16'd0;
         end else begin
-            freq_error_valid_d <= freq_error_valid;
+            freq_error_valid_d <= freq_error_usable;
             state_measurement_valid_r <= freq_error_valid_d;
 
             if (cordic_valid) begin
@@ -391,7 +394,7 @@ module dpll_single_clock_core_stage_a #(
         .delay_sel(fll_delay_sel),
         .freq_error_valid(freq_error_valid),
         .freq_error(freq_error),
-        .ambiguous()
+        .ambiguous(fll_ambiguous)
     );
 
     always @(posedge clk_125m) begin
@@ -418,8 +421,8 @@ module dpll_single_clock_core_stage_a #(
             active_kf_r <= active_kf;
             active_ki_r <= active_ki;
             active_kp_r <= active_kp;
-            hybrid_error_valid_r <= freq_error_valid;
-            if (freq_error_valid) begin
+            hybrid_error_valid_r <= freq_error_usable;
+            if (freq_error_usable) begin
                 hybrid_enable_fll_r <= active_enable_fll_r;
                 hybrid_enable_pll_i_r <= active_enable_pll_i_r;
                 hybrid_enable_pll_p_r <= active_enable_pll_p_r;

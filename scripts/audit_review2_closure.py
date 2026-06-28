@@ -46,8 +46,10 @@ def main() -> int:
     hybrid_checker = read(ROOT / "verification" / "fixed_point" / "check_hybrid_loop_trace.py")
     post_iq_checker = read(ROOT / "verification" / "fixed_point" / "check_post_iq_cic_trace.py")
     dc_checker = read(ROOT / "verification" / "fixed_point" / "check_dc_blocker_trace.py")
+    input_mult_checker = read(ROOT / "verification" / "fixed_point" / "check_input_multiplier_mixer_trace.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     dc_tb = read(ROOT / "verification" / "rtl" / "dc_blocker_valid_stage_a_tb.v")
+    input_mult_tb = read(ROOT / "verification" / "rtl" / "input_multiplier_mixer_latency_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
@@ -93,6 +95,15 @@ def main() -> int:
         and "assign mixer_valid = mixer_product_valid;" in core,
         "Mixer valid is delayed for the configured one-cycle multiplier IP latency",
         "`input_multiplier` latency is 1 and core has a product-valid stage",
+    ))
+    checks.append(check(
+        "input_multiplier_mixer_trace.csv" in input_mult_tb
+        and "input_multiplier input_multiplier_i_inst" in input_mult_tb
+        and "product_valid <= input_valid_r;" in input_mult_tb
+        and "previous sample cycle" in input_mult_checker
+        and "PASS: input multiplier mixer trace" in input_mult_checker,
+        "Mixer multiplier IP latency is covered by an IP-aware golden trace",
+        "`input_multiplier_mixer_latency_tb` uses the real Xilinx `input_multiplier` VHDL model and checks one-cycle product/valid alignment against changing sample indices",
     ))
     checks.append(check(
         "(mixer_i_product[31] ? -32'sd16384 : 32'sd16384)" in core

@@ -49,12 +49,14 @@ def main() -> int:
     input_mult_checker = read(ROOT / "verification" / "fixed_point" / "check_input_multiplier_mixer_trace.py")
     cordic_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_angle_cordic_ip_trace.py")
     dds_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_lo_dds_h_streaming_pinc_trace.py")
+    nonzero_core_checker = read(ROOT / "verification" / "fixed_point" / "check_dpll_core_nonzero_tracking_trace.py")
     arm_mock = read(ROOT / "verification" / "arm" / "test_dpll_control_mock.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     dc_tb = read(ROOT / "verification" / "rtl" / "dc_blocker_valid_stage_a_tb.v")
     input_mult_tb = read(ROOT / "verification" / "rtl" / "input_multiplier_mixer_latency_tb.v")
     cordic_ip_tb = read(ROOT / "verification" / "rtl" / "angle_cordic_ip_trace_tb.v")
     dds_ip_tb = read(ROOT / "verification" / "rtl" / "lo_dds_h_streaming_pinc_tb.v")
+    nonzero_core_tb = read(ROOT / "verification" / "rtl" / "dpll_core_nonzero_tracking_tb.v")
     vco_tb = read(ROOT / "verification" / "rtl" / "pll_vco_mul_div_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
@@ -366,6 +368,19 @@ def main() -> int:
         and "PASS: multifrequency golden trace" in multi_checker,
         "5-200 kHz RTL trace is checked against the frozen fixed-point frequency-word model",
         "`dpll_multifrequency_path_tb` writes CSV and `check_multifrequency_trace.py` verifies all seven frequency words plus zero-gain tracking semantics",
+    ))
+    checks.append(check(
+        "dpll_core_nonzero_tracking_trace.csv" in nonzero_core_tb
+        and ".kf(24'sd16384)" in nonzero_core_tb
+        and ".ki(24'sd8192)" in nonzero_core_tb
+        and ".kp(24'sd4096)" in nonzero_core_tb
+        and "freq_correction" in nonzero_core_tb
+        and "previous " in nonzero_core_checker
+        and "sat(center+correction)" in nonzero_core_checker
+        and "distinct nonzero corrections" in nonzero_core_checker
+        and "PASS: DPLL core nonzero tracking trace" in nonzero_core_checker,
+        "Core-level nonzero-gain RTL trace covers closed-loop tracking updates beyond zero-gain frequency-word checks",
+        "`dpll_core_nonzero_tracking_tb` runs the real DDS/mixer/CIC/CORDIC/FLL/hybrid core with nonzero gains; checker verifies multiple nonzero corrections and the registered next-row `tracking_word = sat(center_word + freq_correction)` contract",
     ))
     legacy_dpll_xpr_entries = [
         "sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v",

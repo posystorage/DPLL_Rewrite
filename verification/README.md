@@ -35,6 +35,7 @@ powershell -ExecutionPolicy Bypass -File scripts\run_angle_cordic_ip_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_lo_dds_h_streaming_pinc_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_input_multiplier_mixer_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_pll_vco_mul_div_xsim.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_dpll_core_nonzero_tracking_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_dpll_multifrequency_path_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_multifrequency_golden_trace.ps1
 ```
@@ -70,6 +71,10 @@ model and checks one-cycle product/valid alignment for changing sample IDs.
 `run_pll_vco_mul_div_xsim.ps1` compiles the real multiplier and unsigned
 divider IP models with `PLL_VCO_MUL_DIV` and checks legal scaling, `DIV[15]`,
 zero-factor rejection, saturation, and latest-wins pending behavior.
+
+`run_dpll_core_nonzero_tracking_trace.ps1` runs the real DDS/mixer/CIC/CORDIC/
+FLL/hybrid core path with nonzero loop gains and checks multiple nonzero
+corrections plus the registered next-row tracking-word update contract.
 
 ## Review Closure Audits
 

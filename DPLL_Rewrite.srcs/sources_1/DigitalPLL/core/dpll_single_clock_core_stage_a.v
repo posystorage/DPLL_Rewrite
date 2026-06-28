@@ -226,7 +226,8 @@ module dpll_single_clock_core_stage_a #(
     input_multiplier input_multiplier_q_inst (
         .CLK(clk_125m),
         .A(adc_sample_r1),
-        .B(-lo_sin_r1),
+        // LO_DDS_H is configured with Negative_Sine=true; use the IP output directly.
+        .B(lo_sin_r1),
         .P(mixer_q_product)
     );
 

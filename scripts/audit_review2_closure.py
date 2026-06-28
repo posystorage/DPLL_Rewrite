@@ -31,6 +31,7 @@ def main() -> int:
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     input_mult_sim = read(DPLL / "DDC" / "ip" / "input_multiplier" / "sim" / "input_multiplier.vhd")
+    xpr = read(ROOT / "DPLL_Rewrite.xpr")
 
     checks: list[tuple[str, bool]] = []
     checks.append(check(
@@ -159,6 +160,28 @@ def main() -> int:
         and "4'h8: debug_source_mux = {{16{dpll_lo_sin[15]}}, dpll_lo_sin};" not in wrapper,
         "DACout1 debug source selector matches register-map v1",
         "`DEBUG_DAC_SOURCE` values 1/7/8/9 map to tracking delta, CORDIC phase, magnitude, and output delta",
+    ))
+    legacy_dpll_xpr_entries = [
+        "sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v",
+        "sources_1/DigitalPLL/PID/",
+        "sources_1/DigitalPLL/DDC/ip/fir_compiler_minimumphase/",
+        "sources_1/DigitalPLL/DDC/ip/LO_DDS.xcix",
+        "sources_1/DigitalPLL/DDC/ip/LO_DDS/LO_DDS.xci",
+        "sources_1/DigitalPLL/DDC/N_times_clk_FIR_wrapper.vhd",
+        "sources_1/DigitalPLL/DDC/ddc_frontend_lowpass_filter.vhd",
+        "sources_1/DigitalPLL/DDC/ip/FIR_3_125MHz_Fstop240KHz_60db_28Order.coe",
+        "sources_1/DigitalPLL/DDC/ip/FIR_3_125MHz_Fstop240KHz_98db_39Order.coe",
+        "sources_1/DigitalPLL/DDC/ip/FIR_3_125MHz_Fstop60KHz_77db_159Order.coe",
+        "sources_1/DigitalPLL/VCO/DAC_DDS/DAC_DDS.xci",
+        "sources_1/DigitalPLL/VCO/VCO_32bits.vhd",
+    ]
+    checks.append(check(
+        all(entry not in xpr for entry in legacy_dpll_xpr_entries)
+        and "sources_1/Freq_Meter/DDC/ip/fir_compiler_minimumphase_H/fir_compiler_minimumphase_H.xci" in xpr
+        and "sources_1/Freq_Meter/DDC/ip/LO_DDS_H/LO_DDS_H.xci" in xpr
+        and "sources_1/DigitalPLL/VCO/DAC_DDS0/DAC_DDS0.xci" in xpr,
+        "DPLL legacy FIR/PID/DDS sources are removed from the active Vivado project",
+        "`DPLL_Rewrite.xpr` no longer lists old DPLL FIR/PID/DDC/DDS source entries; Freq_Meter and active DAC_DDS0 IP remain",
     ))
 
     lines = [

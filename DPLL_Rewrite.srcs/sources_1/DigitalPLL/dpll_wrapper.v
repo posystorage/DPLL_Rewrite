@@ -88,7 +88,6 @@ wire        config_apply_flag;
 wire unused_sys_sel = |sys_sel;
 wire unused_adc1 = |ADCraw1;
 wire unused_angle = |angleSelect_0;
-wire unused_debug_format = |debug_dac_format;
 
 parallel_bus_register_32bits_or_less #(
     .REGISTER_SIZE(8),
@@ -419,11 +418,17 @@ function signed [31:0] debug_source_mux;
 endfunction
 
 wire signed [31:0] debug_word = debug_source_mux(debug_dac_source[3:0]);
-wire signed [47:0] debug_scaled = debug_word * debug_dac_gain;
-wire signed [31:0] debug_shifted = debug_scaled[46:15] + {{18{debug_dac_offset[13]}}, debug_dac_offset};
-assign DACout1 = debug_shifted[31] ?
-                 ((debug_shifted < -32'sd32768) ? -16'sd32768 : debug_shifted[15:0]) :
-                 ((debug_shifted >  32'sd32767) ?  16'sd32767 : debug_shifted[15:0]);
+
+debug_dac_formatter_stage_a debug_dac_formatter_inst (
+    .clk_125m(clk1),
+    .rst_125m(rst_125m_stage_a),
+    .source_valid(1'b1),
+    .source_word(debug_word),
+    .format_word(debug_dac_format),
+    .gain(debug_dac_gain),
+    .offset({{2{debug_dac_offset[13]}}, debug_dac_offset}),
+    .dac_sample(DACout1)
+);
 
 wire [31:0] phase_abs = abs18_extend(dpll_phase_error);
 wire [31:0] freq_abs = abs22_extend(dpll_freq_error);

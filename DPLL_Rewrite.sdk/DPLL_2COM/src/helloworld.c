@@ -85,13 +85,15 @@ void XPS_Core_init(void)
 #define PC_CMD_READ_PLL_MUL_DIV_SETTING		0x04
 #define PC_CMD_READ_PLL_THRESHOLD_SETTING	0x05
 #define PC_CMD_READ_PLL_LIMIT_SETTING		0x06
-#define PC_CMD_READ_PLL_PID_SETTING			0x07
+#define PC_CMD_READ_DPLL_LOOP_BASIC_SETTING			0x07
 #define PC_CMD_READ_PLL_AMP_SETTING			0x08
 #define PC_CMD_READ_PLL_STATUS				0x09
 
 #define PC_CMD_READ_VERSION					0x0A
 #define PC_CMD_READ_DATA_LOG				0x0C
 
+#define PC_CMD_READ_DPLL_ID_STATUS			0x18
+#define PC_CMD_READ_DPLL_ADV_CONFIG			0x19
 #define PC_CMD_READ_FREQMETER_FREQ_SETTING			0x10
 #define PC_CMD_READ_FREQMETER_THRESHOLD_SETTING		0x11
 #define PC_CMD_READ_FREQMETER_LIMIT_SETTING			0x12
@@ -110,7 +112,7 @@ void XPS_Core_init(void)
 #define PC_CMD_WRITE_PLL_MUL_DIV			0x83
 #define PC_CMD_WRITE_PLL_THRESHOLD			0x84
 #define PC_CMD_WRITE_PLL_LIMIT				0x85
-#define PC_CMD_WRITE_PLL_PID				0x86
+#define PC_CMD_WRITE_DPLL_LOOP_BASIC				0x86
 #define PC_CMD_WRITE_PLL_AMP				0x87
 #define PC_CMD_WRITE_MWS_ON					0x88
 #define PC_CMD_WRITE_MWS_OFF				0x89
@@ -120,6 +122,7 @@ void XPS_Core_init(void)
 #define PC_CMD_SAVE_EEPROM					0x8D
 #define PC_CMD_PLL_RESET					0x8E
 
+#define PC_CMD_WRITE_DPLL_ADV_CONFIG		0x8F
 #define PC_CMD_FREQMETER_FREQ				0x90
 #define PC_CMD_FREQMETER_THRESHOLD			0x91
 #define PC_CMD_FREQMETER_LIMIT				0x92
@@ -128,6 +131,7 @@ void XPS_Core_init(void)
 #define PC_CMD_FREQMETER_TRIG				0x95
 #define PC_CMD_FREQMETER_RESET	 			0x96
 
+#define PC_CMD_WRITE_DPLL_DEBUG_CONFIG		0x97
 #define PC_CMD_VBIAS_WRITE_DAC	 			0x9A
 
 uint8_t Uart0_RX_Buff[512];
@@ -139,6 +143,37 @@ uint8_t PC_HOST_CMD_GET;
 uint8_t PC_HOST_CMD_RX_Mark = 0;
 uint64_t Freq_meter_gate_time_cache = 0;
 
+static uint32_t pc_get_u32(uint32_t offset)
+{
+	return ((uint32_t)PC_HOST_CMD_data_Buff[offset]) |
+	       ((uint32_t)PC_HOST_CMD_data_Buff[offset + 1] << 8) |
+	       ((uint32_t)PC_HOST_CMD_data_Buff[offset + 2] << 16) |
+	       ((uint32_t)PC_HOST_CMD_data_Buff[offset + 3] << 24);
+}
+
+static uint16_t pc_get_u16(uint32_t offset)
+{
+	return ((uint16_t)PC_HOST_CMD_data_Buff[offset]) |
+	       ((uint16_t)PC_HOST_CMD_data_Buff[offset + 1] << 8);
+}
+
+
+static uint8_t pc_payload_len(void)
+{
+	return PC_HOST_CMD_data_Buff[3];
+}
+static void pc_put_u32(uint32_t offset, uint32_t value)
+{
+	Uart0_TX_Buff[offset] = value & 0xFF;
+	Uart0_TX_Buff[offset + 1] = (value >> 8) & 0xFF;
+	Uart0_TX_Buff[offset + 2] = (value >> 16) & 0xFF;
+	Uart0_TX_Buff[offset + 3] = (value >> 24) & 0xFF;
+}
+
+static void dpll_apply_config(void)
+{
+	Xil_Out32(DPLL_CONFIG_APPLY_Addr, 1);
+}
 void PC_HOST_CMD_Get(void);
 
 void Uart0_Handler(void *CallBackRef)
@@ -346,16 +381,16 @@ void CMD_05_READ_PLL_THRESHOLD_SETTING(void)
 void CMD_06_READ_PLL_LIMIT_SETTING(void)
 {
 	uint32_t i;
-	i = Xil_In32(PID_Freq_Pos_Limit_Addr);
+	i = Xil_In32(DPLL_FREQ_POS_LIMIT_Addr);
 	Uart0_TX_Buff[4] = (i>>16)&0xFF;
 	Uart0_TX_Buff[5] = (i>>24)&0xFF;
-	i = Xil_In32(PID_Freq_Neg_Limit_Addr);
+	i = Xil_In32(DPLL_FREQ_NEG_LIMIT_Addr);
 	Uart0_TX_Buff[6] = (i>>16)&0xFF;
 	Uart0_TX_Buff[7] = (i>>24)&0xFF;
 
 	PC_HOST_ASK_Pack(4);
 }
-void CMD_07_READ_PLL_PID_SETTING(void)
+void CMD_07_READ_DPLL_LOOP_BASIC_SETTING(void)
 {
 	uint32_t i;
 	i = Xil_In32(DPLL_PLL_KP_TRACK_Addr);
@@ -595,6 +630,38 @@ void CMD_17_READ_FREQMETER_CNT(void)
 	PC_HOST_ASK_Pack(16);
 }
 
+void CMD_18_READ_DPLL_ID_STATUS(void)
+{
+	pc_put_u32(4, Xil_In32(DPLL_ABI_VERSION_Addr));
+	pc_put_u32(8, Xil_In32(DPLL_FPGA_BUILD_ID_Addr));
+	pc_put_u32(12, Xil_In32(DPLL_CONFIG_VERSION_Addr));
+	pc_put_u32(16, Xil_In32(DPLL_CORE_FLAGS_Addr));
+	pc_put_u32(20, Xil_In32(DPLL_ACTIVE_CIC_CONFIG_Addr));
+	pc_put_u32(24, Xil_In32(DPLL_TRACKING_WORD_HI_Addr));
+	pc_put_u32(28, Xil_In32(DPLL_VCO_WORD_LO_Addr));
+	pc_put_u32(32, Xil_In32(DPLL_VCO_WORD_HI_Addr));
+
+	PC_HOST_ASK_Pack(32);
+}
+
+void CMD_19_READ_DPLL_ADV_CONFIG(void)
+{
+	pc_put_u32(4, Xil_In32(DPLL_FLL_KF_TRACK_Addr));
+	pc_put_u32(8, Xil_In32(DPLL_PLL_KP_BLEND_Addr));
+	pc_put_u32(12, Xil_In32(DPLL_PLL_KI_BLEND_Addr));
+	pc_put_u32(16, Xil_In32(DPLL_MAG_ENTER_THRESHOLD_Addr));
+	pc_put_u32(20, Xil_In32(DPLL_MAG_EXIT_THRESHOLD_Addr));
+	pc_put_u32(24, Xil_In32(DPLL_ACQUIRE_DWELL_Addr));
+	pc_put_u32(28, Xil_In32(DPLL_BLEND_DWELL_Addr));
+	pc_put_u32(32, Xil_In32(DPLL_LOSS_DWELL_Addr));
+	pc_put_u32(36, Xil_In32(DPLL_HOLDOVER_TIMEOUT_Addr));
+	pc_put_u32(40, Xil_In32(DPLL_POST_IQ_CIC_R_Addr));
+	pc_put_u32(44, Xil_In32(DPLL_POST_IQ_CIC_SHIFT_Addr));
+	pc_put_u32(48, Xil_In32(DPLL_FLL_DELAY_SEL_Addr));
+	pc_put_u32(52, Xil_In32(DPLL_WARMUP_SAMPLES_Addr));
+
+	PC_HOST_ASK_Pack(52);
+}
 void CMD_1A_READ_VBIAS_DAC(void)
 {
 	Uart0_TX_Buff[4] = 0;
@@ -653,15 +720,15 @@ void CMD_85_WRITE_PLL_LIMIT(void)
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
 	if(data > 0x7FFF) data = 0x7FFF;
 	//*((uint16_t*)&STM8_EEPROM_Data[24+8]) = data;
-    Xil_Out32(PID_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
 	if(data < 0x8000) data = 0x8000;
 	//*((uint16_t*)&STM8_EEPROM_Data[26+8]) = data;
-    Xil_Out32(PID_Freq_Neg_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
 	PC_HOST_Send_ASK_Only(0);
 }
-void CMD_86_WRITE_PLL_PID(void)
+void CMD_86_WRITE_DPLL_LOOP_BASIC(void)
 {
 	//*((uint32_t*)&STM8_EEPROM_Data[8+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
 	//*((uint32_t*)&STM8_EEPROM_Data[12+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[8]);
@@ -671,6 +738,7 @@ void CMD_86_WRITE_PLL_PID(void)
     Xil_Out32(DPLL_PLL_KI_TRACK_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[8]));
     Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[12]));
     Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[16]));
+	dpll_apply_config();
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_87_WRITE_PLL_AMP(void)
@@ -705,6 +773,28 @@ void CMD_87_WRITE_PLL_AMP(void)
 //	PC_HOST_Send_ASK_Only(Error_Code);
 //}
 
+void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
+{
+	if (pc_payload_len() < 42) {
+		PC_HOST_Send_ASK_Only(0xF2);
+		return;
+	}
+	Xil_Out32(DPLL_FLL_KF_TRACK_Addr, pc_get_u32(4));
+	Xil_Out32(DPLL_PLL_KP_BLEND_Addr, pc_get_u32(8));
+	Xil_Out32(DPLL_PLL_KI_BLEND_Addr, pc_get_u32(12));
+	Xil_Out32(DPLL_MAG_ENTER_THRESHOLD_Addr, pc_get_u32(16));
+	Xil_Out32(DPLL_MAG_EXIT_THRESHOLD_Addr, pc_get_u32(20));
+	Xil_Out32(DPLL_ACQUIRE_DWELL_Addr, pc_get_u32(24));
+	Xil_Out32(DPLL_BLEND_DWELL_Addr, pc_get_u32(28));
+	Xil_Out32(DPLL_LOSS_DWELL_Addr, pc_get_u32(32));
+	Xil_Out32(DPLL_HOLDOVER_TIMEOUT_Addr, pc_get_u32(36));
+	Xil_Out32(DPLL_POST_IQ_CIC_R_Addr, pc_get_u16(40));
+	Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr, PC_HOST_CMD_data_Buff[42]);
+	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, PC_HOST_CMD_data_Buff[43]);
+	Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));
+	dpll_apply_config();
+	PC_HOST_Send_ASK_Only(0);
+}
 void CMD_90_WRITE_FREQMETER_FREQ(void)
 {
 	//*((uint32_t*)&STM8_EEPROM_Data[0+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
@@ -732,12 +822,12 @@ void CMD_92_WRITE_FREQMETER_LIMIT(void)
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
 	if(data > 0x7FFF) data = 0x3FFF;
 	//*((uint16_t*)&STM8_EEPROM_Data[8+44]) = data;
-    Xil_Out32(PID_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
 	if(data < 0xA000) data = 0xA000;
 	//*((uint16_t*)&STM8_EEPROM_Data[10+44]) = data;
-    Xil_Out32(PID_Freq_Neg_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
 
 	PC_HOST_Send_ASK_Only(0);
 }
@@ -761,6 +851,18 @@ void CMD_94_WRITE_FREQMETER_TIMER(void)
 	PC_HOST_Send_ASK_Only(0);
 }
 
+void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
+{
+	if (pc_payload_len() < 12) {
+		PC_HOST_Send_ASK_Only(0xF2);
+		return;
+	}
+	Xil_Out32(DAC1_DDS_Frequency_Addr, pc_get_u32(4));
+	Xil_Out32(DAC1_DDS_Phase_Addr, pc_get_u32(8));
+	Xil_Out32(DAC1_DDS_Offset_Addr, pc_get_u16(12));
+	Xil_Out32(DAC1_DDS_Amplitude_Addr, pc_get_u16(14));
+	PC_HOST_Send_ASK_Only(0);
+}
 void CMD_9A_WRITE_VBIAS_DAC(void)
 {
 	PC_HOST_Send_ASK_Only(0);
@@ -797,8 +899,8 @@ void PC_HOST_CMD_Respond(void)
 			case PC_CMD_READ_PLL_LIMIT_SETTING:
 				CMD_06_READ_PLL_LIMIT_SETTING();
 				break;
-			case PC_CMD_READ_PLL_PID_SETTING:
-				CMD_07_READ_PLL_PID_SETTING();
+			case PC_CMD_READ_DPLL_LOOP_BASIC_SETTING:
+				CMD_07_READ_DPLL_LOOP_BASIC_SETTING();
 				break;
 			case PC_CMD_READ_PLL_AMP_SETTING:
 				CMD_08_READ_PLL_AMP_SETTING();
@@ -814,6 +916,12 @@ void PC_HOST_CMD_Respond(void)
 //				CMD_0C_DataLog_Read();
 //				break;
 
+			case PC_CMD_READ_DPLL_ID_STATUS:
+				CMD_18_READ_DPLL_ID_STATUS();
+				break;
+			case PC_CMD_READ_DPLL_ADV_CONFIG:
+				CMD_19_READ_DPLL_ADV_CONFIG();
+				break;
 			case PC_CMD_READ_FREQMETER_FREQ_SETTING:
 				CMD_10_READ_FREQMETER_FREQ_SETTING();
 				break;
@@ -861,8 +969,8 @@ void PC_HOST_CMD_Respond(void)
 			case PC_CMD_WRITE_PLL_LIMIT:
 				CMD_85_WRITE_PLL_LIMIT();
 				break;
-			case PC_CMD_WRITE_PLL_PID:
-				CMD_86_WRITE_PLL_PID();
+			case PC_CMD_WRITE_DPLL_LOOP_BASIC:
+				CMD_86_WRITE_DPLL_LOOP_BASIC();
 				break;
 			case PC_CMD_WRITE_PLL_AMP:
 				CMD_87_WRITE_PLL_AMP();
@@ -894,6 +1002,9 @@ void PC_HOST_CMD_Respond(void)
 				PC_HOST_Send_ASK_Only(0);
 				break;
 
+			case PC_CMD_WRITE_DPLL_ADV_CONFIG:
+				CMD_8F_WRITE_DPLL_ADV_CONFIG();
+				break;
 			case PC_CMD_FREQMETER_FREQ:
 				CMD_90_WRITE_FREQMETER_FREQ();
 				break;
@@ -921,6 +1032,10 @@ void PC_HOST_CMD_Respond(void)
 				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
 				Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);
 				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,1);
+				break;
+
+			case PC_CMD_WRITE_DPLL_DEBUG_CONFIG:
+				CMD_97_WRITE_DPLL_DEBUG_CONFIG();
 				break;
 //			case PC_CMD_VBIAS_WRITE_DAC:
 //				CMD_9A_WRITE_VBIAS_DAC();
@@ -1138,12 +1253,13 @@ void STM_HOST_Write_PLL_Data(void)
     Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[16]));
     Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[20]));
     data = *((uint16_t*)&STM_HOST_CMD_data_Buff[24]);
-    Xil_Out32(PID_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
     data = *((uint16_t*)&STM_HOST_CMD_data_Buff[26]);
-    Xil_Out32(PID_Freq_Neg_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
     Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[28]));//14Bit
     Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[30]));//32Bit
     Xil_Out32(DAC0_VOC_Amplitude_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[32]));//amplitude 15bit;
+    dpll_apply_config();
 }
 void STM_HOST_CMD_Respond(void)
 {
@@ -1210,8 +1326,8 @@ int main()
 //    Xil_Out32(DAC1_DDS_Frequency_Addr,0x00418000);//Fre 31bit; 125KHz
 //    Xil_Out32(DAC1_DDS_Phase_Addr,0x0);//Phase 32bit
 
-    Xil_Out32(PID_Freq_Pos_Limit_Addr,0x7FFFFFFE);//32Bit
-    Xil_Out32(PID_Freq_Neg_Limit_Addr,0x80000001);//32Bit
+    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,0x7FFFFFFE);//32Bit
+    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,0x80000001);//32Bit
     Xil_Out32(VCO_Freq_Manual_Offset_Addr,0);//offset 10bit;
     Xil_Out32(VOC_Fre_Mul_Addr,1);//mul 16bit;
     Xil_Out32(VOC_Fre_Div_Addr,1);//div 16bit;
@@ -1227,6 +1343,21 @@ int main()
     //Xil_Out32(DPLL_FLL_KF_TRACK_Addr,0x0ffff);//DPLL_KF_TRACK[23:0]
     Xil_Out32(DPLL_FLL_KF_TRACK_Addr,0x0002F);//DPLL_KF_TRACK[23:0]
 
+
+
+    Xil_Out32(DPLL_PLL_KP_BLEND_Addr,40000);
+    Xil_Out32(DPLL_PLL_KI_BLEND_Addr,117200);
+    Xil_Out32(DPLL_MAG_ENTER_THRESHOLD_Addr,1024);
+    Xil_Out32(DPLL_MAG_EXIT_THRESHOLD_Addr,512);
+    Xil_Out32(DPLL_ACQUIRE_DWELL_Addr,16);
+    Xil_Out32(DPLL_BLEND_DWELL_Addr,16);
+    Xil_Out32(DPLL_LOSS_DWELL_Addr,16);
+    Xil_Out32(DPLL_HOLDOVER_TIMEOUT_Addr,1024);
+    Xil_Out32(DPLL_POST_IQ_CIC_R_Addr,78);
+    Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr,12);
+    Xil_Out32(DPLL_FLL_DELAY_SEL_Addr,2);
+    Xil_Out32(DPLL_WARMUP_SAMPLES_Addr,64);
+    dpll_apply_config();
 
     Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);//rst;
     Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);

@@ -82,8 +82,8 @@
 #define DPLL_PLL_KP_BLEND_Addr (DPLL_BASE_ADDR|(0x0026<<2))//DPLL_KP_BLEND[23:0]
 #define DPLL_PLL_KI_BLEND_Addr (DPLL_BASE_ADDR|(0x0027<<2))//DPLL_KI_BLEND[23:0]
 
-#define PID_Freq_Pos_Limit_Addr (DPLL_BASE_ADDR|(0x0028<<2))//16bit positive_limit_dac0
-#define PID_Freq_Neg_Limit_Addr (DPLL_BASE_ADDR|(0x0029<<2))//16bit negative_limit_dac0
+#define DPLL_FREQ_POS_LIMIT_Addr (DPLL_BASE_ADDR|(0x0028<<2))//32bit positive_limit_dac0
+#define DPLL_FREQ_NEG_LIMIT_Addr (DPLL_BASE_ADDR|(0x0029<<2))//32bit negative_limit_dac0
 #define VCO_Freq_Manual_Offset_Addr (DPLL_BASE_ADDR|(0x002A<<2))//16bit
 
 //DAC0

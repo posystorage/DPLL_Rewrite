@@ -1,80 +1,168 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2020/09/10 16:12:58
-// Design Name: 
-// Module Name: PLL_VCO_MUL_DIV
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
+`timescale 1ns / 1ps
+`default_nettype none
 
 module PLL_VCO_MUL_DIV(
-    input wire clk,
-    input wire sample_valid,
-    input wire [47:0] data_in,
-    output reg [47:0] data_out,
-    input wire [15:0] PLL_Mul_factor,
-    input wire [15:0] PLL_Div_factor
-    );
-    reg [48-1:0]clk_data_in = 0;
-    reg [48-1:0]clk_data_in_reg = 0;
-    reg clk_data_ready = 0;
-    reg clk_data_ready_reg = 0;
-    reg clk_data_ready_reg_d1 = 0;
-    wire [48+16-1:0]PLL_Mul_Data; 
-    wire [48+16-1:0]PLL_Div_Data ;
-    wire m_axis_data_tvalid;  
-    reg [48-1:0]PLL_Div_Data_reg;
-    // Capture the lower-rate DPLL word with a one-cycle valid pulse in clk domain.
-always @(posedge clk) begin
-    if (sample_valid)
+    input  wire        clk,
+    input  wire        sample_valid,
+    input  wire [47:0] data_in,
+    output reg  [47:0] data_out,
+    input  wire [15:0] PLL_Mul_factor,
+    input  wire [15:0] PLL_Div_factor
+);
+
+localparam [2:0] ST_IDLE      = 3'd0;
+localparam [2:0] ST_MULT_WAIT = 3'd1;
+localparam [2:0] ST_DIV_SEND  = 3'd2;
+localparam [2:0] ST_DIV_WAIT  = 3'd3;
+
+reg [2:0] state = ST_IDLE;
+reg [47:0] pending_word = 48'd0;
+reg [15:0] pending_mul = 16'd1;
+reg [15:0] pending_div = 16'd1;
+reg pending_valid = 1'b0;
+
+reg [47:0] mult_a = 48'd0;
+reg [15:0] mult_b = 16'd1;
+wire [63:0] mult_product;
+reg mult_wait = 1'b0;
+reg [63:0] dividend_reg = 64'd0;
+reg [15:0] divisor_reg = 16'd1;
+
+reg divisor_valid = 1'b0;
+reg dividend_valid = 1'b0;
+wire divisor_ready;
+wire dividend_ready;
+wire div_result_valid;
+wire [79:0] div_result;
+wire div_send_done = (!divisor_valid || divisor_ready) &&
+                     (!dividend_valid || dividend_ready);
+
+wire [63:0] quotient_integer = div_result[79:16];
+wire [64:0] rounded_quotient = {1'b0, quotient_integer} + {64'd0, div_result[15]};
+
+function [15:0] safe_mul_factor;
+    input [15:0] value;
     begin
-        clk_data_ready <= 1;
-        clk_data_in <= data_in;
-    end    
-    else begin
-        clk_data_ready <= 0;
+        safe_mul_factor = (value == 16'd0) ? 16'd1 : value;
     end
-    clk_data_in_reg <= clk_data_in;
-    clk_data_ready_reg <= clk_data_ready;//ÑÓÊ±1clk
-    clk_data_ready_reg_d1 <= clk_data_ready_reg;//ÑÓÊ±2clk
-end  
-    
-    
-    mult_gen_pll VCO0_Multiplier(
+endfunction
+
+function [15:0] safe_div_factor;
+    input [15:0] value;
+    begin
+        if (value == 16'd0) begin
+            safe_div_factor = 16'd1;
+        end else if (value[15]) begin
+            safe_div_factor = 16'h7fff;
+        end else begin
+            safe_div_factor = value;
+        end
+    end
+endfunction
+
+function [47:0] sat_quotient_48;
+    input [79:0] value;
+    input [64:0] rounded_value;
+    begin
+        if (|rounded_value[64:48]) begin
+            sat_quotient_48 = {48{1'b1}};
+        end else begin
+            sat_quotient_48 = rounded_value[47:0];
+        end
+    end
+endfunction
+
+always @(posedge clk) begin
+    if (sample_valid) begin
+        pending_word <= data_in;
+        pending_mul <= safe_mul_factor(PLL_Mul_factor);
+        pending_div <= safe_div_factor(PLL_Div_factor);
+        pending_valid <= 1'b1;
+    end
+
+    case (state)
+        ST_IDLE: begin
+            divisor_valid <= 1'b0;
+            dividend_valid <= 1'b0;
+            if (pending_valid) begin
+                mult_a <= pending_word;
+                mult_b <= pending_mul;
+                divisor_reg <= pending_div;
+                mult_wait <= 1'b1;
+                pending_valid <= 1'b0;
+                state <= ST_MULT_WAIT;
+            end
+        end
+
+        ST_MULT_WAIT: begin
+            if (mult_wait) begin
+                mult_wait <= 1'b0;
+            end else begin
+                dividend_reg <= mult_product;
+                divisor_valid <= 1'b1;
+                dividend_valid <= 1'b1;
+                state <= ST_DIV_SEND;
+            end
+        end
+
+        ST_DIV_SEND: begin
+            if (divisor_valid && divisor_ready) begin
+                divisor_valid <= 1'b0;
+            end
+            if (dividend_valid && dividend_ready) begin
+                dividend_valid <= 1'b0;
+            end
+            if (div_send_done) begin
+                divisor_valid <= 1'b0;
+                dividend_valid <= 1'b0;
+                state <= ST_DIV_WAIT;
+            end
+        end
+
+        ST_DIV_WAIT: begin
+            if (div_result_valid) begin
+                data_out <= sat_quotient_48(div_result, rounded_quotient);
+                if (pending_valid) begin
+                    mult_a <= pending_word;
+                    mult_b <= pending_mul;
+                    divisor_reg <= pending_div;
+                    mult_wait <= 1'b1;
+                    pending_valid <= 1'b0;
+                    state <= ST_MULT_WAIT;
+                end else begin
+                    state <= ST_IDLE;
+                end
+            end
+        end
+
+        default: begin
+            divisor_valid <= 1'b0;
+            dividend_valid <= 1'b0;
+            mult_wait <= 1'b0;
+            state <= ST_IDLE;
+        end
+    endcase
+end
+
+mult_gen_pll VCO0_Multiplier(
     .CLK(clk),
-    .A(clk_data_in_reg),   
-    .B(PLL_Mul_factor),
-    .P(PLL_Mul_Data)
-    );   
-    
+    .A(mult_a),
+    .B(mult_b),
+    .P(mult_product)
+);
+
 div_gen_pll VCO0_Divider(
-     .aclk                    (clk),
-     .s_axis_divisor_tvalid   (1),
-     .s_axis_divisor_tdata    (PLL_Div_factor),
-     .s_axis_dividend_tvalid  (clk_data_ready_reg_d1),
-     .s_axis_dividend_tdata   (PLL_Mul_Data),
-     .m_axis_dout_tvalid      (m_axis_data_tvalid),
-     .m_axis_dout_tdata       (PLL_Div_Data)
-    ); 
-    //assign    
-always @(posedge clk) begin
-    if(m_axis_data_tvalid)
-    begin
-        PLL_Div_Data_reg <= PLL_Div_Data[63:16]; 
-    end
-    data_out <= PLL_Div_Data_reg;
-end    
-          
+    .aclk(clk),
+    .s_axis_divisor_tvalid(divisor_valid),
+    .s_axis_divisor_tready(divisor_ready),
+    .s_axis_divisor_tdata(divisor_reg),
+    .s_axis_dividend_tvalid(dividend_valid),
+    .s_axis_dividend_tready(dividend_ready),
+    .s_axis_dividend_tdata(dividend_reg),
+    .m_axis_dout_tvalid(div_result_valid),
+    .m_axis_dout_tdata(div_result)
+);
+
 endmodule
+
+`default_nettype wire

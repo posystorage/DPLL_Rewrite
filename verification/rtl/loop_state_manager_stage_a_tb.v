@@ -41,6 +41,7 @@ module loop_state_manager_stage_a_tb;
         .loop_enable(loop_enable),
         .config_apply(config_apply),
         .measurement_valid(measurement_valid),
+        .measurement_timeout(24'd8),
         .phase_abs(phase_abs),
         .freq_abs(freq_abs),
         .magnitude(magnitude),
@@ -158,6 +159,19 @@ module loop_state_manager_stage_a_tb;
         push_measurement(18'd20, 22'd30, 16'd20);
         repeat (1) @(posedge clk);
         expect_state(ST_REACQUIRE);
+
+        push_measurement(18'd20, 22'd30, 16'd20);
+        push_measurement(18'd20, 22'd30, 16'd20);
+        expect_state(ST_FLL_PLL_BLEND);
+        push_measurement(18'd20, 22'd30, 16'd20);
+        push_measurement(18'd20, 22'd30, 16'd20);
+        expect_state(ST_PLL_TRACK);
+        repeat (10) @(posedge clk);
+        expect_state(ST_HOLDOVER);
+        if (loss_reason !== 4'd6) begin
+            $display("FAIL: expected timeout loss reason got %0d", loss_reason);
+            $finish;
+        end
 
         $display("PASS: loop_state_manager_stage_a_tb");
         $finish;

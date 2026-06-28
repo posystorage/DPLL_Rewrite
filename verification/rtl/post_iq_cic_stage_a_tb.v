@@ -115,6 +115,17 @@ module post_iq_cic_stage_a_tb;
             $finish;
         end
 
+        shadow_rate_r = 9'd8;
+        shadow_output_shift = 6'd10;
+        config_apply = 1'b1;
+        @(posedge clk_125m);
+        #1;
+        config_apply = 1'b0;
+        if (illegal_config_seen !== 1'b0) begin
+            $display("FAIL: legal config did not clear illegal_config_seen");
+            $finish;
+        end
+
         $display("PASS: post_iq_cic_stage_a_tb");
         $finish;
     end

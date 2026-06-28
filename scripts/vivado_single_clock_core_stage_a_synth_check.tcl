@@ -5,7 +5,7 @@ set out_dir [file join $repo_root reports vivado_single_clock_core_stage_a_synth
 file mkdir $out_dir
 
 create_project -in_memory -part xc7z010clg400-1
-read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL frontend tracking_phase_accumulator_stage_a.v]
+read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL frontend dc_blocker_valid_stage_a.v]
 read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL frontend iq_mixer_stage_a.v]
 read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL iq_cic post_iq_cic_stage_a.v]
 read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL detector_fll fll_phase_difference_stage_a.v]

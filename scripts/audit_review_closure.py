@@ -56,6 +56,7 @@ def main() -> int:
     dbg = read(DPLL / "debug" / "debug_dac_formatter_stage_a.v")
     fll = read(DPLL / "detector_fll" / "fll_phase_difference_stage_a.v")
     loop = read(DPLL / "hybrid_loop" / "loop_state_manager_stage_a.v")
+    lo_dds_h_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     arm_mock = read(ROOT / "verification" / "arm" / "test_dpll_control_mock.py")
     arm = read_gbk(SDK / "helloworld.c")
     periph = read_gbk(SDK / "Peripherals.h")
@@ -74,8 +75,13 @@ def main() -> int:
     checks.append(no_active_clk_dpll())
     checks.append(pass_if("cic_compiler_0 pre_iq_cic_40_inst" in wrapper and ".m_axis_data_tvalid(pre_cic_valid)" in wrapper, "Pre-IQ /40 path uses Xilinx CIC valid", "`cic_compiler_0` drives `pre_cic_valid`"))
     checks.append(pass_if('C_RATE=40' in read(DPLL / "DDC" / "ip" / "cic_compiler_0" / "synth" / "cic_compiler_0.vhd"), "Pre-IQ CIC IP is configured for R=40", "Xilinx CIC Compiler metadata has `C_RATE=40`"))
-    checks.append(pass_if(".enable(1'b1)" in core and "tracking_phase_accumulator_stage_a" in core, "Tracking NCO accumulator runs continuously", "phase accumulator enable is tied high"))
-    lo_dds_h_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
+    checks.append(pass_if(
+        "LO_DDS_H tracking_lo_dds_inst" in core
+        and "PARAM_VALUE.Phase_Increment\">Streaming" in lo_dds_h_xci
+        and "tracking_phase_accumulator_stage_a" not in core,
+        "Tracking NCO runs continuously in Xilinx DDS Streaming PINC mode",
+        "`LO_DDS_H` phase generator consumes continuous tracking-word increments",
+    ))
     checks.append(pass_if("LO_DDS_H tracking_lo_dds_inst" in core and "PARAM_VALUE.Output_Selection\">Sine_and_Cosine" in lo_dds_h_xci, "IQ LO uses Xilinx DDS sine/cosine IP", "`LO_DDS_H` DDS Compiler configured for sine and cosine"))
     checks.append(pass_if("dc_blocker_valid_stage_a" in core, "DC blocker is present before IQ mixer", "core instantiates `dc_blocker_valid_stage_a`"))
     angle_cordic_xci = read(DPLL / "DDC" / "ip" / "angle_CORDIC" / "angle_CORDIC.xci")

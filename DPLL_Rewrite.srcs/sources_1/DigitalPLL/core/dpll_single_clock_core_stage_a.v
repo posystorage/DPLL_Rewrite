@@ -69,9 +69,6 @@ module dpll_single_clock_core_stage_a #(
     reg [WORD_WIDTH-1:0] tracking_word_hold;
     reg nco_word_ready;
     wire [WORD_WIDTH-1:0] nco_word;
-    wire [WORD_WIDTH-1:0] phase_accum;
-    wire [PHASE_WIDTH-1:0] phase_word;
-    wire phase_tick;
     wire dds_valid;
     wire [31:0] dds_data;
 
@@ -101,6 +98,8 @@ module dpll_single_clock_core_stage_a #(
     wire signed [PHASE_WIDTH-1:0] phase_error_next;
     wire [PHASE_WIDTH-1:0] phase_abs;
     wire [FERR_WIDTH-1:0] freq_abs;
+    wire cordic_signal_usable;
+    wire fll_phase_valid;
     reg signed [PHASE_WIDTH-1:0] phase_error_hold;
     reg [15:0] cordic_magnitude_hold;
     reg freq_error_valid_d;
@@ -181,19 +180,6 @@ module dpll_single_clock_core_stage_a #(
         end
     end
 
-    tracking_phase_accumulator_stage_a #(
-        .WORD_WIDTH(WORD_WIDTH),
-        .PHASE_WIDTH(PHASE_WIDTH)
-    ) tracking_phase_accumulator_inst (
-        .clk_125m(clk_125m),
-        .rst_125m(rst_nco_r),
-        .enable(1'b1),
-        .tracking_word(nco_word),
-        .phase_accum(phase_accum),
-        .phase_word(phase_word),
-        .phase_valid(phase_tick)
-    );
-
     LO_DDS_H tracking_lo_dds_inst (
         .aclk(clk_125m),
         .s_axis_phase_tvalid(nco_word_ready_dds_r),
@@ -232,10 +218,10 @@ module dpll_single_clock_core_stage_a #(
             mixer_input_valid_r1 <= 1'b0;
             mixer_product_valid <= 1'b0;
         end else begin
-            mixer_input_valid_r0 <= dc_valid;
+            mixer_input_valid_r0 <= dc_valid && dds_valid;
             mixer_input_valid_r1 <= mixer_input_valid_r0;
             mixer_product_valid <= mixer_input_valid_r1;
-            if (dc_valid) begin
+            if (dc_valid && dds_valid) begin
                 adc_sample_r0 <= adc_dc_blocked;
                 lo_cos_r0 <= dds_data[15:0];
                 lo_sin_r0 <= dds_data[31:16];
@@ -263,8 +249,8 @@ module dpll_single_clock_core_stage_a #(
         .P(mixer_q_product)
     );
 
-    assign mixer_i_rounded = (mixer_i_product + 32'sd16384) >>> 15;
-    assign mixer_q_rounded = (mixer_q_product + 32'sd16384) >>> 15;
+    assign mixer_i_rounded = (mixer_i_product + (mixer_i_product[31] ? -32'sd16384 : 32'sd16384)) >>> 15;
+    assign mixer_q_rounded = (mixer_q_product + (mixer_q_product[31] ? -32'sd16384 : 32'sd16384)) >>> 15;
     assign mixer_i = {{(MIXER_WIDTH-16){mixer_i_rounded[15]}}, mixer_i_rounded};
     assign mixer_q = {{(MIXER_WIDTH-16){mixer_q_rounded[15]}}, mixer_q_rounded};
     assign mixer_valid = mixer_product_valid;
@@ -312,6 +298,9 @@ module dpll_single_clock_core_stage_a #(
     assign freq_abs = freq_error[FERR_WIDTH-1] ?
                       (~freq_error + {{(FERR_WIDTH-1){1'b0}}, 1'b1}) :
                       freq_error;
+    assign cordic_signal_usable = (mag_enter_threshold == 16'd0) ||
+                                  (cordic_magnitude >= mag_enter_threshold);
+    assign fll_phase_valid = cordic_valid && cordic_signal_usable;
 
     always @(posedge clk_125m) begin
         if (rst_measure_r) begin
@@ -354,6 +343,7 @@ module dpll_single_clock_core_stage_a #(
         .loop_enable(loop_enable),
         .config_apply(config_apply),
         .measurement_valid(state_measurement_valid_r),
+        .measurement_timeout(holdover_timeout),
         .phase_abs(state_phase_abs_r),
         .freq_abs(state_freq_abs_r),
         .magnitude(state_magnitude_r),
@@ -395,7 +385,8 @@ module dpll_single_clock_core_stage_a #(
     ) fll_phase_difference_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
-        .phase_valid(cordic_valid),
+        .clear(config_apply | (cordic_valid && !cordic_signal_usable)),
+        .phase_valid(fll_phase_valid),
         .phase_in(phase_error_next),
         .delay_sel(fll_delay_sel),
         .freq_error_valid(freq_error_valid),

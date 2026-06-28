@@ -27,7 +27,7 @@ module dc_blocker_valid_stage_a #(
     wire signed [ACC_WIDTH-1:0] next_hp_value =
         (sample_ext <<< (OUTPUT_SHIFT - 1)) - dc_accumulator
         + ({{(ACC_WIDTH-1){1'b0}}, 1'b1} <<< (OUTPUT_SHIFT - 2));
-    wire signed [ACC_WIDTH-1:0] shifted_hp = hp_value >>> OUTPUT_SHIFT;
+    wire signed [ACC_WIDTH-1:0] next_shifted_hp = next_hp_value >>> OUTPUT_SHIFT;
 
     function signed [DATA_WIDTH-1:0] saturate_to_data;
         input signed [ACC_WIDTH-1:0] value;
@@ -53,13 +53,13 @@ module dc_blocker_valid_stage_a #(
             sample_out <= {DATA_WIDTH{1'b0}};
             out_valid <= 1'b0;
         end else begin
-            out_valid <= in_valid;
             if (in_valid) begin
                 dc_accumulator <= next_accumulator;
                 hp_value <= next_hp_value;
-            end
-            if (out_valid) begin
-                sample_out <= saturate_to_data(shifted_hp);
+                sample_out <= saturate_to_data(next_shifted_hp);
+                out_valid <= 1'b1;
+            end else begin
+                out_valid <= 1'b0;
             end
         end
     end

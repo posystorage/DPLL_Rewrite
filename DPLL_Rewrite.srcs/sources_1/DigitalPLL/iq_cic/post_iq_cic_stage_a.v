@@ -166,6 +166,7 @@ module post_iq_cic_stage_a #(
                 active_rate_r <= shadow_rate_r;
                 active_output_shift <= shadow_output_shift;
                 active_rounding_bias <= rounding_bias_for_shift(shadow_output_shift);
+                illegal_config_seen <= 1'b0;
             end else begin
                 illegal_config_seen <= 1'b1;
             end

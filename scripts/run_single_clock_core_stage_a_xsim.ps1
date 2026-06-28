@@ -16,7 +16,6 @@ try {
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\DDC\ip\angle_CORDIC\sim\angle_CORDIC.vhd'
     )
     $rtl = @(
-        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\frontend\tracking_phase_accumulator_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\frontend\dc_blocker_valid_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\frontend\iq_mixer_stage_a.v'
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\iq_cic\post_iq_cic_stage_a.v'

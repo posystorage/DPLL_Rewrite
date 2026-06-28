@@ -7,6 +7,7 @@ module fll_phase_difference_stage_a #(
 ) (
     input  wire                              clk_125m,
     input  wire                              rst_125m,
+    input  wire                              clear,
     input  wire                              phase_valid,
     input  wire signed [PHASE_WIDTH-1:0]     phase_in,
     input  wire [1:0]                        delay_sel,
@@ -36,7 +37,7 @@ module fll_phase_difference_stage_a #(
     assign phase_delta_wrapped = phase_in - delayed_phase;
 
     always @(posedge clk_125m) begin
-        if (rst_125m) begin
+        if (rst_125m || clear) begin
             for (idx = 0; idx < 8; idx = idx + 1) begin
                 phase_delay[idx] <= {PHASE_WIDTH{1'b0}};
             end

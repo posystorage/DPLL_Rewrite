@@ -107,54 +107,15 @@ module debug_dac_formatter_stage_a (
     endfunction
 
     always @(posedge clk_125m) begin
+        valid_r0 <= rst_125m ? 1'b0 : source_valid;
+        valid_r1 <= rst_125m ? 1'b0 : valid_r0;
+        valid_r2 <= rst_125m ? 1'b0 : valid_r1;
+        valid_r3 <= rst_125m ? 1'b0 : valid_r2;
+        valid_r4 <= rst_125m ? 1'b0 : valid_r3;
+
         if (rst_125m) begin
-            source_r0 <= 32'sd0;
-            shift_or_lsb_r0 <= 6'd0;
-            mode_r0 <= MODE_RAW_BIT_WINDOW;
-            invert_r0 <= 1'b0;
-            hold_last_r0 <= 1'b0;
-            gain_r0 <= 16'sd32767;
-            offset_r0 <= 16'sd0;
-            valid_r0 <= 1'b0;
-
-            raw_window_r1 <= 16'sd0;
-            shifted_signed_r1 <= 32'sd0;
-            shifted_unsigned_r1 <= 32'd0;
-            gain_r1 <= 16'sd32767;
-            mode_r1 <= MODE_RAW_BIT_WINDOW;
-            invert_r1 <= 1'b0;
-            hold_last_r1 <= 1'b0;
-            offset_r1 <= 16'sd0;
-            valid_r1 <= 1'b0;
-
-            raw_window_r2 <= 16'sd0;
-            shifted_signed_r2 <= 32'sd0;
-            shifted_unsigned_r2 <= 32'd0;
-            gain_r2 <= 16'sd32767;
-            mode_r2 <= MODE_RAW_BIT_WINDOW;
-            invert_r2 <= 1'b0;
-            hold_last_r2 <= 1'b0;
-            offset_r2 <= 16'sd0;
-            valid_r2 <= 1'b0;
-
-            raw_window_r3 <= 16'sd0;
-            shifted_unsigned_r3 <= 32'd0;
-            product_r3 <= 48'sd0;
-            mode_r3 <= MODE_RAW_BIT_WINDOW;
-            invert_r3 <= 1'b0;
-            hold_last_r3 <= 1'b0;
-            offset_r3 <= 16'sd0;
-            valid_r3 <= 1'b0;
-
-            formatted_r4 <= 32'sd0;
-            raw_window_r4 <= 16'sd0;
-            mode_r4 <= MODE_RAW_BIT_WINDOW;
-            invert_r4 <= 1'b0;
-            hold_last_r4 <= 1'b0;
-            valid_r4 <= 1'b0;
             dac_sample <= 16'sd0;
         end else begin
-            valid_r0 <= source_valid;
             if (source_valid) begin
                 source_r0 <= source_word;
                 shift_or_lsb_r0 <= format_word[5:0];
@@ -165,7 +126,6 @@ module debug_dac_formatter_stage_a (
                 offset_r0 <= offset;
             end
 
-            valid_r1 <= valid_r0;
             if (valid_r0) begin
                 raw_window_r1 <= source_r0[raw_lsb +: 16];
                 shifted_signed_r1 <= shifted_signed;
@@ -177,7 +137,6 @@ module debug_dac_formatter_stage_a (
                 offset_r1 <= offset_r0;
             end
 
-            valid_r2 <= valid_r1;
             if (valid_r1) begin
                 raw_window_r2 <= raw_window_r1;
                 shifted_signed_r2 <= shifted_signed_r1;
@@ -189,7 +148,6 @@ module debug_dac_formatter_stage_a (
                 offset_r2 <= offset_r1;
             end
 
-            valid_r3 <= valid_r2;
             if (valid_r2) begin
                 raw_window_r3 <= raw_window_r2;
                 shifted_unsigned_r3 <= shifted_unsigned_r2;
@@ -200,7 +158,6 @@ module debug_dac_formatter_stage_a (
                 offset_r3 <= offset_r2;
             end
 
-            valid_r4 <= valid_r3;
             if (valid_r3) begin
                 raw_window_r4 <= raw_window_r3;
                 mode_r4 <= mode_r3;

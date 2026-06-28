@@ -276,7 +276,7 @@ module post_iq_cic_stage_a #(
             i_comb3 <= {ACC_WIDTH{1'b0}};
             q_comb3 <= {ACC_WIDTH{1'b0}};
         end else begin
-            if (in_valid && (sample_count == active_rate_r - 1'b1)) begin
+            if (in_valid) begin
                 i_decim_sample <= i_int2;
                 q_decim_sample <= q_int2;
             end

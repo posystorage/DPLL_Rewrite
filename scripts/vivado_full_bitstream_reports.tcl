@@ -43,6 +43,8 @@ write_lines $manifest [list \
 
 open_project $project_file
 update_compile_order -fileset sources_1
+set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED true [get_runs $impl_run]
+set_property STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE Explore [get_runs $impl_run]
 
 reset_run $synth_run
 launch_runs $impl_run -to_step write_bitstream

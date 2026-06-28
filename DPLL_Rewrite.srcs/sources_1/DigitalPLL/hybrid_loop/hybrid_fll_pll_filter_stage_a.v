@@ -46,15 +46,33 @@ module hybrid_fll_pll_filter_stage_a #(
     reg enable_pll_i_mul_r;
     reg enable_pll_p_mul_r;
     reg product_valid_r;
+    reg signed [PHASE_WIDTH-1:0] phase_error_product_r;
+    reg signed [FERR_WIDTH-1:0] freq_error_product_r;
+    reg signed [COEFF_WIDTH-1:0] kf_product_r;
+    reg signed [COEFF_WIDTH-1:0] ki_product_r;
+    reg signed [COEFF_WIDTH-1:0] kp_product_r;
+    reg enable_fll_operand_r;
+    reg enable_pll_i_operand_r;
+    reg enable_pll_p_operand_r;
+    reg product_operand_valid_r;
+    reg enable_fll_product_r;
+    reg enable_pll_i_product_r;
+    reg enable_pll_p_product_r;
     reg signed [STATE_WIDTH-1:0] fll_term_r;
     reg signed [STATE_WIDTH-1:0] i_term_r;
     reg signed [STATE_WIDTH-1:0] p_term_r;
     reg [WORD_WIDTH-1:0] center_word_r0;
     reg [WORD_WIDTH-1:0] center_word_r1;
+    reg [WORD_WIDTH-1:0] center_word_operand_r;
+    reg [WORD_WIDTH-1:0] center_word_product_r;
     reg signed [STATE_WIDTH-1:0] positive_limit_r0;
     reg signed [STATE_WIDTH-1:0] negative_limit_r0;
     reg signed [STATE_WIDTH-1:0] positive_limit_r1;
     reg signed [STATE_WIDTH-1:0] negative_limit_r1;
+    reg signed [STATE_WIDTH-1:0] positive_limit_operand_r;
+    reg signed [STATE_WIDTH-1:0] negative_limit_operand_r;
+    reg signed [STATE_WIDTH-1:0] positive_limit_product_r;
+    reg signed [STATE_WIDTH-1:0] negative_limit_product_r;
     reg signed [STATE_WIDTH:0] state_sum_ext_r;
     reg signed [STATE_WIDTH:0] correction_sum_ext_r;
     reg signed [STATE_WIDTH:0] tracking_sum_ext_r;
@@ -81,13 +99,13 @@ module hybrid_fll_pll_filter_stage_a #(
     wire signed [STATE_WIDTH:0] zero_ext;
     wire signed [STATE_WIDTH:0] max_word_ext;
 
-    assign fll_product_next = freq_error_mul_r * kf_mul_r;
-    assign i_product_next = phase_error_mul_r * ki_mul_r;
-    assign p_product_next = phase_error_mul_r * kp_mul_r;
+    assign fll_product_next = freq_error_product_r * kf_product_r;
+    assign i_product_next = phase_error_product_r * ki_product_r;
+    assign p_product_next = phase_error_product_r * kp_product_r;
 
-    assign fll_term_next = enable_fll_mul_r ? {{(STATE_WIDTH-(F_PRODUCT_WIDTH-PRODUCT_SHIFT)){fll_product_r[F_PRODUCT_WIDTH-1]}}, fll_product_r[F_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
-    assign i_term_next = enable_pll_i_mul_r ? {{(STATE_WIDTH-(P_PRODUCT_WIDTH-PRODUCT_SHIFT)){i_product_r[P_PRODUCT_WIDTH-1]}}, i_product_r[P_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
-    assign p_term_next = enable_pll_p_mul_r ? {{(STATE_WIDTH-(P_PRODUCT_WIDTH-PRODUCT_SHIFT)){p_product_r[P_PRODUCT_WIDTH-1]}}, p_product_r[P_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
+    assign fll_term_next = enable_fll_product_r ? {{(STATE_WIDTH-(F_PRODUCT_WIDTH-PRODUCT_SHIFT)){fll_product_r[F_PRODUCT_WIDTH-1]}}, fll_product_r[F_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
+    assign i_term_next = enable_pll_i_product_r ? {{(STATE_WIDTH-(P_PRODUCT_WIDTH-PRODUCT_SHIFT)){i_product_r[P_PRODUCT_WIDTH-1]}}, i_product_r[P_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
+    assign p_term_next = enable_pll_p_product_r ? {{(STATE_WIDTH-(P_PRODUCT_WIDTH-PRODUCT_SHIFT)){p_product_r[P_PRODUCT_WIDTH-1]}}, p_product_r[P_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
 
     assign state_delta_next = fll_term_r + i_term_r;
     assign state_sum_ext_next = {freq_state[STATE_WIDTH-1], freq_state} + {state_delta_next[STATE_WIDTH-1], state_delta_next};
@@ -142,37 +160,13 @@ module hybrid_fll_pll_filter_stage_a #(
 
     always @(posedge clk_125m) begin
         if (rst_pipe_r) begin
-            fll_product_r <= {F_PRODUCT_WIDTH{1'b0}};
-            i_product_r <= {P_PRODUCT_WIDTH{1'b0}};
-            p_product_r <= {P_PRODUCT_WIDTH{1'b0}};
-            phase_error_mul_r <= {PHASE_WIDTH{1'b0}};
-            freq_error_mul_r <= {FERR_WIDTH{1'b0}};
-            kf_mul_r <= {COEFF_WIDTH{1'b0}};
-            ki_mul_r <= {COEFF_WIDTH{1'b0}};
-            kp_mul_r <= {COEFF_WIDTH{1'b0}};
-            enable_fll_mul_r <= 1'b0;
-            enable_pll_i_mul_r <= 1'b0;
-            enable_pll_p_mul_r <= 1'b0;
             product_valid_r <= 1'b0;
-            fll_term_r <= {STATE_WIDTH{1'b0}};
-            i_term_r <= {STATE_WIDTH{1'b0}};
-            p_term_r <= {STATE_WIDTH{1'b0}};
-            center_word_r0 <= {WORD_WIDTH{1'b0}};
-            center_word_r1 <= {WORD_WIDTH{1'b0}};
-            positive_limit_r0 <= {STATE_WIDTH{1'b0}};
-            negative_limit_r0 <= {STATE_WIDTH{1'b0}};
-            positive_limit_r1 <= {STATE_WIDTH{1'b0}};
-            negative_limit_r1 <= {STATE_WIDTH{1'b0}};
-            state_sum_ext_r <= {STATE_WIDTH+1{1'b0}};
-            correction_sum_ext_r <= {STATE_WIDTH+1{1'b0}};
-            tracking_sum_ext_r <= {STATE_WIDTH+1{1'b0}};
-            positive_limit_ext_r <= {STATE_WIDTH+1{1'b0}};
-            negative_limit_ext_r <= {STATE_WIDTH+1{1'b0}};
-            allow_state_update_r <= 1'b0;
+            product_operand_valid_r <= 1'b0;
             valid_pipe <= 4'b0000;
         end else begin
             product_valid_r <= error_valid;
-            valid_pipe <= {valid_pipe[2:0], product_valid_r};
+            product_operand_valid_r <= product_valid_r;
+            valid_pipe <= {valid_pipe[2:0], product_operand_valid_r};
 
             if (error_valid) begin
                 phase_error_mul_r <= phase_error;
@@ -189,18 +183,38 @@ module hybrid_fll_pll_filter_stage_a #(
             end
 
             if (product_valid_r) begin
+                phase_error_product_r <= phase_error_mul_r;
+                freq_error_product_r <= freq_error_mul_r;
+                kf_product_r <= kf_mul_r;
+                ki_product_r <= ki_mul_r;
+                kp_product_r <= kp_mul_r;
+                enable_fll_operand_r <= enable_fll_mul_r;
+                enable_pll_i_operand_r <= enable_pll_i_mul_r;
+                enable_pll_p_operand_r <= enable_pll_p_mul_r;
+                center_word_operand_r <= center_word_r0;
+                positive_limit_operand_r <= positive_limit_r0;
+                negative_limit_operand_r <= negative_limit_r0;
+            end
+
+            if (product_operand_valid_r) begin
                 fll_product_r <= fll_product_next;
                 i_product_r <= i_product_next;
                 p_product_r <= p_product_next;
+                enable_fll_product_r <= enable_fll_operand_r;
+                enable_pll_i_product_r <= enable_pll_i_operand_r;
+                enable_pll_p_product_r <= enable_pll_p_operand_r;
+                center_word_product_r <= center_word_operand_r;
+                positive_limit_product_r <= positive_limit_operand_r;
+                negative_limit_product_r <= negative_limit_operand_r;
             end
 
             if (valid_pipe[0]) begin
                 fll_term_r <= fll_term_next;
                 i_term_r <= i_term_next;
                 p_term_r <= p_term_next;
-                center_word_r1 <= center_word_r0;
-                positive_limit_r1 <= positive_limit_r0;
-                negative_limit_r1 <= negative_limit_r0;
+                center_word_r1 <= center_word_product_r;
+                positive_limit_r1 <= positive_limit_product_r;
+                negative_limit_r1 <= negative_limit_product_r;
             end
 
             if (valid_pipe[1]) begin

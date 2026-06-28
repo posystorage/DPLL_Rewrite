@@ -79,12 +79,12 @@ module post_iq_cic_stage_a #(
     reg [RATE_WIDTH-1:0] sample_count;
     reg [2:0] warmup_outputs_remaining;
     reg signed [ROUND_WIDTH-1:0] active_rounding_bias;
-    reg clear_control;
-    reg clear_i_integrators;
-    reg clear_q_integrators;
-    reg clear_comb_delay;
-    reg clear_comb_pipeline;
-    reg clear_shift_pipeline;
+    (* keep = "true", dont_touch = "true" *) reg clear_control;
+    (* keep = "true", dont_touch = "true" *) reg clear_i_integrators;
+    (* keep = "true", dont_touch = "true" *) reg clear_q_integrators;
+    (* keep = "true", dont_touch = "true" *) reg clear_comb_delay;
+    (* keep = "true", dont_touch = "true" *) reg clear_comb_pipeline;
+    (* keep = "true", dont_touch = "true" *) reg clear_shift_pipeline;
 
     wire apply_is_legal;
     wire clear_request;
@@ -226,7 +226,7 @@ module post_iq_cic_stage_a #(
             i_int0 <= {ACC_WIDTH{1'b0}};
             i_int1 <= {ACC_WIDTH{1'b0}};
             i_int2 <= {ACC_WIDTH{1'b0}};
-        end else if (in_valid && !clear_control) begin
+        end else if (in_valid) begin
             i_int0 <= i_int0 + i_ext;
             i_int1 <= i_int1 + i_int0;
             i_int2 <= i_int2 + i_int1;
@@ -236,7 +236,7 @@ module post_iq_cic_stage_a #(
             q_int0 <= {ACC_WIDTH{1'b0}};
             q_int1 <= {ACC_WIDTH{1'b0}};
             q_int2 <= {ACC_WIDTH{1'b0}};
-        end else if (in_valid && !clear_control) begin
+        end else if (in_valid) begin
             q_int0 <= q_int0 + q_ext;
             q_int1 <= q_int1 + q_int0;
             q_int2 <= q_int2 + q_int1;
@@ -249,7 +249,7 @@ module post_iq_cic_stage_a #(
             q_comb_d0 <= {ACC_WIDTH{1'b0}};
             q_comb_d1 <= {ACC_WIDTH{1'b0}};
             q_comb_d2 <= {ACC_WIDTH{1'b0}};
-        end else if (!clear_control) begin
+        end else begin
             if (comb0_valid) begin
                 i_comb_d0 <= i_decim_sample;
                 q_comb_d0 <= q_decim_sample;
@@ -275,7 +275,7 @@ module post_iq_cic_stage_a #(
             q_comb2 <= {ACC_WIDTH{1'b0}};
             i_comb3 <= {ACC_WIDTH{1'b0}};
             q_comb3 <= {ACC_WIDTH{1'b0}};
-        end else if (!clear_control) begin
+        end else begin
             if (in_valid && (sample_count == active_rate_r - 1'b1)) begin
                 i_decim_sample <= i_int2;
                 q_decim_sample <= q_int2;
@@ -314,7 +314,7 @@ module post_iq_cic_stage_a #(
             q_shift_stage5 <= {ROUND_WIDTH{1'b0}};
             i_rounded <= {ROUND_WIDTH{1'b0}};
             q_rounded <= {ROUND_WIDTH{1'b0}};
-        end else if (!clear_control) begin
+        end else begin
             if (output_pipe_valid) begin
                 i_shift_stage0 <= i_comb3_ext + i_rounding_bias_signed;
                 q_shift_stage0 <= q_comb3_ext + q_rounding_bias_signed;

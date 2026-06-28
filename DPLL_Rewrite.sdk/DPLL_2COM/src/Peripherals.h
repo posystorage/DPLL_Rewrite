@@ -18,6 +18,7 @@
 
 #define Freq_Meter_Centre_Frequency_Addr (FREQ_METER_BASE_ADDR|(0x0010<<2))//32bit
 
+// Legacy frequency-meter controls are open-loop readback only in the single-DPLL build.
 #define Freq_Meter_Lock_Ctrl_Addr (FREQ_METER_BASE_ADDR|(0x0020<<2))//1bit
 #define Freq_Meter_PID_GainP_Addr (FREQ_METER_BASE_ADDR|(0x0021<<2))//32bit-div13
 #define Freq_Meter_PID_GainI_Addr (FREQ_METER_BASE_ADDR|(0x0022<<2))//32bit-div24

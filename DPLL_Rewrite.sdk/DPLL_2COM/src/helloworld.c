@@ -1079,7 +1079,7 @@ void PC_HOST_CMD_Respond(void)
 				PC_HOST_Send_ASK_Only(0);
 				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
 				Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);
-				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,1);
+				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
 				break;
 
 			case PC_CMD_WRITE_DPLL_DEBUG_CONFIG:
@@ -1430,7 +1430,8 @@ init_platform();
     Xil_Out32(Freq_Meter_Freq_Residuals_Threshold_Addr,500);
 	usleep(50);
 
-    Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,1);
+    // Keep the legacy frequency-meter PLL disabled; the single DPLL lives at DPLL_BASE_ADDR.
+    Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
 
     XUartPs_SendByte(XUartPs_uart0.Config.BaseAddress,'C');
 

@@ -116,6 +116,12 @@ module dpll_single_clock_core_stage_a #(
     wire signed [COEFF_WIDTH-1:0] active_kf;
     wire signed [COEFF_WIDTH-1:0] active_ki;
     wire signed [COEFF_WIDTH-1:0] active_kp;
+    reg active_enable_fll_r;
+    reg active_enable_pll_i_r;
+    reg active_enable_pll_p_r;
+    reg signed [COEFF_WIDTH-1:0] active_kf_r;
+    reg signed [COEFF_WIDTH-1:0] active_ki_r;
+    reg signed [COEFF_WIDTH-1:0] active_kp_r;
     reg hybrid_error_valid_r;
     reg hybrid_enable_fll_r;
     reg hybrid_enable_pll_i_r;
@@ -127,6 +133,12 @@ module dpll_single_clock_core_stage_a #(
     reg signed [COEFF_WIDTH-1:0] hybrid_kp_r;
     wire saturated_high;
     wire saturated_low;
+    (* keep = "true", dont_touch = "true" *) reg rst_nco_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_frontend_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_cic_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_detector_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_state_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_hybrid_r;
 
     assign nco_word = tracking_word_hold;
     assign tracking_word = tracking_word_hold;
@@ -134,7 +146,16 @@ module dpll_single_clock_core_stage_a #(
     assign magnitude = cordic_magnitude_hold;
 
     always @(posedge clk_125m) begin
-        if (rst_125m) begin
+        rst_nco_r <= rst_125m;
+        rst_frontend_r <= rst_125m;
+        rst_cic_r <= rst_125m;
+        rst_detector_r <= rst_125m;
+        rst_state_r <= rst_125m;
+        rst_hybrid_r <= rst_125m;
+    end
+
+    always @(posedge clk_125m) begin
+        if (rst_nco_r) begin
             tracking_word_hold <= {WORD_WIDTH{1'b0}};
             nco_word_ready <= 1'b0;
         end else if (!loop_enable) begin
@@ -154,7 +175,7 @@ module dpll_single_clock_core_stage_a #(
         .PHASE_WIDTH(PHASE_WIDTH)
     ) tracking_phase_accumulator_inst (
         .clk_125m(clk_125m),
-        .rst_125m(rst_125m),
+        .rst_125m(rst_nco_r),
         .enable(1'b1),
         .tracking_word(nco_word),
         .phase_accum(phase_accum),
@@ -181,7 +202,7 @@ module dpll_single_clock_core_stage_a #(
         .LEAK_SHIFT(7)
     ) dc_blocker_inst (
         .clk_125m(clk_125m),
-        .rst_125m(rst_125m),
+        .rst_125m(rst_frontend_r),
         .in_valid(sample_valid),
         .sample_in(adc_sample),
         .out_valid(dc_valid),
@@ -189,7 +210,7 @@ module dpll_single_clock_core_stage_a #(
     );
 
     always @(posedge clk_125m) begin
-        if (rst_125m) begin
+        if (rst_frontend_r) begin
             adc_sample_r0 <= {ADC_WIDTH{1'b0}};
             adc_sample_r1 <= {ADC_WIDTH{1'b0}};
             lo_cos_r0 <= 16'sd0;
@@ -245,7 +266,7 @@ module dpll_single_clock_core_stage_a #(
         .SHIFT_WIDTH(6)
     ) post_iq_cic_inst (
         .clk_125m(clk_125m),
-        .rst_125m(rst_125m),
+        .rst_125m(rst_cic_r),
         .in_valid(mixer_valid),
         .i_in(mixer_i),
         .q_in(mixer_q),
@@ -282,7 +303,7 @@ module dpll_single_clock_core_stage_a #(
                       freq_error;
 
     always @(posedge clk_125m) begin
-        if (rst_125m) begin
+        if (rst_state_r) begin
             phase_error_hold <= {PHASE_WIDTH{1'b0}};
             cordic_magnitude_hold <= 16'd0;
             freq_error_valid_d <= 1'b0;
@@ -318,7 +339,7 @@ module dpll_single_clock_core_stage_a #(
         .TIMEOUT_WIDTH(24)
     ) loop_state_manager_inst (
         .clk_125m(clk_125m),
-        .rst_125m(rst_125m),
+        .rst_125m(rst_state_r),
         .loop_enable(loop_enable),
         .config_apply(config_apply),
         .measurement_valid(state_measurement_valid_r),
@@ -362,7 +383,7 @@ module dpll_single_clock_core_stage_a #(
         .FERR_WIDTH(FERR_WIDTH)
     ) fll_phase_difference_inst (
         .clk_125m(clk_125m),
-        .rst_125m(rst_125m),
+        .rst_125m(rst_detector_r),
         .phase_valid(cordic_valid),
         .phase_in(phase_error_next),
         .delay_sel(fll_delay_sel),
@@ -372,7 +393,13 @@ module dpll_single_clock_core_stage_a #(
     );
 
     always @(posedge clk_125m) begin
-        if (rst_125m) begin
+        if (rst_hybrid_r) begin
+            active_enable_fll_r <= 1'b0;
+            active_enable_pll_i_r <= 1'b0;
+            active_enable_pll_p_r <= 1'b0;
+            active_kf_r <= {COEFF_WIDTH{1'b0}};
+            active_ki_r <= {COEFF_WIDTH{1'b0}};
+            active_kp_r <= {COEFF_WIDTH{1'b0}};
             hybrid_error_valid_r <= 1'b0;
             hybrid_enable_fll_r <= 1'b0;
             hybrid_enable_pll_i_r <= 1'b0;
@@ -383,16 +410,22 @@ module dpll_single_clock_core_stage_a #(
             hybrid_ki_r <= {COEFF_WIDTH{1'b0}};
             hybrid_kp_r <= {COEFF_WIDTH{1'b0}};
         end else begin
+            active_enable_fll_r <= loop_enable_fll;
+            active_enable_pll_i_r <= loop_enable_pll_i;
+            active_enable_pll_p_r <= loop_enable_pll_p;
+            active_kf_r <= active_kf;
+            active_ki_r <= active_ki;
+            active_kp_r <= active_kp;
             hybrid_error_valid_r <= freq_error_valid;
             if (freq_error_valid) begin
-                hybrid_enable_fll_r <= loop_enable_fll;
-                hybrid_enable_pll_i_r <= loop_enable_pll_i;
-                hybrid_enable_pll_p_r <= loop_enable_pll_p;
+                hybrid_enable_fll_r <= active_enable_fll_r;
+                hybrid_enable_pll_i_r <= active_enable_pll_i_r;
+                hybrid_enable_pll_p_r <= active_enable_pll_p_r;
                 hybrid_phase_error_r <= phase_error_hold;
                 hybrid_freq_error_r <= freq_error;
-                hybrid_kf_r <= active_kf;
-                hybrid_ki_r <= active_ki;
-                hybrid_kp_r <= active_kp;
+                hybrid_kf_r <= active_kf_r;
+                hybrid_ki_r <= active_ki_r;
+                hybrid_kp_r <= active_kp_r;
             end
         end
     end
@@ -406,7 +439,7 @@ module dpll_single_clock_core_stage_a #(
         .PRODUCT_SHIFT(18)
     ) hybrid_loop_inst (
         .clk_125m(clk_125m),
-        .rst_125m(rst_125m),
+        .rst_125m(rst_hybrid_r),
         .error_valid(hybrid_error_valid_r),
         .enable_fll(hybrid_enable_fll_r),
         .enable_pll_i(hybrid_enable_pll_i_r),

@@ -46,7 +46,11 @@ def main() -> int:
     hybrid_checker = read(ROOT / "verification" / "fixed_point" / "check_hybrid_loop_trace.py")
     post_iq_checker = read(ROOT / "verification" / "fixed_point" / "check_post_iq_cic_trace.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
+    loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
+    interface_doc = read(ROOT / "docs" / "dpll_interface_v1.md")
+    register_doc = read(ROOT / "docs" / "dpll_register_map_v1.md")
+    holdover_report = read(ROOT / "reports" / "review2_holdover_timeout_units_20260628.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     cordic_xci = read(DPLL / "DDC" / "ip" / "angle_CORDIC" / "angle_CORDIC.xci")
     div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
@@ -84,9 +88,24 @@ def main() -> int:
     checks.append(check(
         ".measurement_timeout(holdover_timeout)" in core
         and "measurement_gap_count" in loop
+        and "measurement_gap_count <= measurement_gap_count + 1'b1;" in loop
+        and "holdover_count <= holdover_count + 1'b1;" in loop
+        and "measurement_timeout_target_r <= nonzero_timeout(measurement_timeout_r) - 1'b1;" in loop
+        and "holdover_target_r <= nonzero_timeout(holdover_timeout_r) - 1'b1;" in loop
         and "LOSS_TIMEOUT" in loop,
         "State manager has a no-measurement watchdog",
-        "`measurement_gap_count` sends acquire/blend/track/reacquire to holdover on timeout",
+        "`measurement_gap_count` counts no-measurement 125 MHz cycles and sends acquire/blend/track/reacquire to holdover on timeout",
+    ))
+    checks.append(check(
+        "Measurement-gap and holdover timeout counters count raw `clk_125m` cycles" in interface_doc
+        and "`0x0058` | `HOLDOVER_TIMEOUT` | shadow/apply, low 24 bits, `clk_125m` ticks" in register_doc
+        and "uses raw 125 MHz clock ticks" in register_doc
+        and "125 MHz ticks" in periph
+        and "HOLDOVER_TIMEOUT` as raw 125 MHz clock ticks" in holdover_report
+        and "repeat (7) @(posedge clk);" in loop_tb
+        and "expect_state(ST_FAULT);" in loop_tb,
+        "HOLDOVER_TIMEOUT unit is documented and covered by loop-state simulation",
+        "`0x0058` is frozen as low-24-bit 125 MHz ticks for both measurement gap and holdover-fault timeout; testbench checks the eight-tick holdover-to-fault path",
     ))
     checks.append(check(
         ".measurement_valid(state_measurement_valid_r)" in core

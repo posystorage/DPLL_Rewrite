@@ -57,7 +57,7 @@ ARM must not enable the DPLL when ABI/build checks fail.
 | `0x0055` | `ACQUIRE_DWELL` | shadow/apply |
 | `0x0056` | `BLEND_DWELL` | shadow/apply |
 | `0x0057` | `LOSS_DWELL` | shadow/apply |
-| `0x0058` | `HOLDOVER_TIMEOUT` | shadow/apply |
+| `0x0058` | `HOLDOVER_TIMEOUT` | shadow/apply, low 24 bits, `clk_125m` ticks |
 | `0x0060` | `POST_IQ_CIC_R` | shadow/apply |
 | `0x0061` | `POST_IQ_CIC_SCALE` | shadow/apply |
 | `0x0062` | `FLL_CONFIG` | shadow/apply |
@@ -65,6 +65,8 @@ ARM must not enable the DPLL when ABI/build checks fail.
 | `0x006F` | `CONFIG_APPLY` | apply trigger/status command |
 
 `CONFIG_APPLY` write bit 0 requests a commit of the shadow register set. Reads return bit 0 as apply busy and bits 15:8 as an applied sequence counter. ARM software must wait for the sequence counter to change and busy to clear before acknowledging that an apply completed.
+
+`HOLDOVER_TIMEOUT` uses raw 125 MHz clock ticks in the current v1 ABI. The active low 24 bits feed both the no-measurement watchdog and the holdover-to-fault timeout. A programmed value of zero is interpreted by RTL as one tick.
 
 ## Read Registers
 

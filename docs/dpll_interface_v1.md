@@ -46,7 +46,8 @@ Rules:
 - `valid` must be delayed by the same fixed latency as its data.
 - `valid='0'` data may hold old or meaningless values but must not update state.
 - Fixed-latency modules must document latency in 125 MHz clock cycles.
-- Counters for lock, dwell, warmup, and timeout count valid samples unless explicitly marked as 125 MHz cycles.
+- Lock, dwell, and warmup counters count valid measurement samples.
+- Measurement-gap and holdover timeout counters count raw `clk_125m` cycles unless explicitly documented otherwise.
 
 ## DPLL Channel v1
 
@@ -223,6 +224,13 @@ It does not own state transitions.
 ### `loop_state_manager`
 
 Owns mode transitions and coefficient selection. It does not perform wide DSP arithmetic.
+
+Timeout semantics:
+
+- `measurement_timeout` counts consecutive `clk_125m` cycles with no accepted measurement while in acquire, blend, track, or reacquire.
+- `holdover_timeout` counts consecutive `clk_125m` cycles spent in holdover without a usable measurement.
+- A timeout register value of zero is treated as one `clk_125m` tick.
+- In the wrapper v1 ABI, register `0x0058 HOLDOVER_TIMEOUT` feeds both timeout ports through the active snapshot.
 
 States v1:
 

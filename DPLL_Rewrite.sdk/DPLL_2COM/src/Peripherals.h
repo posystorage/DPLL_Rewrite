@@ -109,7 +109,7 @@
 #define DPLL_ACQUIRE_DWELL_Addr (DPLL_BASE_ADDR|(0x0055<<2))
 #define DPLL_BLEND_DWELL_Addr (DPLL_BASE_ADDR|(0x0056<<2))
 #define DPLL_LOSS_DWELL_Addr (DPLL_BASE_ADDR|(0x0057<<2))
-#define DPLL_HOLDOVER_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0058<<2))
+#define DPLL_HOLDOVER_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0058<<2))//low 24 bits; 125 MHz ticks; measurement gap and holdover fault timeout
 
 //DPLL v1 post-IQ CIC/FLL configuration. R/shift writes are shadowed; write
 //DPLL_CONFIG_APPLY_Addr to atomically apply them in the DPLL clock-valid domain.

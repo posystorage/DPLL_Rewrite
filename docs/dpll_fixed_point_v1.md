@@ -40,7 +40,7 @@ Phase wrap is pure two's-complement modular arithmetic.
 | mixer product retained to CIC | 18 | yes | rounded from full product |
 | post-IQ CIC internal | 44 | yes | `18 + ceil(3*log2(312)) + 1` |
 | post-IQ CIC output | 20 | yes | after shift/round/saturate |
-| magnitude | 20 | no | model-confirm |
+| magnitude | 16 | no | raw `angle_CORDIC` Translate magnitude, no scale compensation |
 | phase | 18 | yes | one turn is `2^18` |
 | FLL error | 22 | yes | phase difference plus margin, model-confirm |
 | coefficients | 24 | yes | Kf/Kp/Ki, model-confirm Q format |
@@ -80,6 +80,19 @@ Internal arithmetic:
 - output applies configured right shift, symmetric rounding, and saturation.
 - `overflow_seen` records output saturation or illegal config, not natural internal wrap.
 
+## CORDIC Magnitude
+
+The active `angle_CORDIC` IP is configured as Translate, SignedFraction, 16-bit input/output, Scaled_Radians phase, coarse rotation enabled, and `No_Scale_Compensation`.
+
+Magnitude contract:
+
+- CORDIC X/Y inputs are rounded and saturated from post-IQ CIC 20-bit I/Q into 16-bit SignedFraction samples by the DPLL core.
+- `magnitude`, `MAG_ENTER_THRESHOLD`, `MAG_EXIT_THRESHOLD`, register `0x0101 MAGNITUDE`, and debug DAC source 8 all use the raw 16-bit CORDIC magnitude output.
+- No RTL or ARM-side gain compensation is applied to magnitude in v1.
+- Threshold tuning must account for the CORDIC no-scale-compensation gain and the 20-bit to 16-bit input rounding step.
+
+The initial ARM defaults `MAG_ENTER_THRESHOLD=1024` and `MAG_EXIT_THRESHOLD=512` are bring-up defaults in this raw CORDIC output scale, not calibrated physical amplitude limits.
+
 ## Loop Equation
 
 ```text
@@ -111,7 +124,7 @@ The model/verification owner must confirm before final RTL tuning:
 - Kf/Kp/Ki per frequency mode.
 - CIC output shift per R.
 - default debug DAC `FREQ_CORRECTION` bit window.
-- magnitude thresholds.
+- final tuned magnitude thresholds in raw no-scale-compensation CORDIC output units.
 - phase and frequency lock thresholds.
 - warmup and dwell valid-sample counts.
 - output MUL/DIV overflow behavior for project combinations.

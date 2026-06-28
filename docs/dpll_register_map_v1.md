@@ -68,6 +68,8 @@ ARM must not enable the DPLL when ABI/build checks fail.
 
 `HOLDOVER_TIMEOUT` uses raw 125 MHz clock ticks in the current v1 ABI. The active low 24 bits feed both the no-measurement watchdog and the holdover-to-fault timeout. A programmed value of zero is interpreted by RTL as one tick.
 
+`MAG_ENTER_THRESHOLD`, `MAG_EXIT_THRESHOLD`, `MAGNITUDE`, and debug DAC source 8 use the raw 16-bit `angle_CORDIC` Translate magnitude output. The CORDIC IP has scale compensation disabled; v1 does not apply a separate magnitude gain correction in RTL or ARM software.
+
 ## Read Registers
 
 | Index | Name |

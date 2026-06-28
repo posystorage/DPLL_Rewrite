@@ -20,6 +20,7 @@ Date: 2026-06-28
 - CORDIC Y input is rounded/saturated `q_baseband / 16`.
 - CORDIC phase output remains the IP Scaled_Radians 16-bit phase, expanded to the DPLL 18-bit one-turn format by appending two LSB zeros.
 - CORDIC magnitude is the no-scale-compensation magnitude from the IP; ARM `MAG_ENTER_THRESHOLD` and `MAG_EXIT_THRESHOLD` are in this raw IP output scale.
+- The frozen fixed-point/register documentation now defines this magnitude path as a raw 16-bit `angle_CORDIC` output. No RTL or ARM compensation is applied in v1.
 
 ## Verification
 

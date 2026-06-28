@@ -50,7 +50,9 @@ def main() -> int:
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     interface_doc = read(ROOT / "docs" / "dpll_interface_v1.md")
     register_doc = read(ROOT / "docs" / "dpll_register_map_v1.md")
+    fixed_doc = read(ROOT / "docs" / "dpll_fixed_point_v1.md")
     holdover_report = read(ROOT / "reports" / "review2_holdover_timeout_units_20260628.md")
+    cordic_scale_report = read(ROOT / "reports" / "review2_cordic_input_scale_20260628.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     cordic_xci = read(DPLL / "DDC" / "ip" / "angle_CORDIC" / "angle_CORDIC.xci")
     div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
@@ -131,6 +133,14 @@ def main() -> int:
         and "q_baseband[CIC_WIDTH-1 -: 16]" not in core,
         "CORDIC input scale and IP mode are explicit",
         "`angle_CORDIC` is Translate/SignedFraction/Scaled_Radians with coarse rotation and no scale compensation; core rounds/saturates 20-bit CIC I/Q into 16-bit CORDIC inputs",
+    ))
+    checks.append(check(
+        "| magnitude | 16 | no | raw `angle_CORDIC` Translate magnitude, no scale compensation |" in fixed_doc
+        and "`magnitude`, `MAG_ENTER_THRESHOLD`, `MAG_EXIT_THRESHOLD`, register `0x0101 MAGNITUDE`, and debug DAC source 8 all use the raw 16-bit CORDIC magnitude output." in fixed_doc
+        and "`MAG_ENTER_THRESHOLD`, `MAG_EXIT_THRESHOLD`, `MAGNITUDE`, and debug DAC source 8 use the raw 16-bit `angle_CORDIC` Translate magnitude output." in register_doc
+        and "No RTL or ARM compensation is applied in v1." in cordic_scale_report,
+        "CORDIC magnitude scale is frozen for ARM thresholds and readback",
+        "magnitude thresholds/readback/debug source use the raw 16-bit no-scale-compensation `angle_CORDIC` output",
     ))
     checks.append(check(
         "illegal_config_seen <= 1'b0;" in cic

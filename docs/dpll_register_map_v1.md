@@ -104,8 +104,9 @@ ARM must not enable the DPLL when ABI/build checks fail.
 | 0 | `CIC_OVERFLOW` |
 
 `VCO_MUL_DIV_CONFIG_ERROR` is sticky until reset. It is set when a requested
-output scaling sample has `MUL=0`, `DIV=0`, or `DIV[15]=1`; the illegal sample
-is rejected rather than silently clamped.
+output scaling sample has `MUL=0` or `DIV=0`; the illegal sample is rejected
+rather than silently clamped. The active divider IP is unsigned, so the full
+16-bit `DIV` range, including `DIV[15]=1`, is legal.
 
 ## Debug DAC Source
 

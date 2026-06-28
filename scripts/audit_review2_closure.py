@@ -145,6 +145,12 @@ def main() -> int:
         "`MUL=0` and `DIV=0` set sticky config error; `DIV[15]=1` is handled by `div_gen_pll_u`",
     ))
     checks.append(check(
+        "wire shadow_vco_mul_div_legal = (VCO_Mul_Factor0 != 16'h0000) &&\n                                (VCO_Div_Factor0 != 16'h0000);" in wrapper
+        and "VCO_Div_Factor0[15]" not in wrapper,
+        "Wrapper APPLY path accepts the full unsigned 16-bit VCO DIV range",
+        "`CONFIG_APPLY` rejects only `MUL=0` and `DIV=0`, not `DIV[15]=1`",
+    ))
+    checks.append(check(
         "vco_mul_div_config_error = vco_mul_div_runtime_config_error | vco_mul_div_apply_config_error" in wrapper
         and ".config_error(vco_mul_div_runtime_config_error)" in wrapper
         and "vco_mul_div_config_error" in wrapper

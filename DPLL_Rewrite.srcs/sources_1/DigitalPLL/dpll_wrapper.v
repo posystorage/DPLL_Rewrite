@@ -310,8 +310,7 @@ wire signed [31:0] shadow_negative_limit_effective =
 wire signed [55:0] shadow_correction_limit_pos = {{24{positive_limit_dac0[31]}}, positive_limit_dac0};
 wire signed [55:0] shadow_correction_limit_neg = {{24{shadow_negative_limit_effective[31]}}, shadow_negative_limit_effective};
 wire shadow_vco_mul_div_legal = (VCO_Mul_Factor0 != 16'h0000) &&
-                                (VCO_Div_Factor0 != 16'h0000) &&
-                                (VCO_Div_Factor0[15] == 1'b0);
+                                (VCO_Div_Factor0 != 16'h0000);
 
 reg [47:0] active_center_word;
 reg signed [23:0] active_kf;

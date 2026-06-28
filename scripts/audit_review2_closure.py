@@ -47,6 +47,7 @@ def main() -> int:
     post_iq_checker = read(ROOT / "verification" / "fixed_point" / "check_post_iq_cic_trace.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
+    core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     interface_doc = read(ROOT / "docs" / "dpll_interface_v1.md")
     register_doc = read(ROOT / "docs" / "dpll_register_map_v1.md")
@@ -174,6 +175,15 @@ def main() -> int:
         and "state_measurement_valid_r <= freq_error_valid_d;" in core,
         "Ambiguous FLL measurements are blocked before state and hybrid-loop updates",
         "`fll_ambiguous` masks `freq_error_valid` through `freq_error_usable`",
+    ))
+    checks.append(check(
+        "force dut.freq_error_valid = 1'b1;" in core_tb
+        and "force dut.fll_ambiguous = 1'b1;" in core_tb
+        and "ambiguous FLL sample reached hybrid loop" in core_tb
+        and "ambiguous FLL sample reached state manager" in core_tb
+        and "ambiguous FLL sample reset the state-manager measurement watchdog" in core_tb,
+        "Core-level simulation covers ambiguous FLL gating",
+        "`dpll_single_clock_core_stage_a_tb` forces an ambiguous valid FLL sample and checks it does not update hybrid tracking or reset the state-manager watchdog",
     ))
     checks.append(check(
         "freq_state_after_update_next" in hybrid

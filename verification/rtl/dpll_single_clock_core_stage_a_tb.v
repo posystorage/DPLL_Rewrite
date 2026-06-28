@@ -23,6 +23,8 @@ module dpll_single_clock_core_stage_a_tb;
     integer iq_seen = 0;
     integer freq_seen = 0;
     integer tracking_seen = 0;
+    integer hybrid_seen_before;
+    integer state_seen_before;
 
     always #4 clk = ~clk;
 
@@ -140,6 +142,38 @@ module dpll_single_clock_core_stage_a_tb;
         end
         if (tracking_word === 48'd0) begin
             $display("FAIL: tracking_word remained zero");
+            $finish;
+        end
+
+        @(negedge clk);
+        hybrid_seen_before = tracking_seen;
+        state_seen_before = dut.loop_state_manager_inst.measurement_gap_count;
+        force dut.freq_error_valid = 1'b1;
+        force dut.fll_ambiguous = 1'b1;
+        @(posedge clk);
+        #1;
+        release dut.freq_error_valid;
+        release dut.fll_ambiguous;
+        if (dut.freq_error_usable !== 1'b0) begin
+            $display("FAIL: ambiguous FLL sample was marked usable");
+            $finish;
+        end
+        @(posedge clk);
+        #1;
+        if (dut.hybrid_error_valid_r !== 1'b0) begin
+            $display("FAIL: ambiguous FLL sample reached hybrid loop");
+            $finish;
+        end
+        if (dut.state_measurement_valid_r !== 1'b0) begin
+            $display("FAIL: ambiguous FLL sample reached state manager");
+            $finish;
+        end
+        if (tracking_seen !== hybrid_seen_before) begin
+            $display("FAIL: ambiguous FLL sample produced a tracking update");
+            $finish;
+        end
+        if (dut.loop_state_manager_inst.measurement_gap_count <= state_seen_before) begin
+            $display("FAIL: ambiguous FLL sample reset the state-manager measurement watchdog");
             $finish;
         end
 

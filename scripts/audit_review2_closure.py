@@ -48,10 +48,12 @@ def main() -> int:
     dc_checker = read(ROOT / "verification" / "fixed_point" / "check_dc_blocker_trace.py")
     input_mult_checker = read(ROOT / "verification" / "fixed_point" / "check_input_multiplier_mixer_trace.py")
     cordic_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_angle_cordic_ip_trace.py")
+    dds_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_lo_dds_h_streaming_pinc_trace.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     dc_tb = read(ROOT / "verification" / "rtl" / "dc_blocker_valid_stage_a_tb.v")
     input_mult_tb = read(ROOT / "verification" / "rtl" / "input_multiplier_mixer_latency_tb.v")
     cordic_ip_tb = read(ROOT / "verification" / "rtl" / "angle_cordic_ip_trace_tb.v")
+    dds_ip_tb = read(ROOT / "verification" / "rtl" / "lo_dds_h_streaming_pinc_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
@@ -201,6 +203,16 @@ def main() -> int:
         and "verification/rtl/tracking_phase_accumulator_stage_a_tb.v" not in tracked,
         "Active IQ LO uses DDS Streaming PINC without a redundant local phase accumulator",
         "`LO_DDS_H` is configured for streaming phase increment; retired local NCO source/test are not tracked",
+    ))
+    checks.append(check(
+        "lo_dds_h_streaming_pinc_trace.csv" in dds_ip_tb
+        and "localparam [47:0] PINC_WORD = 48'h4000_0000_0000;" in dds_ip_tb
+        and ".s_axis_phase_tdata(phase_inc)" in dds_ip_tb
+        and "phase delta" in dds_ip_checker
+        and "expected streaming PINC" in dds_ip_checker
+        and "PASS: LO_DDS_H streaming PINC trace" in dds_ip_checker,
+        "LO_DDS_H Streaming PINC behavior is covered by an IP-aware trace",
+        "`lo_dds_h_streaming_pinc_tb` drives the real Vivado 2018.3 DDS model and checks output phase increments, data/phase valid alignment, and sin/cos quadrant coverage",
     ))
     checks.append(check(
         ".ambiguous(fll_ambiguous)" in core

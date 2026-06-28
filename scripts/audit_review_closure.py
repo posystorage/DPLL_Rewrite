@@ -56,6 +56,7 @@ def main() -> int:
     dbg = read(DPLL / "debug" / "debug_dac_formatter_stage_a.v")
     fll = read(DPLL / "detector_fll" / "fll_phase_difference_stage_a.v")
     loop = read(DPLL / "hybrid_loop" / "loop_state_manager_stage_a.v")
+    arm_mock = read(ROOT / "verification" / "arm" / "test_dpll_control_mock.py")
     arm = read_gbk(SDK / "helloworld.c")
     periph = read_gbk(SDK / "Peripherals.h")
 
@@ -90,6 +91,7 @@ def main() -> int:
     checks.append(pass_if("MODE_RAW_BIT_WINDOW" in dbg and "product_r2 <= shifted_signed_r1 * gain_r1" in dbg, "DACout1 format register affects debug formatting", "raw-window and scaled modes implemented"))
     checks.append(pass_if("DPLL_ABI_VERSION_Addr" in periph and "DPLL_FPGA_BUILD_ID_Addr" in periph, "ARM header exposes ABI/build registers", "v1 readback symbols present"))
     checks.append(pass_if("dpll_abi_ready = dpll_check_abi();" in arm and "action_status = (dpll_set_enable(1) == 0) ? STATUS_ACK : STATUS_NACK;" in arm, "ARM startup and STM control are ABI gated", "startup check plus command-result ACK/NACK"))
+    checks.append(pass_if(all(token in arm_mock for token in ["MockMmio", "parse_dpll_addr", "write_adv_config", "DPLL_CONFIG_APPLY_Addr"]), "ARM mock MMIO tests cover ABI/APPLY control", "`verification/arm/test_dpll_control_mock.py` parses real register definitions"))
     checks.append(pass_if("PID_GainI2_Addr" not in periph.replace("Freq_Meter_PID_GainI2_Addr", ""), "DPLL ARM aliases do not restore PII2", "remaining I2 name is frequency-meter only"))
     checks.append(pass_if("DAC1 is a debug output only" in periph and "DAC1_DDS_Frequency_Addr" in periph, "DAC1/DACout1 ABI is debug-only", "legacy address retained as debug source selector"))
     checks.append(no_uncommented_false_path())

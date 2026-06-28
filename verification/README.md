@@ -12,6 +12,16 @@ python -m unittest discover -s verification\fixed_point -p test_*.py
 
 The tests cover v1 frequency words, phase wrapping, CIC width bounds, and the rule that tracking correction remains full width before output MUL/DIV.
 
+## ARM Mock MMIO Tests
+
+Run from the repository root:
+
+```powershell
+python -m unittest discover -s verification\arm -p test_*.py
+```
+
+The tests parse the real ARM register definitions and exercise ABI gating, CONFIG_APPLY, enable control, and advanced DPLL shadow-register writes against a mock MMIO map.
+
 ## Vivado 2018.3 Audit Reports
 
 Run from the repository root with Vivado 2018.3 on `PATH`:

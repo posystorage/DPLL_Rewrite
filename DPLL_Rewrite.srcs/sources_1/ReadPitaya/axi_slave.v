@@ -116,6 +116,7 @@ module axi_slave #(
 //---------------------------------------------------------------------------------
 
 wire                 ack         ;
+reg                  ack_cnt_clear ;
 reg   [     10-1: 0] ack_cnt     ;
 
 reg                  rd_do       ;
@@ -206,16 +207,19 @@ end
 always @(posedge axi_clk_i)
 if (axi_rstn_i == 1'b0) begin
    ack_cnt   <= 10'h0 ;
+   ack_cnt_clear <= 1'b0 ;
 end else begin
+   ack_cnt_clear <= ack ;
+
    if ((axi_arvalid_i && axi_arready_o) || (axi_awvalid_i && axi_awready_o))  // rd || wr request
       ack_cnt <= 10'h1 ;
-   else if (ack)
+   else if (ack_cnt_clear)
       ack_cnt <= 10'h0 ;
    else if (|ack_cnt)
       ack_cnt <= ack_cnt + 10'h1 ;
 end
 
-assign ack = sys_ack_i || ack_cnt[9] || (rd_do && rd_errorw) || (wr_do && wr_errorw); // bus acknowledge or timeout or error
+assign ack = sys_ack_i || ack_cnt[9] || (rd_do && rd_error) || (wr_do && wr_error); // bus acknowledge or timeout or latched error
 
 //------------------------------------------
 //  Simple slave interface

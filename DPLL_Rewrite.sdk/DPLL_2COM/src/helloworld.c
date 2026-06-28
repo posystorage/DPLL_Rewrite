@@ -143,6 +143,13 @@ uint8_t PC_HOST_CMD_GET;
 uint8_t PC_HOST_CMD_RX_Mark = 0;
 uint64_t Freq_meter_gate_time_cache = 0;
 
+#define ARM_EXPECTED_DPLL_ABI_VERSION     0x00000001U
+#define ARM_EXPECTED_DPLL_CONFIG_VERSION  0x00010000U
+#define ARM_EXPECTED_DPLL_FPGA_BUILD_ID   0xD9110002U
+#define PC_ERR_DPLL_ABI_MISMATCH          0xF3U
+
+static uint8_t dpll_abi_ready = 0;
+
 static uint32_t pc_get_u32(uint32_t offset)
 {
 	return ((uint32_t)PC_HOST_CMD_data_Buff[offset]) |
@@ -170,9 +177,43 @@ static void pc_put_u32(uint32_t offset, uint32_t value)
 	Uart0_TX_Buff[offset + 3] = (value >> 24) & 0xFF;
 }
 
-static void dpll_apply_config(void)
+static uint8_t dpll_check_abi(void)
 {
+	uint32_t abi = Xil_In32(DPLL_ABI_VERSION_Addr);
+	uint32_t config = Xil_In32(DPLL_CONFIG_VERSION_Addr);
+	uint32_t build = Xil_In32(DPLL_FPGA_BUILD_ID_Addr);
+	uint8_t ok = (abi == ARM_EXPECTED_DPLL_ABI_VERSION) &&
+	             (config == ARM_EXPECTED_DPLL_CONFIG_VERSION) &&
+	             (build == ARM_EXPECTED_DPLL_FPGA_BUILD_ID);
+
+	if (!ok) {
+		xil_printf("DPLL ABI mismatch abi=0x%08lx config=0x%08lx build=0x%08lx\r\n",
+		           (unsigned long)abi, (unsigned long)config, (unsigned long)build);
+	}
+	return ok;
+}
+
+static int dpll_apply_config(void)
+{
+	if (!dpll_abi_ready) {
+		Xil_Out32(PLL0_Lock_Ctrl_Addr, 0);
+		return -1;
+	}
 	Xil_Out32(DPLL_CONFIG_APPLY_Addr, 1);
+	return 0;
+}
+
+static int dpll_set_enable(uint32_t enable)
+{
+	if (enable && !dpll_abi_ready) {
+		Xil_Out32(PLL0_Lock_Ctrl_Addr, 0);
+		PLL_Lock_Status = 0x00;
+		return -1;
+	}
+
+	Xil_Out32(PLL0_Lock_Ctrl_Addr, enable ? 1U : 0U);
+	PLL_Lock_Status = enable ? 0x20 : 0x00;
+	return 0;
 }
 void PC_HOST_CMD_Get(void);
 
@@ -738,7 +779,10 @@ void CMD_86_WRITE_DPLL_LOOP_BASIC(void)
     Xil_Out32(DPLL_PLL_KI_TRACK_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[8]));
     Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[12]));
     Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[16]));
-	dpll_apply_config();
+	if (dpll_apply_config() != 0) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
+		return;
+	}
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_87_WRITE_PLL_AMP(void)
@@ -792,7 +836,10 @@ void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 	Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr, PC_HOST_CMD_data_Buff[42]);
 	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, PC_HOST_CMD_data_Buff[43]);
 	Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));
-	dpll_apply_config();
+	if (dpll_apply_config() != 0) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
+		return;
+	}
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_90_WRITE_FREQMETER_FREQ(void)
@@ -982,13 +1029,14 @@ void PC_HOST_CMD_Respond(void)
 //				CMD_89_WRITE_MWS_OFF();
 //				break;
 			case PC_CMD_WRITE_PLL_ON:
-				Xil_Out32(PLL0_Lock_Ctrl_Addr,1);
-				PLL_Lock_Status = 0x20;
-				PC_HOST_Send_ASK_Only(0);
+				if (dpll_set_enable(1) != 0) {
+					PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
+				} else {
+					PC_HOST_Send_ASK_Only(0);
+				}
 				break;
 			case PC_CMD_WRITE_PLL_OFF:
-				Xil_Out32(PLL0_Lock_Ctrl_Addr,0);
-				PLL_Lock_Status = 0x00;
+				dpll_set_enable(0);
 				PC_HOST_Send_ASK_Only(0);
 				break;
 //			case PC_CMD_LOAD_EEPROM:
@@ -1259,7 +1307,7 @@ void STM_HOST_Write_PLL_Data(void)
     Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[28]));//14Bit
     Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[30]));//32Bit
     Xil_Out32(DAC0_VOC_Amplitude_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[32]));//amplitude 15bit;
-    dpll_apply_config();
+    if (dpll_apply_config() != 0) return;
 }
 void STM_HOST_CMD_Respond(void)
 {
@@ -1280,12 +1328,10 @@ void STM_HOST_CMD_Respond(void)
 				STM_HOST_Respond_Data();
 				break;
 			case CMD_PLL_ON:
-				Xil_Out32(PLL0_Lock_Ctrl_Addr,1);
-				PLL_Lock_Status = 0x20;
+				dpll_set_enable(1);
 				break;
 			case CMD_PLL_OFF:
-				Xil_Out32(PLL0_Lock_Ctrl_Addr,0);
-				PLL_Lock_Status = 0x00;
+				dpll_set_enable(0);
 				break;
 			case CMD_RESET:
 				Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);
@@ -1302,16 +1348,15 @@ void STM_HOST_CMD_Respond(void)
 
 int main()
 {
-	uint32_t i;
-    init_platform();
+init_platform();
 
     XPS_Core_init();
     Uart0PS_Init();
     Uart1PS_Init();
 
-    i = Xil_In32(PLL0_Test_Reg);
+    dpll_abi_ready = dpll_check_abi();
     Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);//rst;
-    Xil_Out32(PLL0_Lock_Ctrl_Addr,0);
+    dpll_set_enable(0);
     Xil_Out32(DAC0_VCO_Offset_Addr,0);//offset 14bit;
     Xil_Out32(DAC0_VOC_Amplitude_Addr,0x7fff);//amplitude 15bit;
     //Xil_Out32(DAC0_VOC_Amplitude_Addr,0x0001);//amplitude 15bit;
@@ -1357,7 +1402,7 @@ int main()
     Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr,12);
     Xil_Out32(DPLL_FLL_DELAY_SEL_Addr,2);
     Xil_Out32(DPLL_WARMUP_SAMPLES_Addr,64);
-    dpll_apply_config();
+    if (dpll_apply_config() != 0) return -1;
 
     Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);//rst;
     Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);

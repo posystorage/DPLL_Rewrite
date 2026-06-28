@@ -19,6 +19,8 @@ module post_iq_cic_stage_a_tb;
     wire illegal_config_seen;
 
     integer valid_count = 0;
+    integer valid_count_before;
+    reg saw_rounding_value = 1'b0;
 
     post_iq_cic_stage_a dut (
         .clk_125m(clk_125m),
@@ -53,6 +55,9 @@ module post_iq_cic_stage_a_tb;
             #1;
             if (out_valid) begin
                 valid_count = valid_count + 1;
+                if (i_out === 20'sd1 && q_out === -20'sd1) begin
+                    saw_rounding_value = 1'b1;
+                end
             end
         end
     endtask
@@ -64,7 +69,7 @@ module post_iq_cic_stage_a_tb;
 
         config_apply = 1'b1;
         shadow_rate_r = 9'd8;
-        shadow_output_shift = 6'd0;
+        shadow_output_shift = 6'd10;
         @(posedge clk_125m);
         #1;
         config_apply = 1'b0;
@@ -72,13 +77,28 @@ module post_iq_cic_stage_a_tb;
             $display("FAIL: active_rate_r expected 8 got %0d", active_rate_r);
             $finish;
         end
-
-        repeat (32) tick_sample(18'sd1, -18'sd1);
-        if (valid_count !== 2) begin
-            $display("FAIL: expected 2 output valids got %0d", valid_count);
+        if (active_output_shift !== 6'd10) begin
+            $display("FAIL: active_output_shift expected 10 got %0d", active_output_shift);
             $finish;
         end
 
+        repeat (32) tick_sample(18'sd1, -18'sd1);
+        if (valid_count !== 0) begin
+            $display("FAIL: warmup suppression expected 0 output valids got %0d", valid_count);
+            $finish;
+        end
+
+        repeat (32) tick_sample(18'sd1, -18'sd1);
+        if (valid_count < 2) begin
+            $display("FAIL: expected output valids after warmup got %0d", valid_count);
+            $finish;
+        end
+        if (saw_rounding_value !== 1'b1) begin
+            $display("FAIL: expected symmetric rounded steady value +/-1");
+            $finish;
+        end
+
+        valid_count_before = valid_count;
         shadow_rate_r = 9'd7;
         config_apply = 1'b1;
         @(posedge clk_125m);
@@ -90,7 +110,7 @@ module post_iq_cic_stage_a_tb;
         end
 
         repeat (16) tick_sample(18'sd1, -18'sd1);
-        if (valid_count !== 4) begin
+        if (valid_count != valid_count_before + 2) begin
             $display("FAIL: illegal config flushed CIC state, valid_count=%0d", valid_count);
             $finish;
         end

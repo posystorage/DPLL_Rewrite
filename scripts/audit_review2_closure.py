@@ -50,6 +50,7 @@ def main() -> int:
     cordic_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_angle_cordic_ip_trace.py")
     dds_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_lo_dds_h_streaming_pinc_trace.py")
     nonzero_core_checker = read(ROOT / "verification" / "fixed_point" / "check_dpll_core_nonzero_tracking_trace.py")
+    sine_lock_checker = read(ROOT / "verification" / "fixed_point" / "check_dpll_core_sine_lock_trace.py")
     arm_mock = read(ROOT / "verification" / "arm" / "test_dpll_control_mock.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     dc_tb = read(ROOT / "verification" / "rtl" / "dc_blocker_valid_stage_a_tb.v")
@@ -57,6 +58,7 @@ def main() -> int:
     cordic_ip_tb = read(ROOT / "verification" / "rtl" / "angle_cordic_ip_trace_tb.v")
     dds_ip_tb = read(ROOT / "verification" / "rtl" / "lo_dds_h_streaming_pinc_tb.v")
     nonzero_core_tb = read(ROOT / "verification" / "rtl" / "dpll_core_nonzero_tracking_tb.v")
+    sine_lock_tb = read(ROOT / "verification" / "rtl" / "dpll_core_sine_lock_tb.v")
     vco_tb = read(ROOT / "verification" / "rtl" / "pll_vco_mul_div_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
@@ -381,6 +383,21 @@ def main() -> int:
         and "PASS: DPLL core nonzero tracking trace" in nonzero_core_checker,
         "Core-level nonzero-gain RTL trace covers closed-loop tracking updates beyond zero-gain frequency-word checks",
         "`dpll_core_nonzero_tracking_tb` runs the real DDS/mixer/CIC/CORDIC/FLL/hybrid core with nonzero gains; checker verifies multiple nonzero corrections and the registered next-row `tracking_word = sat(center_word + freq_correction)` contract",
+    ))
+    checks.append(check(
+        "dpll_core_sine_lock_trace.csv" in sine_lock_tb
+        and "INPUT_HZ = 20100.0" in sine_lock_tb
+        and "CENTER_HZ = 20000.0" in sine_lock_tb
+        and ".cic_rate_r(9'd78)" in sine_lock_tb
+        and ".cic_output_shift(6'd13)" in sine_lock_tb
+        and "positive_tracking_delta_count" in sine_lock_tb
+        and "fll_valid_count" in sine_lock_tb
+        and "PASS: dpll_core_sine_lock_tb" in sine_lock_tb
+        and "equivalent 3.125 MSPS sample cadence" in sine_lock_checker
+        and "real DDS/mixer/CIC/CORDIC/FLL/hybrid path observes valid FLL measurements" in sine_lock_checker
+        and "PASS: DPLL core sine-lock trace" in sine_lock_checker,
+        "Core-level sine-input RTL/IP trace covers nonzero-gain lock response on the real signal path",
+        "`dpll_core_sine_lock_tb` drives a 20.1 kHz sine at the equivalent 3.125 MSPS cadence through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path using the 20 kHz R=78 post-IQ CIC configuration; checker verifies valid FLL measurements, nonzero positive tracking response, and TRACK/locked samples",
     ))
     legacy_dpll_xpr_entries = [
         "sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v",

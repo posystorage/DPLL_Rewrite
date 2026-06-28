@@ -47,9 +47,11 @@ def main() -> int:
     post_iq_checker = read(ROOT / "verification" / "fixed_point" / "check_post_iq_cic_trace.py")
     dc_checker = read(ROOT / "verification" / "fixed_point" / "check_dc_blocker_trace.py")
     input_mult_checker = read(ROOT / "verification" / "fixed_point" / "check_input_multiplier_mixer_trace.py")
+    cordic_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_angle_cordic_ip_trace.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     dc_tb = read(ROOT / "verification" / "rtl" / "dc_blocker_valid_stage_a_tb.v")
     input_mult_tb = read(ROOT / "verification" / "rtl" / "input_multiplier_mixer_latency_tb.v")
+    cordic_ip_tb = read(ROOT / "verification" / "rtl" / "angle_cordic_ip_trace_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
@@ -157,6 +159,15 @@ def main() -> int:
         and "q_baseband[CIC_WIDTH-1 -: 16]" not in core,
         "CORDIC input scale and IP mode are explicit",
         "`angle_CORDIC` is Translate/SignedFraction/Scaled_Radians with coarse rotation and no scale compensation; core rounds/saturates 20-bit CIC I/Q into 16-bit CORDIC inputs",
+    ))
+    checks.append(check(
+        "angle_cordic_ip_trace.csv" in cordic_ip_tb
+        and ".s_axis_cartesian_tdata({q_in, i_in})" in cordic_ip_tb
+        and "+Q phase should be near +pi/2 scaled radians" in cordic_ip_checker
+        and "raw no-scale-compensation gain" in cordic_ip_checker
+        and "PASS: angle CORDIC IP trace" in cordic_ip_checker,
+        "CORDIC IP phase direction and raw magnitude scale are covered by an IP-aware trace",
+        "`angle_cordic_ip_trace_tb` drives the real `angle_CORDIC` simulation model and checks `{Q,I}` packing, scaled-radian phase quadrants, valid output, and no-scale-compensation magnitude behavior",
     ))
     checks.append(check(
         "| magnitude | 16 | no | raw `angle_CORDIC` Translate magnitude, no scale compensation |" in fixed_doc

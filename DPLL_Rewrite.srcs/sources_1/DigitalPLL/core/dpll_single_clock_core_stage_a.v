@@ -67,6 +67,7 @@ module dpll_single_clock_core_stage_a #(
 );
 
     reg [WORD_WIDTH-1:0] tracking_word_hold;
+    reg nco_word_ready;
     wire [WORD_WIDTH-1:0] nco_word;
     wire [WORD_WIDTH-1:0] phase_accum;
     wire [PHASE_WIDTH-1:0] phase_word;
@@ -84,6 +85,7 @@ module dpll_single_clock_core_stage_a #(
     reg signed [15:0] lo_sin_r1;
     reg mixer_input_valid_r0;
     reg mixer_input_valid_r1;
+    reg mixer_product_valid;
     wire signed [31:0] mixer_i_product;
     wire signed [31:0] mixer_q_product;
     wire signed [15:0] mixer_i_rounded;
@@ -119,12 +121,16 @@ module dpll_single_clock_core_stage_a #(
     always @(posedge clk_125m) begin
         if (rst_125m) begin
             tracking_word_hold <= {WORD_WIDTH{1'b0}};
+            nco_word_ready <= 1'b0;
         end else if (!loop_enable) begin
             tracking_word_hold <= center_word;
+            nco_word_ready <= |center_word;
         end else if (correction_valid) begin
             tracking_word_hold <= correction_tracking_word;
+            nco_word_ready <= |correction_tracking_word;
         end else if (tracking_word_hold == {WORD_WIDTH{1'b0}}) begin
             tracking_word_hold <= center_word;
+            nco_word_ready <= |center_word;
         end
     end
 
@@ -143,7 +149,7 @@ module dpll_single_clock_core_stage_a #(
 
     LO_DDS_H tracking_lo_dds_inst (
         .aclk(clk_125m),
-        .s_axis_phase_tvalid(1'b1),
+        .s_axis_phase_tvalid(nco_word_ready),
         .s_axis_phase_tdata(nco_word),
         .m_axis_data_tvalid(dds_valid),
         .m_axis_data_tdata(dds_data),
@@ -177,9 +183,11 @@ module dpll_single_clock_core_stage_a #(
             lo_sin_r1 <= 16'sd0;
             mixer_input_valid_r0 <= 1'b0;
             mixer_input_valid_r1 <= 1'b0;
+            mixer_product_valid <= 1'b0;
         end else begin
             mixer_input_valid_r0 <= dc_valid;
             mixer_input_valid_r1 <= mixer_input_valid_r0;
+            mixer_product_valid <= mixer_input_valid_r1;
             if (dc_valid) begin
                 adc_sample_r0 <= adc_dc_blocked;
                 lo_cos_r0 <= dds_data[15:0];
@@ -211,7 +219,7 @@ module dpll_single_clock_core_stage_a #(
     assign mixer_q_rounded = (mixer_q_product + 32'sd16384) >>> 15;
     assign mixer_i = {{(MIXER_WIDTH-16){mixer_i_rounded[15]}}, mixer_i_rounded};
     assign mixer_q = {{(MIXER_WIDTH-16){mixer_q_rounded[15]}}, mixer_q_rounded};
-    assign mixer_valid = mixer_input_valid_r1;
+    assign mixer_valid = mixer_product_valid;
 
     post_iq_cic_stage_a #(
         .INPUT_WIDTH(MIXER_WIDTH),

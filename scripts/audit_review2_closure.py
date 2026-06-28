@@ -45,7 +45,9 @@ def main() -> int:
     multi_checker = read(ROOT / "verification" / "fixed_point" / "check_multifrequency_trace.py")
     hybrid_checker = read(ROOT / "verification" / "fixed_point" / "check_hybrid_loop_trace.py")
     post_iq_checker = read(ROOT / "verification" / "fixed_point" / "check_post_iq_cic_trace.py")
+    dc_checker = read(ROOT / "verification" / "fixed_point" / "check_dc_blocker_trace.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
+    dc_tb = read(ROOT / "verification" / "rtl" / "dc_blocker_valid_stage_a_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
@@ -68,6 +70,16 @@ def main() -> int:
         and "if (out_valid)" not in dc,
         "DC blocker output data and valid update in the same input-valid cycle",
         "`sample_out` uses `next_hp_value` under `in_valid`",
+    ))
+    checks.append(check(
+        "dc_blocker_trace.csv" in dc_tb
+        and "out_valid mismatch" in dc_tb
+        and "def model_rows" in dc_checker
+        and "INPUT_SHIFT = ACC_WIDTH - DATA_WIDTH - LEAK_SHIFT - 2" in dc_checker
+        and "PASS: DC blocker golden trace" in dc_checker
+        and "approximately `x/2` before saturation" in fixed_doc,
+        "DC blocker RTL trace is checked against a bit-exact fixed-point model",
+        "`check_dc_blocker_trace.py` verifies valid alignment, accumulator/leak arithmetic, output rounding, and saturation scale",
     ))
     checks.append(check(
         "mixer_input_valid_r0 <= dc_valid && dds_valid;" in core

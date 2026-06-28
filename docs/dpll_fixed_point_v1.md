@@ -93,6 +93,22 @@ Magnitude contract:
 
 The initial ARM defaults `MAG_ENTER_THRESHOLD=1024` and `MAG_EXIT_THRESHOLD=512` are bring-up defaults in this raw CORDIC output scale, not calibrated physical amplitude limits.
 
+## DC Blocker
+
+The active DC blocker is a valid-gated first-order high-pass stage. With `LEAK_SHIFT=7`, `ACC_WIDTH=48`, and `DATA_WIDTH=16`, define:
+
+```text
+INPUT_SHIFT  = ACC_WIDTH - DATA_WIDTH - LEAK_SHIFT - 2
+OUTPUT_SHIFT = ACC_WIDTH - DATA_WIDTH - 1
+acc[k+1]     = acc[k] - (acc[k] >>> LEAK_SHIFT) + (x[k] <<< INPUT_SHIFT)
+hp[k]        = (x[k] <<< (OUTPUT_SHIFT - 1)) - acc[k] + (1 <<< (OUTPUT_SHIFT - 2))
+y[k]         = sat16(hp[k] >>> OUTPUT_SHIFT)
+```
+
+The `sample_out` and `out_valid` registers update in the same `clk_125m` cycle when `in_valid=1`. When `in_valid=0`, filter state does not advance and `out_valid=0`.
+
+The resulting high-pass path is intentionally attenuating: for frequencies well above the very low cutoff, `y` is approximately `x/2` before saturation. This is documented behavior for the current bring-up scale and is covered by `verification/fixed_point/check_dc_blocker_trace.py`.
+
 ## Loop Equation
 
 ```text

@@ -45,6 +45,7 @@ def main() -> int:
     cic_stages = xml_value(cic_xci, "PARAM_VALUE.Number_Of_Stages")
     cic_diff_delay = xml_value(cic_xci, "PARAM_VALUE.Differential_Delay")
     cic_has_out_ready = xml_value(cic_xci, "PARAM_VALUE.HAS_DOUT_TREADY")
+    cic_has_in_ready = xml_value(cic_xci, "BUSIFPARAM_VALUE.S_AXIS_DATA.HAS_TREADY")
 
     cordic_function = xml_value(cordic_xci, "PARAM_VALUE.Functional_Selection")
     cordic_format = xml_value(cordic_xci, "PARAM_VALUE.Data_Format")
@@ -59,6 +60,9 @@ def main() -> int:
     div_model_sign = xml_value(div_xci, "MODELPARAM_VALUE.SIGNED_B")
     div_latency = xml_value(div_xci, "PARAM_VALUE.latency")
     div_flow = xml_value(div_xci, "PARAM_VALUE.FlowControl")
+    pre_iq_ready_report = read(ROOT / "reports" / "review2_pre_iq_cic_ready_20260629.md")
+    pre_iq_ready_tb = read(ROOT / "verification" / "rtl" / "pre_iq_cic_ready_tb.v")
+    pre_iq_ready_checker = read(ROOT / "verification" / "fixed_point" / "check_pre_iq_cic_ready_trace.py")
 
     checks: list[tuple[str, bool]] = []
     checks.append(check(
@@ -70,6 +74,15 @@ def main() -> int:
         cic_rate == "40" and cic_stages == "4" and cic_diff_delay == "2" and cic_has_out_ready == "false",
         "pre-IQ CIC functional parameters remain fixed /40 non-blocking decimation",
         f"`R={cic_rate}`, `N={cic_stages}`, `M={cic_diff_delay}`, `HAS_DOUT_TREADY={cic_has_out_ready}`",
+    ))
+    checks.append(check(
+        cic_has_in_ready == "1"
+        and ".s_axis_data_tready(pre_cic_ready)" in wrapper
+        and "ready_low_count != 0" in pre_iq_ready_tb
+        and "pre-IQ CIC input ready deasserted" in pre_iq_ready_checker
+        and "ADC source is not back-pressure aware" in pre_iq_ready_report,
+        "pre-IQ CIC input TREADY exposure is documented and covered by continuous-ready simulation",
+        "`S_AXIS_DATA.HAS_TREADY=1`; wrapper observes `pre_cic_ready`; xsim trace fails if ready deasserts during continuous ADC-valid input",
     ))
     checks.append(check(
         cic_clock == "125.0" and cic_input_sample_frequency == "125.0",

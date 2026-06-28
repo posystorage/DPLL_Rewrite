@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import subprocess
 from pathlib import Path
 
 
@@ -18,6 +19,17 @@ def check(condition: bool, label: str, evidence: str) -> tuple[str, bool]:
     return f"| {status} | {label} | {evidence} |", condition
 
 
+def git_tracked_files() -> set[str]:
+    proc = subprocess.run(
+        ["git", "ls-files"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    )
+    return set(proc.stdout.splitlines())
+
+
 def main() -> int:
     core = read(DPLL / "core" / "dpll_single_clock_core_stage_a.v")
     dc = read(DPLL / "frontend" / "dc_blocker_valid_stage_a.v")
@@ -33,6 +45,7 @@ def main() -> int:
     div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
     input_mult_sim = read(DPLL / "DDC" / "ip" / "input_multiplier" / "sim" / "input_multiplier.vhd")
     xpr = read(ROOT / "DPLL_Rewrite.xpr")
+    tracked = git_tracked_files()
 
     checks: list[tuple[str, bool]] = []
     checks.append(check(
@@ -185,16 +198,59 @@ def main() -> int:
         "sources_1/DigitalPLL/DDC/ip/FIR_3_125MHz_Fstop240KHz_98db_39Order.coe",
         "sources_1/DigitalPLL/DDC/ip/FIR_3_125MHz_Fstop60KHz_77db_159Order.coe",
         "sources_1/DigitalPLL/VCO/DAC_DDS/DAC_DDS.xci",
+        "sources_1/DigitalPLL/VCO/div_gen_pll/div_gen_pll.xci",
         "sources_1/DigitalPLL/VCO/VCO_32bits.vhd",
+        "sources_1/DigitalPLL/Assist/Status_Delay_Show.v",
+        "sources_1/DigitalPLL/Assist/residuals_monitor.vhd",
+        "sources_1/DigitalPLL/Assist/residuals_monitor_with_offset.vhd",
+        "sources_1/DigitalPLL/DDC/boxcar_2_pts_filter.vhd",
+        "sources_1/DigitalPLL/DDC/quantizer.vhd",
+        "sources_1/DigitalPLL/DDC/limiter.vhd",
     ]
+    legacy_tracked_prefixes = [
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/PID/",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ip/fir_compiler_minimumphase/",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ip/cic_compiler_0/",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/DAC_DDS/",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/div_gen_pll/",
+    ]
+    legacy_tracked_files = [
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ip/LO_DDS.xcix",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/N_times_clk_FIR_wrapper.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ddc_frontend_lowpass_filter.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/adjustable_boxcar_filter_v2.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/boxcar_4_pts_filter.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/first_order_IIR_highpass_filter.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/VCO_32bits.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/Assist/PLL_output_average.v",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/Assist/Status_LED_driver.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/Assist/Status_Delay_Show.v",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/Assist/residuals_monitor.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/Assist/residuals_monitor_with_offset.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/boxcar_2_pts_filter.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/quantizer.vhd",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/limiter.vhd",
+    ]
+    remaining_legacy_tracked = sorted(
+        path for path in tracked
+        if any(path.startswith(prefix) for prefix in legacy_tracked_prefixes)
+        or path in legacy_tracked_files
+    )
     checks.append(check(
         all(entry not in xpr for entry in legacy_dpll_xpr_entries)
+        and not remaining_legacy_tracked
         and "pre_iq_cic_40_125m_v1 pre_iq_cic_40_inst" in wrapper
         and "sources_1/Freq_Meter/DDC/ip/fir_compiler_minimumphase_H/fir_compiler_minimumphase_H.xci" in xpr
         and "sources_1/Freq_Meter/DDC/ip/LO_DDS_H/LO_DDS_H.xci" in xpr
+        and "sources_1/Freq_Meter/Assist/Status_Delay_Show.v" in xpr
+        and "sources_1/Freq_Meter/Assist/residuals_monitor.vhd" in xpr
+        and "sources_1/Freq_Meter/Assist/residuals_monitor_with_offset.vhd" in xpr
+        and "sources_1/Freq_Meter/DDC/boxcar_2_pts_filter.vhd" in xpr
+        and "sources_1/Freq_Meter/DDC/quantizer.vhd" in xpr
+        and "sources_1/Freq_Meter/DDC/limiter.vhd" in xpr
         and "sources_1/DigitalPLL/VCO/DAC_DDS0/DAC_DDS0.xci" in xpr,
-        "DPLL legacy FIR/PID/DDS sources are removed from the active Vivado project",
-        "`DPLL_Rewrite.xpr` no longer lists old DPLL FIR/PID/DDC/DDS source entries; wrapper uses regenerated pre-IQ CIC and active Freq_Meter/DAC_DDS0 IP remain",
+        "DPLL legacy FIR/PID/DDS/Assist sources are removed or moved out of the DPLL namespace",
+        "`DPLL_Rewrite.xpr` no longer lists old DPLL FIR/PID/DDC/DDS/Assist entries; Git no longer tracks retired legacy trees; Freq_Meter helper files are under `Freq_Meter/*`",
     ))
 
     lines = [

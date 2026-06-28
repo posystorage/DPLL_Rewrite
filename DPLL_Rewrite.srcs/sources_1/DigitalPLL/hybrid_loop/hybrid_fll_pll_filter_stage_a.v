@@ -90,6 +90,8 @@ module hybrid_fll_pll_filter_stage_a #(
     wire signed [STATE_WIDTH-1:0] i_term_next;
     wire signed [STATE_WIDTH-1:0] p_term_next;
     wire signed [STATE_WIDTH-1:0] state_delta_next;
+    wire signed [STATE_WIDTH-1:0] freq_state_after_update_next;
+    wire signed [STATE_WIDTH:0] freq_state_after_update_ext_next;
     wire signed [STATE_WIDTH:0] state_sum_ext_next;
     wire signed [STATE_WIDTH:0] correction_sum_ext_next;
     wire signed [STATE_WIDTH:0] center_ext_next;
@@ -98,6 +100,9 @@ module hybrid_fll_pll_filter_stage_a #(
     wire signed [STATE_WIDTH:0] negative_limit_ext;
     wire signed [STATE_WIDTH:0] zero_ext;
     wire signed [STATE_WIDTH:0] max_word_ext;
+    wire push_high;
+    wire push_low;
+    wire allow_state_update;
 
     assign fll_product_next = freq_error_product_r * kf_product_r;
     assign i_product_next = phase_error_product_r * ki_product_r;
@@ -109,7 +114,11 @@ module hybrid_fll_pll_filter_stage_a #(
 
     assign state_delta_next = fll_term_r + i_term_r;
     assign state_sum_ext_next = {freq_state[STATE_WIDTH-1], freq_state} + {state_delta_next[STATE_WIDTH-1], state_delta_next};
-    assign correction_sum_ext_next = {freq_state[STATE_WIDTH-1], freq_state} + {p_term_r[STATE_WIDTH-1], p_term_r};
+    assign freq_state_after_update_next = allow_state_update ?
+                                          sat_state(state_sum_ext_next, positive_limit_ext, negative_limit_ext) :
+                                          freq_state;
+    assign freq_state_after_update_ext_next = {freq_state_after_update_next[STATE_WIDTH-1], freq_state_after_update_next};
+    assign correction_sum_ext_next = freq_state_after_update_ext_next + {p_term_r[STATE_WIDTH-1], p_term_r};
     assign center_ext_next = {{(STATE_WIDTH+1-WORD_WIDTH){1'b0}}, center_word_r1};
     assign tracking_sum_ext_next = center_ext_next + correction_sum_ext_next;
     assign positive_limit_ext = {positive_limit_r1[STATE_WIDTH-1], positive_limit_r1};
@@ -144,10 +153,6 @@ module hybrid_fll_pll_filter_stage_a #(
             end
         end
     endfunction
-
-    wire push_high;
-    wire push_low;
-    wire allow_state_update;
 
     assign push_high = (freq_state >= positive_limit_r1) && (state_delta_next > {STATE_WIDTH{1'b0}});
     assign push_low = (freq_state <= negative_limit_r1) && (state_delta_next < {STATE_WIDTH{1'b0}});

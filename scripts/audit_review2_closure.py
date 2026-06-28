@@ -23,6 +23,7 @@ def main() -> int:
     dc = read(DPLL / "frontend" / "dc_blocker_valid_stage_a.v")
     fll = read(DPLL / "detector_fll" / "fll_phase_difference_stage_a.v")
     loop = read(DPLL / "hybrid_loop" / "loop_state_manager_stage_a.v")
+    hybrid = read(DPLL / "hybrid_loop" / "hybrid_fll_pll_filter_stage_a.v")
     cic = read(DPLL / "iq_cic" / "post_iq_cic_stage_a.v")
     vco = read(DPLL / "VCO" / "PLL_VCO_MUL_DIV.v")
     wrapper = read(DPLL / "dpll_wrapper.v")
@@ -98,6 +99,12 @@ def main() -> int:
         and "state_measurement_valid_r <= freq_error_valid_d;" in core,
         "Ambiguous FLL measurements are blocked before state and hybrid-loop updates",
         "`fll_ambiguous` masks `freq_error_valid` through `freq_error_usable`",
+    ))
+    checks.append(check(
+        "freq_state_after_update_next" in hybrid
+        and "assign correction_sum_ext_next = freq_state_after_update_ext_next + {p_term_r[STATE_WIDTH-1], p_term_r};" in hybrid,
+        "Hybrid filter correction uses the updated shared frequency state",
+        "`freq_correction = sat(freq_state[k+1] + Kp*phase_error[k])`",
     ))
     checks.append(check(
         "requested_config_is_legal" in vco

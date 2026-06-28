@@ -88,8 +88,12 @@ module hybrid_fll_pll_filter_stage_a_tb;
             $display("FAIL: expected state 8, valid=1 got state=%0d valid=%b", freq_state, correction_valid);
             $finish;
         end
-        if (tracking_word !== 48'd1003) begin
-            $display("FAIL: expected tracking word 1003 got %0d", tracking_word);
+        if (freq_correction !== 56'sd11) begin
+            $display("FAIL: expected correction 11 got %0d", freq_correction);
+            $finish;
+        end
+        if (tracking_word !== 48'd1011) begin
+            $display("FAIL: expected tracking word 1011 got %0d", tracking_word);
             $finish;
         end
 

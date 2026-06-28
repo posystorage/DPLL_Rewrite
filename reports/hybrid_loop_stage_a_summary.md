@@ -6,7 +6,7 @@ Branch: `agent/hybrid-loop`
 
 Scope:
 - Added `hybrid_fll_pll_filter_stage_a`, a 125 MHz valid-driven FLL/PI blend primitive.
-- Implements `freq_state[k+1] = sat(freq_state[k] + Kf*ef + Ki*ephi)` and `freq_correction = sat(freq_state + Kp*ephi)`.
+- Implements `freq_state[k+1] = sat(freq_state[k] + Kf*ef + Ki*ephi)` and `freq_correction = sat(freq_state[k+1] + Kp*ephi)`.
 - Outputs full 56-bit correction and only saturates to 48-bit at final `tracking_word = center_word + correction`.
 - Does not implement PII2, PID D, or D-filter semantics.
 - Uses internal pipeline stages so multiplier, term generation, correction sum, and output saturation are not on one 125 MHz path.

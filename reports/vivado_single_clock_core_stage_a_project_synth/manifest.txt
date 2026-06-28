@@ -4,4 +4,4 @@ synth_run=synth_1
 synth_status=synth_design Complete!
 synth_progress=100%
 synth_dir=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.runs/synth_1
-generated_at=2026-06-28 12:12:16
+generated_at=2026-06-28 21:18:48

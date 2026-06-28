@@ -12,7 +12,7 @@ try {
     $snapshot = 'pll_vco_mul_div_tb'
     $vhdl = @(
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\VCO\mult_gen_pll\sim\mult_gen_pll.vhd'
-        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\VCO\div_gen_pll\sim\div_gen_pll.vhd'
+        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\VCO\div_gen_pll_u\div_gen_pll_u\sim\div_gen_pll_u.vhd'
     )
     $rtl = @(
         Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\VCO\PLL_VCO_MUL_DIV.v'

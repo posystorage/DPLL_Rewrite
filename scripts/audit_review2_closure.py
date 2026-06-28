@@ -30,6 +30,7 @@ def main() -> int:
     periph = read(ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
+    div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
     input_mult_sim = read(DPLL / "DDC" / "ip" / "input_multiplier" / "sim" / "input_multiplier.vhd")
     xpr = read(ROOT / "DPLL_Rewrite.xpr")
 
@@ -130,13 +131,18 @@ def main() -> int:
     ))
     checks.append(check(
         "requested_config_is_legal" in vco
+        and "PLL_Div_factor != 16'd0" in vco
+        and "!PLL_Div_factor[15]" not in vco
+        and "div_gen_pll_u VCO0_Divider" in vco
+        and "PARAM_VALUE.operand_sign\">Unsigned" in div_u_xci
+        and "MODELPARAM_VALUE.SIGNED_B\">0" in div_u_xci
         and "config_error <= 1'b1;" in vco
         and "safe_div_factor" not in vco
         and "safe_mul_factor" not in vco
         and "vco_divisor_safe" not in wrapper
         and "vco_mul_safe" not in wrapper,
-        "VCO MUL/DIV rejects illegal factors instead of silently rewriting them",
-        "`MUL=0`, `DIV=0`, and signed-range `DIV` set a sticky config error",
+        "VCO MUL/DIV rejects zero factors while using an unsigned divider for the full 16-bit DIV range",
+        "`MUL=0` and `DIV=0` set sticky config error; `DIV[15]=1` is handled by `div_gen_pll_u`",
     ))
     checks.append(check(
         "vco_mul_div_config_error = vco_mul_div_runtime_config_error | vco_mul_div_apply_config_error" in wrapper

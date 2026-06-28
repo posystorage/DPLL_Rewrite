@@ -35,20 +35,15 @@ reg [15:0] divisor_reg = 16'd1;
 
 reg divisor_valid = 1'b0;
 reg dividend_valid = 1'b0;
-wire divisor_ready;
-wire dividend_ready;
 wire div_result_valid;
 wire [79:0] div_result;
-wire div_send_done = (!divisor_valid || divisor_ready) &&
-                     (!dividend_valid || dividend_ready);
 
 reg [63:0] quotient_integer_reg = 64'd0;
 reg round_bit_reg = 1'b0;
 reg [64:0] rounded_quotient_reg = 65'd0;
 
 wire requested_config_is_legal = (PLL_Mul_factor != 16'd0) &&
-                                 (PLL_Div_factor != 16'd0) &&
-                                 !PLL_Div_factor[15];
+                                 (PLL_Div_factor != 16'd0);
 
 function [47:0] sat_quotient_48;
     input [64:0] rounded_value;
@@ -118,17 +113,9 @@ always @(posedge clk) begin
             end
 
             ST_DIV_SEND: begin
-                if (divisor_valid && divisor_ready) begin
-                    divisor_valid <= 1'b0;
-                end
-                if (dividend_valid && dividend_ready) begin
-                    dividend_valid <= 1'b0;
-                end
-                if (div_send_done) begin
-                    divisor_valid <= 1'b0;
-                    dividend_valid <= 1'b0;
-                    state <= ST_DIV_WAIT;
-                end
+                divisor_valid <= 1'b0;
+                dividend_valid <= 1'b0;
+                state <= ST_DIV_WAIT;
             end
 
             ST_DIV_WAIT: begin
@@ -178,13 +165,11 @@ mult_gen_pll VCO0_Multiplier(
     .P(mult_product)
 );
 
-div_gen_pll VCO0_Divider(
+div_gen_pll_u VCO0_Divider(
     .aclk(clk),
     .s_axis_divisor_tvalid(divisor_valid),
-    .s_axis_divisor_tready(divisor_ready),
     .s_axis_divisor_tdata(divisor_reg),
     .s_axis_dividend_tvalid(dividend_valid),
-    .s_axis_dividend_tready(dividend_ready),
     .s_axis_dividend_tdata(dividend_reg),
     .m_axis_dout_tvalid(div_result_valid),
     .m_axis_dout_tdata(div_result)

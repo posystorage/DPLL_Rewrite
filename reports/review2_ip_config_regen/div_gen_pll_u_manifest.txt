@@ -1,0 +1,7 @@
+Unsigned divider replacement IP
+project_file=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.xpr
+ip_file=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/div_gen_pll_u/div_gen_pll_u/div_gen_pll_u.xci
+operand_sign=Unsigned
+latency=32
+FlowControl=NonBlocking
+generated_at=2026-06-28 21:07:24

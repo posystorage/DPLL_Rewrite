@@ -2,12 +2,13 @@
 
 ## Motivation
 
-`docs/review2.md` points out that the output word scaler silently rewrites illegal
-VCO frequency scaling parameters:
+`docs/review2.md` points out that the output word scaler silently rewrites VCO
+frequency scaling parameters:
 
 - `MUL=0` becomes `1`
 - `DIV=0` becomes `1`
-- `DIV[15]=1` becomes `0x7fff`
+- `DIV[15]=1` becomes `0x7fff` because the legacy divider IP treated the
+  divisor as signed
 
 That hides host-side configuration errors and can make the DAC output differ from
 the requested configuration without a visible fault.
@@ -19,7 +20,7 @@ reserved high region of `DPLL_CORE_FLAGS_Addr` (`0x0108`):
 
 | Bit | Name | Meaning |
 |---:|---|---|
-| 17 | `vco_mul_div_config_error` | Sticky flag set when a requested VCO MUL/DIV sample has `MUL=0`, `DIV=0`, or `DIV[15]=1`. |
+| 17 | `vco_mul_div_config_error` | Sticky flag set when a requested VCO MUL/DIV sample has `MUL=0` or `DIV=0`. |
 
 No write address changes are introduced. Existing low status bits keep their
 current positions.
@@ -31,6 +32,8 @@ current positions.
 - Set `vco_mul_div_config_error` until reset.
 - Do not silently clamp or replace illegal factors.
 - Keep the existing latest-wins pending behavior for legal samples.
+- Replace the legacy signed divider IP with `div_gen_pll_u`, an unsigned
+  Vivado 2018.3 divider instance, so the full 16-bit `DIV` range is legal.
 
 ## ARM Behavior
 
@@ -39,8 +42,9 @@ current positions.
 - ARM mock tests should learn bit 17 so host code can detect configuration
   errors from `DPLL_CORE_FLAGS_Addr`.
 
-## Deferred Work
+## IP Sign-Off
 
-Regenerating `div_gen_pll` as unsigned is still recommended, but it requires an
-IP regeneration/sign-off pass in Vivado 2018.3. This RFC closes the silent
-parameter rewrite first and leaves the IP mode change as a separate atomic task.
+The original `div_gen_pll` High Radix instance keeps `operand_sign` disabled as
+`Signed` in Vivado 2018.3. The active RTL now instantiates the replacement
+`div_gen_pll_u` Radix2 IP with `operand_sign=Unsigned`, `SIGNED_B=0`,
+non-blocking flow control, and the same manually managed latency budget.

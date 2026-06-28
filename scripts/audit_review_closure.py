@@ -91,7 +91,7 @@ def main() -> int:
     checks.append(pass_if(all(name in loop for name in ["FLL_ACQUIRE", "FLL_PLL_BLEND", "PLL_TRACK", "HOLDOVER", "REACQUIRE"]), "FLL/PLL state manager includes acquire/blend/track/holdover/reacquire", "`loop_state_manager_stage_a` state names present"))
     checks.append(pass_if("config_apply && apply_is_legal" in cic and "illegal_config_seen <= 1'b1" in cic, "Post-IQ CIC R/shift apply is atomic and rejects illegal config", "active config changes only on legal APPLY"))
     checks.append(pass_if("warmup_outputs_remaining <= WARMUP_OUTPUT_COUNT" in cic and "active_rounding_bias" in cic, "Post-IQ CIC warmup and symmetric rounding exist", "warmup counter and signed rounding bias present"))
-    checks.append(pass_if("PLL_VCO_MUL_DIV_inst" in wrapper and "mult_gen_pll VCO0_Multiplier" in vco and "div_gen_pll VCO0_Divider" in vco, "Output MUL/DIV uses existing Xilinx IP", "`mult_gen_pll` and `div_gen_pll` instantiated"))
+    checks.append(pass_if("PLL_VCO_MUL_DIV_inst" in wrapper and "mult_gen_pll VCO0_Multiplier" in vco and "div_gen_pll_u VCO0_Divider" in vco, "Output MUL/DIV uses existing Xilinx IP", "`mult_gen_pll` and unsigned `div_gen_pll_u` instantiated"))
     checks.append(pass_if(all(s in vco for s in ["ST_MULT_WAIT", "ST_DIV_SEND", "ST_DIV_WAIT", "ST_DIV_OUT"]), "Output MUL/DIV uses explicit multi-cycle start/done sequencing", "state machine around multiplier/divider IP"))
     checks.append(pass_if("debug_dac_formatter_stage_a debug_dac_formatter_inst" in wrapper and ".dac_sample(DACout1)" in wrapper, "DACout1 is registered debug formatter output", "`DACout1` connected only through debug formatter instance"))
     checks.append(pass_if(

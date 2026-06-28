@@ -78,19 +78,13 @@ module pll_vco_mul_div_tb;
             $finish;
         end
 
-        push_sample(48'd32767, 16'd2, 16'hffff);
-        repeat (96) @(posedge clk);
-        #1;
-        if (data_out !== 48'd501 || config_error !== 1'b1) begin
-            $display("FAIL: signed-range DIV should be rejected without output change, got out=%0d err=%b",
-                     data_out, config_error);
-            $finish;
-        end
+        push_sample(48'd65535, 16'd1, 16'hffff);
+        wait_output(48'd1);
 
         push_sample(48'd1234, 16'd0, 16'd1);
         repeat (96) @(posedge clk);
         #1;
-        if (data_out !== 48'd501 || config_error !== 1'b1) begin
+        if (data_out !== 48'd1 || config_error !== 1'b1) begin
             $display("FAIL: MUL=0 should be rejected without output change, got out=%0d err=%b",
                      data_out, config_error);
             $finish;

@@ -1,0 +1,18 @@
+Review2 IP metadata/config regeneration
+project_file=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.xpr
+before.cic.Clock_Frequency=200.0
+before.lo.DDS_Clock_Rate=125
+before.lo.Phase_Increment=Streaming
+before.lo.Phase_Width=16
+before.div.operand_sign=Signed
+before.div.latency=32
+after.cic.Clock_Frequency=200.0
+after.cic.Fixed_Or_Initial_Rate=40
+after.lo.DDS_Clock_Rate=125
+after.lo.Phase_Increment=Streaming
+after.lo.Phase_Width=48
+after.div.operand_sign=Signed
+after.div.latency=32
+note.cic.Clock_Frequency disabled in existing Vivado 2018.3 IP instance; replacement/regeneration remains separate work
+note.div.operand_sign disabled in existing Vivado 2018.3 IP instance; replacement/regeneration remains separate work
+generated_at=2026-06-28 21:02:33

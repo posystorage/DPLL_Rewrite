@@ -1,0 +1,44 @@
+Divider Generator operand sign probe
+project_file=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.xpr
+div_gen_pll.exists=1
+div_gen_pll.CONFIG.algorithm_type=High_Radix
+div_gen_pll.CONFIG.remainder_type=Fractional
+div_gen_pll.CONFIG.operand_sign=Signed
+div_gen_pll.CONFIG.dividend_and_quotient_width=64
+div_gen_pll.CONFIG.divisor_width=16
+div_gen_pll.CONFIG.fractional_width=16
+div_gen_pll.CONFIG.latency=32
+div_gen_pll.CONFIG.latency_configuration=Manual
+div_gen_pll.CONFIG.FlowControl=NonBlocking
+div_gen_pll.MODELPARAM_VALUE.SIGNED_B=ERROR:ERROR: [Common 17-39] 'get_property' failed due to earlier errors.
+
+div_gen_pll.try.High_Radix.result=ok
+div_gen_pll.try.High_Radix.algorithm_type=High_Radix
+div_gen_pll.try.High_Radix.operand_sign=Signed
+div_gen_pll.try.Radix2.result=ok
+div_gen_pll.try.Radix2.algorithm_type=Radix2
+div_gen_pll.try.Radix2.operand_sign=Unsigned
+div_gen_pll.try.LutMult.result=ok
+div_gen_pll.try.LutMult.algorithm_type=LutMult
+div_gen_pll.try.LutMult.operand_sign=Unsigned
+div_gen_pll_u.exists=1
+div_gen_pll_u.CONFIG.algorithm_type=High_Radix
+div_gen_pll_u.CONFIG.remainder_type=Fractional
+div_gen_pll_u.CONFIG.operand_sign=Signed
+div_gen_pll_u.CONFIG.dividend_and_quotient_width=64
+div_gen_pll_u.CONFIG.divisor_width=16
+div_gen_pll_u.CONFIG.fractional_width=16
+div_gen_pll_u.CONFIG.latency=32
+div_gen_pll_u.CONFIG.latency_configuration=Manual
+div_gen_pll_u.CONFIG.FlowControl=NonBlocking
+div_gen_pll_u.MODELPARAM_VALUE.SIGNED_B=ERROR:ERROR: [Common 17-39] 'get_property' failed due to earlier errors.
+
+div_gen_pll_u.try.High_Radix.result=ok
+div_gen_pll_u.try.High_Radix.algorithm_type=High_Radix
+div_gen_pll_u.try.High_Radix.operand_sign=Signed
+div_gen_pll_u.try.Radix2.result=ok
+div_gen_pll_u.try.Radix2.algorithm_type=Radix2
+div_gen_pll_u.try.Radix2.operand_sign=Unsigned
+div_gen_pll_u.try.LutMult.result=ok
+div_gen_pll_u.try.LutMult.algorithm_type=LutMult
+div_gen_pll_u.try.LutMult.operand_sign=Unsigned

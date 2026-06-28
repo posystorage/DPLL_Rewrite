@@ -42,7 +42,7 @@ powershell -ExecutionPolicy Bypass -File scripts\run_dpll_multifrequency_path_xs
 powershell -ExecutionPolicy Bypass -File scripts\run_multifrequency_golden_trace.ps1
 ```
 
-The current RTL checks cover the retained mixer unit, post-IQ CIC bit-exact fixed-point trace, hybrid FLL/PI/P fixed-point loop block, single-clock DPLL core path, CORDIC/DDS/mixer/VCO IP-aware traces, ARM mock MMIO behavior, and the 5/10/20/50/100/150/200 kHz multifrequency path. They do not replace a full float/fixed/RTL closed-loop golden comparison.
+The current RTL checks cover the retained mixer unit, post-IQ CIC bit-exact fixed-point trace, hybrid FLL/PI/P fixed-point loop block, single-clock DPLL core path, CORDIC/DDS/mixer/VCO IP-aware traces, ARM mock MMIO behavior, the 5/10/20/50/100/150/200 kHz multifrequency path, and sine-input closed-loop control-law replay across the review2 frequency points. They do not replace coefficient-tuning or noise-margin characterization.
 
 `run_post_iq_cic_golden_trace.ps1` runs the post-IQ CIC RTL simulation and
 checks the generated CSV against a fixed-point model of the current RTL
@@ -89,8 +89,12 @@ TRACK/locked samples.
 5/10/20/50/100/150/200 kHz centers with the corresponding post-IQ CIC
 configurations from the fixed-point v1 table. It checks valid FLL
 measurements, nonzero high-side tracking response, and TRACK/locked samples
-through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path. It is an RTL/IP closed
-loop smoke sweep, not a complete tuned control-theory sign-off model.
+through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path. The testbench exports
+the hybrid-loop state and term operands for each tracking update; the checker
+replays the frozen fixed-point control law, verifies the one-row registered
+tracking-word update contract, and runs a float replay against every emitted
+RTL row. It is a closed-loop control-law sign-off for the exercised sine
+traces, not a coefficient-tuning or noise-margin characterization.
 
 ## Review Closure Audits
 

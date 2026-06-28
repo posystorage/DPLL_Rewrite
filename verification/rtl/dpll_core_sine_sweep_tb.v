@@ -25,6 +25,7 @@ module dpll_core_sine_sweep_tb;
     wire signed [17:0] phase_error;
     wire signed [21:0] freq_error;
     wire freq_error_valid;
+    wire signed [55:0] freq_state;
     wire signed [55:0] freq_correction;
     wire [3:0] loop_state;
     wire [3:0] loss_reason;
@@ -48,6 +49,13 @@ module dpll_core_sine_sweep_tb;
     integer track_state_count = 0;
     integer nonzero_correction_count = 0;
     integer positive_tracking_delta_count = 0;
+    reg signed [55:0] hybrid_state_before_capture = 56'sd0;
+    reg signed [55:0] hybrid_fll_term_capture = 56'sd0;
+    reg signed [55:0] hybrid_i_term_capture = 56'sd0;
+    reg signed [55:0] hybrid_p_term_capture = 56'sd0;
+    reg [47:0] hybrid_center_word_capture = 48'd0;
+    reg signed [55:0] hybrid_positive_limit_capture = 56'sd0;
+    reg signed [55:0] hybrid_negative_limit_capture = 56'sd0;
 
     always #4 clk = ~clk;
 
@@ -91,7 +99,7 @@ module dpll_core_sine_sweep_tb;
         .i_baseband(),
         .q_baseband(),
         .iq_valid(),
-        .freq_state(),
+        .freq_state(freq_state),
         .freq_correction(freq_correction),
         .magnitude(magnitude),
         .loop_state(loop_state),
@@ -283,7 +291,7 @@ module dpll_core_sine_sweep_tb;
             $display("FAIL: could not open dpll_core_sine_sweep_trace.csv");
             $finish;
         end
-        $fdisplay(fd, "case_index,index,sample_count,fll_valid_count,input_hz,center_hz,center_word,cic_rate_r,cic_shift,tracking_word,freq_correction,phase_error,freq_error,freq_error_valid,loop_state,loss_reason,signal_present,phase_locked,frequency_locked,locked,magnitude");
+        $fdisplay(fd, "case_index,index,sample_count,fll_valid_count,input_hz,center_hz,center_word,cic_rate_r,cic_shift,tracking_word,freq_state,freq_correction,phase_error,freq_error,freq_error_valid,loop_state,loss_reason,signal_present,phase_locked,frequency_locked,locked,magnitude,hybrid_state_before,hybrid_center_word,hybrid_positive_limit,hybrid_negative_limit,hybrid_fll_term,hybrid_i_term,hybrid_p_term");
 
         repeat (8) @(posedge clk);
         rst = 1'b0;
@@ -298,17 +306,30 @@ module dpll_core_sine_sweep_tb;
     end
 
     always @(posedge clk) begin
+        if (!rst && dut.hybrid_loop_inst.valid_pipe[1]) begin
+            hybrid_state_before_capture = dut.hybrid_loop_inst.freq_state;
+            hybrid_fll_term_capture = dut.hybrid_loop_inst.fll_term_r;
+            hybrid_i_term_capture = dut.hybrid_loop_inst.i_term_r;
+            hybrid_p_term_capture = dut.hybrid_loop_inst.p_term_r;
+            hybrid_center_word_capture = dut.hybrid_loop_inst.center_word_r1;
+            hybrid_positive_limit_capture = dut.hybrid_loop_inst.positive_limit_r1;
+            hybrid_negative_limit_capture = dut.hybrid_loop_inst.negative_limit_r1;
+        end
         #1;
         if (!rst && freq_error_valid) begin
             fll_valid_count = fll_valid_count + 1;
         end
         if (!rst && tracking_valid) begin
-            $fdisplay(fd, "%0d,%0d,%0d,%0d,%0f,%0f,0x%012h,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d",
+            $fdisplay(fd, "%0d,%0d,%0d,%0d,%0f,%0f,0x%012h,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d",
                       case_no, tracking_count, sample_count, fll_valid_count,
                       input_hz, center_hz, center_word, cic_rate_r, cic_shift,
-                      tracking_word, freq_correction, phase_error, freq_error,
+                      tracking_word, freq_state, freq_correction, phase_error, freq_error,
                       freq_error_valid, loop_state, loss_reason, signal_present,
-                      phase_locked, frequency_locked, locked, magnitude);
+                      phase_locked, frequency_locked, locked, magnitude,
+                      hybrid_state_before_capture, hybrid_center_word_capture,
+                      hybrid_positive_limit_capture, hybrid_negative_limit_capture,
+                      hybrid_fll_term_capture, hybrid_i_term_capture,
+                      hybrid_p_term_capture);
             $fflush(fd);
             tracking_count = tracking_count + 1;
             if (loop_state == 4'd6) begin

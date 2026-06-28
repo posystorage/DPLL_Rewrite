@@ -405,6 +405,9 @@ def main() -> int:
     checks.append(check(
         "dpll_core_sine_sweep_trace.csv" in sine_sweep_tb
         and "localparam integer CASES = 7;" in sine_sweep_tb
+        and "hybrid_state_before_capture" in sine_sweep_tb
+        and "hybrid_fll_term_capture" in sine_sweep_tb
+        and "freq_state(freq_state)" in sine_sweep_tb
         and "center_hz = 5000.0;" in sine_sweep_tb
         and "center_hz = 10000.0;" in sine_sweep_tb
         and "center_hz = 20000.0;" in sine_sweep_tb
@@ -415,9 +418,13 @@ def main() -> int:
         and ".phase_setpoint(-18'sd65536)" in sine_sweep_tb
         and "EXPECTED_CENTERS = [5_000.0, 10_000.0, 20_000.0, 50_000.0, 100_000.0, 150_000.0, 200_000.0]" in sine_sweep_checker
         and "review2 5, 10, 20, 50, 100, 150, and 200 kHz centers" in sine_sweep_checker
+        and "control_model_matches" in sine_sweep_checker
+        and "tracking_latency_matches" in sine_sweep_checker
+        and "float_model_matches" in sine_sweep_checker
+        and "previous row's fixed-point `center+correction`" in sine_sweep_checker
         and "PASS: DPLL core sine sweep trace" in sine_sweep_checker,
-        "Core-level sine-input RTL/IP sweep covers the review2 5-200 kHz frequency points",
-        "`dpll_core_sine_sweep_tb` drives high-side sine inputs through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path at 5/10/20/50/100/150/200 kHz centers using the v1 post-IQ CIC settings and a sine-appropriate `-pi/2` phase setpoint; checker verifies FLL-valid, nonzero positive tracking, TRACK, locked, and frequency-word evidence for every case",
+        "Core-level sine-input RTL/IP sweep covers the review2 5-200 kHz frequency points with fixed/float control-model replay",
+        "`dpll_core_sine_sweep_tb` drives high-side sine inputs through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path at 5/10/20/50/100/150/200 kHz centers and exports hybrid-loop state/term operands; checker verifies FLL-valid, nonzero positive tracking, TRACK, locked, same-row fixed-point correction/state, one-row registered tracking update, and float replay for every case",
     ))
     legacy_dpll_xpr_entries = [
         "sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v",

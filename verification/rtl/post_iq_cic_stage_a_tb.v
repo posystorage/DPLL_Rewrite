@@ -20,6 +20,8 @@ module post_iq_cic_stage_a_tb;
 
     integer valid_count = 0;
     integer valid_count_before;
+    integer sample_index = 0;
+    integer trace_fd;
     reg saw_rounding_value = 1'b0;
 
     post_iq_cic_stage_a dut (
@@ -53,8 +55,13 @@ module post_iq_cic_stage_a_tb;
             in_valid = 1'b1;
             @(posedge clk_125m);
             #1;
+            sample_index = sample_index + 1;
             if (out_valid) begin
                 valid_count = valid_count + 1;
+                $fdisplay(trace_fd, "%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d",
+                          sample_index, valid_count, active_rate_r,
+                          active_output_shift, sample_i, sample_q,
+                          i_out, q_out, overflow_seen);
                 if (i_out === 20'sd1 && q_out === -20'sd1) begin
                     saw_rounding_value = 1'b1;
                 end
@@ -63,6 +70,13 @@ module post_iq_cic_stage_a_tb;
     endtask
 
     initial begin
+        trace_fd = $fopen("post_iq_cic_trace.csv", "w");
+        if (trace_fd == 0) begin
+            $display("FAIL: could not open post_iq_cic_trace.csv");
+            $finish;
+        end
+        $fdisplay(trace_fd, "sample_index,output_index,active_rate_r,active_output_shift,i_in,q_in,i_out,q_out,overflow_seen");
+
         repeat (3) @(posedge clk_125m);
         @(negedge clk_125m);
         rst_125m = 1'b0;
@@ -126,7 +140,31 @@ module post_iq_cic_stage_a_tb;
             $finish;
         end
 
+        repeat (24) tick_sample(18'sd0, 18'sd0);
+        tick_sample(18'sd2048, -18'sd1024);
+        repeat (48) tick_sample(18'sd0, 18'sd0);
+
+        shadow_rate_r = 9'd12;
+        shadow_output_shift = 6'd11;
+        config_apply = 1'b1;
+        @(posedge clk_125m);
+        #1;
+        config_apply = 1'b0;
+        if (active_rate_r !== 9'd12 || active_output_shift !== 6'd11) begin
+            $display("FAIL: legal R=12 apply failed, active_rate=%0d shift=%0d",
+                     active_rate_r, active_output_shift);
+            $finish;
+        end
+        repeat (96) tick_sample(18'sd3, -18'sd2);
+
+        flush = 1'b1;
+        @(posedge clk_125m);
+        #1;
+        flush = 1'b0;
+        repeat (48) tick_sample(-18'sd5, 18'sd7);
+
         $display("PASS: post_iq_cic_stage_a_tb");
+        $fclose(trace_fd);
         $finish;
     end
 endmodule

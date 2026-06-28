@@ -28,13 +28,20 @@ Run from the repository root with Vivado 2018.3 installed at `D:\Xilinx\Vivado\2
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\run_frontend_stage_a_xsim.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_post_iq_cic_golden_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_hybrid_loop_golden_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_single_clock_core_stage_a_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_dpll_multifrequency_path_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_multifrequency_golden_trace.ps1
 ```
 
-The current RTL checks cover the retained mixer unit, the hybrid FLL/PI/P fixed-point loop block, the single-clock DPLL core path, and the 5/10/20/50/100/150/200 kHz multifrequency path. They do not replace a full float/fixed/RTL closed-loop golden comparison.
+The current RTL checks cover the retained mixer unit, the post-IQ CIC bit-exact fixed-point trace, the hybrid FLL/PI/P fixed-point loop block, the single-clock DPLL core path, and the 5/10/20/50/100/150/200 kHz multifrequency path. They do not replace a full float/fixed/RTL closed-loop golden comparison.
+
+`run_post_iq_cic_golden_trace.ps1` runs the post-IQ CIC RTL simulation and
+checks the generated CSV against a fixed-point model of the current RTL
+non-blocking timing. It covers legal and illegal APPLY, explicit flush, R=8
+and R=12, impulse/step-like stimulus, warmup suppression, symmetric rounding,
+saturation checks, and I/Q shared valid alignment.
 
 `run_multifrequency_golden_trace.ps1` runs the multifrequency RTL simulation,
 loads the generated CSV trace, and checks it against the frozen 48-bit/125 MHz

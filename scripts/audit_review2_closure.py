@@ -44,6 +44,8 @@ def main() -> int:
     multi_tb = read(ROOT / "verification" / "rtl" / "dpll_multifrequency_path_tb.v")
     multi_checker = read(ROOT / "verification" / "fixed_point" / "check_multifrequency_trace.py")
     hybrid_checker = read(ROOT / "verification" / "fixed_point" / "check_hybrid_loop_trace.py")
+    post_iq_checker = read(ROOT / "verification" / "fixed_point" / "check_post_iq_cic_trace.py")
+    post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
@@ -103,6 +105,16 @@ def main() -> int:
         and "config_apply && apply_is_legal" in cic,
         "Legal post-IQ CIC APPLY clears previous illegal-config fault",
         "sticky fault no longer permanently blocks recovery after a legal APPLY",
+    ))
+    checks.append(check(
+        "post_iq_cic_trace.csv" in post_iq_tb
+        and "shadow_rate_r = 9'd12;" in post_iq_tb
+        and "flush = 1'b1;" in post_iq_tb
+        and "def drive_model" in post_iq_checker
+        and "Decimation using the pre-update integrator sample" in post_iq_checker
+        and "PASS: post-IQ CIC golden trace" in post_iq_checker,
+        "post-IQ CIC RTL trace is checked against a bit-exact fixed-point model",
+        "`check_post_iq_cic_trace.py` covers legal/illegal APPLY, flush, R changes, warmup, rounding, saturation, and I/Q valid alignment",
     ))
     checks.append(check(
         "tracking_phase_accumulator_stage_a" not in core

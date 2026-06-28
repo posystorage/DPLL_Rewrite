@@ -41,6 +41,8 @@ def main() -> int:
     wrapper = read(DPLL / "dpll_wrapper.v")
     periph = read(ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h")
     arm = read(ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "helloworld.c")
+    multi_tb = read(ROOT / "verification" / "rtl" / "dpll_multifrequency_path_tb.v")
+    multi_checker = read(ROOT / "verification" / "fixed_point" / "check_multifrequency_trace.py")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
@@ -200,6 +202,16 @@ def main() -> int:
         and "4'h8: debug_source_mux = {{16{dpll_lo_sin[15]}}, dpll_lo_sin};" not in wrapper,
         "DACout1 debug source selector matches register-map v1",
         "`DEBUG_DAC_SOURCE` values 1/7/8/9 map to tracking delta, CORDIC phase, magnitude, and output delta",
+    ))
+    checks.append(check(
+        "dpll_multifrequency_path_trace.csv" in multi_tb
+        and "EXPECTED_HZ = [5_000, 10_000, 20_000, 50_000, 100_000, 150_000, 200_000]" in multi_checker
+        and "freq_word_from_hz(float(expected_hz))" in multi_checker
+        and "tracking_word != unsigned(golden_word, 48)" in multi_checker
+        and "loop_state != 6" in multi_checker
+        and "PASS: multifrequency golden trace" in multi_checker,
+        "5-200 kHz RTL trace is checked against the frozen fixed-point frequency-word model",
+        "`dpll_multifrequency_path_tb` writes CSV and `check_multifrequency_trace.py` verifies all seven frequency words plus zero-gain tracking semantics",
     ))
     legacy_dpll_xpr_entries = [
         "sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v",

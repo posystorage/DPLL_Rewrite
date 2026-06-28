@@ -30,9 +30,15 @@ Run from the repository root with Vivado 2018.3 installed at `D:\Xilinx\Vivado\2
 powershell -ExecutionPolicy Bypass -File scripts\run_frontend_stage_a_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_single_clock_core_stage_a_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_dpll_multifrequency_path_xsim.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_multifrequency_golden_trace.ps1
 ```
 
 The current RTL checks cover the retained mixer unit, the single-clock DPLL core path, and the 5/10/20/50/100/150/200 kHz multifrequency path. They do not replace a full float/fixed/RTL closed-loop golden comparison.
+
+`run_multifrequency_golden_trace.ps1` runs the multifrequency RTL simulation,
+loads the generated CSV trace, and checks it against the frozen 48-bit/125 MHz
+fixed-point frequency-word model. The current checker uses zero loop gains, so
+the golden tracking word equals the applied center word.
 
 ## Review Closure Audits
 

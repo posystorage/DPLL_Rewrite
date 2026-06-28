@@ -1,0 +1,8 @@
+case_index,word,iq_seen,freq_seen,tracking_seen,loop_state,loss_reason,signal_present,phase_locked,frequency_locked,locked,magnitude,tracking_word,phase_error,freq_error,active_cic_rate_r,active_cic_output_shift,cic_illegal_config_seen,cic_overflow_seen
+0,0x00029f16b11c,41,39,39,6,0,1,1,1,1,205,0x00029f16b11c,-1912,-116,8,4,0,0
+1,0x00053e2d6239,42,40,40,6,0,1,1,1,1,32,0x00053e2d6239,-6016,-248,8,4,0,0
+2,0x000a7c5ac472,42,40,40,6,0,1,1,1,1,11,0x000a7c5ac472,22804,488,8,4,0,0
+3,0x001a36e2eb1c,42,40,40,6,0,1,1,1,1,25,0x001a36e2eb1c,-29192,-976,8,4,0,0
+4,0x00346dc5d639,42,40,40,6,0,1,1,1,1,41,0x00346dc5d639,-31580,-2228,8,4,0,0
+5,0x004ea4a8c155,42,40,40,6,0,1,1,1,1,8,0x004ea4a8c155,32448,21344,8,4,0,0
+6,0x0068db8bac71,42,40,40,6,0,1,1,1,1,26,0x0068db8bac71,-2276,28612,8,4,0,0

@@ -38,6 +38,7 @@ module dpll_multifrequency_path_tb;
     integer phase_activity;
     integer nonzero_iq_seen;
     integer lo_nonzero_seen;
+    integer trace_fd;
     reg collect_case = 1'b0;
     reg signed [17:0] prev_phase_error;
     reg [47:0] freq_words [0:6];
@@ -205,10 +206,22 @@ module dpll_multifrequency_path_tb;
             $display("PASS_CASE: index=%0d word=0x%012h iq=%0d freq=%0d tracking=%0d state=%0d loss=%0d signal=%0b phase_lock=%0b freq_lock=%0b locked=%0b mag=%0d",
                      case_no, word, iq_seen, freq_seen, tracking_seen, loop_state,
                      loss_reason, signal_present, phase_locked, frequency_locked, locked, magnitude);
+            $fdisplay(trace_fd, "%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d",
+                      case_no, word, iq_seen, freq_seen, tracking_seen, loop_state,
+                      loss_reason, signal_present, phase_locked, frequency_locked, locked,
+                      magnitude, tracking_word, phase_error, freq_error, active_cic_rate_r,
+                      active_cic_output_shift, cic_illegal_config_seen, cic_overflow_seen);
         end
     endtask
 
     initial begin
+        trace_fd = $fopen("dpll_multifrequency_path_trace.csv", "w");
+        if (trace_fd == 0) begin
+            $display("FAIL: could not open dpll_multifrequency_path_trace.csv");
+            $finish;
+        end
+        $fdisplay(trace_fd, "case_index,word,iq_seen,freq_seen,tracking_seen,loop_state,loss_reason,signal_present,phase_locked,frequency_locked,locked,magnitude,tracking_word,phase_error,freq_error,active_cic_rate_r,active_cic_output_shift,cic_illegal_config_seen,cic_overflow_seen");
+
         freq_words[0] = 48'h0002_9f16_b11c; // 5 kHz at 125 MHz
         freq_words[1] = 48'h0005_3e2d_6239; // 10 kHz
         freq_words[2] = 48'h000a_7c5a_c472; // 20 kHz
@@ -226,6 +239,7 @@ module dpll_multifrequency_path_tb;
         end
 
         $display("PASS: dpll_multifrequency_path_tb");
+        $fclose(trace_fd);
         $finish;
     end
 

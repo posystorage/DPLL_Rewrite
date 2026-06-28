@@ -16,9 +16,10 @@ valid pulse in the wrapper.
 - Removed `clocking/dpll_clock_valid_stage_a.v` from the active Vivado project
   source list.
 
-The `dpll_clock_valid_stage_a.v` file and its standalone test remain in the
-repository as historical verification scaffolding, but it is no longer part of
-the active DPLL build.
+The follow-up cleanup commit `dpll: retire legacy stage-a stubs` removed
+`dpll_clock_valid_stage_a.v`, its standalone test, and the obsolete scripts
+from the tracked repository. The historical scaffold is available through
+earlier Git history rather than the active tree.
 
 ## Verification
 

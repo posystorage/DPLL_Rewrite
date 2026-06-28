@@ -2,6 +2,14 @@
 
 Generated on 2026-06-28 with Vivado 2018.3.
 
+Superseded:
+This report describes an earlier integration snapshot at input commit
+`3b1f900`. The current `refactor/dpll-single-path` HEAD has since retired the
+local /40 clock-valid scaffold and local tracking phase accumulator. Use
+`verification/README.md`, `reports/review_closure_audit_20260628.md`, and
+`reports/review2_closure_audit_20260628.md` for current verification entry
+points.
+
 ## Scope
 
 - Branch: `refactor/dpll-single-path`
@@ -12,16 +20,16 @@ Generated on 2026-06-28 with Vivado 2018.3.
 
 ## Automated Verification
 
-Passed:
+Historical passed commands for this snapshot:
 
 - `python -m unittest discover -s verification\fixed_point -p test_*.py`
-- `scripts\run_clock_valid_stage_a_xsim.ps1`
-- `scripts\run_frontend_stage_a_xsim.ps1`
+- `scripts\run_clock_valid_stage_a_xsim.ps1` (retired after this snapshot)
+- `scripts\run_frontend_stage_a_xsim.ps1` (current script now runs the retained mixer test only)
 - `scripts\run_iq_cic_stage_a_xsim.ps1`
 - `scripts\run_detector_fll_stage_a_xsim.ps1`
 - `scripts\run_hybrid_loop_stage_a_xsim.ps1`
-- `scripts\vivado_stage_a_synth_check.tcl`
-- `scripts\vivado_frontend_stage_a_synth_check.tcl`
+- `scripts\vivado_stage_a_synth_check.tcl` (retired after this snapshot)
+- `scripts\vivado_frontend_stage_a_synth_check.tcl` (current script now checks the retained mixer only)
 - `scripts\vivado_iq_cic_stage_a_synth_check.tcl`
 - `scripts\vivado_detector_fll_stage_a_synth_check.tcl`
 - `scripts\vivado_hybrid_loop_stage_a_synth_check.tcl`

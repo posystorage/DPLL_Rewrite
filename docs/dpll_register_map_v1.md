@@ -85,6 +85,28 @@ ARM must not enable the DPLL when ABI/build checks fail.
 | `0x010E` | `ABI_VERSION` |
 | `0x010F` | `FPGA_BUILD_ID` |
 
+## `0x0108` Core Flags
+
+| Bits | Name |
+|---:|---|
+| 31:18 | reserved |
+| 17 | `VCO_MUL_DIV_CONFIG_ERROR` |
+| 16:13 | `LOOP_STATE` |
+| 12:9 | `LOSS_REASON` |
+| 8 | `SIGNAL_PRESENT` |
+| 7 | `PHASE_LOCKED` |
+| 6 | `FREQUENCY_LOCKED` |
+| 5 | `LOCKED` |
+| 4 | `TRACKING_VALID` |
+| 3 | `FREQ_ERROR_VALID` |
+| 2 | `IQ_VALID` |
+| 1 | `CIC_ILLEGAL_CONFIG` |
+| 0 | `CIC_OVERFLOW` |
+
+`VCO_MUL_DIV_CONFIG_ERROR` is sticky until reset. It is set when a requested
+output scaling sample has `MUL=0`, `DIV=0`, or `DIV[15]=1`; the illegal sample
+is rejected rather than silently clamped.
+
 ## Debug DAC Source
 
 | Value | Source |

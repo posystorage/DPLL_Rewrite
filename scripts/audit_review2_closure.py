@@ -24,6 +24,10 @@ def main() -> int:
     fll = read(DPLL / "detector_fll" / "fll_phase_difference_stage_a.v")
     loop = read(DPLL / "hybrid_loop" / "loop_state_manager_stage_a.v")
     cic = read(DPLL / "iq_cic" / "post_iq_cic_stage_a.v")
+    vco = read(DPLL / "VCO" / "PLL_VCO_MUL_DIV.v")
+    wrapper = read(DPLL / "dpll_wrapper.v")
+    periph = read(ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h")
+    vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     input_mult_sim = read(DPLL / "DDC" / "ip" / "input_multiplier" / "sim" / "input_multiplier.vhd")
 
@@ -94,6 +98,24 @@ def main() -> int:
         and "state_measurement_valid_r <= freq_error_valid_d;" in core,
         "Ambiguous FLL measurements are blocked before state and hybrid-loop updates",
         "`fll_ambiguous` masks `freq_error_valid` through `freq_error_usable`",
+    ))
+    checks.append(check(
+        "requested_config_is_legal" in vco
+        and "config_error <= 1'b1;" in vco
+        and "safe_div_factor" not in vco
+        and "safe_mul_factor" not in vco
+        and "vco_divisor_safe" not in wrapper
+        and "vco_mul_safe" not in wrapper,
+        "VCO MUL/DIV rejects illegal factors instead of silently rewriting them",
+        "`MUL=0`, `DIV=0`, and signed-range `DIV` set a sticky config error",
+    ))
+    checks.append(check(
+        ".config_error(vco_mul_div_config_error)" in wrapper
+        and "vco_mul_div_config_error" in wrapper
+        and "DPLL_CORE_FLAG_VCO_MUL_DIV_CONFIG_ERROR (1U<<17)" in periph
+        and "| 17 | `vco_mul_div_config_error` |" in vco_rfc,
+        "VCO MUL/DIV configuration error is exposed through documented core status bit 17",
+        "`DPLL_CORE_FLAGS_Addr[17]` reports sticky VCO scaling config errors",
     ))
 
     lines = [

@@ -375,16 +375,17 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
 wire [47:0] manual_offset_word = {{16{manual_offset_dac0[31]}}, manual_offset_dac0};
 wire [47:0] vco_tracking_word = dpll_tracking_word + manual_offset_word;
 wire [47:0] VCO_Input0;
-wire [15:0] vco_divisor_safe = (VCO_Div_Factor0 == 16'h0000) ? 16'h0001 : VCO_Div_Factor0;
-wire [15:0] vco_mul_safe = (VCO_Mul_Factor0 == 16'h0000) ? 16'h0001 : VCO_Mul_Factor0;
+wire        vco_mul_div_config_error;
 
 PLL_VCO_MUL_DIV PLL_VCO_MUL_DIV_inst (
     .clk(clk1),
+    .rst(rst_125m_stage_a),
     .sample_valid(dpll_tracking_valid),
     .data_in(vco_tracking_word),
     .data_out(VCO_Input0),
-    .PLL_Mul_factor(vco_mul_safe),
-    .PLL_Div_factor(vco_divisor_safe)
+    .PLL_Mul_factor(VCO_Mul_Factor0),
+    .PLL_Div_factor(VCO_Div_Factor0),
+    .config_error(vco_mul_div_config_error)
 );
 
 VCO_48bits VCO_inst0 (
@@ -543,7 +544,8 @@ always @(posedge clk1) begin
                 16'h0105: sys_rdata <= dpll_tracking_word[31:0];
                 16'h0106: sys_rdata <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
                 16'h0107: sys_rdata <= dpll_freq_state[31:0];
-                16'h0108: sys_rdata <= {15'h0, dpll_loop_state, dpll_loss_reason,
+                16'h0108: sys_rdata <= {14'h0, vco_mul_div_config_error,
+                                          dpll_loop_state, dpll_loss_reason,
                                           dpll_signal_present, dpll_phase_locked,
                                           dpll_frequency_locked, dpll_locked,
                                           dpll_tracking_valid, dpll_freq_error_valid,

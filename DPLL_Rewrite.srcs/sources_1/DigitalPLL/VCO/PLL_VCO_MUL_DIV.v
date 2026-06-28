@@ -3,11 +3,13 @@
 
 module PLL_VCO_MUL_DIV(
     input  wire        clk,
+    input  wire        rst,
     input  wire        sample_valid,
     input  wire [47:0] data_in,
     output reg  [47:0] data_out,
     input  wire [15:0] PLL_Mul_factor,
-    input  wire [15:0] PLL_Div_factor
+    input  wire [15:0] PLL_Div_factor,
+    output reg         config_error
 );
 
 localparam [2:0] ST_IDLE      = 3'd0;
@@ -44,25 +46,9 @@ reg [63:0] quotient_integer_reg = 64'd0;
 reg round_bit_reg = 1'b0;
 reg [64:0] rounded_quotient_reg = 65'd0;
 
-function [15:0] safe_mul_factor;
-    input [15:0] value;
-    begin
-        safe_mul_factor = (value == 16'd0) ? 16'd1 : value;
-    end
-endfunction
-
-function [15:0] safe_div_factor;
-    input [15:0] value;
-    begin
-        if (value == 16'd0) begin
-            safe_div_factor = 16'd1;
-        end else if (value[15]) begin
-            safe_div_factor = 16'h7fff;
-        end else begin
-            safe_div_factor = value;
-        end
-    end
-endfunction
+wire requested_config_is_legal = (PLL_Mul_factor != 16'd0) &&
+                                 (PLL_Div_factor != 16'd0) &&
+                                 !PLL_Div_factor[15];
 
 function [47:0] sat_quotient_48;
     input [64:0] rounded_value;
@@ -76,89 +62,113 @@ function [47:0] sat_quotient_48;
 endfunction
 
 always @(posedge clk) begin
-    if (sample_valid) begin
-        pending_word <= data_in;
-        pending_mul <= safe_mul_factor(PLL_Mul_factor);
-        pending_div <= safe_div_factor(PLL_Div_factor);
-        pending_valid <= 1'b1;
-    end
-
-    case (state)
-        ST_IDLE: begin
-            divisor_valid <= 1'b0;
-            dividend_valid <= 1'b0;
-            if (pending_valid) begin
-                mult_a <= pending_word;
-                mult_b <= pending_mul;
-                divisor_reg <= pending_div;
-                mult_wait_count <= MULT_LATENCY[3:0];
-                pending_valid <= 1'b0;
-                state <= ST_MULT_WAIT;
-            end
-        end
-
-        ST_MULT_WAIT: begin
-            if (mult_wait_count != 4'd0) begin
-                mult_wait_count <= mult_wait_count - 1'b1;
+    if (rst) begin
+        state <= ST_IDLE;
+        pending_word <= 48'd0;
+        pending_mul <= 16'd1;
+        pending_div <= 16'd1;
+        pending_valid <= 1'b0;
+        mult_a <= 48'd0;
+        mult_b <= 16'd1;
+        mult_wait_count <= 4'd0;
+        dividend_reg <= 64'd0;
+        divisor_reg <= 16'd1;
+        divisor_valid <= 1'b0;
+        dividend_valid <= 1'b0;
+        quotient_integer_reg <= 64'd0;
+        round_bit_reg <= 1'b0;
+        rounded_quotient_reg <= 65'd0;
+        data_out <= 48'd0;
+        config_error <= 1'b0;
+    end else begin
+        if (sample_valid) begin
+            if (requested_config_is_legal) begin
+                pending_word <= data_in;
+                pending_mul <= PLL_Mul_factor;
+                pending_div <= PLL_Div_factor;
+                pending_valid <= 1'b1;
             end else begin
-                dividend_reg <= mult_product;
-                divisor_valid <= 1'b1;
-                dividend_valid <= 1'b1;
-                state <= ST_DIV_SEND;
+                config_error <= 1'b1;
             end
         end
 
-        ST_DIV_SEND: begin
-            if (divisor_valid && divisor_ready) begin
-                divisor_valid <= 1'b0;
-            end
-            if (dividend_valid && dividend_ready) begin
-                dividend_valid <= 1'b0;
-            end
-            if (div_send_done) begin
+        case (state)
+            ST_IDLE: begin
                 divisor_valid <= 1'b0;
                 dividend_valid <= 1'b0;
-                state <= ST_DIV_WAIT;
+                if (pending_valid) begin
+                    mult_a <= pending_word;
+                    mult_b <= pending_mul;
+                    divisor_reg <= pending_div;
+                    mult_wait_count <= MULT_LATENCY[3:0];
+                    pending_valid <= 1'b0;
+                    state <= ST_MULT_WAIT;
+                end
             end
-        end
 
-        ST_DIV_WAIT: begin
-            if (div_result_valid) begin
-                quotient_integer_reg <= div_result[79:16];
-                round_bit_reg <= div_result[15];
-                state <= ST_DIV_ROUND;
+            ST_MULT_WAIT: begin
+                if (mult_wait_count != 4'd0) begin
+                    mult_wait_count <= mult_wait_count - 1'b1;
+                end else begin
+                    dividend_reg <= mult_product;
+                    divisor_valid <= 1'b1;
+                    dividend_valid <= 1'b1;
+                    state <= ST_DIV_SEND;
+                end
             end
-        end
 
-        ST_DIV_ROUND: begin
-            rounded_quotient_reg <= {1'b0, quotient_integer_reg} + {64'd0, round_bit_reg};
-            state <= ST_DIV_OUT;
-        end
+            ST_DIV_SEND: begin
+                if (divisor_valid && divisor_ready) begin
+                    divisor_valid <= 1'b0;
+                end
+                if (dividend_valid && dividend_ready) begin
+                    dividend_valid <= 1'b0;
+                end
+                if (div_send_done) begin
+                    divisor_valid <= 1'b0;
+                    dividend_valid <= 1'b0;
+                    state <= ST_DIV_WAIT;
+                end
+            end
 
-        ST_DIV_OUT: begin
-            data_out <= sat_quotient_48(rounded_quotient_reg);
-            if (pending_valid) begin
-                mult_a <= pending_word;
-                mult_b <= pending_mul;
-                divisor_reg <= pending_div;
-                mult_wait_count <= MULT_LATENCY[3:0];
-                pending_valid <= 1'b0;
-                state <= ST_MULT_WAIT;
-            end else begin
+            ST_DIV_WAIT: begin
+                if (div_result_valid) begin
+                    quotient_integer_reg <= div_result[79:16];
+                    round_bit_reg <= div_result[15];
+                    state <= ST_DIV_ROUND;
+                end
+            end
+
+            ST_DIV_ROUND: begin
+                rounded_quotient_reg <= {1'b0, quotient_integer_reg} + {64'd0, round_bit_reg};
+                state <= ST_DIV_OUT;
+            end
+
+            ST_DIV_OUT: begin
+                data_out <= sat_quotient_48(rounded_quotient_reg);
+                if (pending_valid) begin
+                    mult_a <= pending_word;
+                    mult_b <= pending_mul;
+                    divisor_reg <= pending_div;
+                    mult_wait_count <= MULT_LATENCY[3:0];
+                    pending_valid <= 1'b0;
+                    state <= ST_MULT_WAIT;
+                end else begin
+                    state <= ST_IDLE;
+                end
+            end
+
+            default: begin
+                divisor_valid <= 1'b0;
+                dividend_valid <= 1'b0;
+                mult_wait_count <= 4'd0;
+                quotient_integer_reg <= 64'd0;
+                round_bit_reg <= 1'b0;
+                rounded_quotient_reg <= 65'd0;
                 state <= ST_IDLE;
             end
-        end
-
-        default: begin
-            divisor_valid <= 1'b0;
-            dividend_valid <= 1'b0;
-            mult_wait_count <= 4'd0;
-            quotient_integer_reg <= 64'd0;
-            round_bit_reg <= 1'b0;
-            rounded_quotient_reg <= 65'd0;
-            state <= ST_IDLE;
-        end
-    endcase
+        endcase
+    end
 end
 
 mult_gen_pll VCO0_Multiplier(

@@ -123,6 +123,7 @@ class DpllArmMockMmioTest(unittest.TestCase):
             "DPLL_ABI_VERSION_Addr",
             "DPLL_CONFIG_VERSION_Addr",
             "DPLL_FPGA_BUILD_ID_Addr",
+            "DPLL_CORE_FLAGS_Addr",
             "DPLL_FLL_KF_TRACK_Addr",
             "DPLL_PLL_KP_BLEND_Addr",
             "DPLL_PLL_KI_BLEND_Addr",
@@ -159,6 +160,13 @@ class DpllArmMockMmioTest(unittest.TestCase):
         self.assertIn("Xil_Out32(DPLL_CONFIG_APPLY_Addr, 1);", self.arm)
         self.assertIn("if (pc_payload_len() < 42)", self.arm)
         self.assertIn("Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));", self.arm)
+        self.assertIn("DPLL_CORE_FLAG_VCO_MUL_DIV_CONFIG_ERROR (1U<<17)", self.periph)
+
+    def test_core_flags_exposes_vco_mul_div_config_error_bit(self):
+        self.assertEqual(1 << 17, 0x00020000)
+        mmio, _ = self.make_model()
+        mmio.mem[self.addrs["DPLL_CORE_FLAGS_Addr"]] = 1 << 17
+        self.assertEqual(mmio.read(self.addrs["DPLL_CORE_FLAGS_Addr"]) & (1 << 17), 1 << 17)
 
     def test_abi_mismatch_forces_lock_off_and_blocks_enable_apply(self):
         mmio, model = self.make_model()

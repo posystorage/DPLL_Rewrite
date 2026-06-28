@@ -31,11 +31,15 @@ powershell -ExecutionPolicy Bypass -File scripts\run_frontend_stage_a_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_post_iq_cic_golden_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_hybrid_loop_golden_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_single_clock_core_stage_a_xsim.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_angle_cordic_ip_trace.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_lo_dds_h_streaming_pinc_trace.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_input_multiplier_mixer_trace.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_pll_vco_mul_div_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_dpll_multifrequency_path_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_multifrequency_golden_trace.ps1
 ```
 
-The current RTL checks cover the retained mixer unit, the post-IQ CIC bit-exact fixed-point trace, the hybrid FLL/PI/P fixed-point loop block, the single-clock DPLL core path, and the 5/10/20/50/100/150/200 kHz multifrequency path. They do not replace a full float/fixed/RTL closed-loop golden comparison.
+The current RTL checks cover the retained mixer unit, post-IQ CIC bit-exact fixed-point trace, hybrid FLL/PI/P fixed-point loop block, single-clock DPLL core path, CORDIC/DDS/mixer/VCO IP-aware traces, ARM mock MMIO behavior, and the 5/10/20/50/100/150/200 kHz multifrequency path. They do not replace a full float/fixed/RTL closed-loop golden comparison.
 
 `run_post_iq_cic_golden_trace.ps1` runs the post-IQ CIC RTL simulation and
 checks the generated CSV against a fixed-point model of the current RTL
@@ -51,6 +55,21 @@ the golden tracking word equals the applied center word.
 `run_hybrid_loop_golden_trace.ps1` runs the hybrid loop RTL simulation and
 checks FLL, PI, P, anti-windup, correction saturation, and tracking-word
 saturation against a Python fixed-point model.
+
+`run_angle_cordic_ip_trace.ps1` drives the real Vivado `angle_CORDIC`
+simulation model and checks `{Q,I}` packing, scaled-radian phase quadrants,
+valid output, and raw no-scale-compensation magnitude behavior.
+
+`run_lo_dds_h_streaming_pinc_trace.ps1` drives the tracked `LO_DDS_H` DDS
+model and checks streaming PINC phase increments, data/phase valid alignment,
+and sin/cos quadrant coverage.
+
+`run_input_multiplier_mixer_trace.ps1` drives the real mixer multiplier IP
+model and checks one-cycle product/valid alignment for changing sample IDs.
+
+`run_pll_vco_mul_div_xsim.ps1` compiles the real multiplier and unsigned
+divider IP models with `PLL_VCO_MUL_DIV` and checks legal scaling, `DIV[15]`,
+zero-factor rejection, saturation, and latest-wins pending behavior.
 
 ## Review Closure Audits
 

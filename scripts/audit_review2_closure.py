@@ -49,11 +49,13 @@ def main() -> int:
     input_mult_checker = read(ROOT / "verification" / "fixed_point" / "check_input_multiplier_mixer_trace.py")
     cordic_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_angle_cordic_ip_trace.py")
     dds_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_lo_dds_h_streaming_pinc_trace.py")
+    arm_mock = read(ROOT / "verification" / "arm" / "test_dpll_control_mock.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     dc_tb = read(ROOT / "verification" / "rtl" / "dc_blocker_valid_stage_a_tb.v")
     input_mult_tb = read(ROOT / "verification" / "rtl" / "input_multiplier_mixer_latency_tb.v")
     cordic_ip_tb = read(ROOT / "verification" / "rtl" / "angle_cordic_ip_trace_tb.v")
     dds_ip_tb = read(ROOT / "verification" / "rtl" / "lo_dds_h_streaming_pinc_tb.v")
+    vco_tb = read(ROOT / "verification" / "rtl" / "pll_vco_mul_div_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
@@ -320,6 +322,26 @@ def main() -> int:
         and "| 17 | `vco_mul_div_config_error` |" in vco_rfc,
         "VCO MUL/DIV configuration error is exposed through documented core status bit 17",
         "`DPLL_CORE_FLAGS_Addr[17]` reports sticky VCO scaling config errors",
+    ))
+    checks.append(check(
+        "PLL_VCO_MUL_DIV dut" in vco_tb
+        and "push_sample(48'd65535, 16'd1, 16'hffff);" in vco_tb
+        and "DIV=0 should preserve previous output and set config_error" in vco_tb
+        and "MUL=0 should be rejected without output change" in vco_tb
+        and "stale middle pending value reached output" in vco_tb
+        and "PASS: pll_vco_mul_div_tb" in vco_tb,
+        "VCO MUL/DIV IP-aware simulation covers unsigned DIV, config errors, saturation, and latest-wins pending semantics",
+        "`run_pll_vco_mul_div_xsim.ps1` compiles the real `mult_gen_pll` and `div_gen_pll_u` Vivado models with `PLL_VCO_MUL_DIV` and checks legal scaling, `DIV[15]=1`, `MUL/DIV=0`, overflow saturation, and pending overwrite behavior",
+    ))
+    checks.append(check(
+        "test_abi_mismatch_forces_lock_off_and_blocks_enable_apply" in arm_mock
+        and "test_matching_abi_allows_enable_and_config_apply" in arm_mock
+        and "test_apply_timeout_is_reported_separately_from_abi_mismatch" in arm_mock
+        and "test_advanced_config_writes_shadow_registers_then_apply" in arm_mock
+        and "test_debug_config_payload_length_covers_all_fields" in arm_mock
+        and "test_core_flags_exposes_vco_mul_div_config_error_bit" in arm_mock,
+        "ARM mock MMIO tests cover ABI gating, APPLY completion, payload bounds, shadow writes, and VCO config status",
+        "`verification/arm/test_dpll_control_mock.py` parses real ARM headers/source and exercises enable blocking on ABI mismatch, apply sequence polling/timeouts, advanced/debug payload bounds, DPLL shadow-register writes, and core flag bit 17",
     ))
     checks.append(check(
         "cordic_phase_out" in core

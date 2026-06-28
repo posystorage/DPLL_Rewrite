@@ -27,7 +27,9 @@ def check(condition: bool, label: str, evidence: str) -> tuple[str, bool]:
 def main() -> int:
     lo_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     cic_xci = read(SRC / "DigitalPLL" / "DDC" / "ip" / "pre_iq_cic_40_125m_v1" / "pre_iq_cic_40_125m_v1" / "pre_iq_cic_40_125m_v1.xci")
+    cordic_xci = read(SRC / "DigitalPLL" / "DDC" / "ip" / "angle_CORDIC" / "angle_CORDIC.xci")
     wrapper = read(SRC / "DigitalPLL" / "dpll_wrapper.v")
+    core = read(SRC / "DigitalPLL" / "core" / "dpll_single_clock_core_stage_a.v")
     div_xci = read(SRC / "DigitalPLL" / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
     manifest_path = ROOT / "reports" / "review2_ip_config_regen" / "manifest.txt"
     manifest = read(manifest_path) if manifest_path.exists() else ""
@@ -43,6 +45,14 @@ def main() -> int:
     cic_stages = xml_value(cic_xci, "PARAM_VALUE.Number_Of_Stages")
     cic_diff_delay = xml_value(cic_xci, "PARAM_VALUE.Differential_Delay")
     cic_has_out_ready = xml_value(cic_xci, "PARAM_VALUE.HAS_DOUT_TREADY")
+
+    cordic_function = xml_value(cordic_xci, "PARAM_VALUE.Functional_Selection")
+    cordic_format = xml_value(cordic_xci, "PARAM_VALUE.Data_Format")
+    cordic_phase_format = xml_value(cordic_xci, "PARAM_VALUE.Phase_Format")
+    cordic_input_width = xml_value(cordic_xci, "PARAM_VALUE.Input_Width")
+    cordic_output_width = xml_value(cordic_xci, "PARAM_VALUE.Output_Width")
+    cordic_coarse = xml_value(cordic_xci, "PARAM_VALUE.Coarse_Rotation")
+    cordic_scale = xml_value(cordic_xci, "PARAM_VALUE.Compensation_Scaling")
 
     div_algorithm = xml_value(div_xci, "PARAM_VALUE.algorithm_type")
     div_sign = xml_value(div_xci, "PARAM_VALUE.operand_sign")
@@ -70,6 +80,24 @@ def main() -> int:
         "pre_iq_cic_40_125m_v1 pre_iq_cic_40_inst" in wrapper,
         "active wrapper uses the regenerated pre-IQ CIC replacement",
         "`dpll_wrapper.v` instantiates `pre_iq_cic_40_125m_v1` for `pre_iq_cic_40_inst`",
+    ))
+    checks.append(check(
+        cordic_function == "Translate"
+        and cordic_format == "SignedFraction"
+        and cordic_phase_format == "Scaled_Radians"
+        and cordic_input_width == "16"
+        and cordic_output_width == "16"
+        and cordic_coarse == "true"
+        and cordic_scale == "No_Scale_Compensation",
+        "CORDIC IP is configured for active DPLL phase/magnitude detection",
+        f"`Function={cordic_function}`, `Format={cordic_format}`, `Phase={cordic_phase_format}`, `Width={cordic_input_width}/{cordic_output_width}`, `Coarse={cordic_coarse}`, `Scale={cordic_scale}`",
+    ))
+    checks.append(check(
+        "function signed [15:0] round_cic20_to_cordic16;" in core
+        and ".s_axis_cartesian_tdata({cordic_q_in, cordic_i_in})" in core
+        and "q_baseband[CIC_WIDTH-1 -: 16]" not in core,
+        "CORDIC input pack uses explicit 20-bit to 16-bit rounding and saturation",
+        "`dpll_single_clock_core_stage_a.v` no longer directly truncates post-IQ CIC high bits into the CORDIC",
     ))
     checks.append(check(
         div_algorithm == "Radix2" and div_sign == "Unsigned" and div_model_sign == "0",

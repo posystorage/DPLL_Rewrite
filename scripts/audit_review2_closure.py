@@ -48,6 +48,7 @@ def main() -> int:
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
+    cordic_xci = read(DPLL / "DDC" / "ip" / "angle_CORDIC" / "angle_CORDIC.xci")
     div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
     input_mult_sim = read(DPLL / "DDC" / "ip" / "input_multiplier" / "sim" / "input_multiplier.vhd")
     xpr = read(ROOT / "DPLL_Rewrite.xpr")
@@ -99,6 +100,18 @@ def main() -> int:
         and ".clear(config_apply | (cordic_valid && !cordic_signal_usable))" in core,
         "FLL history clears on APPLY or unusable low-magnitude CORDIC samples",
         "FLL has explicit clear and core gates phase history by magnitude",
+    ))
+    checks.append(check(
+        "PARAM_VALUE.Functional_Selection\">Translate" in cordic_xci
+        and "PARAM_VALUE.Data_Format\">SignedFraction" in cordic_xci
+        and "PARAM_VALUE.Phase_Format\">Scaled_Radians" in cordic_xci
+        and "PARAM_VALUE.Coarse_Rotation\">true" in cordic_xci
+        and "PARAM_VALUE.Compensation_Scaling\">No_Scale_Compensation" in cordic_xci
+        and "function signed [15:0] round_cic20_to_cordic16;" in core
+        and ".s_axis_cartesian_tdata({cordic_q_in, cordic_i_in})" in core
+        and "q_baseband[CIC_WIDTH-1 -: 16]" not in core,
+        "CORDIC input scale and IP mode are explicit",
+        "`angle_CORDIC` is Translate/SignedFraction/Scaled_Radians with coarse rotation and no scale compensation; core rounds/saturates 20-bit CIC I/Q into 16-bit CORDIC inputs",
     ))
     checks.append(check(
         "illegal_config_seen <= 1'b0;" in cic

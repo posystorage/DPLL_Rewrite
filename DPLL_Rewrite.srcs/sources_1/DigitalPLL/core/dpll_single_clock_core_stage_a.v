@@ -95,6 +95,8 @@ module dpll_single_clock_core_stage_a #(
     wire [31:0] cordic_data;
     wire signed [15:0] cordic_phase;
     wire [15:0] cordic_magnitude;
+    wire signed [15:0] cordic_i_in;
+    wire signed [15:0] cordic_q_in;
     wire signed [PHASE_WIDTH-1:0] cordic_phase_word;
     wire signed [PHASE_WIDTH-1:0] phase_error_next;
     wire [PHASE_WIDTH-1:0] phase_abs;
@@ -258,6 +260,24 @@ module dpll_single_clock_core_stage_a #(
     assign mixer_q = {{(MIXER_WIDTH-16){mixer_q_rounded[15]}}, mixer_q_rounded};
     assign mixer_valid = mixer_product_valid;
 
+    function signed [15:0] round_cic20_to_cordic16;
+        input signed [CIC_WIDTH-1:0] value;
+        reg signed [CIC_WIDTH:0] biased;
+        reg signed [CIC_WIDTH:0] rounded;
+        begin
+            biased = {value[CIC_WIDTH-1], value}
+                   + (value[CIC_WIDTH-1] ? -21'sd8 : 21'sd8);
+            rounded = biased >>> 4;
+            if (rounded > 21'sd32767) begin
+                round_cic20_to_cordic16 = 16'sh7fff;
+            end else if (rounded < -21'sd32768) begin
+                round_cic20_to_cordic16 = 16'sh8000;
+            end else begin
+                round_cic20_to_cordic16 = rounded[15:0];
+            end
+        end
+    endfunction
+
     post_iq_cic_stage_a #(
         .INPUT_WIDTH(MIXER_WIDTH),
         .ACC_WIDTH(44),
@@ -286,11 +306,13 @@ module dpll_single_clock_core_stage_a #(
     angle_CORDIC phase_cordic_inst (
         .aclk(clk_125m),
         .s_axis_cartesian_tvalid(iq_valid),
-        .s_axis_cartesian_tdata({q_baseband[CIC_WIDTH-1 -: 16], i_baseband[CIC_WIDTH-1 -: 16]}),
+        .s_axis_cartesian_tdata({cordic_q_in, cordic_i_in}),
         .m_axis_dout_tvalid(cordic_valid),
         .m_axis_dout_tdata(cordic_data)
     );
 
+    assign cordic_i_in = round_cic20_to_cordic16(i_baseband);
+    assign cordic_q_in = round_cic20_to_cordic16(q_baseband);
     assign cordic_phase = cordic_data[31:16];
     assign cordic_magnitude = cordic_data[15:0];
     assign cordic_phase_word = {cordic_phase, 2'b00};

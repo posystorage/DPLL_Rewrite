@@ -73,12 +73,6 @@ module hybrid_fll_pll_filter_stage_a #(
     reg signed [STATE_WIDTH-1:0] negative_limit_operand_r;
     reg signed [STATE_WIDTH-1:0] positive_limit_product_r;
     reg signed [STATE_WIDTH-1:0] negative_limit_product_r;
-    reg signed [STATE_WIDTH:0] state_sum_ext_r;
-    reg signed [STATE_WIDTH:0] correction_sum_ext_r;
-    reg signed [STATE_WIDTH:0] tracking_sum_ext_r;
-    reg signed [STATE_WIDTH:0] positive_limit_ext_r;
-    reg signed [STATE_WIDTH:0] negative_limit_ext_r;
-    reg allow_state_update_r;
     reg [3:0] valid_pipe;
     (* keep = "true", dont_touch = "true" *) reg rst_pipe_r;
     (* keep = "true", dont_touch = "true" *) reg rst_output_r;
@@ -91,7 +85,9 @@ module hybrid_fll_pll_filter_stage_a #(
     wire signed [STATE_WIDTH-1:0] p_term_next;
     wire signed [STATE_WIDTH-1:0] state_delta_next;
     wire signed [STATE_WIDTH-1:0] freq_state_after_update_next;
+    wire signed [STATE_WIDTH-1:0] freq_correction_sat_next;
     wire signed [STATE_WIDTH:0] freq_state_after_update_ext_next;
+    wire signed [STATE_WIDTH:0] freq_correction_sat_ext_next;
     wire signed [STATE_WIDTH:0] state_sum_ext_next;
     wire signed [STATE_WIDTH:0] correction_sum_ext_next;
     wire signed [STATE_WIDTH:0] center_ext_next;
@@ -100,6 +96,7 @@ module hybrid_fll_pll_filter_stage_a #(
     wire signed [STATE_WIDTH:0] negative_limit_ext;
     wire signed [STATE_WIDTH:0] zero_ext;
     wire signed [STATE_WIDTH:0] max_word_ext;
+    wire signed [STATE_WIDTH-1:0] state_zero;
     wire push_high;
     wire push_low;
     wire allow_state_update;
@@ -119,12 +116,15 @@ module hybrid_fll_pll_filter_stage_a #(
                                           freq_state;
     assign freq_state_after_update_ext_next = {freq_state_after_update_next[STATE_WIDTH-1], freq_state_after_update_next};
     assign correction_sum_ext_next = freq_state_after_update_ext_next + {p_term_r[STATE_WIDTH-1], p_term_r};
+    assign freq_correction_sat_next = sat_state(correction_sum_ext_next, positive_limit_ext, negative_limit_ext);
+    assign freq_correction_sat_ext_next = {freq_correction_sat_next[STATE_WIDTH-1], freq_correction_sat_next};
     assign center_ext_next = {{(STATE_WIDTH+1-WORD_WIDTH){1'b0}}, center_word_r1};
-    assign tracking_sum_ext_next = center_ext_next + correction_sum_ext_next;
+    assign tracking_sum_ext_next = center_ext_next + freq_correction_sat_ext_next;
     assign positive_limit_ext = {positive_limit_r1[STATE_WIDTH-1], positive_limit_r1};
     assign negative_limit_ext = {negative_limit_r1[STATE_WIDTH-1], negative_limit_r1};
     assign zero_ext = {STATE_WIDTH+1{1'b0}};
     assign max_word_ext = {{(STATE_WIDTH+1-WORD_WIDTH){1'b0}}, {1'b0, {(WORD_WIDTH-1){1'b1}}}};
+    assign state_zero = {STATE_WIDTH{1'b0}};
 
     function signed [STATE_WIDTH-1:0] sat_state;
         input signed [STATE_WIDTH:0] value;
@@ -154,8 +154,8 @@ module hybrid_fll_pll_filter_stage_a #(
         end
     endfunction
 
-    assign push_high = (freq_state >= positive_limit_r1) && (state_delta_next > {STATE_WIDTH{1'b0}});
-    assign push_low = (freq_state <= negative_limit_r1) && (state_delta_next < {STATE_WIDTH{1'b0}});
+    assign push_high = (freq_state >= positive_limit_r1) && (state_delta_next > state_zero);
+    assign push_low = (freq_state <= negative_limit_r1) && (state_delta_next < state_zero);
     assign allow_state_update = !(push_high || push_low);
 
     always @(posedge clk_125m) begin
@@ -222,15 +222,6 @@ module hybrid_fll_pll_filter_stage_a #(
                 negative_limit_r1 <= negative_limit_product_r;
             end
 
-            if (valid_pipe[1]) begin
-                state_sum_ext_r <= state_sum_ext_next;
-                correction_sum_ext_r <= correction_sum_ext_next;
-                tracking_sum_ext_r <= tracking_sum_ext_next;
-                positive_limit_ext_r <= positive_limit_ext;
-                negative_limit_ext_r <= negative_limit_ext;
-                allow_state_update_r <= allow_state_update;
-            end
-
         end
     end
 
@@ -245,17 +236,17 @@ module hybrid_fll_pll_filter_stage_a #(
         end else begin
             correction_valid <= 1'b0;
 
-            if (valid_pipe[2]) begin
-                if (allow_state_update_r) begin
-                    freq_state <= sat_state(state_sum_ext_r, positive_limit_ext_r, negative_limit_ext_r);
+            if (valid_pipe[1]) begin
+                if (allow_state_update) begin
+                    freq_state <= freq_state_after_update_next;
                 end
 
-                freq_correction <= sat_state(correction_sum_ext_r, positive_limit_ext_r, negative_limit_ext_r);
-                tracking_word <= sat_word(tracking_sum_ext_r);
-                saturated_high <= (state_sum_ext_r > positive_limit_ext_r)
-                               || (correction_sum_ext_r > positive_limit_ext_r);
-                saturated_low <= (state_sum_ext_r < negative_limit_ext_r)
-                              || (correction_sum_ext_r < negative_limit_ext_r);
+                freq_correction <= freq_correction_sat_next;
+                tracking_word <= sat_word(tracking_sum_ext_next);
+                saturated_high <= (state_sum_ext_next > positive_limit_ext)
+                               || (correction_sum_ext_next > positive_limit_ext);
+                saturated_low <= (state_sum_ext_next < negative_limit_ext)
+                              || (correction_sum_ext_next < negative_limit_ext);
                 correction_valid <= 1'b1;
             end
         end

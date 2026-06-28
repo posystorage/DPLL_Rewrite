@@ -43,6 +43,7 @@ def main() -> int:
     arm = read(ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "helloworld.c")
     multi_tb = read(ROOT / "verification" / "rtl" / "dpll_multifrequency_path_tb.v")
     multi_checker = read(ROOT / "verification" / "fixed_point" / "check_multifrequency_trace.py")
+    hybrid_checker = read(ROOT / "verification" / "fixed_point" / "check_hybrid_loop_trace.py")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
@@ -125,6 +126,17 @@ def main() -> int:
         and "assign correction_sum_ext_next = freq_state_after_update_ext_next + {p_term_r[STATE_WIDTH-1], p_term_r};" in hybrid,
         "Hybrid filter correction uses the updated shared frequency state",
         "`freq_correction = sat(freq_state[k+1] + Kp*phase_error[k])`",
+    ))
+    checks.append(check(
+        "wire signed [STATE_WIDTH-1:0] state_zero;" in hybrid
+        and "state_delta_next > state_zero" in hybrid
+        and "state_delta_next < state_zero" in hybrid
+        and "assign tracking_sum_ext_next = center_ext_next + freq_correction_sat_ext_next;" in hybrid
+        and "def model_rows" in hybrid_checker
+        and "PASS: hybrid loop golden trace" in hybrid_checker
+        and "Anti-windup blocks only" in hybrid_checker,
+        "Hybrid loop fixed/RTL trace covers signed anti-windup and saturated tracking semantics",
+        "`check_hybrid_loop_trace.py` verifies FLL/PI/P terms, signed limit release, correction saturation, and tracking word saturation",
     ))
     checks.append(check(
         "reg [47:0] active_center_word;" in wrapper

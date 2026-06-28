@@ -21,6 +21,8 @@ module hybrid_fll_pll_filter_stage_a_tb;
     wire [47:0] tracking_word;
     wire saturated_high;
     wire saturated_low;
+    integer trace_fd;
+    integer case_index;
 
     hybrid_fll_pll_filter_stage_a dut (
         .clk_125m(clk_125m),
@@ -61,6 +63,37 @@ module hybrid_fll_pll_filter_stage_a_tb;
         end
     endtask
 
+    task push_error_case;
+        input integer case_no;
+        input fll_en;
+        input pll_i_en;
+        input pll_p_en;
+        input signed [17:0] phase_value;
+        input signed [21:0] freq_value;
+        input signed [23:0] kf_value;
+        input signed [23:0] ki_value;
+        input signed [23:0] kp_value;
+        input [47:0] center_value;
+        begin
+            enable_fll = fll_en;
+            enable_pll_i = pll_i_en;
+            enable_pll_p = pll_p_en;
+            kf = kf_value;
+            ki = ki_value;
+            kp = kp_value;
+            center_word = center_value;
+            push_error(phase_value, freq_value);
+            wait_correction();
+            $fdisplay(trace_fd, "%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d",
+                      case_no, fll_en, pll_i_en, pll_p_en, phase_value, freq_value,
+                      kf_value, ki_value, kp_value, center_value, positive_limit,
+                      negative_limit, freq_state,
+                      freq_correction, tracking_word, tracking_word,
+                      saturated_high, saturated_low);
+            repeat (4) @(posedge clk_125m);
+        end
+    endtask
+
     task wait_correction;
         integer timeout;
         begin
@@ -78,12 +111,19 @@ module hybrid_fll_pll_filter_stage_a_tb;
     endtask
 
     initial begin
+        trace_fd = $fopen("hybrid_fll_pll_filter_trace.csv", "w");
+        if (trace_fd == 0) begin
+            $display("FAIL: could not open hybrid_fll_pll_filter_trace.csv");
+            $finish;
+        end
+        $fdisplay(trace_fd, "case_index,enable_fll,enable_pll_i,enable_pll_p,phase_error,freq_error,kf,ki,kp,center_word,positive_limit,negative_limit,freq_state,freq_correction,tracking_word_decimal,tracking_word,saturated_high,saturated_low");
+
         repeat (3) @(posedge clk_125m);
         @(negedge clk_125m);
         rst_125m = 1'b0;
 
-        push_error(18'sd3, 22'sd5);
-        wait_correction();
+        push_error_case(0, 1'b1, 1'b1, 1'b1, 18'sd3, 22'sd5,
+                        24'sd262144, 24'sd262144, 24'sd262144, 48'd1000);
         if (freq_state !== 56'sd8) begin
             $display("FAIL: expected state 8, valid=1 got state=%0d valid=%b", freq_state, correction_valid);
             $finish;
@@ -97,14 +137,19 @@ module hybrid_fll_pll_filter_stage_a_tb;
             $finish;
         end
 
-        push_error(18'sd3000, 22'sd3000);
-        wait_correction();
-        if (saturated_high !== 1'b1) begin
-            $display("FAIL: expected saturation high");
-            $finish;
-        end
+        push_error_case(1, 1'b1, 1'b1, 1'b1, 18'sd3000, 22'sd3000,
+                        24'sd262144, 24'sd262144, 24'sd262144, 48'd1000);
+        push_error_case(2, 1'b1, 1'b1, 1'b1, 18'sd1, 22'sd1,
+                        24'sd262144, 24'sd262144, 24'sd262144, 48'd1000);
+        push_error_case(3, 1'b1, 1'b1, 1'b1, -18'sd5000, -22'sd5000,
+                        24'sd262144, 24'sd262144, 24'sd262144, 48'd1000);
+        push_error_case(4, 1'b1, 1'b0, 1'b0, 18'sd999, 22'sd5,
+                        24'sd262144, 24'sd131072, 24'sd65536, 48'd5000);
+        push_error_case(5, 1'b1, 1'b1, 1'b1, -18'sd7, 22'sd9,
+                        24'sd393216, -24'sd131072, 24'sd65536, 48'd5000);
 
         $display("PASS: hybrid_fll_pll_filter_stage_a_tb");
+        $fclose(trace_fd);
         $finish;
     end
 endmodule

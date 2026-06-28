@@ -302,19 +302,120 @@ wire        dpll_cic_illegal;
 wire signed [15:0] dpll_lo_cos;
 wire signed [15:0] dpll_lo_sin;
 
-reg signed [31:0] effective_negative_limit_dac0;
+wire        config_apply_pulse = ok_reset | config_apply_flag;
+wire [47:0] shadow_center_word = {Centre_Freq, 16'h0000};
+wire signed [31:0] shadow_negative_limit_effective =
+    (negative_limit_dac0 == 32'h0000_0000) ? $signed(DEFAULT_NEG_LIMIT) : negative_limit_dac0;
+wire signed [55:0] shadow_correction_limit_pos = {{24{positive_limit_dac0[31]}}, positive_limit_dac0};
+wire signed [55:0] shadow_correction_limit_neg = {{24{shadow_negative_limit_effective[31]}}, shadow_negative_limit_effective};
+wire shadow_vco_mul_div_legal = (VCO_Mul_Factor0 != 16'h0000) &&
+                                (VCO_Div_Factor0 != 16'h0000) &&
+                                (VCO_Div_Factor0[15] == 1'b0);
+
+reg [47:0] active_center_word;
+reg signed [23:0] active_kf;
+reg signed [23:0] active_ki;
+reg signed [23:0] active_kp;
+reg signed [23:0] active_kf_blend;
+reg signed [23:0] active_kf_track;
+reg signed [23:0] active_kp_blend;
+reg signed [23:0] active_ki_blend;
+reg signed [17:0] active_phase_setpoint;
+reg [17:0] active_phase_lock_threshold;
+reg [21:0] active_freq_lock_threshold;
+reg [15:0] active_mag_enter_threshold;
+reg [15:0] active_mag_exit_threshold;
+reg [15:0] active_acquire_dwell;
+reg [15:0] active_blend_dwell;
+reg [15:0] active_loss_dwell;
+reg [23:0] active_holdover_timeout;
+reg [15:0] active_warmup_samples;
+reg signed [55:0] active_correction_limit_pos;
+reg signed [55:0] active_correction_limit_neg;
+reg [8:0] active_post_iq_cic_rate_r;
+reg [5:0] active_post_iq_cic_shift;
+reg [1:0] active_fll_delay_sel;
+reg signed [31:0] active_manual_offset_dac0;
+reg signed [13:0] active_vco_offset;
+reg signed [15:0] active_vco_amplitude;
+reg [15:0] active_vco_mul_factor;
+reg [15:0] active_vco_div_factor;
+reg config_apply_core_pulse;
+reg vco_mul_div_apply_config_error;
 
 always @(posedge clk1 or negedge rst) begin
     if (!rst) begin
-        effective_negative_limit_dac0 <= $signed(DEFAULT_NEG_LIMIT);
-    end else if (cmd_trig && (cmd_addr == 16'h0029)) begin
-        effective_negative_limit_dac0 <= (cmd_datain == 32'h0000_0000) ?
-                                         $signed(DEFAULT_NEG_LIMIT) : $signed(cmd_datain);
+        active_center_word <= 48'h0000_0000_0000;
+        active_kf <= 24'sd8;
+        active_ki <= 24'sd2;
+        active_kp <= 24'sd4;
+        active_kf_blend <= 24'sd4;
+        active_kf_track <= 24'sd1;
+        active_kp_blend <= 24'sd2;
+        active_ki_blend <= 24'sd1;
+        active_phase_setpoint <= 18'sd0;
+        active_phase_lock_threshold <= DEFAULT_PHASE_THR[17:0];
+        active_freq_lock_threshold <= DEFAULT_FREQ_THR[21:0];
+        active_mag_enter_threshold <= DEFAULT_MAG_ENTER[15:0];
+        active_mag_exit_threshold <= DEFAULT_MAG_EXIT[15:0];
+        active_acquire_dwell <= DEFAULT_DWELL[15:0];
+        active_blend_dwell <= DEFAULT_DWELL[15:0];
+        active_loss_dwell <= DEFAULT_DWELL[15:0];
+        active_holdover_timeout <= DEFAULT_HOLDOVER[23:0];
+        active_warmup_samples <= 16'd4;
+        active_correction_limit_pos <= {{24{DEFAULT_POS_LIMIT[31]}}, DEFAULT_POS_LIMIT};
+        active_correction_limit_neg <= {{24{DEFAULT_NEG_LIMIT[31]}}, DEFAULT_NEG_LIMIT};
+        active_post_iq_cic_rate_r <= 9'd8;
+        active_post_iq_cic_shift <= 6'd9;
+        active_fll_delay_sel <= 2'd0;
+        active_manual_offset_dac0 <= 32'sd0;
+        active_vco_offset <= 14'sd0;
+        active_vco_amplitude <= DEFAULT_DAC_AMP[15:0];
+        active_vco_mul_factor <= DEFAULT_FREQ_MUL[15:0];
+        active_vco_div_factor <= DEFAULT_FREQ_DIV[15:0];
+        config_apply_core_pulse <= 1'b0;
+        vco_mul_div_apply_config_error <= 1'b0;
+    end else begin
+        config_apply_core_pulse <= config_apply_pulse;
+        if (config_apply_pulse) begin
+            active_center_word <= shadow_center_word;
+            active_kf <= pll0_gainii[23:0];
+            active_ki <= pll0_gaini[23:0];
+            active_kp <= pll0_gainp[23:0];
+            active_kf_blend <= fll_kf_blend[23:0];
+            active_kf_track <= fll_kf_track[23:0];
+            active_kp_blend <= pll_kp_blend[23:0];
+            active_ki_blend <= pll_ki_blend[23:0];
+            active_phase_setpoint <= Phase_Residuals_Offset0[17:0];
+            active_phase_lock_threshold <= Phase_Residuals_Threshold0[17:0];
+            active_freq_lock_threshold <= Freq_Residuals_Threshold0[21:0];
+            active_mag_enter_threshold <= Magnitude_Enter_Threshold0[15:0];
+            active_mag_exit_threshold <= Magnitude_Exit_Threshold0[15:0];
+            active_acquire_dwell <= Acquire_Dwell0[15:0];
+            active_blend_dwell <= Blend_Dwell0[15:0];
+            active_loss_dwell <= Loss_Dwell0[15:0];
+            active_holdover_timeout <= Holdover_Timeout0[23:0];
+            active_warmup_samples <= warmup_samples;
+            active_correction_limit_pos <= shadow_correction_limit_pos;
+            active_correction_limit_neg <= shadow_correction_limit_neg;
+            active_post_iq_cic_rate_r <= post_iq_cic_rate_r;
+            active_post_iq_cic_shift <= post_iq_cic_shift;
+            active_fll_delay_sel <= fll_delay_sel;
+            active_manual_offset_dac0 <= manual_offset_dac0;
+            active_vco_offset <= VCO_Voffset0;
+            active_vco_amplitude <= VCO_Vamplitude0;
+            if (shadow_vco_mul_div_legal) begin
+                active_vco_mul_factor <= VCO_Mul_Factor0;
+                active_vco_div_factor <= VCO_Div_Factor0;
+                vco_mul_div_apply_config_error <= 1'b0;
+            end else begin
+                vco_mul_div_apply_config_error <= 1'b1;
+            end
+        end
     end
 end
-wire signed [55:0] correction_limit_pos = {{24{positive_limit_dac0[31]}}, positive_limit_dac0};
-wire signed [55:0] correction_limit_neg = {{24{effective_negative_limit_dac0[31]}}, effective_negative_limit_dac0};
-wire        config_apply_pulse = ok_reset | config_apply_flag;
+wire signed [55:0] correction_limit_pos = active_correction_limit_pos;
+wire signed [55:0] correction_limit_neg = active_correction_limit_neg;
 
 dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .clk_125m(clk1),
@@ -322,29 +423,29 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .sample_valid(pre_cic_valid),
     .loop_enable(pll0_lock),
     .adc_sample(pre_cic_sample),
-    .center_word({Centre_Freq, 16'h0000}),
-    .config_apply(config_apply_pulse),
-    .cic_rate_r(post_iq_cic_rate_r),
-    .cic_output_shift(post_iq_cic_shift),
+    .center_word(active_center_word),
+    .config_apply(config_apply_core_pulse),
+    .cic_rate_r(active_post_iq_cic_rate_r),
+    .cic_output_shift(active_post_iq_cic_shift),
     .cic_flush(ok_reset),
-    .fll_delay_sel(fll_delay_sel),
-    .kf(pll0_gainii[23:0]),
-    .ki(pll0_gaini[23:0]),
-    .kp(pll0_gainp[23:0]),
-    .kf_blend(fll_kf_blend[23:0]),
-    .kf_track(fll_kf_track[23:0]),
-    .kp_blend(pll_kp_blend[23:0]),
-    .ki_blend(pll_ki_blend[23:0]),
-    .phase_setpoint(Phase_Residuals_Offset0[17:0]),
-    .phase_lock_threshold(Phase_Residuals_Threshold0[17:0]),
-    .freq_lock_threshold(Freq_Residuals_Threshold0[21:0]),
-    .mag_enter_threshold(Magnitude_Enter_Threshold0[15:0]),
-    .mag_exit_threshold(Magnitude_Exit_Threshold0[15:0]),
-    .acquire_dwell(Acquire_Dwell0[15:0]),
-    .blend_dwell(Blend_Dwell0[15:0]),
-    .loss_dwell(Loss_Dwell0[15:0]),
-    .holdover_timeout(Holdover_Timeout0[23:0]),
-    .warmup_samples(warmup_samples),
+    .fll_delay_sel(active_fll_delay_sel),
+    .kf(active_kf),
+    .ki(active_ki),
+    .kp(active_kp),
+    .kf_blend(active_kf_blend),
+    .kf_track(active_kf_track),
+    .kp_blend(active_kp_blend),
+    .ki_blend(active_ki_blend),
+    .phase_setpoint(active_phase_setpoint),
+    .phase_lock_threshold(active_phase_lock_threshold),
+    .freq_lock_threshold(active_freq_lock_threshold),
+    .mag_enter_threshold(active_mag_enter_threshold),
+    .mag_exit_threshold(active_mag_exit_threshold),
+    .acquire_dwell(active_acquire_dwell),
+    .blend_dwell(active_blend_dwell),
+    .loss_dwell(active_loss_dwell),
+    .holdover_timeout(active_holdover_timeout),
+    .warmup_samples(active_warmup_samples),
     .positive_limit(correction_limit_pos),
     .negative_limit(correction_limit_neg),
     .tracking_word(dpll_tracking_word),
@@ -372,10 +473,11 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .lo_sin(dpll_lo_sin)
 );
 
-wire [47:0] manual_offset_word = {{16{manual_offset_dac0[31]}}, manual_offset_dac0};
+wire [47:0] manual_offset_word = {{16{active_manual_offset_dac0[31]}}, active_manual_offset_dac0};
 wire [47:0] vco_tracking_word = dpll_tracking_word + manual_offset_word;
 wire [47:0] VCO_Input0;
-wire        vco_mul_div_config_error;
+wire        vco_mul_div_runtime_config_error;
+wire        vco_mul_div_config_error = vco_mul_div_runtime_config_error | vco_mul_div_apply_config_error;
 
 PLL_VCO_MUL_DIV PLL_VCO_MUL_DIV_inst (
     .clk(clk1),
@@ -383,16 +485,16 @@ PLL_VCO_MUL_DIV PLL_VCO_MUL_DIV_inst (
     .sample_valid(dpll_tracking_valid),
     .data_in(vco_tracking_word),
     .data_out(VCO_Input0),
-    .PLL_Mul_factor(VCO_Mul_Factor0),
-    .PLL_Div_factor(VCO_Div_Factor0),
-    .config_error(vco_mul_div_config_error)
+    .PLL_Mul_factor(active_vco_mul_factor),
+    .PLL_Div_factor(active_vco_div_factor),
+    .config_error(vco_mul_div_runtime_config_error)
 );
 
 VCO_48bits VCO_inst0 (
     .clk(clk1),
     .VCO_input(VCO_Input0),
-    .VCO_offset(VCO_Voffset0),
-    .VCO_amplitude(VCO_Vamplitude0),
+    .VCO_offset(active_vco_offset),
+    .VCO_amplitude(active_vco_amplitude),
     .VCO_DAC_out(DACout0)
 );
 
@@ -507,7 +609,7 @@ always @(posedge clk1) begin
                 16'h0026: sys_rdata <= pll_kp_blend;
                 16'h0027: sys_rdata <= pll_ki_blend;
                 16'h0028: sys_rdata <= positive_limit_dac0;
-                16'h0029: sys_rdata <= effective_negative_limit_dac0;
+                16'h0029: sys_rdata <= shadow_negative_limit_effective;
                 16'h002A: sys_rdata <= manual_offset_dac0;
                 16'h0030: sys_rdata <= {{18{VCO_Voffset0[13]}}, VCO_Voffset0};
                 16'h0031: sys_rdata <= {{16{VCO_Vamplitude0[15]}}, VCO_Vamplitude0};

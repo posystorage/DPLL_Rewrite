@@ -107,6 +107,27 @@ def main() -> int:
         "`freq_correction = sat(freq_state[k+1] + Kp*phase_error[k])`",
     ))
     checks.append(check(
+        "reg [47:0] active_center_word;" in wrapper
+        and "reg signed [23:0] active_kf;" in wrapper
+        and "reg [15:0] active_vco_mul_factor;" in wrapper
+        and "reg [15:0] active_vco_div_factor;" in wrapper
+        and "reg config_apply_core_pulse;" in wrapper
+        and "config_apply_core_pulse <= config_apply_pulse;" in wrapper
+        and "if (config_apply_pulse) begin" in wrapper
+        and ".config_apply(config_apply_core_pulse)" in wrapper
+        and ".center_word(active_center_word)" in wrapper
+        and ".kf(active_kf)" in wrapper
+        and ".cic_rate_r(active_post_iq_cic_rate_r)" in wrapper
+        and ".PLL_Mul_factor(active_vco_mul_factor)" in wrapper
+        and ".PLL_Div_factor(active_vco_div_factor)" in wrapper
+        and ".VCO_offset(active_vco_offset)" in wrapper
+        and ".VCO_amplitude(active_vco_amplitude)" in wrapper
+        and ".center_word({Centre_Freq, 16'h0000})" not in wrapper
+        and ".PLL_Mul_factor(VCO_Mul_Factor0)" not in wrapper,
+        "Wrapper applies a coherent active snapshot for loop and output configuration",
+        "`CONFIG_APPLY` copies shadow registers into active core/VCO/DAC0 inputs",
+    ))
+    checks.append(check(
         "requested_config_is_legal" in vco
         and "config_error <= 1'b1;" in vco
         and "safe_div_factor" not in vco
@@ -117,7 +138,8 @@ def main() -> int:
         "`MUL=0`, `DIV=0`, and signed-range `DIV` set a sticky config error",
     ))
     checks.append(check(
-        ".config_error(vco_mul_div_config_error)" in wrapper
+        "vco_mul_div_config_error = vco_mul_div_runtime_config_error | vco_mul_div_apply_config_error" in wrapper
+        and ".config_error(vco_mul_div_runtime_config_error)" in wrapper
         and "vco_mul_div_config_error" in wrapper
         and "DPLL_CORE_FLAG_VCO_MUL_DIV_CONFIG_ERROR (1U<<17)" in periph
         and "| 17 | `vco_mul_div_config_error` |" in vco_rfc,

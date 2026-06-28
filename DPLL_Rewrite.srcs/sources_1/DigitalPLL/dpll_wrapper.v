@@ -296,8 +296,16 @@ wire        dpll_cic_illegal;
 wire signed [15:0] dpll_lo_cos;
 wire signed [15:0] dpll_lo_sin;
 
-wire signed [31:0] effective_negative_limit_dac0 =
-    (negative_limit_dac0 == 32'sd0) ? $signed(DEFAULT_NEG_LIMIT) : negative_limit_dac0;
+reg signed [31:0] effective_negative_limit_dac0;
+
+always @(posedge clk1 or negedge rst) begin
+    if (!rst) begin
+        effective_negative_limit_dac0 <= $signed(DEFAULT_NEG_LIMIT);
+    end else if (cmd_trig && (cmd_addr == 16'h0029)) begin
+        effective_negative_limit_dac0 <= (cmd_datain == 32'h0000_0000) ?
+                                         $signed(DEFAULT_NEG_LIMIT) : $signed(cmd_datain);
+    end
+end
 wire signed [55:0] correction_limit_pos = {{24{positive_limit_dac0[31]}}, positive_limit_dac0};
 wire signed [55:0] correction_limit_neg = {{24{effective_negative_limit_dac0[31]}}, effective_negative_limit_dac0};
 wire        config_apply_pulse = ok_reset | config_apply_flag;

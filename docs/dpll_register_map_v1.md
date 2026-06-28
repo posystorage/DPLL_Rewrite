@@ -64,6 +64,8 @@ ARM must not enable the DPLL when ABI/build checks fail.
 | `0x0063` | `WARMUP_SAMPLES` | shadow/apply |
 | `0x006F` | `CONFIG_APPLY` | apply trigger/status command |
 
+`CONFIG_APPLY` write bit 0 requests a commit of the shadow register set. Reads return bit 0 as apply busy and bits 15:8 as an applied sequence counter. ARM software must wait for the sequence counter to change and busy to clear before acknowledging that an apply completed.
+
 ## Read Registers
 
 | Index | Name |

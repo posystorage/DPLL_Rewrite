@@ -107,6 +107,14 @@ def main() -> int:
     ))
     checks.append(pass_if("DPLL_ABI_VERSION_Addr" in periph and "DPLL_FPGA_BUILD_ID_Addr" in periph, "ARM header exposes ABI/build registers", "v1 readback symbols present"))
     checks.append(pass_if("dpll_abi_ready = dpll_check_abi();" in arm and "action_status = (dpll_set_enable(1) == 0) ? STATUS_ACK : STATUS_NACK;" in arm, "ARM startup and STM control are ABI gated", "startup check plus command-result ACK/NACK"))
+    checks.append(pass_if(
+        "DPLL_CONFIG_APPLY_SEQ_MASK" in periph
+        and "PC_ERR_DPLL_APPLY_TIMEOUT" in arm
+        and "Xil_In32(DPLL_CONFIG_APPLY_Addr)" in arm
+        and "pc_send_dpll_apply_result(dpll_apply_config());" in arm,
+        "ARM APPLY waits for FPGA readback status",
+        "`dpll_apply_config` polls `CONFIG_APPLY` sequence/busy before ACK",
+    ))
     checks.append(pass_if(all(token in arm_mock for token in ["MockMmio", "parse_dpll_addr", "write_adv_config", "DPLL_CONFIG_APPLY_Addr"]), "ARM mock MMIO tests cover ABI/APPLY control", "`verification/arm/test_dpll_control_mock.py` parses real register definitions"))
     checks.append(pass_if("PID_GainI2_Addr" not in periph.replace("Freq_Meter_PID_GainI2_Addr", ""), "DPLL ARM aliases do not restore PII2", "remaining I2 name is frequency-meter only"))
     checks.append(pass_if("DAC1 is a debug output only" in periph and "DAC1_DDS_Frequency_Addr" in periph, "DAC1/DACout1 ABI is debug-only", "legacy address retained as debug source selector"))

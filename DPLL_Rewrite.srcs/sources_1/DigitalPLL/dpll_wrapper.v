@@ -342,6 +342,7 @@ reg [15:0] active_vco_mul_factor;
 reg [15:0] active_vco_div_factor;
 reg config_apply_core_pulse;
 reg vco_mul_div_apply_config_error;
+reg [7:0] config_apply_sequence;
 
 always @(posedge clk1 or negedge rst) begin
     if (!rst) begin
@@ -375,9 +376,11 @@ always @(posedge clk1 or negedge rst) begin
         active_vco_div_factor <= DEFAULT_FREQ_DIV[15:0];
         config_apply_core_pulse <= 1'b0;
         vco_mul_div_apply_config_error <= 1'b0;
+        config_apply_sequence <= 8'h00;
     end else begin
         config_apply_core_pulse <= config_apply_pulse;
         if (config_apply_pulse) begin
+            config_apply_sequence <= config_apply_sequence + 8'h01;
             active_center_word <= shadow_center_word;
             active_kf <= pll0_gainii[23:0];
             active_ki <= pll0_gaini[23:0];
@@ -637,7 +640,7 @@ always @(posedge clk1) begin
                 16'h0061: sys_rdata <= {26'h0, post_iq_cic_shift};
                 16'h0062: sys_rdata <= {30'h0, fll_delay_sel};
                 16'h0063: sys_rdata <= {16'h0, warmup_samples};
-                16'h006F: sys_rdata <= 32'h0000_0000;
+                16'h006F: sys_rdata <= {16'h0000, config_apply_sequence, 7'h00, config_apply_core_pulse};
                 16'h0100: sys_rdata <= {24'h0, residuals0_are_above_threshold,
                                           residuals0_are_above_threshold_freq,
                                           residuals0_are_above_threshold_phase,

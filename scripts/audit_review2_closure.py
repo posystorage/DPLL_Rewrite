@@ -40,6 +40,7 @@ def main() -> int:
     vco = read(DPLL / "VCO" / "PLL_VCO_MUL_DIV.v")
     wrapper = read(DPLL / "dpll_wrapper.v")
     periph = read(ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h")
+    arm = read(ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "helloworld.c")
     vco_rfc = read(ROOT / "docs" / "rfc_vco_mul_div_config_status.md")
     dds_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     div_u_xci = read(DPLL / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
@@ -141,6 +142,18 @@ def main() -> int:
         and ".PLL_Mul_factor(VCO_Mul_Factor0)" not in wrapper,
         "Wrapper applies a coherent active snapshot for loop and output configuration",
         "`CONFIG_APPLY` copies shadow registers into active core/VCO/DAC0 inputs",
+    ))
+    checks.append(check(
+        "reg [7:0] config_apply_sequence;" in wrapper
+        and "config_apply_sequence <= config_apply_sequence + 8'h01;" in wrapper
+        and "16'h006F: sys_rdata <= {16'h0000, config_apply_sequence, 7'h00, config_apply_core_pulse};" in wrapper
+        and "DPLL_CONFIG_APPLY_BUSY_MASK" in periph
+        and "DPLL_CONFIG_APPLY_SEQ_MASK" in periph
+        and "DPLL_APPLY_POLL_LIMIT" in arm
+        and "PC_ERR_DPLL_APPLY_TIMEOUT" in arm
+        and "Xil_In32(DPLL_CONFIG_APPLY_Addr)" in arm,
+        "ARM waits for observable CONFIG_APPLY completion",
+        "`CONFIG_APPLY` readback exposes busy/sequence status and ARM polls for a changed sequence before ACK",
     ))
     checks.append(check(
         "requested_config_is_legal" in vco

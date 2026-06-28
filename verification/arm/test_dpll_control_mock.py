@@ -13,10 +13,10 @@ def read_gbk(path: Path) -> str:
 
 
 def parse_expected(name: str, text: str) -> int:
-    match = re.search(rf"#define\s+{name}\s+0x([0-9A-Fa-f]+)U", text)
+    match = re.search(rf"#define\s+{name}\s+(0x[0-9A-Fa-f]+|[0-9]+)U", text)
     if not match:
         raise AssertionError(f"missing {name}")
-    return int(match.group(1), 16)
+    return int(match.group(1), 0)
 
 
 def parse_dpll_addr(name: str, text: str) -> int:
@@ -44,6 +44,7 @@ class MockMmio:
     def __init__(self):
         self.mem = {}
         self.writes = []
+        self.apply_stuck = False
 
     def read(self, addr: int) -> int:
         return self.mem.get(addr, 0)
@@ -61,6 +62,7 @@ class DpllArmModel:
         self.mmio = mmio
         self.abi_ready = False
         self.pll_lock_status = 0
+        self.apply_poll_limit = parse_expected("DPLL_APPLY_POLL_LIMIT", read_gbk(ARM))
 
     def check_abi(self) -> bool:
         ok = (
@@ -75,8 +77,17 @@ class DpllArmModel:
         if not self.abi_ready:
             self.mmio.write(self.addrs["PLL0_Lock_Ctrl_Addr"], 0)
             return -1
+        before = self.mmio.read(self.addrs["DPLL_CONFIG_APPLY_Addr"])
+        before_seq = (before >> 8) & 0xFF
         self.mmio.write(self.addrs["DPLL_CONFIG_APPLY_Addr"], 1)
-        return 0
+        if not self.mmio.apply_stuck:
+            self.mmio.mem[self.addrs["DPLL_CONFIG_APPLY_Addr"]] = (((before_seq + 1) & 0xFF) << 8)
+        for _ in range(self.apply_poll_limit):
+            status = self.mmio.read(self.addrs["DPLL_CONFIG_APPLY_Addr"])
+            seq = (status >> 8) & 0xFF
+            if seq != before_seq and (status & 1) == 0:
+                return 0
+        return -2
 
     def set_enable(self, enable: int) -> int:
         if enable and not self.abi_ready:
@@ -144,6 +155,7 @@ class DpllArmMockMmioTest(unittest.TestCase):
             "CONFIG": parse_expected("ARM_EXPECTED_DPLL_CONFIG_VERSION", cls.arm),
             "BUILD": parse_expected("ARM_EXPECTED_DPLL_FPGA_BUILD_ID", cls.arm),
             "ABI_ERR": parse_expected("PC_ERR_DPLL_ABI_MISMATCH", cls.arm),
+            "APPLY_ERR": parse_expected("PC_ERR_DPLL_APPLY_TIMEOUT", cls.arm),
         }
 
     def make_model(self):
@@ -158,6 +170,9 @@ class DpllArmMockMmioTest(unittest.TestCase):
     def test_source_keeps_abi_gate_and_payload_len_contract(self):
         self.assertIn("if (!dpll_abi_ready)", self.arm)
         self.assertIn("Xil_Out32(DPLL_CONFIG_APPLY_Addr, 1);", self.arm)
+        self.assertIn("Xil_In32(DPLL_CONFIG_APPLY_Addr)", self.arm)
+        self.assertIn("DPLL_CONFIG_APPLY_SEQ_MASK", self.periph)
+        self.assertIn("PC_ERR_DPLL_APPLY_TIMEOUT", self.arm)
         self.assertIn("if (pc_payload_len() < 42)", self.arm)
         self.assertIn("Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));", self.arm)
         self.assertIn("DPLL_CORE_FLAG_VCO_MUL_DIV_CONFIG_ERROR (1U<<17)", self.periph)
@@ -194,6 +209,13 @@ class DpllArmMockMmioTest(unittest.TestCase):
                 (self.addrs["DPLL_CONFIG_APPLY_Addr"], 1),
             ],
         )
+
+    def test_apply_timeout_is_reported_separately_from_abi_mismatch(self):
+        mmio, model = self.make_model()
+        self.load_good_abi(mmio)
+        mmio.apply_stuck = True
+        self.assertTrue(model.check_abi())
+        self.assertEqual(model.apply_config(), -2)
 
     def test_advanced_config_writes_shadow_registers_then_apply(self):
         mmio, model = self.make_model()

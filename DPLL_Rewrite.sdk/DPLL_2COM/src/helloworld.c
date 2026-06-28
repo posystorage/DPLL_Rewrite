@@ -147,8 +147,12 @@ uint64_t Freq_meter_gate_time_cache = 0;
 #define ARM_EXPECTED_DPLL_CONFIG_VERSION  0x00010000U
 #define ARM_EXPECTED_DPLL_FPGA_BUILD_ID   0xD9110002U
 #define PC_ERR_DPLL_ABI_MISMATCH          0xF3U
+#define PC_ERR_DPLL_APPLY_TIMEOUT         0xF5U
+#define DPLL_APPLY_POLL_LIMIT             1024U
 
 static uint8_t dpll_abi_ready = 0;
+
+void PC_HOST_Send_ASK_Only(uint8_t Ask);
 
 static uint32_t pc_get_u32(uint32_t offset)
 {
@@ -195,14 +199,40 @@ static uint8_t dpll_check_abi(void)
 
 static int dpll_apply_config(void)
 {
+	uint32_t before;
+	uint32_t before_seq;
+	uint32_t status;
+	uint32_t seq;
+	uint32_t poll;
+
 	if (!dpll_abi_ready) {
 		Xil_Out32(PLL0_Lock_Ctrl_Addr, 0);
 		return -1;
 	}
+	before = Xil_In32(DPLL_CONFIG_APPLY_Addr);
+	before_seq = (before & DPLL_CONFIG_APPLY_SEQ_MASK) >> DPLL_CONFIG_APPLY_SEQ_SHIFT;
 	Xil_Out32(DPLL_CONFIG_APPLY_Addr, 1);
-	return 0;
+	for (poll = 0; poll < DPLL_APPLY_POLL_LIMIT; ++poll) {
+		status = Xil_In32(DPLL_CONFIG_APPLY_Addr);
+		seq = (status & DPLL_CONFIG_APPLY_SEQ_MASK) >> DPLL_CONFIG_APPLY_SEQ_SHIFT;
+		if ((seq != before_seq) && ((status & DPLL_CONFIG_APPLY_BUSY_MASK) == 0U)) {
+			return 0;
+		}
+	}
+	return -2;
 }
-
+static void pc_send_dpll_apply_result(int apply_status)
+{
+	if (apply_status == -1) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
+		return;
+	}
+	if (apply_status != 0) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_TIMEOUT);
+		return;
+	}
+	PC_HOST_Send_ASK_Only(0);
+}
 static int dpll_set_enable(uint32_t enable)
 {
 	if (enable && !dpll_abi_ready) {
@@ -779,11 +809,7 @@ void CMD_86_WRITE_DPLL_LOOP_BASIC(void)
     Xil_Out32(DPLL_PLL_KI_TRACK_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[8]));
     Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[12]));
     Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[16]));
-	if (dpll_apply_config() != 0) {
-		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
-		return;
-	}
-	PC_HOST_Send_ASK_Only(0);
+	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_87_WRITE_PLL_AMP(void)
 {
@@ -836,11 +862,7 @@ void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 	Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr, PC_HOST_CMD_data_Buff[42]);
 	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, PC_HOST_CMD_data_Buff[43]);
 	Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));
-	if (dpll_apply_config() != 0) {
-		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
-		return;
-	}
-	PC_HOST_Send_ASK_Only(0);
+	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_90_WRITE_FREQMETER_FREQ(void)
 {

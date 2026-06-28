@@ -19,6 +19,13 @@ def parse_expected(name: str, text: str) -> int:
     return int(match.group(1), 0)
 
 
+def parse_define_int(name: str, text: str) -> int:
+    match = re.search(rf"#define\s+{name}\s+(0x[0-9A-Fa-f]+|[0-9]+)U?", text)
+    if not match:
+        raise AssertionError(f"missing {name}")
+    return int(match.group(1), 0)
+
+
 def parse_dpll_addr(name: str, text: str) -> int:
     escaped = re.escape(name)
     direct = re.search(rf"#define\s+{escaped}\s+\(DPLL_BASE_ADDR\|\(0x([0-9A-Fa-f]+)<<2\)\)", text)
@@ -99,7 +106,8 @@ class DpllArmModel:
         return 0
 
     def write_adv_config(self, payload: bytes) -> int:
-        if len(payload) < 46 or payload[3] < 42:
+        required_payload = parse_define_int("DPLL_ADV_CONFIG_PAYLOAD_BYTES", read_gbk(ARM))
+        if len(payload) < 4 + required_payload or payload[3] < required_payload:
             return 0xF2
 
         sequence = [
@@ -121,6 +129,21 @@ class DpllArmModel:
             self.mmio.write(self.addrs[name], value)
 
         return 0 if self.apply_config() == 0 else self.expected["ABI_ERR"]
+
+    def write_debug_config(self, payload: bytes) -> int:
+        required_payload = parse_define_int("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", read_gbk(ARM))
+        if len(payload) < 4 + required_payload or payload[3] < required_payload:
+            return 0xF2
+
+        sequence = [
+            ("DAC1_DDS_Frequency_Addr", u32le(payload, 4)),
+            ("DAC1_DDS_Phase_Addr", u32le(payload, 8)),
+            ("DAC1_DDS_Offset_Addr", u16le(payload, 12)),
+            ("DAC1_DDS_Amplitude_Addr", u16le(payload, 14)),
+        ]
+        for name, value in sequence:
+            self.mmio.write(self.addrs[name], value)
+        return 0
 
 
 class DpllArmMockMmioTest(unittest.TestCase):
@@ -148,6 +171,10 @@ class DpllArmMockMmioTest(unittest.TestCase):
             "DPLL_POST_IQ_CIC_SHIFT_Addr",
             "DPLL_FLL_DELAY_SEL_Addr",
             "DPLL_WARMUP_SAMPLES_Addr",
+            "DAC1_DDS_Frequency_Addr",
+            "DAC1_DDS_Phase_Addr",
+            "DAC1_DDS_Offset_Addr",
+            "DAC1_DDS_Amplitude_Addr",
         ]
         cls.addrs = {name: parse_dpll_addr(name, cls.periph) for name in names}
         cls.expected = {
@@ -173,8 +200,12 @@ class DpllArmMockMmioTest(unittest.TestCase):
         self.assertIn("Xil_In32(DPLL_CONFIG_APPLY_Addr)", self.arm)
         self.assertIn("DPLL_CONFIG_APPLY_SEQ_MASK", self.periph)
         self.assertIn("PC_ERR_DPLL_APPLY_TIMEOUT", self.arm)
-        self.assertIn("if (pc_payload_len() < 42)", self.arm)
+        self.assertEqual(parse_define_int("DPLL_ADV_CONFIG_PAYLOAD_BYTES", self.arm), 42)
+        self.assertEqual(parse_define_int("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", self.arm), 12)
+        self.assertIn("if (pc_payload_len() < DPLL_ADV_CONFIG_PAYLOAD_BYTES)", self.arm)
+        self.assertIn("if (pc_payload_len() < DPLL_DEBUG_CONFIG_PAYLOAD_BYTES)", self.arm)
         self.assertIn("Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));", self.arm)
+        self.assertIn("Xil_Out32(DAC1_DDS_Amplitude_Addr, pc_get_u16(14));", self.arm)
         self.assertIn("DPLL_CORE_FLAG_VCO_MUL_DIV_CONFIG_ERROR (1U<<17)", self.periph)
 
     def test_core_flags_exposes_vco_mul_div_config_error_bit(self):
@@ -267,6 +298,32 @@ class DpllArmMockMmioTest(unittest.TestCase):
         payload = bytearray(46)
         payload[3] = 41
         self.assertEqual(model.write_adv_config(bytes(payload)), 0xF2)
+        self.assertEqual(mmio.writes, [])
+
+    def test_debug_config_payload_length_covers_all_fields(self):
+        mmio, model = self.make_model()
+        payload = bytearray(16)
+        payload[3] = parse_define_int("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", self.arm)
+        payload[4:8] = (0x01020304).to_bytes(4, "little")
+        payload[8:12] = (0x11121314).to_bytes(4, "little")
+        payload[12:14] = (0x2526).to_bytes(2, "little")
+        payload[14:16] = (0x3536).to_bytes(2, "little")
+
+        self.assertEqual(model.write_debug_config(bytes(payload)), 0)
+        expected_names = [
+            "DAC1_DDS_Frequency_Addr",
+            "DAC1_DDS_Phase_Addr",
+            "DAC1_DDS_Offset_Addr",
+            "DAC1_DDS_Amplitude_Addr",
+        ]
+        self.assertEqual([addr for addr, _ in mmio.writes], [self.addrs[name] for name in expected_names])
+        self.assertEqual([value for _, value in mmio.writes], [0x01020304, 0x11121314, 0x2526, 0x3536])
+
+    def test_short_debug_config_payload_does_not_touch_mmio(self):
+        mmio, model = self.make_model()
+        payload = bytearray(16)
+        payload[3] = parse_define_int("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", self.arm) - 1
+        self.assertEqual(model.write_debug_config(bytes(payload)), 0xF2)
         self.assertEqual(mmio.writes, [])
 
 

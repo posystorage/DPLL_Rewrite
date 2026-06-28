@@ -172,6 +172,16 @@ def main() -> int:
         "`CONFIG_APPLY` readback exposes busy/sequence status and ARM polls for a changed sequence before ACK",
     ))
     checks.append(check(
+        "#define DPLL_ADV_CONFIG_PAYLOAD_BYTES     42U" in arm
+        and "#define DPLL_DEBUG_CONFIG_PAYLOAD_BYTES   12U" in arm
+        and "if (pc_payload_len() < DPLL_ADV_CONFIG_PAYLOAD_BYTES)" in arm
+        and "if (pc_payload_len() < DPLL_DEBUG_CONFIG_PAYLOAD_BYTES)" in arm
+        and "Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));" in arm
+        and "Xil_Out32(DAC1_DDS_Amplitude_Addr, pc_get_u16(14));" in arm,
+        "ARM DPLL command payload length checks cover the highest consumed byte offsets",
+        "`CMD_8F` requires 42 payload bytes for offsets 4..45; `CMD_97` requires 12 payload bytes for offsets 4..15",
+    ))
+    checks.append(check(
         "requested_config_is_legal" in vco
         and "PLL_Div_factor != 16'd0" in vco
         and "!PLL_Div_factor[15]" not in vco

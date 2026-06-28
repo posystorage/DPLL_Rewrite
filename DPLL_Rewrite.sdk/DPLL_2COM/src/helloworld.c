@@ -149,6 +149,8 @@ uint64_t Freq_meter_gate_time_cache = 0;
 #define PC_ERR_DPLL_ABI_MISMATCH          0xF3U
 #define PC_ERR_DPLL_APPLY_TIMEOUT         0xF5U
 #define DPLL_APPLY_POLL_LIMIT             1024U
+#define DPLL_ADV_CONFIG_PAYLOAD_BYTES     42U
+#define DPLL_DEBUG_CONFIG_PAYLOAD_BYTES   12U
 
 static uint8_t dpll_abi_ready = 0;
 
@@ -845,7 +847,7 @@ void CMD_87_WRITE_PLL_AMP(void)
 
 void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 {
-	if (pc_payload_len() < 42) {
+	if (pc_payload_len() < DPLL_ADV_CONFIG_PAYLOAD_BYTES) {
 		PC_HOST_Send_ASK_Only(0xF2);
 		return;
 	}
@@ -922,7 +924,7 @@ void CMD_94_WRITE_FREQMETER_TIMER(void)
 
 void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 {
-	if (pc_payload_len() < 12) {
+	if (pc_payload_len() < DPLL_DEBUG_CONFIG_PAYLOAD_BYTES) {
 		PC_HOST_Send_ASK_Only(0xF2);
 		return;
 	}

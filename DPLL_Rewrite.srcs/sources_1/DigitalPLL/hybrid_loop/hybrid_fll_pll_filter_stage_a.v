@@ -62,6 +62,8 @@ module hybrid_fll_pll_filter_stage_a #(
     reg signed [STATE_WIDTH:0] negative_limit_ext_r;
     reg allow_state_update_r;
     reg [3:0] valid_pipe;
+    (* keep = "true", dont_touch = "true" *) reg rst_pipe_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_output_r;
 
     wire signed [F_PRODUCT_WIDTH-1:0] fll_product_next;
     wire signed [P_PRODUCT_WIDTH-1:0] i_product_next;
@@ -134,13 +136,12 @@ module hybrid_fll_pll_filter_stage_a #(
     assign allow_state_update = !(push_high || push_low);
 
     always @(posedge clk_125m) begin
-        if (rst_125m) begin
-            correction_valid <= 1'b0;
-            freq_state <= {STATE_WIDTH{1'b0}};
-            freq_correction <= {STATE_WIDTH{1'b0}};
-            tracking_word <= {WORD_WIDTH{1'b0}};
-            saturated_high <= 1'b0;
-            saturated_low <= 1'b0;
+        rst_pipe_r <= rst_125m;
+        rst_output_r <= rst_125m;
+    end
+
+    always @(posedge clk_125m) begin
+        if (rst_pipe_r) begin
             fll_product_r <= {F_PRODUCT_WIDTH{1'b0}};
             i_product_r <= {P_PRODUCT_WIDTH{1'b0}};
             p_product_r <= {P_PRODUCT_WIDTH{1'b0}};
@@ -170,7 +171,6 @@ module hybrid_fll_pll_filter_stage_a #(
             allow_state_update_r <= 1'b0;
             valid_pipe <= 4'b0000;
         end else begin
-            correction_valid <= 1'b0;
             product_valid_r <= error_valid;
             valid_pipe <= {valid_pipe[2:0], product_valid_r};
 
@@ -211,6 +211,20 @@ module hybrid_fll_pll_filter_stage_a #(
                 negative_limit_ext_r <= negative_limit_ext;
                 allow_state_update_r <= allow_state_update;
             end
+
+        end
+    end
+
+    always @(posedge clk_125m) begin
+        if (rst_output_r) begin
+            correction_valid <= 1'b0;
+            freq_state <= {STATE_WIDTH{1'b0}};
+            freq_correction <= {STATE_WIDTH{1'b0}};
+            tracking_word <= {WORD_WIDTH{1'b0}};
+            saturated_high <= 1'b0;
+            saturated_low <= 1'b0;
+        end else begin
+            correction_valid <= 1'b0;
 
             if (valid_pipe[2]) begin
                 if (allow_state_update_r) begin

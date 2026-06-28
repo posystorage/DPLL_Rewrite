@@ -88,7 +88,16 @@ def main() -> int:
     checks.append(pass_if("PLL_VCO_MUL_DIV_inst" in wrapper and "mult_gen_pll VCO0_Multiplier" in vco and "div_gen_pll VCO0_Divider" in vco, "Output MUL/DIV uses existing Xilinx IP", "`mult_gen_pll` and `div_gen_pll` instantiated"))
     checks.append(pass_if(all(s in vco for s in ["ST_MULT_WAIT", "ST_DIV_SEND", "ST_DIV_WAIT", "ST_DIV_OUT"]), "Output MUL/DIV uses explicit multi-cycle start/done sequencing", "state machine around multiplier/divider IP"))
     checks.append(pass_if("debug_dac_formatter_stage_a debug_dac_formatter_inst" in wrapper and ".dac_sample(DACout1)" in wrapper, "DACout1 is registered debug formatter output", "`DACout1` connected only through debug formatter instance"))
-    checks.append(pass_if("MODE_RAW_BIT_WINDOW" in dbg and "product_r2 <= shifted_signed_r1 * gain_r1" in dbg, "DACout1 format register affects debug formatting", "raw-window and scaled modes implemented"))
+    checks.append(pass_if(
+        "MODE_RAW_BIT_WINDOW" in dbg
+        and "mode_r0 <= format_word[9:8]" in dbg
+        and (
+            "product_r2 <= shifted_signed_r1 * gain_r1" in dbg
+            or "product_r3 <= shifted_signed_r2 * gain_r2" in dbg
+        ),
+        "DACout1 format register affects debug formatting",
+        "raw-window and scaled modes implemented",
+    ))
     checks.append(pass_if("DPLL_ABI_VERSION_Addr" in periph and "DPLL_FPGA_BUILD_ID_Addr" in periph, "ARM header exposes ABI/build registers", "v1 readback symbols present"))
     checks.append(pass_if("dpll_abi_ready = dpll_check_abi();" in arm and "action_status = (dpll_set_enable(1) == 0) ? STATUS_ACK : STATUS_NACK;" in arm, "ARM startup and STM control are ABI gated", "startup check plus command-result ACK/NACK"))
     checks.append(pass_if(all(token in arm_mock for token in ["MockMmio", "parse_dpll_addr", "write_adv_config", "DPLL_CONFIG_APPLY_Addr"]), "ARM mock MMIO tests cover ABI/APPLY control", "`verification/arm/test_dpll_control_mock.py` parses real register definitions"))

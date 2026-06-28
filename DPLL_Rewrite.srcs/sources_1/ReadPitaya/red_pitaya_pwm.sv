@@ -30,6 +30,9 @@ reg  [ 8-1: 0] vcnt, vcnt_r;
 reg  [ 8-1: 0] v   , v_r   ;
 // add some registers to help timing closure:
 reg [CCW-1:0] cfg_reg;
+reg cmp_hi_less_r;
+reg cmp_hi_equal_r;
+reg cmp_lo_less_equal_r;
 reg pwm_o_reg;
 
 always @(posedge clk)
@@ -42,6 +45,9 @@ begin
 	if (~rstn) begin
 	   vcnt  <=  8'h0;
 	   bcnt  <=  4'h0;
+	   cmp_hi_less_r <= 1'b0;
+	   cmp_hi_equal_r <= 1'b0;
+	   cmp_lo_less_equal_r <= 1'b0;
 	   pwm_o_reg <=  1'b0;
 	end else begin
 	   vcnt   <= (vcnt == FULL) ? 8'h1 : (vcnt + 8'd1) ;
@@ -52,8 +58,10 @@ begin
 		  v    <= (bcnt == 4'hF) ? cfg_reg[24-1:16] : v ; // new value on 16*FULL
 		  b    <= (bcnt == 4'hF) ? cfg_reg[16-1:0] : {1'b0,b[15:1]} ; // shift right
 	   end
-	   // make PWM duty cycle
-	   pwm_o_reg <= (vcnt_r <= v_r) ;
+	   cmp_hi_less_r <= (vcnt_r[7:4] < v_r[7:4]);
+	   cmp_hi_equal_r <= (vcnt_r[7:4] == v_r[7:4]);
+	   cmp_lo_less_equal_r <= (vcnt_r[3:0] <= v_r[3:0]);
+	   pwm_o_reg <= cmp_hi_less_r || (cmp_hi_equal_r && cmp_lo_less_equal_r);
    end
 end
 

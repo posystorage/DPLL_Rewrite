@@ -252,13 +252,19 @@ wire        pre_cic_ready;
 
 reg rst_125m_meta;
 reg rst_125m_sync;
+(* keep = "true", dont_touch = "true" *) reg rst_debug_r;
+(* keep = "true", dont_touch = "true" *) reg rst_status_r;
 always @(posedge clk1 or negedge rst) begin
     if (!rst) begin
         rst_125m_meta <= 1'b1;
         rst_125m_sync <= 1'b1;
+        rst_debug_r <= 1'b1;
+        rst_status_r <= 1'b1;
     end else begin
         rst_125m_meta <= ok_reset;
         rst_125m_sync <= rst_125m_meta;
+        rst_debug_r <= rst_125m_sync;
+        rst_status_r <= rst_125m_sync;
     end
 end
 assign rst_125m_stage_a = rst_125m_sync;
@@ -427,13 +433,21 @@ function signed [31:0] debug_source_mux;
     end
 endfunction
 
-wire signed [31:0] debug_word = debug_source_mux(debug_dac_source[3:0]);
+reg signed [31:0] debug_word_r;
+
+always @(posedge clk1) begin
+    if (rst_debug_r) begin
+        debug_word_r <= 32'sd0;
+    end else begin
+        debug_word_r <= debug_source_mux(debug_dac_source[3:0]);
+    end
+end
 
 debug_dac_formatter_stage_a debug_dac_formatter_inst (
     .clk_125m(clk1),
-    .rst_125m(rst_125m_stage_a),
+    .rst_125m(rst_debug_r),
     .source_valid(1'b1),
-    .source_word(debug_word),
+    .source_word(debug_word_r),
     .format_word(debug_dac_format),
     .gain(debug_dac_gain),
     .offset({{2{debug_dac_offset[13]}}, debug_dac_offset}),
@@ -453,7 +467,7 @@ reg LED_R0;
 reg [23:0] status_counter;
 
 always @(posedge clk1) begin
-    if (rst_125m_stage_a) begin
+    if (rst_status_r) begin
         residuals0_are_above_threshold <= 1'b0;
         LED_G0 <= 1'b0;
         LED_R0 <= 1'b1;

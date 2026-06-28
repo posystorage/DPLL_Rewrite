@@ -134,11 +134,14 @@ module dpll_single_clock_core_stage_a #(
     wire saturated_high;
     wire saturated_low;
     (* keep = "true", dont_touch = "true" *) reg rst_nco_r;
-    (* keep = "true", dont_touch = "true" *) reg rst_frontend_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_dc_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_mixer_r;
     (* keep = "true", dont_touch = "true" *) reg rst_cic_r;
     (* keep = "true", dont_touch = "true" *) reg rst_detector_r;
     (* keep = "true", dont_touch = "true" *) reg rst_state_r;
+    (* keep = "true", dont_touch = "true" *) reg rst_measure_r;
     (* keep = "true", dont_touch = "true" *) reg rst_hybrid_r;
+    (* keep = "true", dont_touch = "true" *) reg nco_word_ready_dds_r;
 
     assign nco_word = tracking_word_hold;
     assign tracking_word = tracking_word_hold;
@@ -147,10 +150,12 @@ module dpll_single_clock_core_stage_a #(
 
     always @(posedge clk_125m) begin
         rst_nco_r <= rst_125m;
-        rst_frontend_r <= rst_125m;
+        rst_dc_r <= rst_125m;
+        rst_mixer_r <= rst_125m;
         rst_cic_r <= rst_125m;
         rst_detector_r <= rst_125m;
         rst_state_r <= rst_125m;
+        rst_measure_r <= rst_125m;
         rst_hybrid_r <= rst_125m;
     end
 
@@ -158,15 +163,21 @@ module dpll_single_clock_core_stage_a #(
         if (rst_nco_r) begin
             tracking_word_hold <= {WORD_WIDTH{1'b0}};
             nco_word_ready <= 1'b0;
+            nco_word_ready_dds_r <= 1'b0;
         end else if (!loop_enable) begin
             tracking_word_hold <= center_word;
             nco_word_ready <= |center_word;
+            nco_word_ready_dds_r <= nco_word_ready;
         end else if (correction_valid) begin
             tracking_word_hold <= correction_tracking_word;
             nco_word_ready <= |correction_tracking_word;
+            nco_word_ready_dds_r <= nco_word_ready;
         end else if (tracking_word_hold == {WORD_WIDTH{1'b0}}) begin
             tracking_word_hold <= center_word;
             nco_word_ready <= |center_word;
+            nco_word_ready_dds_r <= nco_word_ready;
+        end else begin
+            nco_word_ready_dds_r <= nco_word_ready;
         end
     end
 
@@ -185,7 +196,7 @@ module dpll_single_clock_core_stage_a #(
 
     LO_DDS_H tracking_lo_dds_inst (
         .aclk(clk_125m),
-        .s_axis_phase_tvalid(nco_word_ready),
+        .s_axis_phase_tvalid(nco_word_ready_dds_r),
         .s_axis_phase_tdata(nco_word),
         .m_axis_data_tvalid(dds_valid),
         .m_axis_data_tdata(dds_data),
@@ -202,7 +213,7 @@ module dpll_single_clock_core_stage_a #(
         .LEAK_SHIFT(7)
     ) dc_blocker_inst (
         .clk_125m(clk_125m),
-        .rst_125m(rst_frontend_r),
+        .rst_125m(rst_dc_r),
         .in_valid(sample_valid),
         .sample_in(adc_sample),
         .out_valid(dc_valid),
@@ -210,7 +221,7 @@ module dpll_single_clock_core_stage_a #(
     );
 
     always @(posedge clk_125m) begin
-        if (rst_frontend_r) begin
+        if (rst_mixer_r) begin
             adc_sample_r0 <= {ADC_WIDTH{1'b0}};
             adc_sample_r1 <= {ADC_WIDTH{1'b0}};
             lo_cos_r0 <= 16'sd0;
@@ -303,7 +314,7 @@ module dpll_single_clock_core_stage_a #(
                       freq_error;
 
     always @(posedge clk_125m) begin
-        if (rst_state_r) begin
+        if (rst_measure_r) begin
             phase_error_hold <= {PHASE_WIDTH{1'b0}};
             cordic_magnitude_hold <= 16'd0;
             freq_error_valid_d <= 1'b0;

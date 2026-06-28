@@ -135,6 +135,9 @@ wire             ps_sys_ren         ;
 wire  [ 32-1: 0] ps_sys_rdata       ;
 wire             ps_sys_err         ;
 wire             ps_sys_ack         ;
+reg   [ 32-1: 0] ps_sys_rdata_r     ;
+reg              ps_sys_err_r       ;
+reg              ps_sys_ack_r       ;
 
 // AXI masters
 //wire             axi1_clk    , axi0_clk    ;
@@ -190,9 +193,9 @@ red_pitaya_ps i_ps (
   .sys_sel_o     (ps_sys_sel  ),  // system write byte select
   .sys_wen_o     (ps_sys_wen  ),  // system write enable
   .sys_ren_o     (ps_sys_ren  ),  // system read enable
-  .sys_rdata_i   (ps_sys_rdata),  // system read data
-  .sys_err_i     (ps_sys_err  ),  // system error indicator
-  .sys_ack_i     (ps_sys_ack  ),  // system acknowledge signal
+  .sys_rdata_i   (ps_sys_rdata_r),  // system read data
+  .sys_err_i     (ps_sys_err_r  ),  // system error indicator
+  .sys_ack_i     (ps_sys_ack_r  ),  // system acknowledge signal
   // AXI masters
   .axi0_clk_i(adc_clk_in),
 //  .axi1_clk_i    (axi1_clk    ),  .axi0_clk_i    (axi0_clk    ),  // global clock
@@ -236,6 +239,18 @@ assign ps_sys_rdata = sys_rdata[sys_addr[22:20]*32+:32];
 
 assign ps_sys_err   = |(sys_cs & sys_err);
 assign ps_sys_ack   = |(sys_cs & sys_ack);
+
+always @(posedge ps_sys_clk) begin
+  if (!ps_sys_rstn) begin
+    ps_sys_rdata_r <= 32'h0;
+    ps_sys_err_r   <= 1'b0;
+    ps_sys_ack_r   <= 1'b0;
+  end else begin
+    ps_sys_rdata_r <= ps_sys_rdata;
+    ps_sys_err_r   <= ps_sys_err;
+    ps_sys_ack_r   <= ps_sys_ack;
+  end
+end
 
 // unused system bus slave ports
 

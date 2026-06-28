@@ -11,6 +11,7 @@ module hybrid_fll_pll_filter_stage_a #(
 ) (
     input  wire                                  clk_125m,
     input  wire                                  rst_125m,
+    input  wire                                  clear,
     input  wire                                  error_valid,
     input  wire                                  enable_fll,
     input  wire                                  enable_pll_i,
@@ -164,10 +165,47 @@ module hybrid_fll_pll_filter_stage_a #(
     end
 
     always @(posedge clk_125m) begin
-        if (rst_pipe_r) begin
+        if (rst_pipe_r || clear) begin
             product_valid_r <= 1'b0;
             product_operand_valid_r <= 1'b0;
             valid_pipe <= 4'b0000;
+            enable_fll_mul_r <= 1'b0;
+            enable_pll_i_mul_r <= 1'b0;
+            enable_pll_p_mul_r <= 1'b0;
+            enable_fll_operand_r <= 1'b0;
+            enable_pll_i_operand_r <= 1'b0;
+            enable_pll_p_operand_r <= 1'b0;
+            enable_fll_product_r <= 1'b0;
+            enable_pll_i_product_r <= 1'b0;
+            enable_pll_p_product_r <= 1'b0;
+            phase_error_mul_r <= {PHASE_WIDTH{1'b0}};
+            freq_error_mul_r <= {FERR_WIDTH{1'b0}};
+            kf_mul_r <= {COEFF_WIDTH{1'b0}};
+            ki_mul_r <= {COEFF_WIDTH{1'b0}};
+            kp_mul_r <= {COEFF_WIDTH{1'b0}};
+            phase_error_product_r <= {PHASE_WIDTH{1'b0}};
+            freq_error_product_r <= {FERR_WIDTH{1'b0}};
+            kf_product_r <= {COEFF_WIDTH{1'b0}};
+            ki_product_r <= {COEFF_WIDTH{1'b0}};
+            kp_product_r <= {COEFF_WIDTH{1'b0}};
+            fll_product_r <= {F_PRODUCT_WIDTH{1'b0}};
+            i_product_r <= {P_PRODUCT_WIDTH{1'b0}};
+            p_product_r <= {P_PRODUCT_WIDTH{1'b0}};
+            fll_term_r <= {STATE_WIDTH{1'b0}};
+            i_term_r <= {STATE_WIDTH{1'b0}};
+            p_term_r <= {STATE_WIDTH{1'b0}};
+            center_word_r0 <= {WORD_WIDTH{1'b0}};
+            center_word_r1 <= {WORD_WIDTH{1'b0}};
+            center_word_operand_r <= {WORD_WIDTH{1'b0}};
+            center_word_product_r <= {WORD_WIDTH{1'b0}};
+            positive_limit_r0 <= {STATE_WIDTH{1'b0}};
+            negative_limit_r0 <= {STATE_WIDTH{1'b0}};
+            positive_limit_r1 <= {STATE_WIDTH{1'b0}};
+            negative_limit_r1 <= {STATE_WIDTH{1'b0}};
+            positive_limit_operand_r <= {STATE_WIDTH{1'b0}};
+            negative_limit_operand_r <= {STATE_WIDTH{1'b0}};
+            positive_limit_product_r <= {STATE_WIDTH{1'b0}};
+            negative_limit_product_r <= {STATE_WIDTH{1'b0}};
         end else begin
             product_valid_r <= error_valid;
             product_operand_valid_r <= product_valid_r;
@@ -226,7 +264,7 @@ module hybrid_fll_pll_filter_stage_a #(
     end
 
     always @(posedge clk_125m) begin
-        if (rst_output_r) begin
+        if (rst_output_r || clear) begin
             correction_valid <= 1'b0;
             freq_state <= {STATE_WIDTH{1'b0}};
             freq_correction <= {STATE_WIDTH{1'b0}};

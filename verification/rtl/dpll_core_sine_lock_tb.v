@@ -65,7 +65,7 @@ module dpll_core_sine_lock_tb;
         .kf_track(24'sd8192),
         .kp_blend(24'sd1024),
         .ki_blend(24'sd1024),
-        .phase_setpoint(18'sd0),
+        .phase_setpoint(-18'sd65536),
         .phase_lock_threshold(18'd131071),
         .freq_lock_threshold(22'd2097151),
         .mag_enter_threshold(16'd1),

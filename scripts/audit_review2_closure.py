@@ -51,6 +51,7 @@ def main() -> int:
     dds_ip_checker = read(ROOT / "verification" / "fixed_point" / "check_lo_dds_h_streaming_pinc_trace.py")
     nonzero_core_checker = read(ROOT / "verification" / "fixed_point" / "check_dpll_core_nonzero_tracking_trace.py")
     sine_lock_checker = read(ROOT / "verification" / "fixed_point" / "check_dpll_core_sine_lock_trace.py")
+    sine_sweep_checker = read(ROOT / "verification" / "fixed_point" / "check_dpll_core_sine_sweep_trace.py")
     arm_mock = read(ROOT / "verification" / "arm" / "test_dpll_control_mock.py")
     post_iq_tb = read(ROOT / "verification" / "rtl" / "post_iq_cic_stage_a_tb.v")
     dc_tb = read(ROOT / "verification" / "rtl" / "dc_blocker_valid_stage_a_tb.v")
@@ -59,6 +60,7 @@ def main() -> int:
     dds_ip_tb = read(ROOT / "verification" / "rtl" / "lo_dds_h_streaming_pinc_tb.v")
     nonzero_core_tb = read(ROOT / "verification" / "rtl" / "dpll_core_nonzero_tracking_tb.v")
     sine_lock_tb = read(ROOT / "verification" / "rtl" / "dpll_core_sine_lock_tb.v")
+    sine_sweep_tb = read(ROOT / "verification" / "rtl" / "dpll_core_sine_sweep_tb.v")
     vco_tb = read(ROOT / "verification" / "rtl" / "pll_vco_mul_div_tb.v")
     loop_tb = read(ROOT / "verification" / "rtl" / "loop_state_manager_stage_a_tb.v")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
@@ -390,6 +392,7 @@ def main() -> int:
         and "CENTER_HZ = 20000.0" in sine_lock_tb
         and ".cic_rate_r(9'd78)" in sine_lock_tb
         and ".cic_output_shift(6'd13)" in sine_lock_tb
+        and ".phase_setpoint(-18'sd65536)" in sine_lock_tb
         and "positive_tracking_delta_count" in sine_lock_tb
         and "fll_valid_count" in sine_lock_tb
         and "PASS: dpll_core_sine_lock_tb" in sine_lock_tb
@@ -397,7 +400,24 @@ def main() -> int:
         and "real DDS/mixer/CIC/CORDIC/FLL/hybrid path observes valid FLL measurements" in sine_lock_checker
         and "PASS: DPLL core sine-lock trace" in sine_lock_checker,
         "Core-level sine-input RTL/IP trace covers nonzero-gain lock response on the real signal path",
-        "`dpll_core_sine_lock_tb` drives a 20.1 kHz sine at the equivalent 3.125 MSPS cadence through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path using the 20 kHz R=78 post-IQ CIC configuration; checker verifies valid FLL measurements, nonzero positive tracking response, and TRACK/locked samples",
+        "`dpll_core_sine_lock_tb` drives a 20.1 kHz sine at the equivalent 3.125 MSPS cadence through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path using the 20 kHz R=78 post-IQ CIC configuration and a sine-appropriate `-pi/2` phase setpoint; checker verifies valid FLL measurements, nonzero positive tracking response, and TRACK/locked samples",
+    ))
+    checks.append(check(
+        "dpll_core_sine_sweep_trace.csv" in sine_sweep_tb
+        and "localparam integer CASES = 7;" in sine_sweep_tb
+        and "center_hz = 5000.0;" in sine_sweep_tb
+        and "center_hz = 10000.0;" in sine_sweep_tb
+        and "center_hz = 20000.0;" in sine_sweep_tb
+        and "center_hz = 50000.0;" in sine_sweep_tb
+        and "center_hz = 100000.0;" in sine_sweep_tb
+        and "center_hz = 150000.0;" in sine_sweep_tb
+        and "center_hz = 200000.0;" in sine_sweep_tb
+        and ".phase_setpoint(-18'sd65536)" in sine_sweep_tb
+        and "EXPECTED_CENTERS = [5_000.0, 10_000.0, 20_000.0, 50_000.0, 100_000.0, 150_000.0, 200_000.0]" in sine_sweep_checker
+        and "review2 5, 10, 20, 50, 100, 150, and 200 kHz centers" in sine_sweep_checker
+        and "PASS: DPLL core sine sweep trace" in sine_sweep_checker,
+        "Core-level sine-input RTL/IP sweep covers the review2 5-200 kHz frequency points",
+        "`dpll_core_sine_sweep_tb` drives high-side sine inputs through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path at 5/10/20/50/100/150/200 kHz centers using the v1 post-IQ CIC settings and a sine-appropriate `-pi/2` phase setpoint; checker verifies FLL-valid, nonzero positive tracking, TRACK, locked, and frequency-word evidence for every case",
     ))
     legacy_dpll_xpr_entries = [
         "sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v",

@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import csv
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+from dpll_fixed import freq_word_from_hz, unsigned
+
+
+ROOT = Path(__file__).resolve().parents[2]
+REPORT = ROOT / "reports" / "dpll_core_sine_sweep_trace_20260629.md"
+STABLE_TRACE = ROOT / "reports" / "dpll_core_sine_sweep_trace_20260629.csv"
+EXPECTED_CENTERS = [5_000.0, 10_000.0, 20_000.0, 50_000.0, 100_000.0, 150_000.0, 200_000.0]
+
+
+def parse_int(value: str) -> int:
+    return int(value, 0)
+
+
+def parse_float(value: str) -> float:
+    return float(value)
+
+
+def latest_trace() -> Path:
+    traces = sorted(
+        ROOT.glob("reports/xsim/dpll_core_sine_sweep_*/dpll_core_sine_sweep_trace.csv"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not traces:
+        raise FileNotFoundError("no dpll_core_sine_sweep_trace.csv found under reports/xsim")
+    return traces[0]
+
+
+def load_rows(path: Path) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def write_stable_trace(rows: list[dict[str, str]]) -> None:
+    if not rows:
+        STABLE_TRACE.write_text("", encoding="utf-8")
+        return
+    with STABLE_TRACE.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def check_case(case_index: int, rows: list[dict[str, str]]) -> tuple[list[str], str]:
+    failures: list[str] = []
+    center_hz = parse_float(rows[0]["center_hz"])
+    input_hz = parse_float(rows[0]["input_hz"])
+    center_word = parse_int(rows[0]["center_word"])
+    expected_center = freq_word_from_hz(center_hz)
+    expected_input = freq_word_from_hz(input_hz)
+    expected_delta = unsigned(expected_input - expected_center, 48)
+    if center_word != expected_center:
+        failures.append(f"center word 0x{center_word:012x} != golden 0x{expected_center:012x}")
+    if input_hz <= center_hz:
+        failures.append(f"input_hz {input_hz} must be above center_hz {center_hz}")
+
+    sample_counts: list[int] = []
+    fll_valid_counts: list[int] = []
+    magnitudes: list[int] = []
+    distinct_tracking: set[int] = set()
+    nonzero = 0
+    positive = 0
+    track = 0
+    locked = 0
+    signal = 0
+    for index, row in enumerate(rows):
+        row_index = parse_int(row["index"])
+        if row_index != index:
+            failures.append(f"row index {row_index} != {index}")
+        sample_counts.append(parse_int(row["sample_count"]))
+        fll_valid_counts.append(parse_int(row["fll_valid_count"]))
+        tracking_word = parse_int(row["tracking_word"])
+        distinct_tracking.add(tracking_word)
+        if parse_int(row["freq_correction"]) != 0:
+            nonzero += 1
+        if tracking_word > center_word:
+            positive += 1
+        if parse_int(row["loop_state"]) == 6:
+            track += 1
+        if parse_int(row["locked"]):
+            locked += 1
+        if parse_int(row["signal_present"]):
+            signal += 1
+        magnitudes.append(parse_int(row["magnitude"]))
+
+    if len(rows) < 16:
+        failures.append(f"tracking rows {len(rows)} < 16")
+    if nonzero < 8:
+        failures.append(f"nonzero corrections {nonzero} < 8")
+    if positive < 4:
+        failures.append(f"positive tracking rows {positive} < 4")
+    if len(distinct_tracking) < 8:
+        failures.append(f"distinct tracking words {len(distinct_tracking)} < 8")
+    if track < 8:
+        failures.append(f"TRACK rows {track} < 8")
+    if locked < 8:
+        failures.append(f"locked rows {locked} < 8")
+    if signal < 8:
+        failures.append(f"signal-present rows {signal} < 8")
+    if fll_valid_counts[-1] < 16:
+        failures.append(f"FLL-valid count {fll_valid_counts[-1]} < 16")
+    if max(magnitudes) <= 0:
+        failures.append("magnitude never became positive")
+    if any(b <= a for a, b in zip(sample_counts, sample_counts[1:])):
+        failures.append("sample_count is not strictly increasing")
+    if any(b < a for a, b in zip(fll_valid_counts, fll_valid_counts[1:])):
+        failures.append("fll_valid_count decreased")
+
+    result = "PASS" if not failures else "; ".join(failures)
+    line = (
+        f"| {case_index} | {center_hz:.0f} | {input_hz:.0f} | "
+        f"`0x{center_word:012x}` | `0x{expected_input:012x}` | "
+        f"`0x{expected_delta:012x}` | {len(rows)} | {nonzero} | {positive} | "
+        f"{track} | {locked} | {fll_valid_counts[-1]} | {max(magnitudes)} | {result} |"
+    )
+    return [f"case {case_index}: {failure}" for failure in failures], line
+
+
+def check_rows(rows: list[dict[str, str]]) -> tuple[list[str], list[str]]:
+    failures: list[str] = []
+    grouped: dict[int, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        grouped[parse_int(row["case_index"])].append(row)
+
+    lines = [
+        "# DPLL Core Sine Sweep RTL Trace",
+        "",
+        "Generated by `python verification\\fixed_point\\check_dpll_core_sine_sweep_trace.py`.",
+        "",
+        "| Case | Center Hz | Input Hz | Center Word | Input Word | High-Side Delta | Rows | Nonzero | Positive | TRACK | Locked | FLL Valid | Max Mag | Result |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+    ]
+
+    if sorted(grouped) != list(range(len(EXPECTED_CENTERS))):
+        failures.append(f"expected case indexes 0..{len(EXPECTED_CENTERS)-1}, got {sorted(grouped)}")
+
+    for case_index, expected_center in enumerate(EXPECTED_CENTERS):
+        case_rows = grouped.get(case_index, [])
+        if not case_rows:
+            continue
+        center_hz = parse_float(case_rows[0]["center_hz"])
+        if abs(center_hz - expected_center) > 0.001:
+            failures.append(f"case {case_index}: center {center_hz} != expected {expected_center}")
+        case_failures, line = check_case(case_index, case_rows)
+        failures.extend(case_failures)
+        lines.append(line)
+
+    lines.extend([
+        "",
+        "Scope:",
+        "- This is a sine-input RTL/IP sweep over the review2 5, 10, 20, 50, 100, 150, and 200 kHz centers.",
+        "- It does not replace a complete tuned float/fixed/RTL control-model sign-off over every v1 frequency point.",
+    ])
+    return failures, lines
+
+
+def main() -> int:
+    trace = (ROOT / sys.argv[1]).resolve() if len(sys.argv) > 1 else latest_trace()
+    rows = load_rows(trace)
+    write_stable_trace(rows)
+    failures, lines = check_rows(rows)
+    lines.insert(4, f"Stable trace: `{STABLE_TRACE.relative_to(ROOT)}`")
+    lines.insert(5, f"Source run trace: `{trace.relative_to(ROOT)}`")
+    lines.insert(6, "")
+    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"trace={trace}")
+    print(f"report={REPORT}")
+    if failures:
+        print("FAIL:")
+        for failure in failures:
+            print(f"- {failure}")
+        return 1
+    print("PASS: DPLL core sine sweep trace")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

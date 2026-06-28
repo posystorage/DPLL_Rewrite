@@ -37,6 +37,7 @@ powershell -ExecutionPolicy Bypass -File scripts\run_input_multiplier_mixer_trac
 powershell -ExecutionPolicy Bypass -File scripts\run_pll_vco_mul_div_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_dpll_core_nonzero_tracking_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_dpll_core_sine_lock_trace.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_dpll_core_sine_sweep_trace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_dpll_multifrequency_path_xsim.ps1
 powershell -ExecutionPolicy Bypass -File scripts\run_multifrequency_golden_trace.ps1
 ```
@@ -80,9 +81,16 @@ corrections plus the registered next-row tracking-word update contract.
 `run_dpll_core_sine_lock_trace.ps1` drives a 20.1 kHz sine input at the
 equivalent 3.125 MSPS cadence into the real DDS/mixer/CIC/CORDIC/FLL/hybrid
 core path. The test uses the 20 kHz post-IQ CIC configuration from the fixed
-point v1 table, checks valid FLL measurements, nonzero positive tracking
-response, and TRACK/locked samples. It is a sine-input RTL/IP smoke trace, not
-a complete tuned float/fixed/RTL sign-off model.
+point v1 table and a `-pi/2` phase setpoint appropriate for sine stimulus,
+checks valid FLL measurements, nonzero positive tracking response, and
+TRACK/locked samples.
+
+`run_dpll_core_sine_sweep_trace.ps1` drives sine inputs across the review2
+5/10/20/50/100/150/200 kHz centers with the corresponding post-IQ CIC
+configurations from the fixed-point v1 table. It checks valid FLL
+measurements, nonzero high-side tracking response, and TRACK/locked samples
+through the real DDS/mixer/CIC/CORDIC/FLL/hybrid path. It is an RTL/IP closed
+loop smoke sweep, not a complete tuned control-theory sign-off model.
 
 ## Review Closure Audits
 

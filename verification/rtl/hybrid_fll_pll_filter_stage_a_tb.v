@@ -27,6 +27,7 @@ module hybrid_fll_pll_filter_stage_a_tb;
     hybrid_fll_pll_filter_stage_a dut (
         .clk_125m(clk_125m),
         .rst_125m(rst_125m),
+        .clear(1'b0),
         .error_valid(error_valid),
         .enable_fll(enable_fll),
         .enable_pll_i(enable_pll_i),

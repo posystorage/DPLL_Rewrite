@@ -142,6 +142,7 @@ def check_rows(rows: list[dict[str, str]]) -> tuple[list[str], list[str]]:
     final_delta = final_word - center_word
     lines.extend([
         f"Input sine: `{input_hz:.3f} Hz` at an equivalent 3.125 MSPS sample cadence.",
+        "Phase setpoint: `-pi/2` (`-65536` in 18-bit scaled-radian phase), matching sine stimulus after IQ translation.",
         f"Center word: `0x{center_word:012x}` (`{center_hz:.3f} Hz`).",
         f"Input golden word: `0x{expected_input:012x}`; high-side delta is about `0x{expected_delta:012x}`.",
         "",

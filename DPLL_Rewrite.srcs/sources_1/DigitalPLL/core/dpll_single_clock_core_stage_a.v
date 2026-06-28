@@ -168,7 +168,7 @@ module dpll_single_clock_core_stage_a #(
             tracking_word_hold <= {WORD_WIDTH{1'b0}};
             nco_word_ready <= 1'b0;
             nco_word_ready_dds_r <= 1'b0;
-        end else if (!loop_enable) begin
+        end else if (config_apply || !loop_enable) begin
             tracking_word_hold <= center_word;
             nco_word_ready <= |center_word;
             nco_word_ready_dds_r <= nco_word_ready;
@@ -469,6 +469,7 @@ module dpll_single_clock_core_stage_a #(
     ) hybrid_loop_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_hybrid_r),
+        .clear(config_apply),
         .error_valid(hybrid_error_valid_r),
         .enable_fll(hybrid_enable_fll_r),
         .enable_pll_i(hybrid_enable_pll_i_r),

@@ -146,6 +146,20 @@ def main() -> int:
         "VCO MUL/DIV configuration error is exposed through documented core status bit 17",
         "`DPLL_CORE_FLAGS_Addr[17]` reports sticky VCO scaling config errors",
     ))
+    checks.append(check(
+        "cordic_phase_out" in core
+        and ".cordic_phase_out(dpll_cordic_phase)" in wrapper
+        and "debug_tracking_delta" in wrapper
+        and "debug_output_delta" in wrapper
+        and "4'h1: debug_source_mux = debug_tracking_delta[47:16];" in wrapper
+        and "4'h7: debug_source_mux = {{14{dpll_cordic_phase[17]}}, dpll_cordic_phase};" in wrapper
+        and "4'h8: debug_source_mux = {16'h0000, dpll_magnitude};" in wrapper
+        and "4'h9: debug_source_mux = debug_output_delta[47:16];" in wrapper
+        and "4'h7: debug_source_mux = {{16{dpll_lo_cos[15]}}, dpll_lo_cos};" not in wrapper
+        and "4'h8: debug_source_mux = {{16{dpll_lo_sin[15]}}, dpll_lo_sin};" not in wrapper,
+        "DACout1 debug source selector matches register-map v1",
+        "`DEBUG_DAC_SOURCE` values 1/7/8/9 map to tracking delta, CORDIC phase, magnitude, and output delta",
+    ))
 
     lines = [
         "# Review2 Closure Audit",

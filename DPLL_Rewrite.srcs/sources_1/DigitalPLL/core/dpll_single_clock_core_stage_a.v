@@ -43,6 +43,7 @@ module dpll_single_clock_core_stage_a #(
     input  wire signed [STATE_WIDTH-1:0]         negative_limit,
     output wire [WORD_WIDTH-1:0]                 tracking_word,
     output wire                                  tracking_valid,
+    output wire signed [PHASE_WIDTH-1:0]         cordic_phase_out,
     output wire signed [PHASE_WIDTH-1:0]         phase_error,
     output wire signed [FERR_WIDTH-1:0]          freq_error,
     output wire                                  freq_error_valid,
@@ -331,6 +332,7 @@ module dpll_single_clock_core_stage_a #(
         end
     end
 
+    assign cordic_phase_out = cordic_phase_word;
     assign phase_error = phase_error_hold;
 
     loop_state_manager_stage_a #(

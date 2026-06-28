@@ -281,6 +281,7 @@ cic_compiler_0 pre_iq_cic_40_inst (
 wire [47:0] dpll_tracking_word;
 wire        dpll_tracking_valid;
 wire signed [17:0] dpll_phase_error;
+wire signed [17:0] dpll_cordic_phase;
 wire signed [21:0] dpll_freq_error;
 wire        dpll_freq_error_valid;
 wire signed [19:0] dpll_i_baseband;
@@ -450,6 +451,7 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .negative_limit(correction_limit_neg),
     .tracking_word(dpll_tracking_word),
     .tracking_valid(dpll_tracking_valid),
+    .cordic_phase_out(dpll_cordic_phase),
     .phase_error(dpll_phase_error),
     .freq_error(dpll_freq_error),
     .freq_error_valid(dpll_freq_error_valid),
@@ -476,6 +478,10 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
 wire [47:0] manual_offset_word = {{16{active_manual_offset_dac0[31]}}, active_manual_offset_dac0};
 wire [47:0] vco_tracking_word = dpll_tracking_word + manual_offset_word;
 wire [47:0] VCO_Input0;
+wire signed [47:0] debug_tracking_delta =
+    $signed(dpll_tracking_word) - $signed(active_center_word);
+wire signed [47:0] debug_output_delta =
+    $signed(VCO_Input0) - $signed(dpll_tracking_word);
 wire        vco_mul_div_runtime_config_error;
 wire        vco_mul_div_config_error = vco_mul_div_runtime_config_error | vco_mul_div_apply_config_error;
 
@@ -521,15 +527,15 @@ function signed [31:0] debug_source_mux;
     begin
         case (sel)
             4'h0: debug_source_mux = dpll_freq_correction[55:24];
-            4'h1: debug_source_mux = {16'h0000, vco_tracking_word[47:32]};
+            4'h1: debug_source_mux = debug_tracking_delta[47:16];
             4'h2: debug_source_mux = dpll_freq_state[55:24];
             4'h3: debug_source_mux = {{14{dpll_phase_error[17]}}, dpll_phase_error};
             4'h4: debug_source_mux = {{10{dpll_freq_error[21]}}, dpll_freq_error};
             4'h5: debug_source_mux = {{12{dpll_i_baseband[19]}}, dpll_i_baseband};
             4'h6: debug_source_mux = {{12{dpll_q_baseband[19]}}, dpll_q_baseband};
-            4'h7: debug_source_mux = {{16{dpll_lo_cos[15]}}, dpll_lo_cos};
-            4'h8: debug_source_mux = {{16{dpll_lo_sin[15]}}, dpll_lo_sin};
-            4'h9: debug_source_mux = {16'h0000, dpll_magnitude};
+            4'h7: debug_source_mux = {{14{dpll_cordic_phase[17]}}, dpll_cordic_phase};
+            4'h8: debug_source_mux = {16'h0000, dpll_magnitude};
+            4'h9: debug_source_mux = debug_output_delta[47:16];
             4'hA: debug_source_mux = {28'h0, dpll_loop_state};
             default: debug_source_mux = {{14{dpll_phase_error[17]}}, dpll_phase_error};
         endcase

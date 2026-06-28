@@ -77,6 +77,7 @@ module dpll_multifrequency_path_tb;
         .negative_limit(-56'sd140737488355328),
         .tracking_word(tracking_word),
         .tracking_valid(tracking_valid),
+        .cordic_phase_out(),
         .phase_error(phase_error),
         .freq_error(freq_error),
         .freq_error_valid(freq_error_valid),

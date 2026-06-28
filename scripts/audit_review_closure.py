@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import subprocess
 from pathlib import Path
 
 
@@ -48,6 +49,22 @@ def no_active_clk_dpll() -> tuple[str, bool]:
     return pass_if(not hits, "No clk_dpll text remains in active DigitalPLL sources", ", ".join(hits) if hits else "0 hits")
 
 
+def no_retired_stage_a_stubs() -> tuple[str, bool]:
+    retired = [
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/clocking/dpll_clock_valid_stage_a.v",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v",
+        "verification/rtl/dpll_clock_valid_stage_a_tb.v",
+        "verification/rtl/tracking_phase_accumulator_stage_a_tb.v",
+        "scripts/run_clock_valid_stage_a_xsim.ps1",
+        "scripts/run_clock_valid_stage_a_xsim.tcl",
+        "scripts/vivado_stage_a_synth_check.tcl",
+        "scripts/vivado_stage_a_project_frontend_check.tcl",
+    ]
+    tracked = set(subprocess.run(["git", "ls-files"], cwd=ROOT, check=True, text=True, stdout=subprocess.PIPE).stdout.splitlines())
+    hits = [path for path in retired if path in tracked]
+    return pass_if(not hits, "Retired local NCO and 3.125MHz clock-valid stubs are not tracked", ", ".join(hits) if hits else "0 hits")
+
+
 def main() -> int:
     wrapper = read(DPLL / "dpll_wrapper.v")
     core = read(DPLL / "core" / "dpll_single_clock_core_stage_a.v")
@@ -73,6 +90,7 @@ def main() -> int:
     checks: list[tuple[str, bool]] = []
     checks.append(pass_if("DigitalPLL2" not in "\n".join(p.name for p in DPLL.rglob("*")), "No DigitalPLL2 artifact exists", "file-name scan under active DigitalPLL tree"))
     checks.append(no_active_clk_dpll())
+    checks.append(no_retired_stage_a_stubs())
     pre_iq_cic_vhd = read(DPLL / "DDC" / "ip" / "pre_iq_cic_40_125m_v1" / "pre_iq_cic_40_125m_v1" / "synth" / "pre_iq_cic_40_125m_v1.vhd")
     checks.append(pass_if("pre_iq_cic_40_125m_v1 pre_iq_cic_40_inst" in wrapper and ".m_axis_data_tvalid(pre_cic_valid)" in wrapper, "Pre-IQ /40 path uses Xilinx CIC valid", "`pre_iq_cic_40_125m_v1` drives `pre_cic_valid`"))
     checks.append(pass_if('C_RATE=40' in pre_iq_cic_vhd, "Pre-IQ CIC IP is configured for R=40", "Xilinx CIC Compiler metadata has `C_RATE=40`"))

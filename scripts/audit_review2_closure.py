@@ -104,9 +104,11 @@ def main() -> int:
     checks.append(check(
         "tracking_phase_accumulator_stage_a" not in core
         and "PARAM_VALUE.Phase_Increment\">Streaming" in dds_xci
-        and "LO_DDS_H tracking_lo_dds_inst" in core,
+        and "LO_DDS_H tracking_lo_dds_inst" in core
+        and "DPLL_Rewrite.srcs/sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v" not in tracked
+        and "verification/rtl/tracking_phase_accumulator_stage_a_tb.v" not in tracked,
         "Active IQ LO uses DDS Streaming PINC without a redundant local phase accumulator",
-        "`LO_DDS_H` is configured for streaming phase increment",
+        "`LO_DDS_H` is configured for streaming phase increment; retired local NCO source/test are not tracked",
     ))
     checks.append(check(
         ".ambiguous(fll_ambiguous)" in core
@@ -228,6 +230,8 @@ def main() -> int:
         "DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/div_gen_pll/",
     ]
     legacy_tracked_files = [
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/clocking/dpll_clock_valid_stage_a.v",
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/frontend/tracking_phase_accumulator_stage_a.v",
         "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ip/LO_DDS.xcix",
         "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/N_times_clk_FIR_wrapper.vhd",
         "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ddc_frontend_lowpass_filter.vhd",
@@ -243,6 +247,12 @@ def main() -> int:
         "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/boxcar_2_pts_filter.vhd",
         "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/quantizer.vhd",
         "DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/limiter.vhd",
+        "verification/rtl/dpll_clock_valid_stage_a_tb.v",
+        "verification/rtl/tracking_phase_accumulator_stage_a_tb.v",
+        "scripts/run_clock_valid_stage_a_xsim.ps1",
+        "scripts/run_clock_valid_stage_a_xsim.tcl",
+        "scripts/vivado_stage_a_synth_check.tcl",
+        "scripts/vivado_stage_a_project_frontend_check.tcl",
     ]
     remaining_legacy_tracked = sorted(
         path for path in tracked

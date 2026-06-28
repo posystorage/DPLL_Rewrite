@@ -1,4 +1,4 @@
-# Verification P1 Scaffold
+# DPLL Verification
 
 This directory belongs to `agent/model-verification-timing`.
 
@@ -21,6 +21,30 @@ python -m unittest discover -s verification\arm -p test_*.py
 ```
 
 The tests parse the real ARM register definitions and exercise ABI gating, CONFIG_APPLY, enable control, and advanced DPLL shadow-register writes against a mock MMIO map.
+
+## RTL XSIM Checks
+
+Run from the repository root with Vivado 2018.3 installed at `D:\Xilinx\Vivado\2018.3`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_frontend_stage_a_xsim.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_single_clock_core_stage_a_xsim.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_dpll_multifrequency_path_xsim.ps1
+```
+
+The current RTL checks cover the retained mixer unit, the single-clock DPLL core path, and the 5/10/20/50/100/150/200 kHz multifrequency path. They do not replace a full float/fixed/RTL closed-loop golden comparison.
+
+## Review Closure Audits
+
+Run from the repository root:
+
+```powershell
+python scripts\audit_review_closure.py
+python scripts\audit_review2_closure.py
+python scripts\audit_review2_ip_config.py
+```
+
+The generated reports are written under `reports\`.
 
 ## Vivado 2018.3 Audit Reports
 

@@ -79,8 +79,15 @@ module post_iq_cic_stage_a #(
     reg [RATE_WIDTH-1:0] sample_count;
     reg [2:0] warmup_outputs_remaining;
     reg signed [ROUND_WIDTH-1:0] active_rounding_bias;
+    reg clear_control;
+    reg clear_i_integrators;
+    reg clear_q_integrators;
+    reg clear_comb_delay;
+    reg clear_comb_pipeline;
+    reg clear_shift_pipeline;
 
     wire apply_is_legal;
+    wire clear_request;
     wire signed [ACC_WIDTH-1:0] i_ext;
     wire signed [ACC_WIDTH-1:0] q_ext;
     wire signed [ROUND_WIDTH-1:0] i_comb3_ext;
@@ -89,6 +96,7 @@ module post_iq_cic_stage_a #(
     wire signed [ROUND_WIDTH-1:0] q_rounding_bias_signed;
 
     assign apply_is_legal = (shadow_rate_r >= MIN_RATE) && (shadow_rate_r <= MAX_RATE);
+    assign clear_request = rst_125m || flush || (config_apply && apply_is_legal);
     assign i_ext = {{(ACC_WIDTH-INPUT_WIDTH){i_in[INPUT_WIDTH-1]}}, i_in};
     assign q_ext = {{(ACC_WIDTH-INPUT_WIDTH){q_in[INPUT_WIDTH-1]}}, q_in};
     assign i_comb3_ext = {i_comb3[ACC_WIDTH-1], i_comb3};
@@ -139,6 +147,15 @@ module post_iq_cic_stage_a #(
     endfunction
 
     always @(posedge clk_125m) begin
+        clear_control <= clear_request;
+        clear_i_integrators <= clear_request;
+        clear_q_integrators <= clear_request;
+        clear_comb_delay <= clear_request;
+        clear_comb_pipeline <= clear_request;
+        clear_shift_pipeline <= clear_request;
+    end
+
+    always @(posedge clk_125m) begin
         if (rst_125m) begin
             active_rate_r <= MIN_RATE;
             active_output_shift <= {SHIFT_WIDTH{1'b0}};
@@ -156,43 +173,7 @@ module post_iq_cic_stage_a #(
     end
 
     always @(posedge clk_125m) begin
-        if (rst_125m || flush || (config_apply && apply_is_legal)) begin
-            i_int0 <= {ACC_WIDTH{1'b0}};
-            i_int1 <= {ACC_WIDTH{1'b0}};
-            i_int2 <= {ACC_WIDTH{1'b0}};
-            q_int0 <= {ACC_WIDTH{1'b0}};
-            q_int1 <= {ACC_WIDTH{1'b0}};
-            q_int2 <= {ACC_WIDTH{1'b0}};
-            i_comb_d0 <= {ACC_WIDTH{1'b0}};
-            i_comb_d1 <= {ACC_WIDTH{1'b0}};
-            i_comb_d2 <= {ACC_WIDTH{1'b0}};
-            q_comb_d0 <= {ACC_WIDTH{1'b0}};
-            q_comb_d1 <= {ACC_WIDTH{1'b0}};
-            q_comb_d2 <= {ACC_WIDTH{1'b0}};
-            i_decim_sample <= {ACC_WIDTH{1'b0}};
-            q_decim_sample <= {ACC_WIDTH{1'b0}};
-            i_comb1 <= {ACC_WIDTH{1'b0}};
-            q_comb1 <= {ACC_WIDTH{1'b0}};
-            i_comb2 <= {ACC_WIDTH{1'b0}};
-            q_comb2 <= {ACC_WIDTH{1'b0}};
-            i_comb3 <= {ACC_WIDTH{1'b0}};
-            q_comb3 <= {ACC_WIDTH{1'b0}};
-            i_shifted <= {ROUND_WIDTH{1'b0}};
-            q_shifted <= {ROUND_WIDTH{1'b0}};
-            i_shift_stage0 <= {ROUND_WIDTH{1'b0}};
-            q_shift_stage0 <= {ROUND_WIDTH{1'b0}};
-            i_shift_stage1 <= {ROUND_WIDTH{1'b0}};
-            q_shift_stage1 <= {ROUND_WIDTH{1'b0}};
-            i_shift_stage2 <= {ROUND_WIDTH{1'b0}};
-            q_shift_stage2 <= {ROUND_WIDTH{1'b0}};
-            i_shift_stage3 <= {ROUND_WIDTH{1'b0}};
-            q_shift_stage3 <= {ROUND_WIDTH{1'b0}};
-            i_shift_stage4 <= {ROUND_WIDTH{1'b0}};
-            q_shift_stage4 <= {ROUND_WIDTH{1'b0}};
-            i_shift_stage5 <= {ROUND_WIDTH{1'b0}};
-            q_shift_stage5 <= {ROUND_WIDTH{1'b0}};
-            i_rounded <= {ROUND_WIDTH{1'b0}};
-            q_rounded <= {ROUND_WIDTH{1'b0}};
+        if (clear_control) begin
             comb0_valid <= 1'b0;
             comb1_valid <= 1'b0;
             comb2_valid <= 1'b0;
@@ -215,16 +196,7 @@ module post_iq_cic_stage_a #(
             rounded_output_valid <= 1'b0;
 
             if (in_valid) begin
-                i_int0 <= i_int0 + i_ext;
-                i_int1 <= i_int1 + i_int0;
-                i_int2 <= i_int2 + i_int1;
-                q_int0 <= q_int0 + q_ext;
-                q_int1 <= q_int1 + q_int0;
-                q_int2 <= q_int2 + q_int1;
-
                 if (sample_count == active_rate_r - 1'b1) begin
-                    i_decim_sample <= i_int2;
-                    q_decim_sample <= q_int2;
                     comb0_valid <= 1'b1;
                     sample_count <= {RATE_WIDTH{1'b0}};
                 end else begin
@@ -232,27 +204,117 @@ module post_iq_cic_stage_a #(
                 end
             end
 
+            if (shift_pipe_valid[6]) begin
+                if (warmup_outputs_remaining != 3'd0) begin
+                    warmup_outputs_remaining <= warmup_outputs_remaining - 1'b1;
+                end else begin
+                    rounded_output_valid <= 1'b1;
+                end
+            end
+
+            if (rounded_output_valid) begin
+                i_out <= saturate_shifted(i_rounded);
+                q_out <= saturate_shifted(q_rounded);
+                overflow_seen <= overflow_seen
+                    || shifted_saturation_needed(i_rounded)
+                    || shifted_saturation_needed(q_rounded);
+                out_valid <= 1'b1;
+            end
+        end
+
+        if (clear_i_integrators) begin
+            i_int0 <= {ACC_WIDTH{1'b0}};
+            i_int1 <= {ACC_WIDTH{1'b0}};
+            i_int2 <= {ACC_WIDTH{1'b0}};
+        end else if (in_valid && !clear_control) begin
+            i_int0 <= i_int0 + i_ext;
+            i_int1 <= i_int1 + i_int0;
+            i_int2 <= i_int2 + i_int1;
+        end
+
+        if (clear_q_integrators) begin
+            q_int0 <= {ACC_WIDTH{1'b0}};
+            q_int1 <= {ACC_WIDTH{1'b0}};
+            q_int2 <= {ACC_WIDTH{1'b0}};
+        end else if (in_valid && !clear_control) begin
+            q_int0 <= q_int0 + q_ext;
+            q_int1 <= q_int1 + q_int0;
+            q_int2 <= q_int2 + q_int1;
+        end
+
+        if (clear_comb_delay) begin
+            i_comb_d0 <= {ACC_WIDTH{1'b0}};
+            i_comb_d1 <= {ACC_WIDTH{1'b0}};
+            i_comb_d2 <= {ACC_WIDTH{1'b0}};
+            q_comb_d0 <= {ACC_WIDTH{1'b0}};
+            q_comb_d1 <= {ACC_WIDTH{1'b0}};
+            q_comb_d2 <= {ACC_WIDTH{1'b0}};
+        end else if (!clear_control) begin
             if (comb0_valid) begin
-                i_comb1 <= i_decim_sample - i_comb_d0;
-                q_comb1 <= q_decim_sample - q_comb_d0;
                 i_comb_d0 <= i_decim_sample;
                 q_comb_d0 <= q_decim_sample;
             end
 
             if (comb1_valid) begin
-                i_comb2 <= i_comb1 - i_comb_d1;
-                q_comb2 <= q_comb1 - q_comb_d1;
                 i_comb_d1 <= i_comb1;
                 q_comb_d1 <= q_comb1;
             end
 
             if (comb2_valid) begin
-                i_comb3 <= i_comb2 - i_comb_d2;
-                q_comb3 <= q_comb2 - q_comb_d2;
                 i_comb_d2 <= i_comb2;
                 q_comb_d2 <= q_comb2;
             end
+        end
 
+        if (clear_comb_pipeline) begin
+            i_decim_sample <= {ACC_WIDTH{1'b0}};
+            q_decim_sample <= {ACC_WIDTH{1'b0}};
+            i_comb1 <= {ACC_WIDTH{1'b0}};
+            q_comb1 <= {ACC_WIDTH{1'b0}};
+            i_comb2 <= {ACC_WIDTH{1'b0}};
+            q_comb2 <= {ACC_WIDTH{1'b0}};
+            i_comb3 <= {ACC_WIDTH{1'b0}};
+            q_comb3 <= {ACC_WIDTH{1'b0}};
+        end else if (!clear_control) begin
+            if (in_valid && (sample_count == active_rate_r - 1'b1)) begin
+                i_decim_sample <= i_int2;
+                q_decim_sample <= q_int2;
+            end
+
+            if (comb0_valid) begin
+                i_comb1 <= i_decim_sample - i_comb_d0;
+                q_comb1 <= q_decim_sample - q_comb_d0;
+            end
+
+            if (comb1_valid) begin
+                i_comb2 <= i_comb1 - i_comb_d1;
+                q_comb2 <= q_comb1 - q_comb_d1;
+            end
+
+            if (comb2_valid) begin
+                i_comb3 <= i_comb2 - i_comb_d2;
+                q_comb3 <= q_comb2 - q_comb_d2;
+            end
+        end
+
+        if (clear_shift_pipeline) begin
+            i_shifted <= {ROUND_WIDTH{1'b0}};
+            q_shifted <= {ROUND_WIDTH{1'b0}};
+            i_shift_stage0 <= {ROUND_WIDTH{1'b0}};
+            q_shift_stage0 <= {ROUND_WIDTH{1'b0}};
+            i_shift_stage1 <= {ROUND_WIDTH{1'b0}};
+            q_shift_stage1 <= {ROUND_WIDTH{1'b0}};
+            i_shift_stage2 <= {ROUND_WIDTH{1'b0}};
+            q_shift_stage2 <= {ROUND_WIDTH{1'b0}};
+            i_shift_stage3 <= {ROUND_WIDTH{1'b0}};
+            q_shift_stage3 <= {ROUND_WIDTH{1'b0}};
+            i_shift_stage4 <= {ROUND_WIDTH{1'b0}};
+            q_shift_stage4 <= {ROUND_WIDTH{1'b0}};
+            i_shift_stage5 <= {ROUND_WIDTH{1'b0}};
+            q_shift_stage5 <= {ROUND_WIDTH{1'b0}};
+            i_rounded <= {ROUND_WIDTH{1'b0}};
+            q_rounded <= {ROUND_WIDTH{1'b0}};
+        end else if (!clear_control) begin
             if (output_pipe_valid) begin
                 i_shift_stage0 <= i_comb3_ext + i_rounding_bias_signed;
                 q_shift_stage0 <= q_comb3_ext + q_rounding_bias_signed;
@@ -289,22 +351,10 @@ module post_iq_cic_stage_a #(
             end
 
             if (shift_pipe_valid[6]) begin
-                if (warmup_outputs_remaining != 3'd0) begin
-                    warmup_outputs_remaining <= warmup_outputs_remaining - 1'b1;
-                end else begin
+                if (warmup_outputs_remaining == 3'd0) begin
                     i_rounded <= i_shifted;
                     q_rounded <= q_shifted;
-                    rounded_output_valid <= 1'b1;
                 end
-            end
-
-            if (rounded_output_valid) begin
-                i_out <= saturate_shifted(i_rounded);
-                q_out <= saturate_shifted(q_rounded);
-                overflow_seen <= overflow_seen
-                    || shifted_saturation_needed(i_rounded)
-                    || shifted_saturation_needed(q_rounded);
-                out_valid <= 1'b1;
             end
         end
     end

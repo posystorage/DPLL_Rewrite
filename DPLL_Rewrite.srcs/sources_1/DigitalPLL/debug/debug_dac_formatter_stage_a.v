@@ -26,27 +26,37 @@ module debug_dac_formatter_stage_a (
     reg valid_r0;
 
     reg signed [15:0] raw_window_r1;
+    reg signed [31:0] shifted_signed_r1;
     reg [31:0] shifted_unsigned_r1;
-    reg signed [47:0] product_r1;
+    reg signed [15:0] gain_r1;
     reg [1:0] mode_r1;
     reg invert_r1;
     reg hold_last_r1;
     reg signed [15:0] offset_r1;
     reg valid_r1;
 
-    reg signed [31:0] formatted_r2;
     reg signed [15:0] raw_window_r2;
+    reg [31:0] shifted_unsigned_r2;
+    reg signed [47:0] product_r2;
     reg [1:0] mode_r2;
     reg invert_r2;
     reg hold_last_r2;
+    reg signed [15:0] offset_r2;
     reg valid_r2;
+
+    reg signed [31:0] formatted_r3;
+    reg signed [15:0] raw_window_r3;
+    reg [1:0] mode_r3;
+    reg invert_r3;
+    reg hold_last_r3;
+    reg valid_r3;
 
     wire [4:0] raw_lsb = (shift_or_lsb_r0 > 6'd16) ? 5'd16 : shift_or_lsb_r0[4:0];
     wire [4:0] shift_amount = (shift_or_lsb_r0 > 6'd31) ? 5'd31 : shift_or_lsb_r0[4:0];
     wire signed [31:0] shifted_signed = source_r0 >>> shift_amount;
     wire [31:0] shifted_unsigned = $unsigned(source_r0) >> shift_amount;
     wire signed [31:0] scaled_plus_offset =
-        product_r1[46:15] + {{16{offset_r1[15]}}, offset_r1};
+        product_r2[46:15] + {{16{offset_r2[15]}}, offset_r2};
 
     function signed [15:0] sat_signed16;
         input signed [31:0] value;
@@ -98,20 +108,30 @@ module debug_dac_formatter_stage_a (
             valid_r0 <= 1'b0;
 
             raw_window_r1 <= 16'sd0;
+            shifted_signed_r1 <= 32'sd0;
             shifted_unsigned_r1 <= 32'd0;
-            product_r1 <= 48'sd0;
+            gain_r1 <= 16'sd32767;
             mode_r1 <= MODE_RAW_BIT_WINDOW;
             invert_r1 <= 1'b0;
             hold_last_r1 <= 1'b0;
             offset_r1 <= 16'sd0;
             valid_r1 <= 1'b0;
 
-            formatted_r2 <= 32'sd0;
             raw_window_r2 <= 16'sd0;
+            shifted_unsigned_r2 <= 32'd0;
+            product_r2 <= 48'sd0;
             mode_r2 <= MODE_RAW_BIT_WINDOW;
             invert_r2 <= 1'b0;
             hold_last_r2 <= 1'b0;
+            offset_r2 <= 16'sd0;
             valid_r2 <= 1'b0;
+
+            formatted_r3 <= 32'sd0;
+            raw_window_r3 <= 16'sd0;
+            mode_r3 <= MODE_RAW_BIT_WINDOW;
+            invert_r3 <= 1'b0;
+            hold_last_r3 <= 1'b0;
+            valid_r3 <= 1'b0;
             dac_sample <= 16'sd0;
         end else begin
             valid_r0 <= source_valid;
@@ -128,8 +148,9 @@ module debug_dac_formatter_stage_a (
             valid_r1 <= valid_r0;
             if (valid_r0) begin
                 raw_window_r1 <= source_r0[raw_lsb +: 16];
+                shifted_signed_r1 <= shifted_signed;
                 shifted_unsigned_r1 <= shifted_unsigned;
-                product_r1 <= shifted_signed * gain_r0;
+                gain_r1 <= gain_r0;
                 mode_r1 <= mode_r0;
                 invert_r1 <= invert_r0;
                 hold_last_r1 <= hold_last_r0;
@@ -139,25 +160,36 @@ module debug_dac_formatter_stage_a (
             valid_r2 <= valid_r1;
             if (valid_r1) begin
                 raw_window_r2 <= raw_window_r1;
+                shifted_unsigned_r2 <= shifted_unsigned_r1;
+                product_r2 <= shifted_signed_r1 * gain_r1;
                 mode_r2 <= mode_r1;
                 invert_r2 <= invert_r1;
                 hold_last_r2 <= hold_last_r1;
-                case (mode_r1)
-                    MODE_RAW_BIT_WINDOW: formatted_r2 <= {{16{raw_window_r1[15]}}, raw_window_r1};
-                    MODE_ARITH_SHIFT_SAT: formatted_r2 <= scaled_plus_offset;
-                    MODE_UNSIGNED_SAT: formatted_r2 <= {16'd0, sat_unsigned15(shifted_unsigned_r1)};
-                    default: formatted_r2 <= 32'sd0;
+                offset_r2 <= offset_r1;
+            end
+
+            valid_r3 <= valid_r2;
+            if (valid_r2) begin
+                raw_window_r3 <= raw_window_r2;
+                mode_r3 <= mode_r2;
+                invert_r3 <= invert_r2;
+                hold_last_r3 <= hold_last_r2;
+                case (mode_r2)
+                    MODE_RAW_BIT_WINDOW: formatted_r3 <= {{16{raw_window_r2[15]}}, raw_window_r2};
+                    MODE_ARITH_SHIFT_SAT: formatted_r3 <= scaled_plus_offset;
+                    MODE_UNSIGNED_SAT: formatted_r3 <= {16'd0, sat_unsigned15(shifted_unsigned_r2)};
+                    default: formatted_r3 <= 32'sd0;
                 endcase
             end
 
-            if (valid_r2) begin
-                case (mode_r2)
-                    MODE_RAW_BIT_WINDOW: dac_sample <= apply_invert(raw_window_r2, invert_r2);
-                    MODE_ARITH_SHIFT_SAT: dac_sample <= apply_invert(sat_signed16(formatted_r2), invert_r2);
-                    MODE_UNSIGNED_SAT: dac_sample <= apply_invert(sat_signed16(formatted_r2), invert_r2);
-                    default: dac_sample <= hold_last_r2 ? dac_sample : 16'sd0;
+            if (valid_r3) begin
+                case (mode_r3)
+                    MODE_RAW_BIT_WINDOW: dac_sample <= apply_invert(raw_window_r3, invert_r3);
+                    MODE_ARITH_SHIFT_SAT: dac_sample <= apply_invert(sat_signed16(formatted_r3), invert_r3);
+                    MODE_UNSIGNED_SAT: dac_sample <= apply_invert(sat_signed16(formatted_r3), invert_r3);
+                    default: dac_sample <= hold_last_r3 ? dac_sample : 16'sd0;
                 endcase
-            end else if (!hold_last_r2) begin
+            end else if (!hold_last_r3) begin
                 dac_sample <= 16'sd0;
             end
         end

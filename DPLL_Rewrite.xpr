@@ -164,13 +164,6 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PSRCDIR/sources_1/DigitalPLL/clocking/dpll_clock_valid_stage_a.v">
-        <FileInfo>
-          <Attr Name="UsedIn" Val="synthesis"/>
-          <Attr Name="UsedIn" Val="implementation"/>
-          <Attr Name="UsedIn" Val="simulation"/>
-        </FileInfo>
-      </File>
       <File Path="$PSRCDIR/sources_1/DigitalPLL/core/dpll_single_clock_core_stage_a.v">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>

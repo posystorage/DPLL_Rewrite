@@ -246,20 +246,22 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(1), .REGISTER_DEFAULT_VALU
 assign pll0_lock = pll0_lock_i;
 
 wire rst_125m_stage_a;
-wire sample_3m125_valid_stage_a_unused;
 wire [15:0] pre_cic_sample;
 wire        pre_cic_valid;
 wire        pre_cic_ready;
 
-dpll_clock_valid_stage_a #(
-    .G_SAMPLE_DIV(40)
-) dpll_clock_valid_stage_a_inst (
-    .clk_125m(clk1),
-    .rst_n_async(rst),
-    .sw_reset_pulse(ok_reset),
-    .rst_125m(rst_125m_stage_a),
-    .sample_valid(sample_3m125_valid_stage_a_unused)
-);
+reg rst_125m_meta;
+reg rst_125m_sync;
+always @(posedge clk1 or negedge rst) begin
+    if (!rst) begin
+        rst_125m_meta <= 1'b1;
+        rst_125m_sync <= 1'b1;
+    end else begin
+        rst_125m_meta <= ok_reset;
+        rst_125m_sync <= rst_125m_meta;
+    end
+end
+assign rst_125m_stage_a = rst_125m_sync;
 
 cic_compiler_0 pre_iq_cic_40_inst (
     .aclk(clk1),

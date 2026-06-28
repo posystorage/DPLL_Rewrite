@@ -1290,7 +1290,7 @@ void STM_HOST_Respond_Data(void)
 	for(i=0;i<16;i++)XUartPs_SendByte(XUartPs_uart1.Config.BaseAddress,Uart_TX_Buff[i]);
 }
 
-void STM_HOST_Write_PLL_Data(void)
+static uint8_t STM_HOST_Write_PLL_Data(void)
 {
 	u32 data;
 	Xil_Out32(DAC0_Centre_Frequency_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[0]));//ÖÐÐÄÆµÂÊ
@@ -1307,35 +1307,41 @@ void STM_HOST_Write_PLL_Data(void)
     Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[28]));//14Bit
     Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[30]));//32Bit
     Xil_Out32(DAC0_VOC_Amplitude_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[32]));//amplitude 15bit;
-    if (dpll_apply_config() != 0) return;
+    return (dpll_apply_config() == 0) ? STATUS_ACK : STATUS_NACK;
 }
 void STM_HOST_CMD_Respond(void)
 {
+	uint8_t action_status;
+
 	if(STM_HOST_CMD_ASK)
 	{
 		usleep(200);
 		if(STM_HOST_CMD_ASK == STATUS_ACK)
 		{
 			//printf("C:%X\n",(u32)STM_HOST_CMD_ASK);
-			STM_HOST_ASK_Status(STATUS_ACK);
+			action_status = STATUS_ACK;
 			switch(STM_HOST_CMD_GET)
 			{
 			case CMD_WRITE_CFG_DATA:
-				STM_HOST_Write_PLL_Data();
+				action_status = STM_HOST_Write_PLL_Data();
 				break;
 			case CMD_READ_STATUS_DATA:
 				usleep(100);
 				STM_HOST_Respond_Data();
+				action_status = 0;
 				break;
 			case CMD_PLL_ON:
-				dpll_set_enable(1);
+				action_status = (dpll_set_enable(1) == 0) ? STATUS_ACK : STATUS_NACK;
 				break;
 			case CMD_PLL_OFF:
-				dpll_set_enable(0);
+				action_status = (dpll_set_enable(0) == 0) ? STATUS_ACK : STATUS_NACK;
 				break;
 			case CMD_RESET:
 				Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);
 				break;
+			}
+			if (action_status != 0) {
+				STM_HOST_ASK_Status(action_status);
 			}
 		}
 		else
@@ -1345,7 +1351,6 @@ void STM_HOST_CMD_Respond(void)
 		STM_HOST_CMD_ASK = 0;
 	}
 }
-
 int main()
 {
 init_platform();

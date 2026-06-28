@@ -269,7 +269,7 @@ always @(posedge clk1 or negedge rst) begin
 end
 assign rst_125m_stage_a = rst_125m_sync;
 
-cic_compiler_0 pre_iq_cic_40_inst (
+pre_iq_cic_40_125m_v1 pre_iq_cic_40_inst (
     .aclk(clk1),
     .s_axis_data_tdata(ADCraw0),
     .s_axis_data_tvalid(~rst_125m_stage_a),

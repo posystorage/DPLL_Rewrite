@@ -26,7 +26,8 @@ def check(condition: bool, label: str, evidence: str) -> tuple[str, bool]:
 
 def main() -> int:
     lo_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
-    cic_xci = read(SRC / "DigitalPLL" / "DDC" / "ip" / "cic_compiler_0" / "cic_compiler_0.xci")
+    cic_xci = read(SRC / "DigitalPLL" / "DDC" / "ip" / "pre_iq_cic_40_125m_v1" / "pre_iq_cic_40_125m_v1" / "pre_iq_cic_40_125m_v1.xci")
+    wrapper = read(SRC / "DigitalPLL" / "dpll_wrapper.v")
     div_xci = read(SRC / "DigitalPLL" / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
     manifest_path = ROOT / "reports" / "review2_ip_config_regen" / "manifest.txt"
     manifest = read(manifest_path) if manifest_path.exists() else ""
@@ -37,6 +38,7 @@ def main() -> int:
     lo_output = xml_value(lo_xci, "PARAM_VALUE.Output_Selection")
 
     cic_clock = xml_value(cic_xci, "PARAM_VALUE.Clock_Frequency")
+    cic_input_sample_frequency = xml_value(cic_xci, "PARAM_VALUE.Input_Sample_Frequency")
     cic_rate = xml_value(cic_xci, "PARAM_VALUE.Fixed_Or_Initial_Rate")
     cic_stages = xml_value(cic_xci, "PARAM_VALUE.Number_Of_Stages")
     cic_diff_delay = xml_value(cic_xci, "PARAM_VALUE.Differential_Delay")
@@ -60,9 +62,14 @@ def main() -> int:
         f"`R={cic_rate}`, `N={cic_stages}`, `M={cic_diff_delay}`, `HAS_DOUT_TREADY={cic_has_out_ready}`",
     ))
     checks.append(check(
-        cic_clock == "125.0",
+        cic_clock == "125.0" and cic_input_sample_frequency == "125.0",
         "pre-IQ CIC clock metadata is regenerated for 125 MHz",
-        f"`Clock_Frequency={cic_clock}`; Vivado 2018.3 manifest notes this existing parameter is disabled when not replaced",
+        f"`Clock_Frequency={cic_clock}`, `Input_Sample_Frequency={cic_input_sample_frequency}`",
+    ))
+    checks.append(check(
+        "pre_iq_cic_40_125m_v1 pre_iq_cic_40_inst" in wrapper,
+        "active wrapper uses the regenerated pre-IQ CIC replacement",
+        "`dpll_wrapper.v` instantiates `pre_iq_cic_40_125m_v1` for `pre_iq_cic_40_inst`",
     ))
     checks.append(check(
         div_algorithm == "Radix2" and div_sign == "Unsigned" and div_model_sign == "0",
@@ -77,7 +84,7 @@ def main() -> int:
     checks.append(check(
         "note.cic.Clock_Frequency disabled" in manifest and "note.div.operand_sign disabled" in manifest,
         "Vivado 2018.3 IP regeneration limitations are recorded",
-        "`reports/review2_ip_config_regen/manifest.txt` records disabled CIC clock and divider sign parameters on existing IP instances",
+        "`reports/review2_ip_config_regen/manifest.txt` records why replacement IPs were required for disabled existing-instance parameters",
     ))
 
     lines = [

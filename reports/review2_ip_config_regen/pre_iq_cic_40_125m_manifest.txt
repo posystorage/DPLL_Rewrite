@@ -1,0 +1,13 @@
+pre-IQ CIC replacement IP
+project_file=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.xpr
+ip_file=e:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ip/pre_iq_cic_40_125m_v1/pre_iq_cic_40_125m_v1/pre_iq_cic_40_125m_v1.xci
+Clock_Frequency=125.0
+Input_Sample_Frequency=125.0
+Fixed_Or_Initial_Rate=40
+Number_Of_Stages=4
+Differential_Delay=2
+Input_Data_Width=16
+Output_Data_Width=16
+HAS_DOUT_TREADY=false
+Use_Xtreme_DSP_Slice=false
+generated_at=2026-06-28 21:32:05

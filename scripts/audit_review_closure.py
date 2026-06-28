@@ -73,8 +73,9 @@ def main() -> int:
     checks: list[tuple[str, bool]] = []
     checks.append(pass_if("DigitalPLL2" not in "\n".join(p.name for p in DPLL.rglob("*")), "No DigitalPLL2 artifact exists", "file-name scan under active DigitalPLL tree"))
     checks.append(no_active_clk_dpll())
-    checks.append(pass_if("cic_compiler_0 pre_iq_cic_40_inst" in wrapper and ".m_axis_data_tvalid(pre_cic_valid)" in wrapper, "Pre-IQ /40 path uses Xilinx CIC valid", "`cic_compiler_0` drives `pre_cic_valid`"))
-    checks.append(pass_if('C_RATE=40' in read(DPLL / "DDC" / "ip" / "cic_compiler_0" / "synth" / "cic_compiler_0.vhd"), "Pre-IQ CIC IP is configured for R=40", "Xilinx CIC Compiler metadata has `C_RATE=40`"))
+    pre_iq_cic_vhd = read(DPLL / "DDC" / "ip" / "pre_iq_cic_40_125m_v1" / "pre_iq_cic_40_125m_v1" / "synth" / "pre_iq_cic_40_125m_v1.vhd")
+    checks.append(pass_if("pre_iq_cic_40_125m_v1 pre_iq_cic_40_inst" in wrapper and ".m_axis_data_tvalid(pre_cic_valid)" in wrapper, "Pre-IQ /40 path uses Xilinx CIC valid", "`pre_iq_cic_40_125m_v1` drives `pre_cic_valid`"))
+    checks.append(pass_if('C_RATE=40' in pre_iq_cic_vhd, "Pre-IQ CIC IP is configured for R=40", "Xilinx CIC Compiler metadata has `C_RATE=40`"))
     checks.append(pass_if(
         "LO_DDS_H tracking_lo_dds_inst" in core
         and "PARAM_VALUE.Phase_Increment\">Streaming" in lo_dds_h_xci

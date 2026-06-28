@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Sun Jun 28 21:19:18 2026
+| Date         : Sun Jun 28 21:37:25 2026
 | Host         : MiaoZhi-PC running 64-bit major release  (build 9200)
 | Command      : report_timing_summary -max_paths 20 -warn_on_violation -file E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_single_clock_core_stage_a_project_synth/timing_summary_synth.rpt
 | Design       : red_pitaya_top

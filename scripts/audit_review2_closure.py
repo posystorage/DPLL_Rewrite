@@ -183,11 +183,12 @@ def main() -> int:
     ]
     checks.append(check(
         all(entry not in xpr for entry in legacy_dpll_xpr_entries)
+        and "pre_iq_cic_40_125m_v1 pre_iq_cic_40_inst" in wrapper
         and "sources_1/Freq_Meter/DDC/ip/fir_compiler_minimumphase_H/fir_compiler_minimumphase_H.xci" in xpr
         and "sources_1/Freq_Meter/DDC/ip/LO_DDS_H/LO_DDS_H.xci" in xpr
         and "sources_1/DigitalPLL/VCO/DAC_DDS0/DAC_DDS0.xci" in xpr,
         "DPLL legacy FIR/PID/DDS sources are removed from the active Vivado project",
-        "`DPLL_Rewrite.xpr` no longer lists old DPLL FIR/PID/DDC/DDS source entries; Freq_Meter and active DAC_DDS0 IP remain",
+        "`DPLL_Rewrite.xpr` no longer lists old DPLL FIR/PID/DDC/DDS source entries; wrapper uses regenerated pre-IQ CIC and active Freq_Meter/DAC_DDS0 IP remain",
     ))
 
     lines = [

@@ -1,4 +1,4 @@
--- (c) Copyright 1995-2020 Xilinx, Inc. All rights reserved.
+-- (c) Copyright 1995-2026 Xilinx, Inc. All rights reserved.
 -- 
 -- This file contains confidential and proprietary information
 -- of Xilinx, Inc. and is protected under U.S. and
@@ -119,7 +119,7 @@ BEGIN
       C_XDEVICEFAMILY => "zynq",
       C_HAS_CE => 0,
       C_HAS_SCLR => 0,
-      C_LATENCY => 1,
+      C_LATENCY => 8,
       C_A_WIDTH => 48,
       C_A_TYPE => 1,
       C_B_WIDTH => 16,

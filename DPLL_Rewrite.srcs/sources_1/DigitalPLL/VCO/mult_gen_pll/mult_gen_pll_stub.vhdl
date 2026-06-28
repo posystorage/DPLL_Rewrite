@@ -1,10 +1,10 @@
 -- Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
--- Date        : Thu Sep 10 14:59:06 2020
--- Host        : LeakyShip running 64-bit major release  (build 9200)
+-- Date        : Sun Jun 28 11:18:03 2026
+-- Host        : MiaoZhi-PC running 64-bit major release  (build 9200)
 -- Command     : write_vhdl -force -mode synth_stub
---               d:/FPGA_DPLL/DPLL_Rewrite/DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/mult_gen_pll/mult_gen_pll_stub.vhdl
+--               E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/mult_gen_pll/mult_gen_pll_stub.vhdl
 -- Design      : mult_gen_pll
 -- Purpose     : Stub declaration of top-level module interface
 -- Device      : xc7z010clg400-1

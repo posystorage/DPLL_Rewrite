@@ -73,12 +73,27 @@ module loop_state_manager_stage_a #(
     reg [DWELL_WIDTH-1:0] warmup_count;
     reg [TIMEOUT_WIDTH-1:0] holdover_count;
 
-    wire phase_ok = phase_abs <= phase_lock_threshold;
-    wire freq_ok = freq_abs <= freq_lock_threshold;
-    wire mag_enter_ok = (mag_enter_threshold == {MAG_WIDTH{1'b0}}) ||
-                        (magnitude >= mag_enter_threshold);
-    wire mag_exit_bad = (mag_exit_threshold != {MAG_WIDTH{1'b0}}) &&
-                        (magnitude <= mag_exit_threshold);
+    reg [PHASE_WIDTH-1:0] phase_lock_threshold_r;
+    reg [FERR_WIDTH-1:0] freq_lock_threshold_r;
+    reg [MAG_WIDTH-1:0] mag_enter_threshold_r;
+    reg [MAG_WIDTH-1:0] mag_exit_threshold_r;
+    reg [DWELL_WIDTH-1:0] acquire_dwell_r;
+    reg [DWELL_WIDTH-1:0] blend_dwell_r;
+    reg [DWELL_WIDTH-1:0] loss_dwell_r;
+    reg [TIMEOUT_WIDTH-1:0] holdover_timeout_r;
+    reg [DWELL_WIDTH-1:0] warmup_samples_r;
+    reg [DWELL_WIDTH-1:0] warmup_target_r;
+    reg [DWELL_WIDTH-1:0] acquire_target_r;
+    reg [DWELL_WIDTH-1:0] blend_target_r;
+    reg [DWELL_WIDTH-1:0] loss_target_r;
+    reg [TIMEOUT_WIDTH-1:0] holdover_target_r;
+
+    wire phase_ok = phase_abs <= phase_lock_threshold_r;
+    wire freq_ok = freq_abs <= freq_lock_threshold_r;
+    wire mag_enter_ok = (mag_enter_threshold_r == {MAG_WIDTH{1'b0}}) ||
+                        (magnitude >= mag_enter_threshold_r);
+    wire mag_exit_bad = (mag_exit_threshold_r != {MAG_WIDTH{1'b0}}) &&
+                        (magnitude <= mag_exit_threshold_r);
     wire loop_ok = signal_present && phase_ok && freq_ok && !correction_saturated;
     wire signal_bad = !signal_present;
     wire loss_sample = signal_bad || !phase_ok || !freq_ok || correction_saturated;
@@ -146,7 +161,36 @@ module loop_state_manager_stage_a #(
             bad_count <= {DWELL_WIDTH{1'b0}};
             warmup_count <= {DWELL_WIDTH{1'b0}};
             holdover_count <= {TIMEOUT_WIDTH{1'b0}};
+            phase_lock_threshold_r <= {PHASE_WIDTH{1'b0}};
+            freq_lock_threshold_r <= {FERR_WIDTH{1'b0}};
+            mag_enter_threshold_r <= {MAG_WIDTH{1'b0}};
+            mag_exit_threshold_r <= {MAG_WIDTH{1'b0}};
+            acquire_dwell_r <= {DWELL_WIDTH{1'b0}};
+            blend_dwell_r <= {DWELL_WIDTH{1'b0}};
+            loss_dwell_r <= {DWELL_WIDTH{1'b0}};
+            holdover_timeout_r <= {TIMEOUT_WIDTH{1'b0}};
+            warmup_samples_r <= {DWELL_WIDTH{1'b0}};
+            warmup_target_r <= {DWELL_WIDTH{1'b0}};
+            acquire_target_r <= {DWELL_WIDTH{1'b0}};
+            blend_target_r <= {DWELL_WIDTH{1'b0}};
+            loss_target_r <= {DWELL_WIDTH{1'b0}};
+            holdover_target_r <= {TIMEOUT_WIDTH{1'b0}};
         end else begin
+            phase_lock_threshold_r <= phase_lock_threshold;
+            freq_lock_threshold_r <= freq_lock_threshold;
+            mag_enter_threshold_r <= mag_enter_threshold;
+            mag_exit_threshold_r <= mag_exit_threshold;
+            acquire_dwell_r <= acquire_dwell;
+            blend_dwell_r <= blend_dwell;
+            loss_dwell_r <= loss_dwell;
+            holdover_timeout_r <= holdover_timeout;
+            warmup_samples_r <= warmup_samples;
+            warmup_target_r <= nonzero_dwell(warmup_samples_r) - 1'b1;
+            acquire_target_r <= nonzero_dwell(acquire_dwell_r) - 1'b1;
+            blend_target_r <= nonzero_dwell(blend_dwell_r) - 1'b1;
+            loss_target_r <= nonzero_dwell(loss_dwell_r) - 1'b1;
+            holdover_target_r <= nonzero_timeout(holdover_timeout_r) - 1'b1;
+
             locked <= (loop_state == ST_PLL_TRACK) && loop_ok;
 
             if (!loop_enable) begin
@@ -182,7 +226,7 @@ module loop_state_manager_stage_a #(
 
                     ST_WARMUP: begin
                         if (measurement_valid) begin
-                            if (warmup_count >= nonzero_dwell(warmup_samples) - 1'b1) begin
+                            if (warmup_count >= warmup_target_r) begin
                                 loop_state <= ST_FLL_ACQUIRE;
                                 warmup_count <= {DWELL_WIDTH{1'b0}};
                             end else begin
@@ -195,7 +239,7 @@ module loop_state_manager_stage_a #(
                         if (measurement_valid) begin
                             if (signal_present && freq_ok && !correction_saturated) begin
                                 bad_count <= {DWELL_WIDTH{1'b0}};
-                                if (good_count >= nonzero_dwell(acquire_dwell) - 1'b1) begin
+                                if (good_count >= acquire_target_r) begin
                                     loop_state <= ST_FLL_PLL_BLEND;
                                     good_count <= {DWELL_WIDTH{1'b0}};
                                 end else begin
@@ -219,7 +263,7 @@ module loop_state_manager_stage_a #(
                         if (measurement_valid) begin
                             if (loop_ok) begin
                                 bad_count <= {DWELL_WIDTH{1'b0}};
-                                if (good_count >= nonzero_dwell(blend_dwell) - 1'b1) begin
+                                if (good_count >= blend_target_r) begin
                                     loop_state <= ST_PLL_TRACK;
                                     loss_reason <= LOSS_NONE;
                                     good_count <= {DWELL_WIDTH{1'b0}};
@@ -228,7 +272,7 @@ module loop_state_manager_stage_a #(
                                 end
                             end else begin
                                 good_count <= {DWELL_WIDTH{1'b0}};
-                                if (bad_count >= nonzero_dwell(loss_dwell) - 1'b1) begin
+                                if (bad_count >= loss_target_r) begin
                                     loop_state <= signal_present ? ST_REACQUIRE : ST_HOLDOVER;
                                     loss_reason <= signal_present ? (!freq_ok ? LOSS_FREQUENCY : LOSS_PHASE) : LOSS_SIGNAL;
                                     bad_count <= {DWELL_WIDTH{1'b0}};
@@ -243,7 +287,7 @@ module loop_state_manager_stage_a #(
                         if (measurement_valid) begin
                             if (loss_sample) begin
                                 good_count <= {DWELL_WIDTH{1'b0}};
-                                if (bad_count >= nonzero_dwell(loss_dwell) - 1'b1) begin
+                                if (bad_count >= loss_target_r) begin
                                     if (correction_saturated) begin
                                         loop_state <= ST_REACQUIRE;
                                         loss_reason <= LOSS_SATURATION;
@@ -272,7 +316,7 @@ module loop_state_manager_stage_a #(
                         if (measurement_valid && signal_present) begin
                             loop_state <= ST_REACQUIRE;
                             holdover_count <= {TIMEOUT_WIDTH{1'b0}};
-                        end else if (holdover_count >= nonzero_timeout(holdover_timeout) - 1'b1) begin
+                        end else if (holdover_count >= holdover_target_r) begin
                             loop_state <= ST_FAULT;
                             loss_reason <= LOSS_TIMEOUT;
                         end else begin

@@ -102,6 +102,12 @@ module dpll_single_clock_core_stage_a #(
     wire [PHASE_WIDTH-1:0] phase_abs;
     wire [FERR_WIDTH-1:0] freq_abs;
     reg signed [PHASE_WIDTH-1:0] phase_error_hold;
+    reg [15:0] cordic_magnitude_hold;
+    reg freq_error_valid_d;
+    reg state_measurement_valid_r;
+    reg [PHASE_WIDTH-1:0] state_phase_abs_r;
+    reg [FERR_WIDTH-1:0] state_freq_abs_r;
+    reg [15:0] state_magnitude_r;
     wire correction_valid;
     wire [WORD_WIDTH-1:0] correction_tracking_word;
     wire loop_enable_fll;
@@ -110,13 +116,22 @@ module dpll_single_clock_core_stage_a #(
     wire signed [COEFF_WIDTH-1:0] active_kf;
     wire signed [COEFF_WIDTH-1:0] active_ki;
     wire signed [COEFF_WIDTH-1:0] active_kp;
+    reg hybrid_error_valid_r;
+    reg hybrid_enable_fll_r;
+    reg hybrid_enable_pll_i_r;
+    reg hybrid_enable_pll_p_r;
+    reg signed [PHASE_WIDTH-1:0] hybrid_phase_error_r;
+    reg signed [FERR_WIDTH-1:0] hybrid_freq_error_r;
+    reg signed [COEFF_WIDTH-1:0] hybrid_kf_r;
+    reg signed [COEFF_WIDTH-1:0] hybrid_ki_r;
+    reg signed [COEFF_WIDTH-1:0] hybrid_kp_r;
     wire saturated_high;
     wire saturated_low;
 
     assign nco_word = tracking_word_hold;
     assign tracking_word = tracking_word_hold;
     assign tracking_valid = correction_valid;
-    assign magnitude = cordic_magnitude;
+    assign magnitude = cordic_magnitude_hold;
 
     always @(posedge clk_125m) begin
         if (rst_125m) begin
@@ -268,8 +283,26 @@ module dpll_single_clock_core_stage_a #(
     always @(posedge clk_125m) begin
         if (rst_125m) begin
             phase_error_hold <= {PHASE_WIDTH{1'b0}};
-        end else if (cordic_valid) begin
-            phase_error_hold <= phase_error_next;
+            cordic_magnitude_hold <= 16'd0;
+            freq_error_valid_d <= 1'b0;
+            state_measurement_valid_r <= 1'b0;
+            state_phase_abs_r <= {PHASE_WIDTH{1'b0}};
+            state_freq_abs_r <= {FERR_WIDTH{1'b0}};
+            state_magnitude_r <= 16'd0;
+        end else begin
+            freq_error_valid_d <= freq_error_valid;
+            state_measurement_valid_r <= freq_error_valid_d;
+
+            if (cordic_valid) begin
+                phase_error_hold <= phase_error_next;
+                cordic_magnitude_hold <= cordic_magnitude;
+            end
+
+            if (freq_error_valid_d) begin
+                state_phase_abs_r <= phase_abs;
+                state_freq_abs_r <= freq_abs;
+                state_magnitude_r <= cordic_magnitude_hold;
+            end
         end
     end
 
@@ -287,10 +320,10 @@ module dpll_single_clock_core_stage_a #(
         .rst_125m(rst_125m),
         .loop_enable(loop_enable),
         .config_apply(config_apply),
-        .measurement_valid(cordic_valid),
-        .phase_abs(phase_abs),
-        .freq_abs(freq_abs),
-        .magnitude(cordic_magnitude),
+        .measurement_valid(state_measurement_valid_r),
+        .phase_abs(state_phase_abs_r),
+        .freq_abs(state_freq_abs_r),
+        .magnitude(state_magnitude_r),
         .cic_fault(cic_illegal_config_seen),
         .correction_saturated(saturated_high | saturated_low),
         .phase_lock_threshold(phase_lock_threshold),
@@ -337,6 +370,32 @@ module dpll_single_clock_core_stage_a #(
         .ambiguous()
     );
 
+    always @(posedge clk_125m) begin
+        if (rst_125m) begin
+            hybrid_error_valid_r <= 1'b0;
+            hybrid_enable_fll_r <= 1'b0;
+            hybrid_enable_pll_i_r <= 1'b0;
+            hybrid_enable_pll_p_r <= 1'b0;
+            hybrid_phase_error_r <= {PHASE_WIDTH{1'b0}};
+            hybrid_freq_error_r <= {FERR_WIDTH{1'b0}};
+            hybrid_kf_r <= {COEFF_WIDTH{1'b0}};
+            hybrid_ki_r <= {COEFF_WIDTH{1'b0}};
+            hybrid_kp_r <= {COEFF_WIDTH{1'b0}};
+        end else begin
+            hybrid_error_valid_r <= freq_error_valid;
+            if (freq_error_valid) begin
+                hybrid_enable_fll_r <= loop_enable_fll;
+                hybrid_enable_pll_i_r <= loop_enable_pll_i;
+                hybrid_enable_pll_p_r <= loop_enable_pll_p;
+                hybrid_phase_error_r <= phase_error_hold;
+                hybrid_freq_error_r <= freq_error;
+                hybrid_kf_r <= active_kf;
+                hybrid_ki_r <= active_ki;
+                hybrid_kp_r <= active_kp;
+            end
+        end
+    end
+
     hybrid_fll_pll_filter_stage_a #(
         .PHASE_WIDTH(PHASE_WIDTH),
         .FERR_WIDTH(FERR_WIDTH),
@@ -347,15 +406,15 @@ module dpll_single_clock_core_stage_a #(
     ) hybrid_loop_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_125m),
-        .error_valid(freq_error_valid),
-        .enable_fll(loop_enable_fll),
-        .enable_pll_i(loop_enable_pll_i),
-        .enable_pll_p(loop_enable_pll_p),
-        .phase_error(phase_error_hold),
-        .freq_error(freq_error),
-        .kf(active_kf),
-        .ki(active_ki),
-        .kp(active_kp),
+        .error_valid(hybrid_error_valid_r),
+        .enable_fll(hybrid_enable_fll_r),
+        .enable_pll_i(hybrid_enable_pll_i_r),
+        .enable_pll_p(hybrid_enable_pll_p_r),
+        .phase_error(hybrid_phase_error_r),
+        .freq_error(hybrid_freq_error_r),
+        .kf(hybrid_kf_r),
+        .ki(hybrid_ki_r),
+        .kp(hybrid_kp_r),
         .center_word(center_word),
         .positive_limit(positive_limit),
         .negative_limit(negative_limit),

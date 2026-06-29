@@ -1,0 +1,35 @@
+#-----------------------------------------------------------
+# xsim v2018.3 (64-bit)
+# SW Build 2405991 on Thu Dec  6 23:38:27 MST 2018
+# IP Build 2404404 on Fri Dec  7 01:43:56 MST 2018
+# Start of session at: Mon Jun 29 20:13:55 2026
+# Process ID: 32544
+# Current directory: E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/xsim/dpll_core_sine_sweep_20260629_201333_560
+# Command line: xsim.exe -log xsim.log -mode tcl -source {xsim.dir/dpll_core_sine_sweep_tb/xsim_script.tcl}
+# Log file: E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/xsim/dpll_core_sine_sweep_20260629_201333_560/xsim.log
+# Journal file: E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/xsim/dpll_core_sine_sweep_20260629_201333_560\xsim.jou
+#-----------------------------------------------------------
+source xsim.dir/dpll_core_sine_sweep_tb/xsim_script.tcl
+# xsim {dpll_core_sine_sweep_tb} -autoloadwcfg -runall
+Vivado Simulator 2018.3
+Time resolution is 1 ps
+run -all
+PASS_CASE: sine_sweep index=0 center=5000.000000 input=6000.000000 tracking=58 track=52 locked=52 positive=54 negative=0
+PASS_CASE: sine_sweep index=1 center=10000.000000 input=11000.000000 tracking=60 track=54 locked=55 positive=56 negative=0
+PASS_CASE: sine_sweep index=2 center=20000.000000 input=21000.000000 tracking=60 track=54 locked=55 positive=56 negative=0
+PASS_CASE: sine_sweep index=3 center=50000.000000 input=51000.000000 tracking=92 track=86 locked=87 positive=88 negative=0
+PASS_CASE: sine_sweep index=4 center=100000.000000 input=101000.000000 tracking=183 track=177 locked=178 positive=179 negative=0
+PASS_CASE: sine_sweep index=5 center=150000.000000 input=151000.000000 tracking=371 track=365 locked=366 positive=366 negative=1
+PASS_CASE: sine_sweep index=6 center=200000.000000 input=201000.000000 tracking=371 track=365 locked=366 positive=367 negative=0
+PASS_CASE: sine_sweep index=7 center=5000.000000 input=4000.000000 tracking=60 track=54 locked=55 positive=0 negative=56
+PASS_CASE: sine_sweep index=8 center=10000.000000 input=9000.000000 tracking=60 track=54 locked=55 positive=0 negative=56
+PASS_CASE: sine_sweep index=9 center=20000.000000 input=19000.000000 tracking=60 track=54 locked=55 positive=0 negative=56
+PASS_CASE: sine_sweep index=10 center=50000.000000 input=49000.000000 tracking=92 track=86 locked=87 positive=0 negative=88
+PASS_CASE: sine_sweep index=11 center=100000.000000 input=99000.000000 tracking=183 track=177 locked=178 positive=0 negative=179
+PASS_CASE: sine_sweep index=12 center=150000.000000 input=149000.000000 tracking=371 track=365 locked=366 positive=0 negative=367
+PASS_CASE: sine_sweep index=13 center=200000.000000 input=199000.000000 tracking=371 track=365 locked=366 positive=0 negative=367
+PASS: dpll_core_sine_sweep_tb cases=14
+$finish called at time : 30071324 ns : File "E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/verification/rtl/dpll_core_sine_sweep_tb.v" Line 325
+run: Time (s): cpu = 00:00:00 ; elapsed = 00:04:55 . Memory (MB): peak = 217.789 ; gain = 0.000
+exit
+INFO: [Common 17-206] Exiting xsim at Mon Jun 29 20:18:53 2026...

@@ -15,6 +15,10 @@ module loop_state_manager_stage_a_tb;
     reg loop_enable = 1'b0;
     reg config_apply = 1'b0;
     reg measurement_valid = 1'b0;
+    reg magnitude_valid = 1'b0;
+    reg phase_valid = 1'b0;
+    reg frequency_valid = 1'b0;
+    reg signal_present_in = 1'b0;
     reg [17:0] phase_abs = 18'd0;
     reg [21:0] freq_abs = 22'd0;
     reg [15:0] magnitude = 16'd0;
@@ -41,6 +45,10 @@ module loop_state_manager_stage_a_tb;
         .rst_125m(rst),
         .loop_enable(loop_enable),
         .config_apply(config_apply),
+        .magnitude_valid(magnitude_valid),
+        .phase_valid(phase_valid),
+        .frequency_valid(frequency_valid),
+        .signal_present_in(signal_present_in),
         .measurement_valid(measurement_valid),
         .measurement_timeout(24'd8),
         .phase_abs(phase_abs),
@@ -87,10 +95,21 @@ module loop_state_manager_stage_a_tb;
             phase_abs = phase_value;
             freq_abs = freq_value;
             magnitude = mag_value;
+            magnitude_valid = 1'b1;
+            phase_valid = 1'b1;
+            frequency_valid = 1'b1;
+            if (signal_present_in) begin
+                if (mag_value < 16'd4) signal_present_in = 1'b0;
+            end else if (mag_value >= 16'd10) begin
+                signal_present_in = 1'b1;
+            end
             measurement_valid = 1'b1;
             @(posedge clk);
             #1;
             measurement_valid = 1'b0;
+            magnitude_valid = 1'b0;
+            phase_valid = 1'b0;
+            frequency_valid = 1'b0;
         end
     endtask
 

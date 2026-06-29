@@ -72,6 +72,7 @@ module dpll_multifrequency_path_tb;
         .acquire_dwell(16'd1),
         .blend_dwell(16'd1),
         .loss_dwell(16'd4),
+        .measurement_timeout(24'd65535),
         .holdover_timeout(24'd128),
         .warmup_samples(16'd1),
         .positive_limit(56'sd140737488355327),

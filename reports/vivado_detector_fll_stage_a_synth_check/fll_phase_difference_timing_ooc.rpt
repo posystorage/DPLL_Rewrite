@@ -1,13 +1,13 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Sun Jun 28 01:10:14 2026
+| Date         : Mon Jun 29 20:29:29 2026
 | Host         : MiaoZhi-PC running 64-bit major release  (build 9200)
-| Command      : report_timing_summary -file E:/FPGA/DPLL_Rewrite/worktrees/agent-detector-fll/reports/vivado_detector_fll_stage_a_synth_check/fll_phase_difference_timing_ooc.rpt
+| Command      : report_timing_summary -file E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_detector_fll_stage_a_synth_check/fll_phase_difference_timing_ooc.rpt
 | Design       : fll_phase_difference_stage_a
 | Device       : 7z010-clg400
 | Speed File   : -1  PRODUCTION 1.11 2014-09-11
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Timing Summary Report
 
@@ -74,7 +74,7 @@ Table of Contents
 
 5. checking no_input_delay
 --------------------------
- There are 22 input ports with no input delay specified. (HIGH)
+ There are 32 input ports with no input delay specified. (HIGH)
 
  There are 0 input ports with no input delay but user has a false path constraint.
 
@@ -126,7 +126,7 @@ Table of Contents
 
     WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
     -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-      2.056        0.000                      0                  103        0.264        0.000                      0                  103        3.500        0.000                       0                    97  
+      0.473        0.000                      0                  448        0.218        0.000                      0                  448        3.020        0.000                       0                   279  
 
 
 All user specified timing constraints are met.
@@ -149,7 +149,7 @@ clk_125m  {0.000 4.000}        8.000           125.000
 
 Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
 -----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-clk_125m            2.056        0.000                      0                  103        0.264        0.000                      0                  103        3.500        0.000                       0                    97  
+clk_125m            0.473        0.000                      0                  448        0.218        0.000                      0                  448        3.020        0.000                       0                   279  
 
 
 ------------------------------------------------------------------------------------------------
@@ -180,24 +180,24 @@ Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing 
 From Clock:  clk_125m
   To Clock:  clk_125m
 
-Setup :            0  Failing Endpoints,  Worst Slack        2.056ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.264ns,  Total Violation        0.000ns
-PW    :            0  Failing Endpoints,  Worst Slack        3.500ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        0.473ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.218ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        3.020ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             2.056ns  (required time - arrival time)
-  Source:                 phase_z8_reg[1]/C
+Slack (MET) :             0.473ns  (required time - arrival time)
+  Source:                 divide_divisor_reg[1]/C
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
-  Destination:            ambiguous_reg/D
+  Destination:            freq_error_reg[0]/D
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
   Path Group:             clk_125m
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            8.000ns  (clk_125m rise@8.000ns - clk_125m rise@0.000ns)
-  Data Path Delay:        5.922ns  (logic 2.595ns (43.820%)  route 3.327ns (56.180%))
-  Logic Levels:           9  (CARRY4=4 LUT2=1 LUT4=1 LUT5=1 LUT6=2)
+  Data Path Delay:        7.505ns  (logic 4.758ns (63.398%)  route 2.747ns (36.602%))
+  Logic Levels:           15  (CARRY4=11 LUT1=1 LUT4=2 LUT5=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 8.924 - 8.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -213,49 +213,68 @@ Slack (MET) :             2.056ns  (required time - arrival time)
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=96, unset)           0.973     0.973    clk_125m
-                         FDRE                                         r  phase_z8_reg[1]/C
+                         net (fo=278, unset)          0.973     0.973    clk_125m
+                         FDRE                                         r  divide_divisor_reg[1]/C
   -------------------------------------------------------------------    -------------------
-                         FDRE (Prop_fdre_C_Q)         0.496     1.469 f  phase_z8_reg[1]/Q
-                         net (fo=1, unplaced)         0.965     2.434    phase_z8[1]
-                         LUT6 (Prop_lut6_I0_O)        0.295     2.729 r  freq_error[3]_i_8/O
-                         net (fo=1, unplaced)         0.449     3.178    freq_error[3]_i_8_n_0
-                         LUT2 (Prop_lut2_I1_O)        0.124     3.302 r  freq_error[3]_i_4/O
-                         net (fo=1, unplaced)         0.000     3.302    freq_error[3]_i_4_n_0
-                         CARRY4 (Prop_carry4_S[1]_CO[3])
-                                                      0.550     3.852 r  freq_error_reg[3]_i_1/CO[3]
-                         net (fo=1, unplaced)         0.000     3.852    freq_error_reg[3]_i_1_n_0
+                         FDRE (Prop_fdre_C_Q)         0.496     1.469 f  divide_divisor_reg[1]/Q
+                         net (fo=3, unplaced)         0.759     2.228    divide_divisor[1]
+                         LUT4 (Prop_lut4_I1_O)        0.321     2.549 r  divide_quotient[0]_i_12/O
+                         net (fo=1, unplaced)         0.000     2.549    divide_quotient[0]_i_12_n_0
+                         CARRY4 (Prop_carry4_DI[0]_CO[3])
+                                                      0.553     3.102 r  divide_quotient_reg[0]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     3.102    divide_quotient_reg[0]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[2])
+                                                      0.250     3.352 f  divide_quotient_reg[0]_i_1/CO[2]
+                         net (fo=16, unplaced)        0.506     3.858    divide_quotient_bit
+                         LUT1 (Prop_lut1_I0_O)        0.310     4.168 r  freq_error[4]_i_3/O
+                         net (fo=1, unplaced)         0.333     4.501    freq_error[4]_i_3_n_0
+                         CARRY4 (Prop_carry4_CYINIT_CO[3])
+                                                      0.580     5.081 r  freq_error_reg[4]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.081    freq_error_reg[4]_i_2_n_0
                          CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     3.966 r  freq_error_reg[7]_i_1/CO[3]
-                         net (fo=1, unplaced)         0.000     3.966    freq_error_reg[7]_i_1_n_0
+                                                      0.114     5.195 r  freq_error_reg[8]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.195    freq_error_reg[8]_i_2_n_0
                          CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     4.080 r  freq_error_reg[11]_i_1/CO[3]
-                         net (fo=1, unplaced)         0.000     4.080    freq_error_reg[11]_i_1_n_0
+                                                      0.114     5.309 r  freq_error_reg[12]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.309    freq_error_reg[12]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     5.423 r  freq_error_reg[16]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.423    freq_error_reg[16]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     5.537 r  freq_error_reg[20]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.537    freq_error_reg[20]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     5.651 r  freq_error_reg[21]_i_5/CO[3]
+                         net (fo=1, unplaced)         0.000     5.651    freq_error_reg[21]_i_5_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     5.765 r  freq_error_reg[21]_i_31/CO[3]
+                         net (fo=1, unplaced)         0.000     5.765    freq_error_reg[21]_i_31_n_0
                          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.348     4.428 f  freq_error_reg[15]_i_1/O[1]
-                         net (fo=3, unplaced)         1.015     5.443    phase_delta_ext[13]
-                         LUT6 (Prop_lut6_I2_O)        0.306     5.749 r  ambiguous_i_8/O
-                         net (fo=1, unplaced)         0.449     6.198    ambiguous_i_8_n_0
-                         LUT4 (Prop_lut4_I3_O)        0.124     6.322 r  ambiguous_i_5/O
-                         net (fo=1, unplaced)         0.449     6.771    ambiguous_i_5_n_0
-                         LUT5 (Prop_lut5_I4_O)        0.124     6.895 r  ambiguous_i_1/O
-                         net (fo=1, unplaced)         0.000     6.895    ambiguous_i_1_n_0
-                         FDRE                                         r  ambiguous_reg/D
+                                                      0.348     6.113 r  freq_error_reg[21]_i_30/O[1]
+                         net (fo=4, unplaced)         0.635     6.748    divide_signed_result_next0[30]
+                         LUT5 (Prop_lut5_I1_O)        0.332     7.080 r  freq_error[21]_i_7/O
+                         net (fo=1, unplaced)         0.000     7.080    freq_error[21]_i_7_n_0
+                         CARRY4 (Prop_carry4_DI[1]_CO[2])
+                                                      0.574     7.654 r  freq_error_reg[21]_i_3/CO[2]
+                         net (fo=22, unplaced)        0.514     8.168    saturate_normalized10_in
+                         LUT4 (Prop_lut4_I3_O)        0.310     8.478 r  freq_error[0]_i_1/O
+                         net (fo=1, unplaced)         0.000     8.478    freq_error[0]_i_1_n_0
+                         FDRE                                         r  freq_error_reg[0]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk_125m rise edge)
                                                       8.000     8.000 r  
                                                       0.000     8.000 r  clk_125m (IN)
-                         net (fo=96, unset)           0.924     8.924    clk_125m
-                         FDRE                                         r  ambiguous_reg/C
+                         net (fo=278, unset)          0.924     8.924    clk_125m
+                         FDRE                                         r  freq_error_reg[0]/C
                          clock pessimism              0.000     8.924    
                          clock uncertainty           -0.035     8.889    
-                         FDRE (Setup_fdre_C_D)        0.062     8.951    ambiguous_reg
+                         FDRE (Setup_fdre_C_D)        0.062     8.951    freq_error_reg[0]
   -------------------------------------------------------------------
                          required time                          8.951    
-                         arrival time                          -6.895    
+                         arrival time                          -8.478    
   -------------------------------------------------------------------
-                         slack                                  2.056    
+                         slack                                  0.473    
 
 
 
@@ -263,16 +282,16 @@ Slack (MET) :             2.056ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.264ns  (arrival time - required time)
-  Source:                 valid_count_reg[2]/C
+Slack (MET) :             0.218ns  (arrival time - required time)
+  Source:                 phase_delay_reg[3][0]/C
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
-  Destination:            valid_count_reg[2]/D
-                            (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
+  Destination:            phase_delay_reg[5][0]_srl2___phase_delay_reg_r_0/D
+                            (rising edge-triggered cell SRL16E clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
   Path Group:             clk_125m
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk_125m rise@0.000ns - clk_125m rise@0.000ns)
-  Data Path Delay:        0.397ns  (logic 0.256ns (64.450%)  route 0.141ns (35.550%))
-  Logic Levels:           1  (LUT3=1)
+  Data Path Delay:        0.303ns  (logic 0.158ns (52.072%)  route 0.145ns (47.928%))
+  Logic Levels:           0  
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
     Source Clock Delay      (SCD):    0.410ns
@@ -283,28 +302,27 @@ Slack (MET) :             0.264ns  (arrival time - required time)
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=96, unset)           0.410     0.410    clk_125m
-                         FDRE                                         r  valid_count_reg[2]/C
+                         net (fo=278, unset)          0.410     0.410    clk_125m
+                         FDRE                                         r  phase_delay_reg[3][0]/C
   -------------------------------------------------------------------    -------------------
-                         FDRE (Prop_fdre_C_Q)         0.158     0.568 r  valid_count_reg[2]/Q
-                         net (fo=4, unplaced)         0.141     0.709    valid_count_reg__0[2]
-                         LUT3 (Prop_lut3_I2_O)        0.098     0.807 r  valid_count[2]_i_1/O
-                         net (fo=1, unplaced)         0.000     0.807    p_0_in[2]
-                         FDRE                                         r  valid_count_reg[2]/D
+                         FDRE (Prop_fdre_C_Q)         0.158     0.568 r  phase_delay_reg[3][0]/Q
+                         net (fo=2, unplaced)         0.145     0.714    phase_delay_reg[3]__0[0]
+                         SRL16E                                       r  phase_delay_reg[5][0]_srl2___phase_delay_reg_r_0/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=96, unset)           0.432     0.432    clk_125m
-                         FDRE                                         r  valid_count_reg[2]/C
+                         net (fo=278, unset)          0.432     0.432    clk_125m
+                         SRL16E                                       r  phase_delay_reg[5][0]_srl2___phase_delay_reg_r_0/CLK
                          clock pessimism              0.000     0.432    
-                         FDRE (Hold_fdre_C_D)         0.112     0.544    valid_count_reg[2]
+                         SRL16E (Hold_srl16e_CLK_D)
+                                                      0.064     0.496    phase_delay_reg[5][0]_srl2___phase_delay_reg_r_0
   -------------------------------------------------------------------
-                         required time                         -0.544    
-                         arrival time                           0.807    
+                         required time                         -0.496    
+                         arrival time                           0.714    
   -------------------------------------------------------------------
-                         slack                                  0.264    
+                         slack                                  0.218    
 
 
 
@@ -317,10 +335,10 @@ Waveform(ns):       { 0.000 4.000 }
 Period(ns):         8.000
 Sources:            { clk_125m }
 
-Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location  Pin
-Min Period        n/a     FDRE/C   n/a            1.000         8.000       7.000                ambiguous_reg/C
-Low Pulse Width   Fast    FDRE/C   n/a            0.500         4.000       3.500                ambiguous_reg/C
-High Pulse Width  Slow    FDRE/C   n/a            0.500         4.000       3.500                ambiguous_reg/C
+Check Type        Corner  Lib Pin     Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location  Pin
+Min Period        n/a     FDRE/C      n/a            1.000         8.000       7.000                ambiguous_pending_reg/C
+Low Pulse Width   Fast    SRL16E/CLK  n/a            0.980         4.000       3.020                phase_delay_reg[5][7]_srl2___phase_delay_reg_r_0/CLK
+High Pulse Width  Slow    SRL16E/CLK  n/a            0.980         4.000       3.020                phase_delay_reg[5][7]_srl2___phase_delay_reg_r_0/CLK
 
 
 

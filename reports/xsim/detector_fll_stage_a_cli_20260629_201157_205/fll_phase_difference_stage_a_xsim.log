@@ -1,0 +1,20 @@
+#-----------------------------------------------------------
+# xsim v2018.3 (64-bit)
+# SW Build 2405991 on Thu Dec  6 23:38:27 MST 2018
+# IP Build 2404404 on Fri Dec  7 01:43:56 MST 2018
+# Start of session at: Mon Jun 29 20:12:01 2026
+# Process ID: 31492
+# Current directory: E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/xsim/detector_fll_stage_a_cli_20260629_201157_205
+# Command line: xsim.exe -log fll_phase_difference_stage_a_xsim.log -mode tcl -source {xsim.dir/fll_phase_difference_stage_a_tb/xsim_script.tcl}
+# Log file: E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/xsim/detector_fll_stage_a_cli_20260629_201157_205/fll_phase_difference_stage_a_xsim.log
+# Journal file: E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/xsim/detector_fll_stage_a_cli_20260629_201157_205\xsim.jou
+#-----------------------------------------------------------
+source xsim.dir/fll_phase_difference_stage_a_tb/xsim_script.tcl
+# xsim {fll_phase_difference_stage_a_tb} -autoloadwcfg -runall
+Vivado Simulator 2018.3
+Time resolution is 1 ps
+run -all
+PASS: fll_phase_difference_stage_a_tb
+$finish called at time : 1805 ns : File "E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/verification/rtl/fll_phase_difference_stage_a_tb.v" Line 138
+exit
+INFO: [Common 17-206] Exiting xsim at Mon Jun 29 20:12:06 2026...

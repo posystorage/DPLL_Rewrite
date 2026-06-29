@@ -55,6 +55,7 @@ module dpll_single_clock_core_stage_a_tb;
         .acquire_dwell(16'd1),
         .blend_dwell(16'd1),
         .loss_dwell(16'd4),
+        .measurement_timeout(24'd65535),
         .holdover_timeout(24'd64),
         .warmup_samples(16'd1),
         .positive_limit(56'sd140737488355327),

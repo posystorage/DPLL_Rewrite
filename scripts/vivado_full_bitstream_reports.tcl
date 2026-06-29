@@ -21,6 +21,12 @@ if {$argc >= 2} {
     set out_dir [file normalize [lindex $argv 1]]
 }
 
+if {[catch {
+    exec python [file join $repo_root scripts generate_dpll_build_id.py]
+} build_id_error]} {
+    error "Failed to generate DPLL build identity: $build_id_error"
+}
+
 file mkdir $out_dir
 
 proc write_lines {path lines} {

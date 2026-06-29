@@ -5,326 +5,115 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ARM = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "helloworld.c"
+DRIVER_C = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "dpll_driver.c"
+DRIVER_H = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "dpll_driver.h"
 PERIPH = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h"
+HOST_TEST = ROOT / "verification" / "arm" / "dpll_driver_host_test.c"
 
 
 def read_gbk(path: Path) -> str:
     return path.read_text(encoding="gbk", errors="strict")
 
 
-def parse_expected(name: str, text: str) -> int:
-    match = re.search(rf"#define\s+{name}\s+(0x[0-9A-Fa-f]+|[0-9]+)U", text)
+def function_body(text: str, name: str) -> str:
+    match = re.search(rf"(?:static\s+)?(?:void|int|uint8_t)\s+{name}\s*\([^)]*\)\s*\{{", text)
     if not match:
-        raise AssertionError(f"missing {name}")
-    return int(match.group(1), 0)
+        raise AssertionError(f"missing function {name}")
+    depth = 1
+    index = match.end()
+    while index < len(text) and depth:
+        depth += (text[index] == "{") - (text[index] == "}")
+        index += 1
+    if depth:
+        raise AssertionError(f"unterminated function {name}")
+    return text[match.end():index - 1]
 
 
-def parse_define_int(name: str, text: str) -> int:
-    match = re.search(rf"#define\s+{name}\s+(0x[0-9A-Fa-f]+|[0-9]+)U?", text)
-    if not match:
-        raise AssertionError(f"missing {name}")
-    return int(match.group(1), 0)
-
-
-def parse_dpll_addr(name: str, text: str) -> int:
-    escaped = re.escape(name)
-    direct = re.search(rf"#define\s+{escaped}\s+\(DPLL_BASE_ADDR\|\(0x([0-9A-Fa-f]+)<<2\)\)", text)
-    if direct:
-        return int(direct.group(1), 16) << 2
-
-    alias = re.search(rf"#define\s+{escaped}\s+([A-Za-z0-9_]+)", text)
-    if alias:
-        return parse_dpll_addr(alias.group(1), text)
-
-    raise AssertionError(f"missing DPLL address macro {name}")
-
-
-def u32le(payload: bytes, offset: int) -> int:
-    return int.from_bytes(payload[offset:offset + 4], "little")
-
-
-def u16le(payload: bytes, offset: int) -> int:
-    return int.from_bytes(payload[offset:offset + 2], "little")
-
-
-class MockMmio:
-    def __init__(self):
-        self.mem = {}
-        self.writes = []
-        self.apply_stuck = False
-
-    def read(self, addr: int) -> int:
-        return self.mem.get(addr, 0)
-
-    def write(self, addr: int, value: int) -> None:
-        value &= 0xFFFFFFFF
-        self.mem[addr] = value
-        self.writes.append((addr, value))
-
-
-class DpllArmModel:
-    def __init__(self, addrs: dict[str, int], expected: dict[str, int], mmio: MockMmio):
-        self.addrs = addrs
-        self.expected = expected
-        self.mmio = mmio
-        self.abi_ready = False
-        self.pll_lock_status = 0
-        self.apply_poll_limit = parse_expected("DPLL_APPLY_POLL_LIMIT", read_gbk(ARM))
-
-    def check_abi(self) -> bool:
-        ok = (
-            self.mmio.read(self.addrs["DPLL_ABI_VERSION_Addr"]) == self.expected["ABI"]
-            and self.mmio.read(self.addrs["DPLL_CONFIG_VERSION_Addr"]) == self.expected["CONFIG"]
-            and self.mmio.read(self.addrs["DPLL_FPGA_BUILD_ID_Addr"]) == self.expected["BUILD"]
-        )
-        self.abi_ready = ok
-        return ok
-
-    def apply_config(self) -> int:
-        if not self.abi_ready:
-            self.mmio.write(self.addrs["PLL0_Lock_Ctrl_Addr"], 0)
-            return -1
-        before = self.mmio.read(self.addrs["DPLL_CONFIG_APPLY_Addr"])
-        before_seq = (before >> 8) & 0xFF
-        self.mmio.write(self.addrs["DPLL_CONFIG_APPLY_Addr"], 1)
-        if not self.mmio.apply_stuck:
-            self.mmio.mem[self.addrs["DPLL_CONFIG_APPLY_Addr"]] = (((before_seq + 1) & 0xFF) << 8)
-        for _ in range(self.apply_poll_limit):
-            status = self.mmio.read(self.addrs["DPLL_CONFIG_APPLY_Addr"])
-            seq = (status >> 8) & 0xFF
-            if seq != before_seq and (status & 1) == 0:
-                return 0
-        return -2
-
-    def set_enable(self, enable: int) -> int:
-        if enable and not self.abi_ready:
-            self.mmio.write(self.addrs["PLL0_Lock_Ctrl_Addr"], 0)
-            self.pll_lock_status = 0
-            return -1
-        self.mmio.write(self.addrs["PLL0_Lock_Ctrl_Addr"], 1 if enable else 0)
-        self.pll_lock_status = 0x20 if enable else 0
-        return 0
-
-    def write_adv_config(self, payload: bytes) -> int:
-        required_payload = parse_define_int("DPLL_ADV_CONFIG_PAYLOAD_BYTES", read_gbk(ARM))
-        if len(payload) < 4 + required_payload or payload[3] < required_payload:
-            return 0xF2
-
-        sequence = [
-            ("DPLL_FLL_KF_TRACK_Addr", u32le(payload, 4)),
-            ("DPLL_PLL_KP_BLEND_Addr", u32le(payload, 8)),
-            ("DPLL_PLL_KI_BLEND_Addr", u32le(payload, 12)),
-            ("DPLL_MAG_ENTER_THRESHOLD_Addr", u32le(payload, 16)),
-            ("DPLL_MAG_EXIT_THRESHOLD_Addr", u32le(payload, 20)),
-            ("DPLL_ACQUIRE_DWELL_Addr", u32le(payload, 24)),
-            ("DPLL_BLEND_DWELL_Addr", u32le(payload, 28)),
-            ("DPLL_LOSS_DWELL_Addr", u32le(payload, 32)),
-            ("DPLL_HOLDOVER_TIMEOUT_Addr", u32le(payload, 36)),
-            ("DPLL_POST_IQ_CIC_R_Addr", u16le(payload, 40)),
-            ("DPLL_POST_IQ_CIC_SHIFT_Addr", payload[42]),
-            ("DPLL_FLL_DELAY_SEL_Addr", payload[43]),
-            ("DPLL_WARMUP_SAMPLES_Addr", u16le(payload, 44)),
-        ]
-        for name, value in sequence:
-            self.mmio.write(self.addrs[name], value)
-
-        return 0 if self.apply_config() == 0 else self.expected["ABI_ERR"]
-
-    def write_debug_config(self, payload: bytes) -> int:
-        required_payload = parse_define_int("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", read_gbk(ARM))
-        if len(payload) < 4 + required_payload or payload[3] < required_payload:
-            return 0xF2
-
-        sequence = [
-            ("DAC1_DDS_Frequency_Addr", u32le(payload, 4)),
-            ("DAC1_DDS_Phase_Addr", u32le(payload, 8)),
-            ("DAC1_DDS_Offset_Addr", u16le(payload, 12)),
-            ("DAC1_DDS_Amplitude_Addr", u16le(payload, 14)),
-        ]
-        for name, value in sequence:
-            self.mmio.write(self.addrs[name], value)
-        return 0
-
-
-class DpllArmMockMmioTest(unittest.TestCase):
+class DpllArmControlContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.arm = read_gbk(ARM)
+        cls.driver_c = DRIVER_C.read_text(encoding="utf-8")
+        cls.driver_h = DRIVER_H.read_text(encoding="utf-8")
         cls.periph = read_gbk(PERIPH)
-        names = [
-            "PLL0_Lock_Ctrl_Addr",
-            "DPLL_CONFIG_APPLY_Addr",
-            "DPLL_ABI_VERSION_Addr",
-            "DPLL_CONFIG_VERSION_Addr",
-            "DPLL_FPGA_BUILD_ID_Addr",
-            "DPLL_CORE_FLAGS_Addr",
-            "DPLL_FLL_KF_TRACK_Addr",
-            "DPLL_PLL_KP_BLEND_Addr",
-            "DPLL_PLL_KI_BLEND_Addr",
-            "DPLL_MAG_ENTER_THRESHOLD_Addr",
-            "DPLL_MAG_EXIT_THRESHOLD_Addr",
-            "DPLL_ACQUIRE_DWELL_Addr",
-            "DPLL_BLEND_DWELL_Addr",
-            "DPLL_LOSS_DWELL_Addr",
-            "DPLL_HOLDOVER_TIMEOUT_Addr",
-            "DPLL_POST_IQ_CIC_R_Addr",
-            "DPLL_POST_IQ_CIC_SHIFT_Addr",
-            "DPLL_FLL_DELAY_SEL_Addr",
-            "DPLL_WARMUP_SAMPLES_Addr",
-            "DAC1_DDS_Frequency_Addr",
-            "DAC1_DDS_Phase_Addr",
-            "DAC1_DDS_Offset_Addr",
-            "DAC1_DDS_Amplitude_Addr",
-        ]
-        cls.addrs = {name: parse_dpll_addr(name, cls.periph) for name in names}
-        cls.expected = {
-            "ABI": parse_expected("ARM_EXPECTED_DPLL_ABI_VERSION", cls.arm),
-            "CONFIG": parse_expected("ARM_EXPECTED_DPLL_CONFIG_VERSION", cls.arm),
-            "BUILD": parse_expected("ARM_EXPECTED_DPLL_FPGA_BUILD_ID", cls.arm),
-            "ABI_ERR": parse_expected("PC_ERR_DPLL_ABI_MISMATCH", cls.arm),
-            "APPLY_ERR": parse_expected("PC_ERR_DPLL_APPLY_TIMEOUT", cls.arm),
-        }
+        cls.host_test = HOST_TEST.read_text(encoding="utf-8")
 
-    def make_model(self):
-        mmio = MockMmio()
-        return mmio, DpllArmModel(self.addrs, self.expected, mmio)
+    def test_firmware_uses_the_host_compiled_driver(self):
+        self.assertIn('#include "dpll_driver.h"', self.arm)
+        self.assertIn("dpll_driver_check_abi(&dpll_driver)", self.arm)
+        self.assertIn("dpll_driver_apply(&dpll_driver, result)", self.arm)
+        self.assertIn("dpll_driver_set_enable(&dpll_driver, enable)", self.arm)
+        self.assertIn("../src/dpll_driver.c", (ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/Debug/src/subdir.mk").read_text())
 
-    def load_good_abi(self, mmio: MockMmio) -> None:
-        mmio.mem[self.addrs["DPLL_ABI_VERSION_Addr"]] = self.expected["ABI"]
-        mmio.mem[self.addrs["DPLL_CONFIG_VERSION_Addr"]] = self.expected["CONFIG"]
-        mmio.mem[self.addrs["DPLL_FPGA_BUILD_ID_Addr"]] = self.expected["BUILD"]
+    def test_abi_retry_timeout_and_reset_recheck_are_real_driver_paths(self):
+        self.assertIn("driver->abi_attempts = retry + 1U", self.driver_c)
+        self.assertIn("driver->io.delay_us", self.driver_c)
+        self.assertIn("DPLL_DRIVER_ERR_ABI", self.driver_c)
+        self.assertIn("dpll_invalidate_abi();", function_body(self.arm, "PC_HOST_CMD_Respond"))
+        self.assertIn("dpll_invalidate_abi();", function_body(self.arm, "STM_HOST_CMD_Respond"))
+        self.assertIn("actual abi=0x%08lx", self.arm)
+        self.assertIn("expected abi=0x%08lx", self.arm)
 
-    def test_source_keeps_abi_gate_and_payload_len_contract(self):
-        self.assertIn("if (!dpll_abi_ready)", self.arm)
-        self.assertIn("Xil_Out32(DPLL_CONFIG_APPLY_Addr, 1);", self.arm)
-        self.assertIn("Xil_In32(DPLL_CONFIG_APPLY_Addr)", self.arm)
-        self.assertIn("DPLL_CONFIG_APPLY_SEQ_MASK", self.periph)
-        self.assertIn("PC_ERR_DPLL_APPLY_TIMEOUT", self.arm)
-        self.assertEqual(parse_define_int("DPLL_ADV_CONFIG_PAYLOAD_BYTES", self.arm), 42)
-        self.assertEqual(parse_define_int("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", self.arm), 12)
-        self.assertIn("if (pc_payload_len() < DPLL_ADV_CONFIG_PAYLOAD_BYTES)", self.arm)
-        self.assertIn("if (pc_payload_len() < DPLL_DEBUG_CONFIG_PAYLOAD_BYTES)", self.arm)
-        self.assertIn("Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));", self.arm)
-        self.assertIn("Xil_Out32(DAC1_DDS_Amplitude_Addr, pc_get_u16(14));", self.arm)
-        self.assertIn("DPLL_CORE_FLAG_VCO_MUL_DIV_CONFIG_ERROR (1U<<17)", self.periph)
+    def test_apply_checks_busy_error_exact_sequence_and_active_readback(self):
+        for needle in (
+            "DPLL_APPLY_BUSY_MASK",
+            "DPLL_APPLY_ERROR_MASK",
+            "sequence == expected_sequence",
+            "config_rejected_mask",
+            "active_center",
+            "active_cic",
+            "active_mul_div",
+            "applied_abi_version",
+            "DPLL_DRIVER_ERR_VERIFY",
+        ):
+            self.assertIn(needle, self.driver_c + self.driver_h)
 
-    def test_core_flags_exposes_vco_mul_div_config_error_bit(self):
-        self.assertEqual(1 << 17, 0x00020000)
-        mmio, _ = self.make_model()
-        mmio.mem[self.addrs["DPLL_CORE_FLAGS_Addr"]] = 1 << 17
-        self.assertEqual(mmio.read(self.addrs["DPLL_CORE_FLAGS_Addr"]) & (1 << 17), 1 << 17)
-
-    def test_abi_mismatch_forces_lock_off_and_blocks_enable_apply(self):
-        mmio, model = self.make_model()
-        self.assertFalse(model.check_abi())
-        self.assertEqual(model.set_enable(1), -1)
-        self.assertEqual(model.apply_config(), -1)
-        self.assertEqual(
-            mmio.writes,
-            [
-                (self.addrs["PLL0_Lock_Ctrl_Addr"], 0),
-                (self.addrs["PLL0_Lock_Ctrl_Addr"], 0),
-            ],
+    def test_every_shadow_command_commits_before_success(self):
+        commands = (
+            "CMD_82_WRITE_PLL_FREQ",
+            "CMD_83_WRITE_PLL_MUL_DIV",
+            "CMD_84_WRITE_PLL_THRESHOLD",
+            "CMD_85_WRITE_PLL_LIMIT",
+            "CMD_86_WRITE_DPLL_LOOP_BASIC",
+            "CMD_87_WRITE_PLL_AMP",
+            "CMD_8F_WRITE_DPLL_ADV_CONFIG",
+            "CMD_97_WRITE_DPLL_DEBUG_CONFIG",
         )
+        for command in commands:
+            with self.subTest(command=command):
+                body = function_body(self.arm, command)
+                self.assertIn("pc_send_dpll_apply_result(dpll_apply_config())", body)
+                self.assertNotIn("PC_HOST_Send_ASK_Only(0);", body)
 
-    def test_matching_abi_allows_enable_and_config_apply(self):
-        mmio, model = self.make_model()
-        self.load_good_abi(mmio)
-        self.assertTrue(model.check_abi())
-        self.assertEqual(model.set_enable(1), 0)
-        self.assertEqual(model.apply_config(), 0)
-        self.assertEqual(
-            mmio.writes[-2:],
-            [
-                (self.addrs["PLL0_Lock_Ctrl_Addr"], 1),
-                (self.addrs["DPLL_CONFIG_APPLY_Addr"], 1),
-            ],
-        )
+    def test_advanced_payload_includes_separate_measurement_timeout(self):
+        self.assertRegex(self.arm, r"#define\s+DPLL_ADV_CONFIG_PAYLOAD_BYTES\s+46U")
+        body = function_body(self.arm, "CMD_8F_WRITE_DPLL_ADV_CONFIG")
+        self.assertIn("DPLL_MEASUREMENT_TIMEOUT_Addr, pc_get_u32(46)", body)
+        self.assertIn("DPLL_HOLDOVER_TIMEOUT_Addr, pc_get_u32(36)", body)
 
-    def test_apply_timeout_is_reported_separately_from_abi_mismatch(self):
-        mmio, model = self.make_model()
-        self.load_good_abi(mmio)
-        mmio.apply_stuck = True
-        self.assertTrue(model.check_abi())
-        self.assertEqual(model.apply_config(), -2)
+    def test_host_test_covers_required_driver_outcomes(self):
+        for needle in (
+            "test_abi_retry_and_enable",
+            "test_abi_mismatch_blocks_enable_and_apply",
+            "test_atomic_apply_and_active_verify",
+            "APPLY_REJECT",
+            "APPLY_STUCK",
+            "APPLY_VERIFY_MISMATCH",
+            "test_reset_invalidates_and_rechecks_abi",
+            "debug_active",
+        ):
+            self.assertIn(needle, self.host_test)
 
-    def test_advanced_config_writes_shadow_registers_then_apply(self):
-        mmio, model = self.make_model()
-        self.load_good_abi(mmio)
-        self.assertTrue(model.check_abi())
-
-        fields = [
-            0x01020304,
-            0x11121314,
-            0x21222324,
-            0x31323334,
-            0x41424344,
-            0x51525354,
-            0x61626364,
-            0x71727374,
-            0x81828384,
-        ]
-        payload = bytearray(46)
-        payload[3] = 42
-        for index, value in enumerate(fields):
-            payload[4 + index * 4:8 + index * 4] = value.to_bytes(4, "little")
-        payload[40:42] = (0x0123).to_bytes(2, "little")
-        payload[42] = 0x09
-        payload[43] = 0x02
-        payload[44:46] = (0x0033).to_bytes(2, "little")
-
-        self.assertEqual(model.write_adv_config(bytes(payload)), 0)
-        expected_names = [
-            "DPLL_FLL_KF_TRACK_Addr",
-            "DPLL_PLL_KP_BLEND_Addr",
-            "DPLL_PLL_KI_BLEND_Addr",
-            "DPLL_MAG_ENTER_THRESHOLD_Addr",
-            "DPLL_MAG_EXIT_THRESHOLD_Addr",
-            "DPLL_ACQUIRE_DWELL_Addr",
-            "DPLL_BLEND_DWELL_Addr",
-            "DPLL_LOSS_DWELL_Addr",
-            "DPLL_HOLDOVER_TIMEOUT_Addr",
-            "DPLL_POST_IQ_CIC_R_Addr",
-            "DPLL_POST_IQ_CIC_SHIFT_Addr",
-            "DPLL_FLL_DELAY_SEL_Addr",
-            "DPLL_WARMUP_SAMPLES_Addr",
+    def test_register_contract_exposes_apply_and_active_identity(self):
+        for name in (
             "DPLL_CONFIG_APPLY_Addr",
-        ]
-        self.assertEqual([addr for addr, _ in mmio.writes], [self.addrs[name] for name in expected_names])
-        self.assertEqual([value for _, value in mmio.writes[-5:]], [0x0123, 0x09, 0x02, 0x0033, 1])
-
-    def test_short_advanced_config_payload_does_not_touch_mmio(self):
-        mmio, model = self.make_model()
-        payload = bytearray(46)
-        payload[3] = 41
-        self.assertEqual(model.write_adv_config(bytes(payload)), 0xF2)
-        self.assertEqual(mmio.writes, [])
-
-    def test_debug_config_payload_length_covers_all_fields(self):
-        mmio, model = self.make_model()
-        payload = bytearray(16)
-        payload[3] = parse_define_int("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", self.arm)
-        payload[4:8] = (0x01020304).to_bytes(4, "little")
-        payload[8:12] = (0x11121314).to_bytes(4, "little")
-        payload[12:14] = (0x2526).to_bytes(2, "little")
-        payload[14:16] = (0x3536).to_bytes(2, "little")
-
-        self.assertEqual(model.write_debug_config(bytes(payload)), 0)
-        expected_names = [
-            "DAC1_DDS_Frequency_Addr",
-            "DAC1_DDS_Phase_Addr",
-            "DAC1_DDS_Offset_Addr",
-            "DAC1_DDS_Amplitude_Addr",
-        ]
-        self.assertEqual([addr for addr, _ in mmio.writes], [self.addrs[name] for name in expected_names])
-        self.assertEqual([value for _, value in mmio.writes], [0x01020304, 0x11121314, 0x2526, 0x3536])
-
-    def test_short_debug_config_payload_does_not_touch_mmio(self):
-        mmio, model = self.make_model()
-        payload = bytearray(16)
-        payload[3] = parse_define_int("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", self.arm) - 1
-        self.assertEqual(model.write_debug_config(bytes(payload)), 0xF2)
-        self.assertEqual(mmio.writes, [])
+            "DPLL_CONFIG_REJECTED_MASK_Addr",
+            "DPLL_ACTIVE_CENTER_Addr",
+            "DPLL_ACTIVE_CIC_CONFIG_Addr",
+            "DPLL_ACTIVE_MUL_DIV_Addr",
+            "DPLL_APPLIED_ABI_VERSION_Addr",
+        ):
+            self.assertIn(name, self.periph)
 
 
 if __name__ == "__main__":

@@ -221,3 +221,44 @@ create_clock -period 4.000 -name rx_clk  [get_ports daisy_p_i[1]]
 #set_false_path -from [get_clocks dac_clk_out] -to [get_clocks dac_2ph_out]
 
 create_generated_clock -name dna_clk -source [get_ports adc_clk_p_i] -divide_by 8 [get_nets -hierarchical dna_clk]
+
+############################################################################
+# DPLL HANDSHAKE CDC                                                       #
+############################################################################
+# Only the first flip-flop of each single-bit toggle synchronizer is cut.
+# Multi-bit config/status bundles stay stable for the full request/ack
+# transaction and retain bounded datapath constraints; no clock-wide false
+# path is used between the PS system bus and the DPLL sample clock.
+set dpll_cdc_first_stage_d [get_pins -quiet -hier -filter {
+  NAME =~ *dpll_wrapper_inst/*meta*_reg/D
+}]
+if {[llength $dpll_cdc_first_stage_d] > 0} {
+  set_false_path -to $dpll_cdc_first_stage_d
+}
+
+set dpll_shadow_q [get_pins -quiet -hier -filter {
+  NAME =~ *dpll_wrapper_inst/reg_*/*register_output_reg*/Q
+}]
+set dpll_active_d [get_pins -quiet -hier -filter {
+  NAME =~ *dpll_wrapper_inst/active*_reg*/D
+}]
+if {[llength $dpll_shadow_q] > 0 && [llength $dpll_active_d] > 0} {
+  set_max_delay -datapath_only 16.000 -from $dpll_shadow_q -to $dpll_active_d
+}
+
+set dpll_status_q [get_pins -quiet -hier -filter {
+  NAME =~ *dpll_wrapper_inst/status_response_data_clk_reg*/Q
+}]
+set dpll_sys_rdata_d [get_pins -quiet -hier -filter {
+  NAME =~ *dpll_wrapper_inst/sys_rdata_reg*/D
+}]
+if {[llength $dpll_status_q] > 0 && [llength $dpll_sys_rdata_d] > 0} {
+  set_max_delay -datapath_only 20.000 -from $dpll_status_q -to $dpll_sys_rdata_d
+}
+
+set dpll_status_addr_q [get_pins -quiet -hier -filter {
+  NAME =~ *dpll_wrapper_inst/status_request_addr_sys_reg*/Q
+}]
+if {[llength $dpll_status_addr_q] > 0 && [llength $dpll_status_q] > 0} {
+  set_max_delay -datapath_only 20.000 -from $dpll_status_addr_q -to $dpll_status_q
+}

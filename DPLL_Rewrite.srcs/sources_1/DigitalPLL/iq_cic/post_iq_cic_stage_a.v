@@ -101,8 +101,19 @@ module post_iq_cic_stage_a #(
     assign q_ext = {{(ACC_WIDTH-INPUT_WIDTH){q_in[INPUT_WIDTH-1]}}, q_in};
     assign i_comb3_ext = {i_comb3[ACC_WIDTH-1], i_comb3};
     assign q_comb3_ext = {q_comb3[ACC_WIDTH-1], q_comb3};
-    assign i_rounding_bias_signed = i_comb3[ACC_WIDTH-1] ? -active_rounding_bias : active_rounding_bias;
-    assign q_rounding_bias_signed = q_comb3[ACC_WIDTH-1] ? -active_rounding_bias : active_rounding_bias;
+    // For a two's-complement arithmetic right shift, a negative sample needs
+    // +(half_lsb-1), not -half_lsb. This implements round-to-nearest with
+    // ties away from zero without biasing exact negative multiples.
+    assign i_rounding_bias_signed =
+        i_comb3[ACC_WIDTH-1]
+            ? ((active_rounding_bias == {ROUND_WIDTH{1'b0}})
+                ? {ROUND_WIDTH{1'b0}} : active_rounding_bias - 1'b1)
+            : active_rounding_bias;
+    assign q_rounding_bias_signed =
+        q_comb3[ACC_WIDTH-1]
+            ? ((active_rounding_bias == {ROUND_WIDTH{1'b0}})
+                ? {ROUND_WIDTH{1'b0}} : active_rounding_bias - 1'b1)
+            : active_rounding_bias;
 
     function signed [OUTPUT_WIDTH-1:0] saturate_shifted;
         input signed [ROUND_WIDTH-1:0] shifted;

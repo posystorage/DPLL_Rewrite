@@ -49,7 +49,7 @@ try {
     $content = Get-Content -LiteralPath (Join-Path $OutDir 'xsim.log') -Raw
     if ($content -match 'FAIL:') { throw 'xsim reported FAIL' }
     if ($content -notmatch 'PASS: dpll_core_sine_sweep_tb') { throw 'missing PASS marker' }
-    foreach ($case in 0..6) {
+    foreach ($case in 0..13) {
         if ($content -notmatch "PASS_CASE: sine_sweep index=$case") {
             throw "missing PASS_CASE marker for index $case"
         }

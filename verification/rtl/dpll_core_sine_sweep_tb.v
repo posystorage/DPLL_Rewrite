@@ -5,7 +5,7 @@ module dpll_core_sine_sweep_tb;
     localparam real SAMPLE_RATE_HZ = 3125000.0;
     localparam integer SAMPLE_GAP_CYCLES = 40;
     localparam integer ADC_AMPLITUDE = 15000;
-    localparam integer CASES = 7;
+    localparam integer CASES = 14;
 
     reg clk = 1'b0;
     reg rst = 1'b1;
@@ -34,13 +34,19 @@ module dpll_core_sine_sweep_tb;
     wire frequency_locked;
     wire locked;
     wire [15:0] magnitude;
+    wire signed [19:0] i_baseband;
+    wire signed [19:0] q_baseband;
+    wire iq_valid;
+    wire signed [17:0] cordic_phase_out;
     wire cic_overflow_seen;
     wire cic_illegal_config_seen;
 
     integer fd;
+    integer iq_fd;
     integer case_no = 0;
     integer case_index;
     integer sample_index;
+    integer samples_per_case;
     integer idle;
     integer sample_count = 0;
     integer tracking_count = 0;
@@ -49,6 +55,7 @@ module dpll_core_sine_sweep_tb;
     integer track_state_count = 0;
     integer nonzero_correction_count = 0;
     integer positive_tracking_delta_count = 0;
+    integer negative_tracking_delta_count = 0;
     reg signed [55:0] hybrid_state_before_capture = 56'sd0;
     reg signed [55:0] hybrid_fll_term_capture = 56'sd0;
     reg signed [55:0] hybrid_i_term_capture = 56'sd0;
@@ -86,19 +93,20 @@ module dpll_core_sine_sweep_tb;
         .acquire_dwell(16'd2),
         .blend_dwell(16'd2),
         .loss_dwell(16'd8),
+        .measurement_timeout(24'd65535),
         .holdover_timeout(24'd65535),
         .warmup_samples(16'd2),
         .positive_limit(56'sd140737488355327),
         .negative_limit(-56'sd140737488355328),
         .tracking_word(tracking_word),
         .tracking_valid(tracking_valid),
-        .cordic_phase_out(),
+        .cordic_phase_out(cordic_phase_out),
         .phase_error(phase_error),
         .freq_error(freq_error),
         .freq_error_valid(freq_error_valid),
-        .i_baseband(),
-        .q_baseband(),
-        .iq_valid(),
+        .i_baseband(i_baseband),
+        .q_baseband(q_baseband),
+        .iq_valid(iq_valid),
         .freq_state(freq_state),
         .freq_correction(freq_correction),
         .magnitude(magnitude),
@@ -143,7 +151,7 @@ module dpll_core_sine_sweep_tb;
             sample_count = sample_count + 1;
             @(posedge clk);
             sample_valid = 1'b0;
-            for (idle = 0; idle < SAMPLE_GAP_CYCLES - 1; idle = idle + 1) begin
+            for (idle = 0; idle < SAMPLE_GAP_CYCLES - 2; idle = idle + 1) begin
                 @(posedge clk);
             end
         end
@@ -161,45 +169,46 @@ module dpll_core_sine_sweep_tb;
             track_state_count = 0;
             nonzero_correction_count = 0;
             positive_tracking_delta_count = 0;
-            case (index)
+            negative_tracking_delta_count = 0;
+            case (index % 7)
                 0: begin
                     center_hz = 5000.0;
-                    input_hz = 5500.0;
+                    input_hz = 6000.0;
                     center_word = 48'h0002_9f16_b11c;
                     cic_rate_r = 9'd312;
                     cic_shift = 6'd19;
                 end
                 1: begin
                     center_hz = 10000.0;
-                    input_hz = 10500.0;
+                    input_hz = 11000.0;
                     center_word = 48'h0005_3e2d_6239;
                     cic_rate_r = 9'd156;
                     cic_shift = 6'd16;
                 end
                 2: begin
                     center_hz = 20000.0;
-                    input_hz = 20500.0;
+                    input_hz = 21000.0;
                     center_word = 48'h000a_7c5a_c472;
                     cic_rate_r = 9'd78;
                     cic_shift = 6'd13;
                 end
                 3: begin
                     center_hz = 50000.0;
-                    input_hz = 50500.0;
+                    input_hz = 51000.0;
                     center_word = 48'h001a_36e2_eb1c;
                     cic_rate_r = 9'd31;
                     cic_shift = 6'd10;
                 end
                 4: begin
                     center_hz = 100000.0;
-                    input_hz = 100500.0;
+                    input_hz = 101000.0;
                     center_word = 48'h0034_6dc5_d639;
                     cic_rate_r = 9'd16;
                     cic_shift = 6'd7;
                 end
                 5: begin
                     center_hz = 150000.0;
-                    input_hz = 150500.0;
+                    input_hz = 151000.0;
                     center_word = 48'h004e_a4a8_c155;
                     cic_rate_r = 9'd8;
                     cic_shift = 6'd4;
@@ -212,7 +221,10 @@ module dpll_core_sine_sweep_tb;
                     cic_shift = 6'd4;
                 end
             endcase
+            if (case_no >= 7) input_hz = (2.0 * center_hz) - input_hz;
             phase_step = TWO_PI * input_hz / SAMPLE_RATE_HZ;
+            samples_per_case = cic_rate_r * 64;
+            if (samples_per_case < 3000) samples_per_case = 3000;
         end
     endtask
 
@@ -225,7 +237,7 @@ module dpll_core_sine_sweep_tb;
             @(posedge clk);
             config_apply = 1'b0;
 
-            for (sample_index = 0; sample_index < 12000; sample_index = sample_index + 1) begin
+            for (sample_index = 0; sample_index < samples_per_case; sample_index = sample_index + 1) begin
                 push_sine_sample();
             end
             repeat (240) @(posedge clk);
@@ -265,9 +277,10 @@ module dpll_core_sine_sweep_tb;
                 $fclose(fd);
                 $finish;
             end
-            if (positive_tracking_delta_count < 4) begin
-                $display("FAIL: case %0d expected positive tracking response, got %0d",
-                         index, positive_tracking_delta_count);
+            if ((case_no < 7 && positive_tracking_delta_count < 4) ||
+                (case_no >= 7 && negative_tracking_delta_count < 4)) begin
+                $display("FAIL: case %0d expected directional tracking response, positive=%0d negative=%0d",
+                         case_no, positive_tracking_delta_count, negative_tracking_delta_count);
                 $fflush(fd);
                 $fclose(fd);
                 $finish;
@@ -279,9 +292,9 @@ module dpll_core_sine_sweep_tb;
                 $fclose(fd);
                 $finish;
             end
-            $display("PASS_CASE: sine_sweep index=%0d center=%0f input=%0f tracking=%0d track=%0d locked=%0d positive=%0d",
-                     index, center_hz, input_hz, tracking_count, track_state_count,
-                     locked_count, positive_tracking_delta_count);
+            $display("PASS_CASE: sine_sweep index=%0d center=%0f input=%0f tracking=%0d track=%0d locked=%0d positive=%0d negative=%0d",
+                     case_no, center_hz, input_hz, tracking_count, track_state_count,
+                     locked_count, positive_tracking_delta_count, negative_tracking_delta_count);
         end
     endtask
 
@@ -291,7 +304,13 @@ module dpll_core_sine_sweep_tb;
             $display("FAIL: could not open dpll_core_sine_sweep_trace.csv");
             $finish;
         end
-        $fdisplay(fd, "case_index,index,sample_count,fll_valid_count,input_hz,center_hz,center_word,cic_rate_r,cic_shift,tracking_word,freq_state,freq_correction,phase_error,freq_error,freq_error_valid,loop_state,loss_reason,signal_present,phase_locked,frequency_locked,locked,magnitude,hybrid_state_before,hybrid_center_word,hybrid_positive_limit,hybrid_negative_limit,hybrid_fll_term,hybrid_i_term,hybrid_p_term");
+        iq_fd = $fopen("dpll_core_sine_sweep_iq_trace.csv", "w");
+        if (iq_fd == 0) begin
+            $display("FAIL: could not open IQ trace");
+            $finish;
+        end
+        $fdisplay(iq_fd, "case_index,sample_count,i_baseband,q_baseband,cordic_phase,phase_error");
+        $fdisplay(fd, "case_index,index,config_apply,sample_count,fll_valid_count,input_hz,center_hz,center_word,cic_rate_r,cic_shift,tracking_word,freq_state,freq_correction,phase_error,freq_error,freq_error_valid,loop_state,loss_reason,signal_present,phase_locked,frequency_locked,locked,magnitude,hybrid_state_before,hybrid_center_word,hybrid_positive_limit,hybrid_negative_limit,hybrid_fll_term,hybrid_i_term,hybrid_p_term");
 
         repeat (8) @(posedge clk);
         rst = 1'b0;
@@ -300,9 +319,17 @@ module dpll_core_sine_sweep_tb;
             run_case(case_index);
         end
 
+        $fclose(iq_fd);
         $fclose(fd);
         $display("PASS: dpll_core_sine_sweep_tb cases=%0d", CASES);
         $finish;
+    end
+
+    always @(posedge clk) begin
+        #1;
+        if (!rst && iq_valid) begin
+            $fdisplay(iq_fd, "%0d,%0d,%0d,%0d,%0d,%0d", case_no, sample_count, i_baseband, q_baseband, cordic_phase_out, phase_error);
+        end
     end
 
     always @(posedge clk) begin
@@ -320,8 +347,8 @@ module dpll_core_sine_sweep_tb;
             fll_valid_count = fll_valid_count + 1;
         end
         if (!rst && tracking_valid) begin
-            $fdisplay(fd, "%0d,%0d,%0d,%0d,%0f,%0f,0x%012h,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d",
-                      case_no, tracking_count, sample_count, fll_valid_count,
+            $fdisplay(fd, "%0d,%0d,%0d,%0d,%0d,%0f,%0f,0x%012h,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d",
+                      case_no, tracking_count, config_apply, sample_count, fll_valid_count,
                       input_hz, center_hz, center_word, cic_rate_r, cic_shift,
                       tracking_word, freq_state, freq_correction, phase_error, freq_error,
                       freq_error_valid, loop_state, loss_reason, signal_present,
@@ -343,6 +370,8 @@ module dpll_core_sine_sweep_tb;
             end
             if (tracking_word > center_word) begin
                 positive_tracking_delta_count = positive_tracking_delta_count + 1;
+            end else if (tracking_word < center_word) begin
+                negative_tracking_delta_count = negative_tracking_delta_count + 1;
             end
         end
     end

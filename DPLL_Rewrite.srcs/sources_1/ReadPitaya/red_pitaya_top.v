@@ -466,7 +466,9 @@ assign ADCraw1 = {adc_b, 2'b0};
 dpll_wrapper dpll_wrapper_inst (
   
   .clk1                    (  adc_clk                    ), // global clock, designed for 100 MHz clock rate
-  .rst                     (  adc_rstn                   ), // µÍÓÐÐ§
+  .rst                     (  adc_rstn                   ), // ï¿½ï¿½ï¿½ï¿½Ð§
+  .sys_clk                 (  sys_clk                    ), // AXI/system-bus clock domain
+  .sys_rstn                (  sys_rstn                   ),
 
   // analog data input/output interface
   .ADCraw0                 (  ADCraw0                    ),
@@ -495,8 +497,8 @@ dpll_wrapper dpll_wrapper_inst (
 Digital_Freq_Meter Digital_Freq_Meter_inst (
   .clk1                    (  adc_clk                    ), // global clock, designed for 100 MHz clock rate
   .clk1_timesN             (  adc_clk_2x                 ), // 2x clock for the frequency-meter FIR path
-  //.clk_10M_ref             (  ref_10m_clk_in             ),//10MHz±ê×¼²Î¿¼Ê±ÖÓ
-  .rst                     (  adc_rstn                   ), // µÍÓÐÐ§
+  //.clk_10M_ref             (  ref_10m_clk_in             ),//10MHzï¿½ï¿½×¼ï¿½Î¿ï¿½Ê±ï¿½ï¿½
+  .rst                     (  adc_rstn                   ), // ï¿½ï¿½ï¿½ï¿½Ð§
 
   .ADCraw                 (  ADCraw1                    ),
 

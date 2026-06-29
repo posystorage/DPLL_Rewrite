@@ -100,7 +100,7 @@
 #define DAC1_DDS_Phase_Addr (DPLL_BASE_ADDR|(0x0043<<2))//debug format/reserved
 
 
-//ÓÃÓÚËø¶¨Ö¸Ê¾
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸Ê¾
 #define DAC0_Phase_Residuals_Threshold_Addr (DPLL_BASE_ADDR|(0x0050<<2))//Phase_Residuals 32bit
 #define DAC0_Phase_Residuals_Offset_Addr (DPLL_BASE_ADDR|(0x0051<<2))//Phase_Residuals 32bit
 #define DAC0_Freq_Residuals_Threshold_Addr (DPLL_BASE_ADDR|(0x0052<<2))//Frequency_Residuals 10bit
@@ -109,7 +109,8 @@
 #define DPLL_ACQUIRE_DWELL_Addr (DPLL_BASE_ADDR|(0x0055<<2))
 #define DPLL_BLEND_DWELL_Addr (DPLL_BASE_ADDR|(0x0056<<2))
 #define DPLL_LOSS_DWELL_Addr (DPLL_BASE_ADDR|(0x0057<<2))
-#define DPLL_HOLDOVER_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0058<<2))//low 24 bits; 125 MHz ticks; measurement gap and holdover fault timeout
+#define DPLL_HOLDOVER_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0058<<2))//low 24 bits; holdover duration in 125 MHz ticks
+#define DPLL_MEASUREMENT_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0059<<2))//0=auto (120*R+256), otherwise low 24 bits
 
 //DPLL v1 post-IQ CIC/FLL configuration. R/shift writes are shadowed; write
 //DPLL_CONFIG_APPLY_Addr to atomically apply them in the DPLL clock-valid domain.
@@ -119,12 +120,16 @@
 #define DPLL_WARMUP_SAMPLES_Addr (DPLL_BASE_ADDR|(0x0063<<2))
 #define DPLL_CONFIG_APPLY_Addr (DPLL_BASE_ADDR|(0x006F<<2))
 #define DPLL_CONFIG_APPLY_BUSY_MASK 0x00000001U
+#define DPLL_CONFIG_APPLY_ERROR_MASK 0x00000002U
+#define DPLL_CONFIG_APPLY_ERROR_CODE_MASK 0x000000F0U
+#define DPLL_CONFIG_APPLY_ERROR_CODE_SHIFT 4U
 #define DPLL_CONFIG_APPLY_SEQ_MASK 0x0000FF00U
 #define DPLL_CONFIG_APPLY_SEQ_SHIFT 8U
+#define DPLL_CONFIG_REJECTED_MASK_Addr (DPLL_BASE_ADDR|(0x0070<<2))
 
 
 
-//Ö»¶Á
+//Ö»ï¿½ï¿½
 #define System_Statue   (DPLL_BASE_ADDR|(0x0100<<2))// LED_R0,LED_G0,dac0_railed_positive,dac0_railed_negative,residuals0_are_above_threshold_freq,residuals0_are_above_threshold_phase
 #define DDC0_Amplitude   (DPLL_BASE_ADDR|(0x0101<<2))//16bits
 #define DDC0_wrapped_phase   (DPLL_BASE_ADDR|(0x0102<<2))//DPLL phase_error sign-extended
@@ -145,6 +150,19 @@
 #define DPLL_CONFIG_VERSION_Addr (DPLL_BASE_ADDR|(0x010D<<2))
 #define DPLL_ABI_VERSION_Addr (DPLL_BASE_ADDR|(0x010E<<2))
 #define DPLL_FPGA_BUILD_ID_Addr (DPLL_BASE_ADDR|(0x010F<<2))
+#define DPLL_ACTIVE_CENTER_Addr (DPLL_BASE_ADDR|(0x0110<<2))
+#define DPLL_ACTIVE_MUL_DIV_Addr (DPLL_BASE_ADDR|(0x0112<<2))
+#define DPLL_ACTIVE_KP_TRACK_Addr (DPLL_BASE_ADDR|(0x0113<<2))
+#define DPLL_ACTIVE_KI_TRACK_Addr (DPLL_BASE_ADDR|(0x0114<<2))
+#define DPLL_ACTIVE_KF_ACQUIRE_Addr (DPLL_BASE_ADDR|(0x0115<<2))
+#define DPLL_ACTIVE_KF_BLEND_Addr (DPLL_BASE_ADDR|(0x0116<<2))
+#define DPLL_ACTIVE_KF_TRACK_Addr (DPLL_BASE_ADDR|(0x0117<<2))
+#define DPLL_ACTIVE_KP_BLEND_Addr (DPLL_BASE_ADDR|(0x0118<<2))
+#define DPLL_ACTIVE_KI_BLEND_Addr (DPLL_BASE_ADDR|(0x0119<<2))
+#define DPLL_ACTIVE_MEASUREMENT_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x011A<<2))
+#define DPLL_ACTIVE_HOLDOVER_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x011B<<2))
+#define DPLL_APPLIED_ABI_VERSION_Addr (DPLL_BASE_ADDR|(0x011C<<2))
+#define DPLL_GIT_HASH_Addr (DPLL_BASE_ADDR|(0x011D<<2))
 #define PLL0_Test_Reg DPLL_FPGA_BUILD_ID_Addr
 
 #endif

@@ -73,6 +73,7 @@ module dpll_core_sine_lock_tb;
         .acquire_dwell(16'd2),
         .blend_dwell(16'd2),
         .loss_dwell(16'd8),
+        .measurement_timeout(24'd65535),
         .holdover_timeout(24'd4096),
         .warmup_samples(16'd2),
         .positive_limit(56'sd140737488355327),
@@ -130,7 +131,7 @@ module dpll_core_sine_lock_tb;
             sample_count = sample_count + 1;
             @(posedge clk);
             sample_valid = 1'b0;
-            for (idle = 0; idle < SAMPLE_GAP_CYCLES - 1; idle = idle + 1) begin
+            for (idle = 0; idle < SAMPLE_GAP_CYCLES - 2; idle = idle + 1) begin
                 @(posedge clk);
             end
         end

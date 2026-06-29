@@ -50,6 +50,8 @@
 #include "xil_printf.h"
 #include "xil_io.h"
 #include "Peripherals.h"
+#include "dpll_driver.h"
+#include "dpll_build_id.h"
 #include "sleep.h"
 #include "xil_types.h"
 #include "xparameters.h"
@@ -143,16 +145,102 @@ uint8_t PC_HOST_CMD_GET;
 uint8_t PC_HOST_CMD_RX_Mark = 0;
 uint64_t Freq_meter_gate_time_cache = 0;
 
-#define ARM_EXPECTED_DPLL_ABI_VERSION     0x00000001U
-#define ARM_EXPECTED_DPLL_CONFIG_VERSION  0x00010000U
-#define ARM_EXPECTED_DPLL_FPGA_BUILD_ID   0xD9110002U
+#define ARM_EXPECTED_DPLL_ABI_VERSION     DPLL_GENERATED_ABI_VERSION
+#define ARM_EXPECTED_DPLL_CONFIG_VERSION  DPLL_GENERATED_CONFIG_VERSION
+#define ARM_EXPECTED_DPLL_FPGA_BUILD_ID   DPLL_GENERATED_BUILD_ID
+#define ARM_EXPECTED_DPLL_GIT_HASH        DPLL_GENERATED_GIT_HASH
 #define PC_ERR_DPLL_ABI_MISMATCH          0xF3U
 #define PC_ERR_DPLL_APPLY_TIMEOUT         0xF5U
+#define PC_ERR_DPLL_APPLY_REJECTED        0xF6U
+#define PC_ERR_DPLL_APPLY_VERIFY          0xF7U
 #define DPLL_APPLY_POLL_LIMIT             1024U
-#define DPLL_ADV_CONFIG_PAYLOAD_BYTES     42U
+#define DPLL_ABI_RETRY_COUNT              100U
+#define DPLL_ABI_RETRY_DELAY_US           100U
+#define DPLL_ADV_CONFIG_PAYLOAD_BYTES     46U
 #define DPLL_DEBUG_CONFIG_PAYLOAD_BYTES   12U
 
 static uint8_t dpll_abi_ready = 0;
+static uint8_t dpll_driver_initialized = 0;
+static dpll_driver_t dpll_driver;
+
+static const dpll_reg_map_t dpll_register_map = {
+	PLL0_Lock_Ctrl_Addr,
+	DPLL_CONFIG_APPLY_Addr,
+	DPLL_CONFIG_REJECTED_MASK_Addr,
+	DPLL_ABI_VERSION_Addr,
+	DPLL_CONFIG_VERSION_Addr,
+	DPLL_FPGA_BUILD_ID_Addr,
+	DPLL_GIT_HASH_Addr,
+	DAC0_Centre_Frequency_Addr,
+	DPLL_POST_IQ_CIC_R_Addr,
+	DPLL_POST_IQ_CIC_SHIFT_Addr,
+	VOC_Fre_Mul_Addr,
+	VOC_Fre_Div_Addr,
+	DPLL_PLL_KP_TRACK_Addr,
+	DPLL_PLL_KI_TRACK_Addr,
+	DPLL_FLL_KF_ACQUIRE_Addr,
+	DPLL_FLL_KF_BLEND_Addr,
+	DPLL_FLL_KF_TRACK_Addr,
+	DPLL_PLL_KP_BLEND_Addr,
+	DPLL_PLL_KI_BLEND_Addr,
+	DPLL_ACTIVE_CENTER_Addr,
+	DPLL_ACTIVE_CIC_CONFIG_Addr,
+	DPLL_ACTIVE_MUL_DIV_Addr,
+	DPLL_ACTIVE_KP_TRACK_Addr,
+	DPLL_ACTIVE_KI_TRACK_Addr,
+	DPLL_ACTIVE_KF_ACQUIRE_Addr,
+	DPLL_ACTIVE_KF_BLEND_Addr,
+	DPLL_ACTIVE_KF_TRACK_Addr,
+	DPLL_ACTIVE_KP_BLEND_Addr,
+	DPLL_ACTIVE_KI_BLEND_Addr,
+	DPLL_APPLIED_ABI_VERSION_Addr
+};
+
+static const dpll_identity_t dpll_expected_identity = {
+	ARM_EXPECTED_DPLL_ABI_VERSION,
+	ARM_EXPECTED_DPLL_CONFIG_VERSION,
+	ARM_EXPECTED_DPLL_FPGA_BUILD_ID,
+	ARM_EXPECTED_DPLL_GIT_HASH
+};
+
+static uint32_t dpll_arm_read32(void *context, uint32_t address)
+{
+	(void)context;
+	return Xil_In32(address);
+}
+
+static void dpll_arm_write32(void *context, uint32_t address, uint32_t value)
+{
+	(void)context;
+	Xil_Out32(address, value);
+}
+
+static void dpll_arm_delay_us(void *context, uint32_t delay_us)
+{
+	(void)context;
+	usleep(delay_us);
+}
+
+static void dpll_driver_ensure_initialized(void)
+{
+	dpll_io_t io;
+	if (dpll_driver_initialized) return;
+	io.read32 = dpll_arm_read32;
+	io.write32 = dpll_arm_write32;
+	io.delay_us = dpll_arm_delay_us;
+	io.context = 0;
+	dpll_driver_init(&dpll_driver, &io, &dpll_register_map,
+	                 &dpll_expected_identity, DPLL_ABI_RETRY_COUNT,
+	                 DPLL_ABI_RETRY_DELAY_US, DPLL_APPLY_POLL_LIMIT);
+	dpll_driver_initialized = 1;
+}
+
+static void dpll_invalidate_abi(void)
+{
+	dpll_driver_ensure_initialized();
+	dpll_driver_invalidate_abi(&dpll_driver);
+	dpll_abi_ready = 0;
+}
 
 void PC_HOST_Send_ASK_Only(uint8_t Ask);
 
@@ -183,45 +271,48 @@ static void pc_put_u32(uint32_t offset, uint32_t value)
 	Uart0_TX_Buff[offset + 3] = (value >> 24) & 0xFF;
 }
 
-static uint8_t dpll_check_abi(void)
+static uint8_t dpll_initialize_abi(void)
 {
-	uint32_t abi = Xil_In32(DPLL_ABI_VERSION_Addr);
-	uint32_t config = Xil_In32(DPLL_CONFIG_VERSION_Addr);
-	uint32_t build = Xil_In32(DPLL_FPGA_BUILD_ID_Addr);
-	uint8_t ok = (abi == ARM_EXPECTED_DPLL_ABI_VERSION) &&
-	             (config == ARM_EXPECTED_DPLL_CONFIG_VERSION) &&
-	             (build == ARM_EXPECTED_DPLL_FPGA_BUILD_ID);
-
-	if (!ok) {
-		xil_printf("DPLL ABI mismatch abi=0x%08lx config=0x%08lx build=0x%08lx\r\n",
-		           (unsigned long)abi, (unsigned long)config, (unsigned long)build);
+	int status;
+	dpll_driver_ensure_initialized();
+	status = dpll_driver_check_abi(&dpll_driver);
+	dpll_abi_ready = dpll_driver.abi_ready;
+	if (status == DPLL_DRIVER_OK) {
+		xil_printf("DPLL ABI ready abi=0x%08lx config=0x%08lx build=0x%08lx git=0x%08lx attempts=%lu\r\n",
+		           (unsigned long)dpll_driver.actual.abi_version,
+		           (unsigned long)dpll_driver.actual.config_version,
+		           (unsigned long)dpll_driver.actual.build_id,
+		           (unsigned long)dpll_driver.actual.git_hash,
+		           (unsigned long)dpll_driver.abi_attempts);
+		return 1;
 	}
-	return ok;
+	xil_printf("DPLL ABI timeout actual abi=0x%08lx config=0x%08lx build=0x%08lx git=0x%08lx "
+	           "expected abi=0x%08lx config=0x%08lx build=0x%08lx git=0x%08lx attempts=%lu\r\n",
+	           (unsigned long)dpll_driver.actual.abi_version,
+	           (unsigned long)dpll_driver.actual.config_version,
+	           (unsigned long)dpll_driver.actual.build_id,
+	           (unsigned long)dpll_driver.actual.git_hash,
+	           (unsigned long)dpll_driver.expected.abi_version,
+	           (unsigned long)dpll_driver.expected.config_version,
+	           (unsigned long)dpll_driver.expected.build_id,
+	           (unsigned long)dpll_driver.expected.git_hash,
+	           (unsigned long)dpll_driver.abi_attempts);
+	return 0;
 }
-
+static int dpll_apply_config_result(dpll_apply_result_t *result)
+{
+	int status;
+	dpll_driver_ensure_initialized();
+	if (!dpll_abi_ready) dpll_driver_invalidate_abi(&dpll_driver);
+	status = dpll_driver_apply(&dpll_driver, result);
+	dpll_abi_ready = dpll_driver.abi_ready;
+	if (status == DPLL_DRIVER_ERR_ABI) PLL_Lock_Status = 0x00;
+	return status;
+}
 static int dpll_apply_config(void)
 {
-	uint32_t before;
-	uint32_t before_seq;
-	uint32_t status;
-	uint32_t seq;
-	uint32_t poll;
-
-	if (!dpll_abi_ready) {
-		Xil_Out32(PLL0_Lock_Ctrl_Addr, 0);
-		return -1;
-	}
-	before = Xil_In32(DPLL_CONFIG_APPLY_Addr);
-	before_seq = (before & DPLL_CONFIG_APPLY_SEQ_MASK) >> DPLL_CONFIG_APPLY_SEQ_SHIFT;
-	Xil_Out32(DPLL_CONFIG_APPLY_Addr, 1);
-	for (poll = 0; poll < DPLL_APPLY_POLL_LIMIT; ++poll) {
-		status = Xil_In32(DPLL_CONFIG_APPLY_Addr);
-		seq = (status & DPLL_CONFIG_APPLY_SEQ_MASK) >> DPLL_CONFIG_APPLY_SEQ_SHIFT;
-		if ((seq != before_seq) && ((status & DPLL_CONFIG_APPLY_BUSY_MASK) == 0U)) {
-			return 0;
-		}
-	}
-	return -2;
+	dpll_apply_result_t result;
+	return dpll_apply_config_result(&result);
 }
 static void pc_send_dpll_apply_result(int apply_status)
 {
@@ -229,23 +320,29 @@ static void pc_send_dpll_apply_result(int apply_status)
 		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
 		return;
 	}
-	if (apply_status != 0) {
+	if (apply_status == -2) {
 		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_TIMEOUT);
+		return;
+	}
+	if (apply_status == -3) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_REJECTED);
+		return;
+	}
+	if (apply_status != 0) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_VERIFY);
 		return;
 	}
 	PC_HOST_Send_ASK_Only(0);
 }
 static int dpll_set_enable(uint32_t enable)
 {
-	if (enable && !dpll_abi_ready) {
-		Xil_Out32(PLL0_Lock_Ctrl_Addr, 0);
-		PLL_Lock_Status = 0x00;
-		return -1;
-	}
-
-	Xil_Out32(PLL0_Lock_Ctrl_Addr, enable ? 1U : 0U);
-	PLL_Lock_Status = enable ? 0x20 : 0x00;
-	return 0;
+	int status;
+	dpll_driver_ensure_initialized();
+	if (!dpll_abi_ready) dpll_driver_invalidate_abi(&dpll_driver);
+	status = dpll_driver_set_enable(&dpll_driver, enable);
+	dpll_abi_ready = dpll_driver.abi_ready;
+	PLL_Lock_Status = (status == DPLL_DRIVER_OK && enable) ? 0x20 : 0x00;
+	return status;
 }
 void PC_HOST_CMD_Get(void);
 
@@ -713,8 +810,10 @@ void CMD_18_READ_DPLL_ID_STATUS(void)
 	pc_put_u32(24, Xil_In32(DPLL_TRACKING_WORD_HI_Addr));
 	pc_put_u32(28, Xil_In32(DPLL_VCO_WORD_LO_Addr));
 	pc_put_u32(32, Xil_In32(DPLL_VCO_WORD_HI_Addr));
+	pc_put_u32(36, Xil_In32(DPLL_GIT_HASH_Addr));
+	pc_put_u32(40, DPLL_GENERATED_DIRTY);
 
-	PC_HOST_ASK_Pack(32);
+	PC_HOST_ASK_Pack(40);
 }
 
 void CMD_19_READ_DPLL_ADV_CONFIG(void)
@@ -732,8 +831,9 @@ void CMD_19_READ_DPLL_ADV_CONFIG(void)
 	pc_put_u32(44, Xil_In32(DPLL_POST_IQ_CIC_SHIFT_Addr));
 	pc_put_u32(48, Xil_In32(DPLL_FLL_DELAY_SEL_Addr));
 	pc_put_u32(52, Xil_In32(DPLL_WARMUP_SAMPLES_Addr));
+	pc_put_u32(56, Xil_In32(DPLL_MEASUREMENT_TIMEOUT_Addr));
 
-	PC_HOST_ASK_Pack(52);
+	PC_HOST_ASK_Pack(56);
 }
 void CMD_1A_READ_VBIAS_DAC(void)
 {
@@ -771,21 +871,21 @@ void CMD_82_WRITE_PLL_FREQ(void)
 {
 	//*((uint32_t*)&STM8_EEPROM_Data[0+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
 	Xil_Out32(DAC0_Centre_Frequency_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//中心频率
-	PC_HOST_Send_ASK_Only(0);
+	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_83_WRITE_PLL_MUL_DIV(void)
 {
 	//*((uint32_t*)&STM8_EEPROM_Data[4+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
 	Xil_Out32(VOC_Fre_Mul_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[4]));//MUL
 	Xil_Out32(VOC_Fre_Div_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[6]));//DIV
-	PC_HOST_Send_ASK_Only(0);
+	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_84_WRITE_PLL_THRESHOLD(void)
 {
 	//*((uint32_t*)&STM8_EEPROM_Data[28+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
     Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[4]));//14Bit
     Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[6]));//32Bit
-	PC_HOST_Send_ASK_Only(0);
+	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_85_WRITE_PLL_LIMIT(void)
 {
@@ -799,7 +899,7 @@ void CMD_85_WRITE_PLL_LIMIT(void)
 	if(data < 0x8000) data = 0x8000;
 	//*((uint16_t*)&STM8_EEPROM_Data[26+8]) = data;
     Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
-	PC_HOST_Send_ASK_Only(0);
+	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_86_WRITE_DPLL_LOOP_BASIC(void)
 {
@@ -817,7 +917,7 @@ void CMD_87_WRITE_PLL_AMP(void)
 {
 	//*((uint16_t*)&STM8_EEPROM_Data[32+8]) = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
 	Xil_Out32(DAC0_VOC_Amplitude_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[4]));//amplitude 15bit;
-	PC_HOST_Send_ASK_Only(0);
+	pc_send_dpll_apply_result(dpll_apply_config());
 }
 //void CMD_88_WRITE_MWS_ON(void)
 //{
@@ -864,6 +964,7 @@ void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 	Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr, PC_HOST_CMD_data_Buff[42]);
 	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, PC_HOST_CMD_data_Buff[43]);
 	Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));
+	Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr, pc_get_u32(46));
 	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_90_WRITE_FREQMETER_FREQ(void)
@@ -932,7 +1033,7 @@ void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 	Xil_Out32(DAC1_DDS_Phase_Addr, pc_get_u32(8));
 	Xil_Out32(DAC1_DDS_Offset_Addr, pc_get_u16(12));
 	Xil_Out32(DAC1_DDS_Amplitude_Addr, pc_get_u16(14));
-	PC_HOST_Send_ASK_Only(0);
+	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_9A_WRITE_VBIAS_DAC(void)
 {
@@ -1071,7 +1172,9 @@ void PC_HOST_CMD_Respond(void)
 //				break;
 			case PC_CMD_PLL_RESET:
 				Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);
-				PC_HOST_Send_ASK_Only(0);
+				dpll_invalidate_abi();
+				dpll_initialize_abi();
+				PC_HOST_Send_ASK_Only(dpll_abi_ready ? 0 : PC_ERR_DPLL_ABI_MISMATCH);
 				break;
 
 			case PC_CMD_WRITE_DPLL_ADV_CONFIG:
@@ -1362,6 +1465,8 @@ void STM_HOST_CMD_Respond(void)
 				break;
 			case CMD_RESET:
 				Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);
+				dpll_invalidate_abi();
+				action_status = dpll_initialize_abi() ? STATUS_ACK : STATUS_NACK;
 				break;
 			}
 			if (action_status != 0) {
@@ -1383,8 +1488,8 @@ init_platform();
     Uart0PS_Init();
     Uart1PS_Init();
 
-    dpll_abi_ready = dpll_check_abi();
     Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);//rst;
+    if (!dpll_initialize_abi()) return -1;
     dpll_set_enable(0);
     Xil_Out32(DAC0_VCO_Offset_Addr,0);//offset 14bit;
     Xil_Out32(DAC0_VOC_Amplitude_Addr,0x7fff);//amplitude 15bit;
@@ -1426,7 +1531,8 @@ init_platform();
     Xil_Out32(DPLL_ACQUIRE_DWELL_Addr,16);
     Xil_Out32(DPLL_BLEND_DWELL_Addr,16);
     Xil_Out32(DPLL_LOSS_DWELL_Addr,16);
-    Xil_Out32(DPLL_HOLDOVER_TIMEOUT_Addr,1024);
+    Xil_Out32(DPLL_HOLDOVER_TIMEOUT_Addr,1250000);
+    Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr,0);
     Xil_Out32(DPLL_POST_IQ_CIC_R_Addr,78);
     Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr,12);
     Xil_Out32(DPLL_FLL_DELAY_SEL_Addr,2);

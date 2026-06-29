@@ -176,8 +176,8 @@ class PostIqCicModel:
             self.q_comb3 = signed(old["q_comb2"] - old["q_comb_d2"], ACC_WIDTH)
 
         if old["output_pipe_valid"]:
-            i_bias = -old["active_rounding_bias"] if old["i_comb3"] < 0 else old["active_rounding_bias"]
-            q_bias = -old["active_rounding_bias"] if old["q_comb3"] < 0 else old["active_rounding_bias"]
+            i_bias = (old["active_rounding_bias"] - 1) if (old["i_comb3"] < 0 and old["active_rounding_bias"]) else old["active_rounding_bias"]
+            q_bias = (old["active_rounding_bias"] - 1) if (old["q_comb3"] < 0 and old["active_rounding_bias"]) else old["active_rounding_bias"]
             self.i_shift_stage0 = signed(old["i_comb3"] + i_bias, ROUND_WIDTH)
             self.q_shift_stage0 = signed(old["q_comb3"] + q_bias, ROUND_WIDTH)
         if old_shift_pipe[0]:

@@ -13,6 +13,10 @@ module loop_state_manager_stage_a #(
     input  wire                                  rst_125m,
     input  wire                                  loop_enable,
     input  wire                                  config_apply,
+    input  wire                                  magnitude_valid,
+    input  wire                                  phase_valid,
+    input  wire                                  frequency_valid,
+    input  wire                                  signal_present_in,
     input  wire                                  measurement_valid,
     input  wire [TIMEOUT_WIDTH-1:0]              measurement_timeout,
     input  wire [PHASE_WIDTH-1:0]                phase_abs,
@@ -44,7 +48,7 @@ module loop_state_manager_stage_a #(
     output reg signed [COEFF_WIDTH-1:0]          active_kp,
     output reg [3:0]                             loop_state,
     output reg [3:0]                             loss_reason,
-    output reg                                   signal_present,
+    output wire                                  signal_present,
     output reg                                   phase_locked,
     output reg                                   frequency_locked,
     output reg                                   locked
@@ -94,10 +98,7 @@ module loop_state_manager_stage_a #(
 
     wire phase_ok = phase_abs <= phase_lock_threshold_r;
     wire freq_ok = freq_abs <= freq_lock_threshold_r;
-    wire mag_enter_ok = (mag_enter_threshold_r == {MAG_WIDTH{1'b0}}) ||
-                        (magnitude >= mag_enter_threshold_r);
-    wire mag_exit_bad = (mag_exit_threshold_r != {MAG_WIDTH{1'b0}}) &&
-                        (magnitude <= mag_exit_threshold_r);
+    assign signal_present = signal_present_in;
     wire loop_ok = signal_present && phase_ok && freq_ok && !correction_saturated;
     wire signal_bad = !signal_present;
     wire loss_sample = signal_bad || !phase_ok || !freq_ok || correction_saturated;
@@ -157,7 +158,6 @@ module loop_state_manager_stage_a #(
         if (rst_125m) begin
             loop_state <= ST_RESET;
             loss_reason <= LOSS_NONE;
-            signal_present <= 1'b0;
             phase_locked <= 1'b0;
             frequency_locked <= 1'b0;
             locked <= 1'b0;
@@ -365,17 +365,18 @@ module loop_state_manager_stage_a #(
                 endcase
             end
 
-            if (measurement_valid) begin
+            if (phase_valid) begin
                 phase_locked <= phase_ok;
+            end
+            if (frequency_valid) begin
                 frequency_locked <= freq_ok;
-                if (mag_exit_bad) begin
-                    signal_present <= 1'b0;
-                end else if (mag_enter_ok) begin
-                    signal_present <= 1'b1;
-                end
             end
         end
     end
+
+    wire unused_magnitude_valid = magnitude_valid;
+    wire unused_magnitude = |magnitude;
+    wire unused_mag_thresholds = |mag_enter_threshold_r | |mag_exit_threshold_r;
 
 endmodule
 

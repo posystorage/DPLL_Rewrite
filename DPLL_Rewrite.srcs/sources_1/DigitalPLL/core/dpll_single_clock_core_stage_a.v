@@ -87,6 +87,9 @@ module dpll_single_clock_core_stage_a #(
     reg mixer_product_valid;
     wire signed [31:0] mixer_i_product;
     wire signed [31:0] mixer_q_product;
+    reg mixer_round_valid_r;
+    reg signed [31:0] mixer_i_product_r;
+    reg signed [31:0] mixer_q_product_r;
     wire signed [15:0] mixer_i_rounded;
     wire signed [15:0] mixer_q_rounded;
     wire mixer_valid;
@@ -99,8 +102,14 @@ module dpll_single_clock_core_stage_a #(
     wire [31:0] cordic_data;
     wire signed [15:0] cordic_phase;
     wire [15:0] cordic_magnitude;
-    wire signed [15:0] cordic_i_in;
-    wire signed [15:0] cordic_q_in;
+    wire signed [15:0] cordic_i_rounded;
+    wire signed [15:0] cordic_q_rounded;
+    reg cordic_round_valid_r;
+    reg signed [CIC_WIDTH-1:0] cordic_i_baseband_r;
+    reg signed [CIC_WIDTH-1:0] cordic_q_baseband_r;
+    reg cordic_input_valid_r;
+    reg signed [15:0] cordic_i_in_r;
+    reg signed [15:0] cordic_q_in_r;
     wire signed [PHASE_WIDTH-1:0] cordic_phase_word;
     wire signed [PHASE_WIDTH-1:0] phase_error_next;
     wire [PHASE_WIDTH-1:0] phase_abs;
@@ -227,10 +236,14 @@ module dpll_single_clock_core_stage_a #(
             mixer_input_valid_r0 <= 1'b0;
             mixer_input_valid_r1 <= 1'b0;
             mixer_product_valid <= 1'b0;
+            mixer_round_valid_r <= 1'b0;
+            mixer_i_product_r <= 32'sd0;
+            mixer_q_product_r <= 32'sd0;
         end else begin
             mixer_input_valid_r0 <= dc_valid && dds_valid;
             mixer_input_valid_r1 <= mixer_input_valid_r0;
             mixer_product_valid <= mixer_input_valid_r1;
+            mixer_round_valid_r <= mixer_product_valid;
             if (dc_valid && dds_valid) begin
                 adc_sample_r0 <= adc_dc_blocked;
                 lo_cos_r0 <= dds_data[15:0];
@@ -240,6 +253,10 @@ module dpll_single_clock_core_stage_a #(
                 adc_sample_r1 <= adc_sample_r0;
                 lo_cos_r1 <= lo_cos_r0;
                 lo_sin_r1 <= lo_sin_r0;
+            end
+            if (mixer_product_valid) begin
+                mixer_i_product_r <= mixer_i_product;
+                mixer_q_product_r <= mixer_q_product;
             end
         end
     end
@@ -280,11 +297,11 @@ module dpll_single_clock_core_stage_a #(
         end
     endfunction
 
-    assign mixer_i_rounded = round_product32_to_s16(mixer_i_product);
-    assign mixer_q_rounded = round_product32_to_s16(mixer_q_product);
+    assign mixer_i_rounded = round_product32_to_s16(mixer_i_product_r);
+    assign mixer_q_rounded = round_product32_to_s16(mixer_q_product_r);
     assign mixer_i = {{(MIXER_WIDTH-16){mixer_i_rounded[15]}}, mixer_i_rounded};
     assign mixer_q = {{(MIXER_WIDTH-16){mixer_q_rounded[15]}}, mixer_q_rounded};
-    assign mixer_valid = mixer_product_valid;
+    assign mixer_valid = mixer_round_valid_r;
 
     always @(posedge clk_125m) begin
         if (rst_125m) begin
@@ -348,14 +365,14 @@ module dpll_single_clock_core_stage_a #(
 
     angle_CORDIC phase_cordic_inst (
         .aclk(clk_125m),
-        .s_axis_cartesian_tvalid(iq_valid),
-        .s_axis_cartesian_tdata({cordic_q_in, cordic_i_in}),
+        .s_axis_cartesian_tvalid(cordic_input_valid_r),
+        .s_axis_cartesian_tdata({cordic_q_in_r, cordic_i_in_r}),
         .m_axis_dout_tvalid(cordic_valid),
         .m_axis_dout_tdata(cordic_data)
     );
 
-    assign cordic_i_in = round_cic20_to_cordic16(i_baseband);
-    assign cordic_q_in = round_cic20_to_cordic16(q_baseband);
+    assign cordic_i_rounded = round_cic20_to_cordic16(cordic_i_baseband_r);
+    assign cordic_q_rounded = round_cic20_to_cordic16(cordic_q_baseband_r);
     assign cordic_phase = cordic_data[31:16];
     assign cordic_magnitude = cordic_data[15:0];
     // Scaled-radians CORDIC uses +/-8192 for +/-pi; map its effective
@@ -371,6 +388,28 @@ module dpll_single_clock_core_stage_a #(
     assign cordic_signal_usable = signal_present_r;
     assign fll_phase_valid = cordic_valid && cordic_signal_usable;
     assign freq_error_usable = freq_error_valid && !fll_ambiguous;
+
+    always @(posedge clk_125m) begin
+        if (rst_detector_r) begin
+            cordic_round_valid_r <= 1'b0;
+            cordic_i_baseband_r <= {CIC_WIDTH{1'b0}};
+            cordic_q_baseband_r <= {CIC_WIDTH{1'b0}};
+            cordic_input_valid_r <= 1'b0;
+            cordic_i_in_r <= 16'sd0;
+            cordic_q_in_r <= 16'sd0;
+        end else begin
+            cordic_round_valid_r <= iq_valid;
+            cordic_input_valid_r <= cordic_round_valid_r;
+            if (iq_valid) begin
+                cordic_i_baseband_r <= i_baseband;
+                cordic_q_baseband_r <= q_baseband;
+            end
+            if (cordic_round_valid_r) begin
+                cordic_i_in_r <= cordic_i_rounded;
+                cordic_q_in_r <= cordic_q_rounded;
+            end
+        end
+    end
 
     always @(posedge clk_125m) begin
         if (rst_measure_r) begin

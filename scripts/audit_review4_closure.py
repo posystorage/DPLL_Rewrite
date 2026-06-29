@@ -106,8 +106,10 @@ def main() -> int:
         and contains_all(core, [
             "input_multiplier input_multiplier_i_inst",
             "input_multiplier input_multiplier_q_inst",
-            "assign mixer_i_rounded = round_product32_to_s16(mixer_i_product);",
-            "assign mixer_q_rounded = round_product32_to_s16(mixer_q_product);",
+            "mixer_i_product_r <= mixer_i_product;",
+            "mixer_q_product_r <= mixer_q_product;",
+            "assign mixer_i_rounded = round_product32_to_s16(mixer_i_product_r);",
+            "assign mixer_q_rounded = round_product32_to_s16(mixer_q_product_r);",
         ]),
         "iq_mixer_stage_a is a retained isolated validation primitive, not the active mixer implementation",
         "The active core uses the Xilinx `input_multiplier` IP path; frontend summary documents the retained isolated mixer",

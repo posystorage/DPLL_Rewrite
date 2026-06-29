@@ -142,8 +142,10 @@ def main() -> int:
     )
     if non_excluded:
         lines.append("- Result: `NOT_CLOSED` because non-excluded timing failures remain.")
-    else:
+    elif excluded:
         lines.append("- Result: `CLOSED_EXCEPT_USER_EXCLUDED_ADC_TO_PLL_ADC`.")
+    else:
+        lines.append("- Result: `CLOSED`.")
     lines.append("")
 
     OUT_PATH.write_text("\n".join(lines), encoding="utf-8")

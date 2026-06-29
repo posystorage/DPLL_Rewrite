@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 ------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jun 30 02:13:41 2026
+| Date         : Tue Jun 30 03:19:05 2026
 | Host         : MiaoZhi-PC running 64-bit major release  (build 9200)
 | Command      : report_methodology -file E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_full_impl/methodology.rpt
 | Design       : red_pitaya_top
@@ -23,7 +23,7 @@ Table of Contents
           Floorplan: impl_1
       Design limits: <entire design considered>
              Max violations: <unlimited>
-             Violations found: 108
+             Violations found: 106
 +-----------+----------+-------------------------------------------------------------+------------+
 | Rule      | Severity | Description                                                 | Violations |
 +-----------+----------+-------------------------------------------------------------+------------+
@@ -33,7 +33,6 @@ Table of Contents
 | SYNTH-13  | Warning  | combinational multiplier                                    | 1          |
 | SYNTH-14  | Warning  | DSP cannot absorb non-zero init register                    | 3          |
 | TIMING-4  | Warning  | Invalid primary clock redefinition on a clock tree          | 2          |
-| TIMING-16 | Warning  | Large setup violation                                       | 2          |
 | TIMING-18 | Warning  | Missing input or output delay                               | 40         |
 | TIMING-27 | Warning  | Invalid primary clock on hierarchical pin                   | 1          |
 | TIMING-30 | Warning  | Sub-optimal master source pin selection for generated clock | 1          |
@@ -201,16 +200,6 @@ Related violations: <none>
 TIMING-4#2 Warning
 Invalid primary clock redefinition on a clock tree  
 Invalid clock redefinition on a clock tree. The primary clock nolabel_line669/inst/clk_in1 is defined downstream of clock pll_adc_clk and overrides its insertion delay and/or waveform definition
-Related violations: <none>
-
-TIMING-16#1 Warning
-Large setup violation  
-There is a large setup violation of -1.317 ns between dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/post_iq_cic_inst/i_out_reg[0]/C (clocked by pll_adc_clk) and dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/phase_cordic_inst/U0/i_synth/i_synth/gen_cordic.input_stage/gen_rotation.gen_rot_xy.gen_x_plus_y/inst/i_baseblox.i_baseblox_addsub/no_pipelining.the_addsub/i_lut6.i_lut6_addsub/i_q.i_simple.qreg/i_no_async_controls.output_reg[21]/D (clocked by pll_adc_clk). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#2 Warning
-Large setup violation  
-There is a large setup violation of -1.400 ns between dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/post_iq_cic_inst/i_out_reg[0]/C (clocked by pll_adc_clk) and dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/phase_cordic_inst/U0/i_synth/i_synth/gen_cordic.input_stage/gen_rotation.gen_rot_xy.gen_x_min_y/inst/i_baseblox.i_baseblox_addsub/no_pipelining.the_addsub/i_lut6.i_lut6_addsub/i_q.i_simple.qreg/i_no_async_controls.output_reg[21]/D (clocked by pll_adc_clk). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
 Related violations: <none>
 
 TIMING-18#1 Warning

@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jun 30 02:13:29 2026
+| Date         : Tue Jun 30 03:18:54 2026
 | Host         : MiaoZhi-PC running 64-bit major release  (build 9200)
 | Command      : report_drc -file E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_full_impl/drc.rpt
 | Design       : red_pitaya_top
@@ -24,20 +24,19 @@ Table of Contents
       Design limits: <entire design considered>
            Ruledeck: default
              Max violations: <unlimited>
-             Violations found: 102
+             Violations found: 96
 +---------+----------+-------------------------------------------------------------------+------------+
 | Rule    | Severity | Description                                                       | Violations |
 +---------+----------+-------------------------------------------------------------------+------------+
 | BUFC-1  | Warning  | Input Buffer Connections                                          | 16         |
 | DPIP-1  | Warning  | Input pipelining                                                  | 17         |
-| DPOP-1  | Warning  | PREG Output pipelining                                            | 8          |
+| DPOP-1  | Warning  | PREG Output pipelining                                            | 5          |
 | DPOP-2  | Warning  | MREG Output pipelining                                            | 14         |
 | DPOR-1  | Warning  | Asynchronous load check                                           | 34         |
 | AVAL-4  | Advisory | enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND | 3          |
 | AVAL-5  | Advisory | enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND   | 3          |
 | REQP-28 | Advisory | enum_USE_MULT_NONE_connects_CEM_GND                               | 2          |
 | REQP-30 | Advisory | enum_MREG_0_connects_CEM_GND                                      | 2          |
-| REQP-31 | Advisory | enum_PREG_0_connects_CEP_GND                                      | 3          |
 +---------+----------+-------------------------------------------------------------------+------------+
 
 2. REPORT DETAILS
@@ -228,21 +227,6 @@ DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_p
 Related violations: <none>
 
 DPOP-1#5 Warning
-PREG Output pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_product_r_reg output dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_product_r_reg/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
-Related violations: <none>
-
-DPOP-1#6 Warning
-PREG Output pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg output dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
-Related violations: <none>
-
-DPOP-1#7 Warning
-PREG Output pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg output dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
-Related violations: <none>
-
-DPOP-1#8 Warning
 PREG Output pipelining  
 DSP dpll_wrapper_inst/shadow_measurement_min output dpll_wrapper_inst/shadow_measurement_min/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
 Related violations: <none>
@@ -535,21 +519,6 @@ Related violations: <none>
 REQP-30#2 Advisory
 enum_MREG_0_connects_CEM_GND  
 Digital_Freq_Meter_inst/DDC1_inst/ddc_frontend_lowpass_filter_inst_Q/N_times_clk_FIR_wrapper_H_inst/fir_compiler_minimumphase_N_times_clk_inst/U0/i_synth/g_single_rate.i_single_rate/g_semi_parallel_and_smac.g_paths[0].g_madd_array_and_accum.g_accum.i_accum/i_add_accum/g_dsp48.g_dsp48e1.i_dsp48e1: When the DSP48E1 MREG attribute is set to 0, the CEM input pin should be tied to GND to save power.
-Related violations: <none>
-
-REQP-31#1 Advisory
-enum_PREG_0_connects_CEP_GND  
-dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_product_r_reg: When the DSP48E1 PREG attribute is set to 0, the CEP input pin should be tied to GND to save power.
-Related violations: <none>
-
-REQP-31#2 Advisory
-enum_PREG_0_connects_CEP_GND  
-dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg: When the DSP48E1 PREG attribute is set to 0, the CEP input pin should be tied to GND to save power.
-Related violations: <none>
-
-REQP-31#3 Advisory
-enum_PREG_0_connects_CEP_GND  
-dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg: When the DSP48E1 PREG attribute is set to 0, the CEP input pin should be tied to GND to save power.
 Related violations: <none>
 
 

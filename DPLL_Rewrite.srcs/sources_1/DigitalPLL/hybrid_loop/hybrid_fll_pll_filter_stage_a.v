@@ -75,6 +75,13 @@ module hybrid_fll_pll_filter_stage_a #(
     reg signed [STATE_WIDTH-1:0] positive_limit_product_r;
     reg signed [STATE_WIDTH-1:0] negative_limit_product_r;
     reg [6:0] valid_pipe;
+    reg signed [STATE_WIDTH-1:0] state_sum_stage_current_r;
+    reg signed [STATE_WIDTH-1:0] state_sum_stage_p_term_r;
+    reg [WORD_WIDTH-1:0] state_sum_stage_center_word_r;
+    reg signed [STATE_WIDTH-1:0] state_sum_stage_positive_limit_r;
+    reg signed [STATE_WIDTH-1:0] state_sum_stage_negative_limit_r;
+    reg signed [STATE_WIDTH:0] state_sum_stage_state_sum_ext_r;
+    reg state_sum_stage_allow_update_r;
     reg signed [STATE_WIDTH-1:0] state_stage_state_r;
     reg signed [STATE_WIDTH-1:0] state_stage_p_term_r;
     reg [WORD_WIDTH-1:0] state_stage_center_word_r;
@@ -89,6 +96,7 @@ module hybrid_fll_pll_filter_stage_a #(
     reg signed [STATE_WIDTH-1:0] correction_stage_negative_limit_r;
     reg signed [STATE_WIDTH:0] correction_stage_state_sum_ext_r;
     reg signed [STATE_WIDTH:0] correction_stage_correction_sum_ext_r;
+    reg correction_stage_allow_update_r;
     (* keep = "true", dont_touch = "true" *) reg rst_pipe_r;
     (* keep = "true", dont_touch = "true" *) reg rst_output_r;
 
@@ -109,6 +117,8 @@ module hybrid_fll_pll_filter_stage_a #(
     wire signed [STATE_WIDTH:0] tracking_sum_ext_next;
     wire signed [STATE_WIDTH:0] positive_limit_ext;
     wire signed [STATE_WIDTH:0] negative_limit_ext;
+    wire signed [STATE_WIDTH:0] state_sum_stage_positive_limit_ext;
+    wire signed [STATE_WIDTH:0] state_sum_stage_negative_limit_ext;
     wire signed [STATE_WIDTH:0] state_stage_positive_limit_ext;
     wire signed [STATE_WIDTH:0] state_stage_negative_limit_ext;
     wire signed [STATE_WIDTH:0] correction_stage_positive_limit_ext;
@@ -131,9 +141,9 @@ module hybrid_fll_pll_filter_stage_a #(
 
     assign state_delta_next = fll_term_r + i_term_r;
     assign state_sum_ext_next = {freq_state[STATE_WIDTH-1], freq_state} + {state_delta_next[STATE_WIDTH-1], state_delta_next};
-    assign freq_state_after_update_next = allow_state_update ?
-                                          sat_state(state_sum_ext_next, positive_limit_ext, negative_limit_ext) :
-                                          freq_state;
+    assign freq_state_after_update_next = state_sum_stage_allow_update_r ?
+                                          sat_state(state_sum_stage_state_sum_ext_r, state_sum_stage_positive_limit_ext, state_sum_stage_negative_limit_ext) :
+                                          state_sum_stage_current_r;
     assign freq_state_after_update_ext_next = {freq_state_after_update_next[STATE_WIDTH-1], freq_state_after_update_next};
     assign correction_sum_ext_next = {state_stage_state_r[STATE_WIDTH-1], state_stage_state_r} + {state_stage_p_term_r[STATE_WIDTH-1], state_stage_p_term_r};
     assign freq_correction_sat_next = sat_state(correction_sum_ext_next, state_stage_positive_limit_ext, state_stage_negative_limit_ext);
@@ -142,6 +152,8 @@ module hybrid_fll_pll_filter_stage_a #(
     assign tracking_sum_ext_next = center_ext_next + correction_stage_correction_ext;
     assign positive_limit_ext = {positive_limit_r1[STATE_WIDTH-1], positive_limit_r1};
     assign negative_limit_ext = {negative_limit_r1[STATE_WIDTH-1], negative_limit_r1};
+    assign state_sum_stage_positive_limit_ext = {state_sum_stage_positive_limit_r[STATE_WIDTH-1], state_sum_stage_positive_limit_r};
+    assign state_sum_stage_negative_limit_ext = {state_sum_stage_negative_limit_r[STATE_WIDTH-1], state_sum_stage_negative_limit_r};
     assign state_stage_positive_limit_ext = {state_stage_positive_limit_r[STATE_WIDTH-1], state_stage_positive_limit_r};
     assign state_stage_negative_limit_ext = {state_stage_negative_limit_r[STATE_WIDTH-1], state_stage_negative_limit_r};
     assign correction_stage_positive_limit_ext = {correction_stage_positive_limit_r[STATE_WIDTH-1], correction_stage_positive_limit_r};
@@ -218,6 +230,13 @@ module hybrid_fll_pll_filter_stage_a #(
             fll_term_r <= {STATE_WIDTH{1'b0}};
             i_term_r <= {STATE_WIDTH{1'b0}};
             p_term_r <= {STATE_WIDTH{1'b0}};
+            state_sum_stage_current_r <= {STATE_WIDTH{1'b0}};
+            state_sum_stage_p_term_r <= {STATE_WIDTH{1'b0}};
+            state_sum_stage_center_word_r <= {WORD_WIDTH{1'b0}};
+            state_sum_stage_positive_limit_r <= {STATE_WIDTH{1'b0}};
+            state_sum_stage_negative_limit_r <= {STATE_WIDTH{1'b0}};
+            state_sum_stage_state_sum_ext_r <= {(STATE_WIDTH+1){1'b0}};
+            state_sum_stage_allow_update_r <= 1'b0;
             state_stage_state_r <= {STATE_WIDTH{1'b0}};
             state_stage_p_term_r <= {STATE_WIDTH{1'b0}};
             state_stage_center_word_r <= {WORD_WIDTH{1'b0}};
@@ -232,6 +251,7 @@ module hybrid_fll_pll_filter_stage_a #(
             correction_stage_negative_limit_r <= {STATE_WIDTH{1'b0}};
             correction_stage_state_sum_ext_r <= {(STATE_WIDTH+1){1'b0}};
             correction_stage_correction_sum_ext_r <= {(STATE_WIDTH+1){1'b0}};
+            correction_stage_allow_update_r <= 1'b0;
             center_word_r0 <= {WORD_WIDTH{1'b0}};
             center_word_r1 <= {WORD_WIDTH{1'b0}};
             center_word_operand_r <= {WORD_WIDTH{1'b0}};
@@ -299,16 +319,26 @@ module hybrid_fll_pll_filter_stage_a #(
             end
 
             if (valid_pipe[1]) begin
-                state_stage_state_r <= freq_state_after_update_next;
-                state_stage_p_term_r <= p_term_r;
-                state_stage_center_word_r <= center_word_r1;
-                state_stage_positive_limit_r <= positive_limit_r1;
-                state_stage_negative_limit_r <= negative_limit_r1;
-                state_stage_state_sum_ext_r <= state_sum_ext_next;
-                state_stage_allow_update_r <= allow_state_update;
+                state_sum_stage_current_r <= freq_state;
+                state_sum_stage_p_term_r <= p_term_r;
+                state_sum_stage_center_word_r <= center_word_r1;
+                state_sum_stage_positive_limit_r <= positive_limit_r1;
+                state_sum_stage_negative_limit_r <= negative_limit_r1;
+                state_sum_stage_state_sum_ext_r <= state_sum_ext_next;
+                state_sum_stage_allow_update_r <= allow_state_update;
             end
 
             if (valid_pipe[2]) begin
+                state_stage_state_r <= freq_state_after_update_next;
+                state_stage_p_term_r <= state_sum_stage_p_term_r;
+                state_stage_center_word_r <= state_sum_stage_center_word_r;
+                state_stage_positive_limit_r <= state_sum_stage_positive_limit_r;
+                state_stage_negative_limit_r <= state_sum_stage_negative_limit_r;
+                state_stage_state_sum_ext_r <= state_sum_stage_state_sum_ext_r;
+                state_stage_allow_update_r <= state_sum_stage_allow_update_r;
+            end
+
+            if (valid_pipe[3]) begin
                 correction_stage_state_r <= state_stage_state_r;
                 correction_stage_correction_r <= freq_correction_sat_next;
                 correction_stage_center_word_r <= state_stage_center_word_r;
@@ -316,6 +346,7 @@ module hybrid_fll_pll_filter_stage_a #(
                 correction_stage_negative_limit_r <= state_stage_negative_limit_r;
                 correction_stage_state_sum_ext_r <= state_stage_state_sum_ext_r;
                 correction_stage_correction_sum_ext_r <= correction_sum_ext_next;
+                correction_stage_allow_update_r <= state_stage_allow_update_r;
             end
 
         end
@@ -332,8 +363,8 @@ module hybrid_fll_pll_filter_stage_a #(
         end else begin
             correction_valid <= 1'b0;
 
-            if (valid_pipe[3]) begin
-                if (state_stage_allow_update_r) begin
+            if (valid_pipe[4]) begin
+                if (correction_stage_allow_update_r) begin
                     freq_state <= correction_stage_state_r;
                 end
 

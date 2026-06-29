@@ -13,7 +13,9 @@ Generated on 2026-06-30 after the review4 recheck and timing-closure pass.
 - PS GP0/system-bus clock now uses the PLL/BUFG `adc_clk` instead of raw `adc_clk_in`; this removes the avoidable raw-input-clock to peripheral-clock system-bus launch path in source.
 - `CONFIG_APPLY` VCO MUL/DIV validation is now staged across a small sys_clk state machine instead of completing wide multiply/compare/error-code logic in one bus cycle.
 - The active core registers rounded mixer I/Q and valid before the post-IQ CIC, removing the direct mixer-to-44-bit-integrator timing path.
-- The hybrid FLL/PLL loop output path is pipelined through state and correction stages, removing the previous DSP/product-to-tracking-word long combinational path.
+- The hybrid FLL/PLL loop output path is pipelined through state-sum, state, and correction stages, removing the previous DSP/product-to-tracking-word long combinational path.
+- The active core registers multiplier products before mixer rounding, cutting the multiplier-to-CIC input path.
+- The active core registers post-IQ CIC outputs before CORDIC rounding, cutting the CIC-to-CORDIC input path.
 
 ## Verification Run
 
@@ -26,20 +28,20 @@ Generated on 2026-06-30 after the review4 recheck and timing-closure pass.
 - `python scripts\audit_system_bus_clock.py`: PASS.
 - `python scripts\audit_review4_closure.py`: PASS.
 - `python scripts\generate_dpll_build_id.py --check`: PASS.
-- `vivado.bat -mode batch -source scripts\vivado_full_bitstream_reports.tcl`: bitstream generated, timing still not met.
+- `D:\Xilinx\Vivado\2018.3\bin\vivado.bat -mode batch -source scripts\vivado_full_bitstream_reports.tcl`: bitstream generated, timing met.
 
-## Still Open
+## Closed
 
-Full Vivado implementation timing sign-off remains open. The current checked report under `reports/vivado_full_impl/timing_summary.rpt` still says timing constraints are not met:
+Full Vivado implementation timing sign-off is now closed. The current checked report under `reports/vivado_full_impl/timing_summary.rpt` says all user-specified timing constraints are met:
 
-- WNS: `-1.400 ns`
-- TNS: `-49.368 ns`
-- Failing setup endpoints: `214`
+- WNS: `0.004 ns`
+- TNS: `0.000 ns`
+- Failing setup endpoints: `0`
 
-The avoidable `adc_clk -> pll_adc_clk` bus-clock failure is no longer present; `reports/vivado_full_impl/clock_interaction.rpt` now reports that pair with positive WNS. Remaining non-excluded failing pairs are tracked in `reports/full_timing_exception_audit_20260628.md`:
+The avoidable `adc_clk -> pll_adc_clk` bus-clock failure is no longer present; `reports/vivado_full_impl/clock_interaction.rpt` reports that pair with positive WNS. Non-excluded failing pairs are tracked in `reports/full_timing_exception_audit_20260628.md`:
 
-- `pll_adc_clk -> pll_adc_clk`: WNS `-1.400 ns`, TNS about `-48.87 ns`, mostly active DPLL datapath.
-- `pll_clk_adc_2x -> pll_clk_adc_2x`: WNS about `-0.25 ns`.
-- `clk_fpga_3 -> clk_fpga_3`: WNS about `-0.19 ns`.
+- Failing clock pairs: `0`.
+- User-excluded failing clock pairs: `0`.
+- Non-excluded failing clock pairs: `0`.
 
-Current worst path is from the post-IQ CIC output register into the CORDIC input stage. The design produces a bitstream, but review4 full implementation sign-off remains `NOT_CLOSED`; no false path or clock-group waiver was added to hide these synchronous failures.
+Current worst setup path is met with slack `0.004 ns` in the VCO divider path. The design produces a bitstream, no false path or clock-group waiver was added to hide synchronous failures, and review4 full implementation sign-off is `CLOSED`.

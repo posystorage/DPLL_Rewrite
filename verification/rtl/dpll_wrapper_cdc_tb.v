@@ -13,6 +13,7 @@ module dpll_wrapper_cdc_tb;
  reg signed [15:0] ADCraw0=0,ADCraw1=0; wire signed [15:0] DACout0,DACout1; reg [31:0] sys_addr=0,sys_wdata=0; reg [3:0] sys_sel=4'hf; reg sys_wen=0,sys_ren=0; wire [31:0] sys_rdata; wire sys_err,sys_ack; wire [6:0] led;
  dpll_wrapper dut(.clk1(clk1),.rst(rst),.sys_clk(sys_clk),.sys_rstn(sys_rstn),.ADCraw0(ADCraw0),.ADCraw1(ADCraw1),.DACout0(DACout0),.DACout1(DACout1),.sys_addr(sys_addr),.sys_wdata(sys_wdata),.sys_sel(sys_sel),.sys_wen(sys_wen),.sys_ren(sys_ren),.sys_rdata(sys_rdata),.sys_err(sys_err),.sys_ack(sys_ack),.led(led));
  task wr; input [15:0] a; input [31:0] d; begin @(negedge sys_clk); sys_addr={14'd0,a,2'b00}; sys_wdata=d; sys_wen=1; @(posedge sys_clk); #1; if(!sys_ack) begin $display("FAIL: write ack addr=%h",a);$finish;end @(negedge sys_clk);sys_wen=0; end endtask
+ task wr_expect_err; input [15:0] a; input [31:0] d; begin @(negedge sys_clk); sys_addr={14'd0,a,2'b00}; sys_wdata=d; sys_wen=1; @(posedge sys_clk); #1; if(!sys_ack||!sys_err) begin $display("FAIL: busy write did not return err addr=%h ack=%b err=%b",a,sys_ack,sys_err);$finish;end @(negedge sys_clk);sys_wen=0; end endtask
  task rd; input [15:0] a; output [31:0] d; integer n; begin @(negedge sys_clk);sys_addr={14'd0,a,2'b00};sys_ren=1;@(posedge sys_clk);#1;@(negedge sys_clk);sys_ren=0;n=0;while(!sys_ack&&n<20)begin @(posedge sys_clk);#1;n=n+1;end if(!sys_ack)begin $display("FAIL: read timeout addr=%h",a);$finish;end d=sys_rdata;end endtask
  task wait_idle; integer n; reg [31:0] s; begin n=0;s=1;while((s[0]||s[15:8]==0)&&n<30)begin rd(16'h006f,s);n=n+1;end if(s[0])begin $display("FAIL: apply busy stuck");$finish;end end endtask
  reg [31:0] v; reg [47:0] saved_center;
@@ -26,5 +27,7 @@ module dpll_wrapper_cdc_tb;
    rd(16'h0110,v);if(v!==32'h12345678)begin $display("FAIL: snapshot center %h",v);$finish;end saved_center=dut.active_center_word;
    wr(16'h0010,32'hdeadbeef);wr(16'h0060,7);wr(16'h006f,1);repeat(8)@(posedge sys_clk);rd(16'h006f,v);if(!v[1]||v[15:8]!==1||dut.active_center_word!==saved_center)begin $display("FAIL: rejected apply status=%h center=%h",v,dut.active_center_word);$finish;end rd(16'h0070,v);if(!v[0])begin $display("FAIL: rejected mask=%h",v);$finish;end
    wr(16'h0060,8);wr(16'h0061,4);wr(16'h0010,0);wr(16'h002a,32'hffffffec);wr(16'h006f,1);repeat(12)@(posedge clk1);if(dut.vco_tracking_word!==0||!dut.manual_offset_overflow)begin $display("FAIL: negative offset saturation word=%h ov=%b",dut.vco_tracking_word,dut.manual_offset_overflow);$finish;end
+   wr(16'h0010,32'hffffffff);wr(16'h002a,32'h00010000);wr(16'h006f,1);repeat(12)@(posedge clk1);if(dut.vco_tracking_word!==48'hffff_ffff_ffff||!dut.manual_offset_overflow)begin $display("FAIL: positive offset saturation word=%h ov=%b",dut.vco_tracking_word,dut.manual_offset_overflow);$finish;end
+   wr(16'h0010,32'h01000000);wr(16'h006f,1);wr_expect_err(16'h0010,32'h02000000);wait_idle();
    $display("PASS: dpll_wrapper_cdc_tb");$finish;end
 endmodule

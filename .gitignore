@@ -77,6 +77,6 @@ __pycache__/
 Thumbs.db
 desktop.ini
 
-# Build-generated FPGA/ARM identity headers
-DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_build_id.vh
-DPLL_Rewrite.sdk/DPLL_2COM/src/dpll_build_id.h
+# Build-generated FPGA/ARM identity headers are compiler inputs.
+# Do not ignore them, otherwise `git clean -X` removes the macros needed by
+# dpll_wrapper.v and the ARM firmware.

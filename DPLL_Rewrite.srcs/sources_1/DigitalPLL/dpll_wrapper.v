@@ -586,7 +586,7 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .config_apply(config_apply_core_pulse),
     .cic_rate_r(active_post_iq_cic_rate_r),
     .cic_output_shift(active_post_iq_cic_shift),
-    .cic_flush(ok_reset),
+    .cic_flush(reset_pulse_clk),
     .fll_delay_sel(active_fll_delay_sel),
     .kf(active_kf),
     .ki(active_ki),
@@ -634,13 +634,15 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .lo_sin(dpll_lo_sin)
 );
 
-wire signed [48:0] manual_offset_sum =
-    $signed({1'b0, dpll_tracking_word}) +
-    $signed({{17{active_manual_offset_dac0[31]}}, active_manual_offset_dac0});
-wire manual_offset_overflow = manual_offset_sum[48] ||
-    (manual_offset_sum > $signed({1'b0, 48'hffff_ffff_ffff}));
-wire [47:0] vco_tracking_word = manual_offset_sum[48] ? 48'd0 :
-    ((manual_offset_sum > $signed({1'b0, 48'hffff_ffff_ffff}))
+wire signed [49:0] manual_offset_sum =
+    $signed({2'b00, dpll_tracking_word}) +
+    $signed({{18{active_manual_offset_dac0[31]}}, active_manual_offset_dac0});
+wire manual_offset_underflow = manual_offset_sum < 50'sd0;
+wire manual_offset_positive_saturation =
+    manual_offset_sum > $signed({2'b00, 48'hffff_ffff_ffff});
+wire manual_offset_overflow = manual_offset_underflow || manual_offset_positive_saturation;
+wire [47:0] vco_tracking_word = manual_offset_underflow ? 48'd0 :
+    (manual_offset_positive_saturation
         ? 48'hffff_ffff_ffff : manual_offset_sum[47:0]);
 wire [47:0] VCO_Input0;
 wire signed [47:0] debug_tracking_delta =
@@ -840,6 +842,7 @@ always @(posedge sys_clk or negedge sys_rstn) begin
             status_request_pending_sys <= 1'b0;
         end else if (sys_wen) begin
             sys_ack <= 1'b1;
+            sys_err <= config_apply_busy;
         end else if (sys_ren && !status_request_pending_sys) begin
             if (status_snapshot_address(cmd_addr)) begin
                 status_request_addr_sys <= cmd_addr;

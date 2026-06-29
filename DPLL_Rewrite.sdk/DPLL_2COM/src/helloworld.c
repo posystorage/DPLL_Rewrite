@@ -156,6 +156,7 @@ uint64_t Freq_meter_gate_time_cache = 0;
 #define DPLL_APPLY_POLL_LIMIT             1024U
 #define DPLL_ABI_RETRY_COUNT              100U
 #define DPLL_ABI_RETRY_DELAY_US           100U
+#define PC_HOST_MAX_FRAME_BYTES           64U
 #define DPLL_ADV_CONFIG_PAYLOAD_BYTES     46U
 #define DPLL_DEBUG_CONFIG_PAYLOAD_BYTES   12U
 
@@ -443,7 +444,7 @@ void PC_HOST_CMD_Get(void)
 		//printf("M %.2X %.2X %.2X %.2X %.2X %.2X\r\n",Uart0_RX_Buff[0],Uart0_RX_Buff[1],Uart0_RX_Buff[2],Uart0_RX_Buff[3],Uart0_RX_Buff[4],Uart0_RX_Buff[5]);
 		return;
 	}
-	if((Uart0_RX_Num<4)||(Uart0_RX_Num>48))
+	if((Uart0_RX_Num<4)||(Uart0_RX_Num>PC_HOST_MAX_FRAME_BYTES))
 	{
 		PC_HOST_CMD_ASK = 0xF1;
 		//print("Err F1 Length\r\n");

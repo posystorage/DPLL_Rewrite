@@ -109,6 +109,12 @@ module dpll_single_clock_core_stage_a_tb;
         @(posedge clk);
         config_apply = 1'b1;
         @(posedge clk);
+        #1;
+        if (!tracking_valid || tracking_word !== 48'h0100_0000_0000) begin
+            $display("FAIL: config_apply did not present center word with valid, valid=%b word=%h",
+                     tracking_valid, tracking_word);
+            $finish;
+        end
         config_apply = 1'b0;
 
         for (n = 0; n < 160; n = n + 1) begin

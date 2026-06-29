@@ -149,8 +149,8 @@ module dpll_single_clock_core_stage_a #(
     (* keep = "true", dont_touch = "true" *) reg rst_hybrid_r;
     (* keep = "true", dont_touch = "true" *) reg nco_word_ready_dds_r;
 
-    assign nco_word = tracking_word_hold;
-    assign tracking_word = tracking_word_hold;
+    assign nco_word = config_apply ? center_word : tracking_word_hold;
+    assign tracking_word = config_apply ? center_word : tracking_word_hold;
     assign tracking_valid = correction_valid | config_apply;
     assign magnitude = cordic_magnitude_hold;
 

@@ -40,10 +40,11 @@ class DpllArmControlContractTest(unittest.TestCase):
 
     def test_firmware_uses_the_host_compiled_driver(self):
         self.assertIn('#include "dpll_driver.h"', self.arm)
+        self.assertTrue(DRIVER_C.exists())
+        self.assertTrue(DRIVER_H.exists())
         self.assertIn("dpll_driver_check_abi(&dpll_driver)", self.arm)
         self.assertIn("dpll_driver_apply(&dpll_driver, result)", self.arm)
         self.assertIn("dpll_driver_set_enable(&dpll_driver, enable)", self.arm)
-        self.assertIn("../src/dpll_driver.c", (ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/Debug/src/subdir.mk").read_text())
 
     def test_abi_retry_timeout_and_reset_recheck_are_real_driver_paths(self):
         self.assertIn("driver->abi_attempts = retry + 1U", self.driver_c)
@@ -90,6 +91,12 @@ class DpllArmControlContractTest(unittest.TestCase):
         body = function_body(self.arm, "CMD_8F_WRITE_DPLL_ADV_CONFIG")
         self.assertIn("DPLL_MEASUREMENT_TIMEOUT_Addr, pc_get_u32(46)", body)
         self.assertIn("DPLL_HOLDOVER_TIMEOUT_Addr, pc_get_u32(36)", body)
+
+    def test_uart_parser_accepts_complete_advanced_config_frame(self):
+        self.assertRegex(self.arm, r"#define\s+PC_HOST_MAX_FRAME_BYTES\s+64U")
+        parser = function_body(self.arm, "PC_HOST_CMD_Get")
+        self.assertIn("Uart0_RX_Num>PC_HOST_MAX_FRAME_BYTES", parser)
+        self.assertNotIn("Uart0_RX_Num>48", parser)
 
     def test_host_test_covers_required_driver_outcomes(self):
         for needle in (

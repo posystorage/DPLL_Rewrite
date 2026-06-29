@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""Source/evidence audit for review4 closure.
+
+This audit is intentionally narrow: it checks that the review4 P0 fixes and
+the Vivado source-tree orphan explanation are backed by current source and
+test artifacts. It is not a replacement for full Vivado implementation
+sign-off.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+XPR = ROOT / "DPLL_Rewrite.xpr"
+TOP = ROOT / "DPLL_Rewrite.srcs" / "sources_1" / "ReadPitaya" / "red_pitaya_top.v"
+DPLL = ROOT / "DPLL_Rewrite.srcs" / "sources_1" / "DigitalPLL"
+SDK = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src"
+REPORT = ROOT / "reports" / "review4_closure_audit_20260629.md"
+
+
+def read(path: Path) -> str:
+    for encoding in ("utf-8", "gbk"):
+        try:
+            return path.read_text(encoding=encoding, errors="strict")
+        except UnicodeDecodeError:
+            pass
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def git(*args: str) -> str:
+    return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
+
+
+def contains_all(text: str, tokens: list[str]) -> bool:
+    return all(token in text for token in tokens)
+
+
+def check(condition: bool, requirement: str, evidence: str) -> tuple[str, bool]:
+    status = "PASS" if condition else "FAIL"
+    print(f"{status}: {requirement}")
+    return f"| {status} | {requirement} | {evidence} |", condition
+
+
+def main() -> int:
+    xpr = read(XPR)
+    top = read(TOP)
+    core = read(DPLL / "core" / "dpll_single_clock_core_stage_a.v")
+    wrapper = read(DPLL / "dpll_wrapper.v")
+    arm = read(SDK / "helloworld.c")
+    core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
+    wrapper_tb = read(ROOT / "verification" / "rtl" / "dpll_wrapper_cdc_tb.v")
+    frontend_summary = read(ROOT / "reports" / "frontend_stage_a_summary.md")
+
+    checks: list[tuple[str, bool]] = []
+
+    checks.append(check(
+        contains_all(xpr, [
+            'File Path="$PSRCDIR/sources_1/DigitalPLL/frontend/iq_mixer_stage_a.v"',
+            'File Path="$PSRCDIR/sources_1/ReadPitaya/FIFO_addr_packed/FIFO_addr_packed.xci"',
+            'File Path="$PSRCDIR/sources_1/ReadPitaya/FSM_addr_packed.vhd"',
+            'File Path="$PSRCDIR/sources_1/ReadPitaya/addr_packed.vhd"',
+            '<Attr Name="AutoDisabled" Val="1"/>',
+            '<Option Name="TopModule" Val="red_pitaya_top"/>',
+        ]),
+        "Vivado places addr_packed and iq_mixer_stage_a outside the active hierarchy because they are AutoDisabled under red_pitaya_top",
+        "`DPLL_Rewrite.xpr` marks these files/IP as `AutoDisabled=1` while the active top is `red_pitaya_top`",
+    ))
+
+    checks.append(check(
+        contains_all(top, [
+            "dpll_wrapper dpll_wrapper_inst",
+            ".sys_wen                 (  sys_wen[6]",
+            ".sys_ren                 (  sys_ren[6]",
+            ".sys_ack                 (  sys_ack[6]",
+            "assign dac_a = DACout0;",
+            "assign dac_b = DACout1;",
+        ])
+        and "addr_packed_inst" not in top
+        and "FIFO_addr_packed" not in top,
+        "The active top-level path is dpll_wrapper on bus channel 6; addr_packed is not instantiated",
+        "`red_pitaya_top.v` instantiates `dpll_wrapper` and only retains addr_packed comments/wires from the older logger path",
+    ))
+
+    checks.append(check(
+        contains_all(frontend_summary, [
+            "`iq_mixer_stage_a` remains available for isolated validation",
+            "active DDS IP path",
+            "No top-level port, ARM register ABI, or DAC debug behavior changed",
+        ])
+        and contains_all(core, [
+            "input_multiplier input_multiplier_i_inst",
+            "input_multiplier input_multiplier_q_inst",
+            "assign mixer_i_rounded = round_product32_to_s16(mixer_i_product);",
+            "assign mixer_q_rounded = round_product32_to_s16(mixer_q_product);",
+        ]),
+        "iq_mixer_stage_a is a retained isolated validation primitive, not the active mixer implementation",
+        "The active core uses the Xilinx `input_multiplier` IP path; frontend summary documents the retained isolated mixer",
+    ))
+
+    checks.append(check(
+        contains_all(core, [
+            "assign tracking_word = config_apply ? center_word : tracking_word_hold;",
+            "assign tracking_valid = correction_valid | config_apply;",
+        ])
+        and contains_all(core_tb, [
+            "config_apply did not present center word with valid",
+            "tracking_word !== 48'h0100_0000_0000",
+        ]),
+        "P0-1 CONFIG_APPLY presents the new center word on the same cycle as tracking_valid",
+        "`dpll_single_clock_core_stage_a.v` drives a config_apply mux; the core TB checks valid/data alignment",
+    ))
+
+    checks.append(check(
+        contains_all(wrapper, [
+            "wire signed [49:0] manual_offset_sum",
+            "$signed({2'b00, dpll_tracking_word})",
+            "manual_offset_sum > $signed({2'b00, 48'hffff_ffff_ffff})",
+            "? 48'hffff_ffff_ffff : manual_offset_sum[47:0]",
+        ])
+        and "positive offset saturation" in wrapper_tb,
+        "P0-2 manual frequency offset uses a 50-bit signed sum and saturates positive overflow to max",
+        "`dpll_wrapper.v` uses a 50-bit intermediate; wrapper CDC TB covers positive and negative saturation",
+    ))
+
+    checks.append(check(
+        contains_all(arm, [
+            "#define PC_HOST_MAX_FRAME_BYTES           64U",
+            "#define DPLL_ADV_CONFIG_PAYLOAD_BYTES     46U",
+            "if((Uart0_RX_Num<4)||(Uart0_RX_Num>PC_HOST_MAX_FRAME_BYTES))",
+            "if (pc_payload_len() < DPLL_ADV_CONFIG_PAYLOAD_BYTES)",
+        ]),
+        "P0-3 PC UART parser accepts the 50-byte advanced-config frame",
+        "`helloworld.c` raises the PC frame limit to 64 bytes while the advanced payload remains 46 bytes",
+    ))
+
+    checks.append(check(
+        ".cic_flush(reset_pulse_clk)" in wrapper and ".cic_flush(ok_reset)" not in wrapper,
+        "P0-4 CIC flush is driven by the clk1-domain reset pulse, not the sys_clk ok_reset strobe",
+        "`dpll_wrapper.v` connects `cic_flush` to `reset_pulse_clk`",
+    ))
+
+    checks.append(check(
+        contains_all(wrapper, [
+            "sys_err <= config_apply_busy;",
+            "assign cmd_trig   = sys_wen && !config_apply_busy;",
+        ])
+        and "busy write did not return err" in wrapper_tb,
+        "P1 busy writes are rejected visibly instead of silently modifying shadow state",
+        "wrapper returns `sys_err` while busy; CDC TB checks a busy write error",
+    ))
+
+    checks.append(check(
+        contains_all(wrapper, [
+            "shadow_width_legal",
+            "shadow_magnitude_legal",
+            "shadow_cic_shift_legal",
+            "APPLY_ERR_WIDTH",
+            "Magnitude_Enter_Threshold0[15:0] > Magnitude_Exit_Threshold0[15:0]",
+        ])
+        and contains_all(wrapper_tb, [
+            "illegal coefficient width accepted",
+            "equal magnitude thresholds accepted",
+            "conservative CIC shift legal value rejected",
+        ]),
+        "P1 validator covers width, magnitude hysteresis, and CIC shift range semantics",
+        "`dpll_wrapper.v` central validator and wrapper CDC TB cover the review4 validation gaps",
+    ))
+
+    head = git("rev-parse", "--short=12", "HEAD")
+    lines = [
+        "# Review4 Closure Audit",
+        "",
+        f"HEAD: `{head}`",
+        "",
+        "Generated by `python scripts/audit_review4_closure.py`.",
+        "",
+        "| Status | Requirement | Evidence |",
+        "|---|---|---|",
+    ]
+    lines.extend(line for line, _ in checks)
+    lines.extend([
+        "",
+        "## Scope Notes",
+        "",
+        "- This audit explains why Vivado shows `addr_packed` and `iq_mixer_stage_a` outside the active hierarchy.",
+        "- This audit checks source/test evidence for review4 closure. It does not claim a fresh full implementation sign-off.",
+    ])
+    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    failed = [line for line, ok in checks if not ok]
+    print(f"report={REPORT}")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

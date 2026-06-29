@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Sun Jun 28 05:54:39 2026
+| Date         : Tue Jun 30 02:13:29 2026
 | Host         : MiaoZhi-PC running 64-bit major release  (build 9200)
 | Command      : report_drc -file E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_full_impl/drc.rpt
 | Design       : red_pitaya_top
@@ -24,18 +24,20 @@ Table of Contents
       Design limits: <entire design considered>
            Ruledeck: default
              Max violations: <unlimited>
-             Violations found: 76
+             Violations found: 102
 +---------+----------+-------------------------------------------------------------------+------------+
 | Rule    | Severity | Description                                                       | Violations |
 +---------+----------+-------------------------------------------------------------------+------------+
 | BUFC-1  | Warning  | Input Buffer Connections                                          | 16         |
-| DPIP-1  | Warning  | Input pipelining                                                  | 21         |
-| DPOP-1  | Warning  | PREG Output pipelining                                            | 5          |
-| DPOP-2  | Warning  | MREG Output pipelining                                            | 12         |
-| AVAL-4  | Advisory | enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND | 11         |
-| AVAL-5  | Advisory | enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND   | 7          |
+| DPIP-1  | Warning  | Input pipelining                                                  | 17         |
+| DPOP-1  | Warning  | PREG Output pipelining                                            | 8          |
+| DPOP-2  | Warning  | MREG Output pipelining                                            | 14         |
+| DPOR-1  | Warning  | Asynchronous load check                                           | 34         |
+| AVAL-4  | Advisory | enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND | 3          |
+| AVAL-5  | Advisory | enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND   | 3          |
 | REQP-28 | Advisory | enum_USE_MULT_NONE_connects_CEM_GND                               | 2          |
 | REQP-30 | Advisory | enum_MREG_0_connects_CEM_GND                                      | 2          |
+| REQP-31 | Advisory | enum_PREG_0_connects_CEP_GND                                      | 3          |
 +---------+----------+-------------------------------------------------------------------+------------+
 
 2. REPORT DETAILS
@@ -142,112 +144,107 @@ Related violations: <none>
 
 DPIP-1#5 Warning
 Input pipelining  
-DSP Digital_Freq_Meter_inst/PLL0_loop_filters/IIR_LPF_inst/data_out_wide_reg input Digital_Freq_Meter_inst/PLL0_loop_filters/IIR_LPF_inst/data_out_wide_reg/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/VCO_inst0/ARG input dpll_wrapper_inst/VCO_inst0/ARG/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#6 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_estimator/i_multadd/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive input dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_estimator/i_multadd/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive/C[47:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/VCO_inst0/ARG input dpll_wrapper_inst/VCO_inst0/ARG/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#7 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[0].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 input dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[0].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/apply_vco_max_product_r0 input dpll_wrapper_inst/apply_vco_max_product_r0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#8 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[0].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 input dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[0].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 input dpll_wrapper_inst/apply_vco_max_product_r0__0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#9 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[1].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 input dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[1].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__1 input dpll_wrapper_inst/apply_vco_max_product_r0__1/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#10 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[2].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 input dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[2].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/apply_vco_product_r0 input dpll_wrapper_inst/apply_vco_product_r0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#11 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input dpll_wrapper_inst/VCO_inst0/ARG/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 input dpll_wrapper_inst/apply_vco_product_r0__0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#12 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input dpll_wrapper_inst/VCO_inst0/ARG/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/apply_vco_product_r0__1 input dpll_wrapper_inst/apply_vco_product_r0__1/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#13 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/debug_scaled input dpll_wrapper_inst/debug_scaled/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#14 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/debug_scaled input dpll_wrapper_inst/debug_scaled/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#15 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/debug_scaled__0 input dpll_wrapper_inst/debug_scaled__0/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#16 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/debug_scaled__0 input dpll_wrapper_inst/debug_scaled__0/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPIP-1#17 Warning
 Input pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
-Related violations: <none>
-
-DPIP-1#18 Warning
-Input pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_product_r_reg input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_product_r_reg/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
-Related violations: <none>
-
-DPIP-1#19 Warning
-Input pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/p_product_r_reg input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/p_product_r_reg/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
-Related violations: <none>
-
-DPIP-1#20 Warning
-Input pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/iq_mixer_inst/i_product_r_reg input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/iq_mixer_inst/i_product_r_reg/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
-Related violations: <none>
-
-DPIP-1#21 Warning
-Input pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/iq_mixer_inst/q_product_r_reg input dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/iq_mixer_inst/q_product_r_reg/B[17:0] is not pipelined. Pipelining DSP48 input will improve performance.
+DSP dpll_wrapper_inst/shadow_measurement_min input dpll_wrapper_inst/shadow_measurement_min/A[29:0] is not pipelined. Pipelining DSP48 input will improve performance.
 Related violations: <none>
 
 DPOP-1#1 Warning
 PREG Output pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[0].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 output dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[0].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output dpll_wrapper_inst/apply_vco_max_product_r0__0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
 Related violations: <none>
 
 DPOP-1#2 Warning
 PREG Output pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[1].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 output dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[1].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output dpll_wrapper_inst/apply_vco_product_r0__0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
 Related violations: <none>
 
 DPOP-1#3 Warning
 PREG Output pipelining  
-DSP dpll_wrapper_inst/debug_scaled output dpll_wrapper_inst/debug_scaled/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+DSP dpll_wrapper_inst/debug_dac_formatter_inst/product_r30 output dpll_wrapper_inst/debug_dac_formatter_inst/product_r30/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
 Related violations: <none>
 
 DPOP-1#4 Warning
 PREG Output pipelining  
-DSP dpll_wrapper_inst/debug_scaled__0 output dpll_wrapper_inst/debug_scaled__0/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next output dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
 Related violations: <none>
 
 DPOP-1#5 Warning
 PREG Output pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next output dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_product_r_reg output dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_product_r_reg/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#6 Warning
+PREG Output pipelining  
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg output dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#7 Warning
+PREG Output pipelining  
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg output dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
+Related violations: <none>
+
+DPOP-1#8 Warning
+PREG Output pipelining  
+DSP dpll_wrapper_inst/shadow_measurement_min output dpll_wrapper_inst/shadow_measurement_min/P[47:0] is not pipelined (PREG=0). Pipelining the DSP48 output will improve performance and often saves power so it is suggested whenever possible to fully pipeline this function.  If this DSP48 function was inferred, it is suggested to describe an additional register stage after this function.  If the DSP48 was instantiated in the design, it is suggested to set the PREG attribute to 1.
 Related violations: <none>
 
 DPOP-2#1 Warning
@@ -262,52 +259,232 @@ Related violations: <none>
 
 DPOP-2#3 Warning
 MREG Output pipelining  
-DSP Digital_Freq_Meter_inst/PLL0_loop_filters/IIR_LPF_inst/data_out_wide_reg multiplier stage Digital_Freq_Meter_inst/PLL0_loop_filters/IIR_LPF_inst/data_out_wide_reg/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/apply_vco_max_product_r0 multiplier stage dpll_wrapper_inst/apply_vco_max_product_r0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#4 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_estimator/i_multadd/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive multiplier stage dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_estimator/i_multadd/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 multiplier stage dpll_wrapper_inst/apply_vco_max_product_r0__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#5 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[0].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 multiplier stage dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[0].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__1 multiplier stage dpll_wrapper_inst/apply_vco_max_product_r0__1/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#6 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[1].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 multiplier stage dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[1].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/apply_vco_product_r0 multiplier stage dpll_wrapper_inst/apply_vco_product_r0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#7 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[2].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1 multiplier stage dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Multiplier/U0/i_mult/gDSP.gDSP_only.iDSP/use_prim.appDSP48[2].bppDSP48[0].use_dsp.use_dsp48e1.iDSP48E1/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 multiplier stage dpll_wrapper_inst/apply_vco_product_r0__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#8 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/debug_scaled multiplier stage dpll_wrapper_inst/debug_scaled/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/apply_vco_product_r0__1 multiplier stage dpll_wrapper_inst/apply_vco_product_r0__1/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#9 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/debug_scaled__0 multiplier stage dpll_wrapper_inst/debug_scaled__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/debug_dac_formatter_inst/product_r30 multiplier stage dpll_wrapper_inst/debug_dac_formatter_inst/product_r30/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#10 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next multiplier stage dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/debug_dac_formatter_inst/product_r3_reg__0 multiplier stage dpll_wrapper_inst/debug_dac_formatter_inst/product_r3_reg__0/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#11 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/iq_mixer_inst/i_product_r_reg multiplier stage dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/iq_mixer_inst/i_product_r_reg/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next multiplier stage dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_product_next/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
 Related violations: <none>
 
 DPOP-2#12 Warning
 MREG Output pipelining  
-DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/iq_mixer_inst/q_product_r_reg multiplier stage dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/iq_mixer_inst/q_product_r_reg/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg multiplier stage dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#13 Warning
+MREG Output pipelining  
+DSP dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg multiplier stage dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#14 Warning
+MREG Output pipelining  
+DSP dpll_wrapper_inst/shadow_measurement_min multiplier stage dpll_wrapper_inst/shadow_measurement_min/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOR-1#1 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[0]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#2 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[10]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#3 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[11]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#4 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[12]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#5 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[13]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#6 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[14]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#7 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[15]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#8 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[16]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#9 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[1]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#10 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[2]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#11 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[3]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#12 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[4]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#13 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[5]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#14 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[6]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#15 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[7]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#16 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[8]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#17 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_max_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_max_product_r_reg[9]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#18 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[0]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#19 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[10]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#20 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[11]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#21 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[12]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#22 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[13]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#23 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[14]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#24 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[15]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#25 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[16]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#26 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[1]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#27 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[2]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#28 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[3]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#29 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[4]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#30 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[5]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#31 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[6]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#32 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[7]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#33 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[8]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
+Related violations: <none>
+
+DPOR-1#34 Warning
+Asynchronous load check  
+DSP dpll_wrapper_inst/apply_vco_product_r0__0 output is connected to registers with an asynchronous reset (dpll_wrapper_inst/apply_vco_product_r_reg[9]__0). This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
 Related violations: <none>
 
 AVAL-4#1 Advisory
@@ -317,52 +494,12 @@ Related violations: <none>
 
 AVAL-4#2 Advisory
 enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_estimator/i_multadd/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
+dpll_wrapper_inst/VCO_inst0/DAC_DDS0_inst/U0/i_synth/i_dds/I_PHASEGEN.i_conventional_accum.i_accum/i_dsp48.i_struct.i_single_channel.I_DSP/I_VX5_6.I_DSP: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
 Related violations: <none>
 
 AVAL-4#3 Advisory
 enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_extra_digits.i_add/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-4#4 Advisory
-enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_extra_digits.i_multadd/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-4#5 Advisory
-enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_splice[1].i_add/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-4#6 Advisory
-enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_splice[1].i_mult/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-4#7 Advisory
-enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_splice[2].i_add/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-4#8 Advisory
-enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_splice[2].i_mult/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-4#9 Advisory
-enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_quotient_collector/i_typical_case.i_addsub/i_vx5_sp3.i_casc_dsp48.i_lower_addsub/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-4#10 Advisory
-enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_quotient_collector/i_typical_case.i_addsub/i_vx5_sp3.i_casc_dsp48.i_upper_addsub/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-4#11 Advisory
-enum_USE_DPORT_FALSE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/VCO_inst0/DAC_DDS0_inst/U0/i_synth/i_dds/I_PHASEGEN.i_conventional_accum.i_accum/i_dsp48.i_struct.i_single_channel.I_DSP/I_VX5_6.I_DSP: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
+dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/tracking_lo_dds_inst/U0/i_synth/i_dds/I_PHASEGEN.i_conventional_accum.i_accum/i_dsp48.i_struct.i_single_channel.I_DSP/I_VX5_6.I_DSP: DSP48E1 is not using the D port (USE_DPORT = FALSE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
 Related violations: <none>
 
 AVAL-5#1 Advisory
@@ -372,32 +509,12 @@ Related violations: <none>
 
 AVAL-5#2 Advisory
 enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_extra_digits.i_add/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the Multiplier (USE_MULT = NONE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
+dpll_wrapper_inst/VCO_inst0/DAC_DDS0_inst/U0/i_synth/i_dds/I_PHASEGEN.i_conventional_accum.i_accum/i_dsp48.i_struct.i_single_channel.I_DSP/I_VX5_6.I_DSP: DSP48E1 is not using the Multiplier (USE_MULT = NONE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
 Related violations: <none>
 
 AVAL-5#3 Advisory
 enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_splice[1].i_add/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the Multiplier (USE_MULT = NONE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-5#4 Advisory
-enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_iterative_unit/i_splice[2].i_add/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the Multiplier (USE_MULT = NONE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-5#5 Advisory
-enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_quotient_collector/i_typical_case.i_addsub/i_vx5_sp3.i_casc_dsp48.i_lower_addsub/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the Multiplier (USE_MULT = NONE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-5#6 Advisory
-enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/PLL_VCO_MUL_DIV_inst/VCO0_Divider/U0/i_synth/i_nonzero_fract.i_synth/opt_high_radix.i_nonzero_fract.i_high_radix/i_quotient_collector/i_typical_case.i_addsub/i_vx5_sp3.i_casc_dsp48.i_upper_addsub/i_synth_option.i_synth_model/opt_vx7.i_uniwrap/i_primitive: DSP48E1 is not using the Multiplier (USE_MULT = NONE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
-Related violations: <none>
-
-AVAL-5#7 Advisory
-enum_USE_MULT_NONE_enum_DREG_ADREG_0_connects_CED_CEAD_RSTD_GND  
-dpll_wrapper_inst/VCO_inst0/DAC_DDS0_inst/U0/i_synth/i_dds/I_PHASEGEN.i_conventional_accum.i_accum/i_dsp48.i_struct.i_single_channel.I_DSP/I_VX5_6.I_DSP: DSP48E1 is not using the Multiplier (USE_MULT = NONE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
+dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/tracking_lo_dds_inst/U0/i_synth/i_dds/I_PHASEGEN.i_conventional_accum.i_accum/i_dsp48.i_struct.i_single_channel.I_DSP/I_VX5_6.I_DSP: DSP48E1 is not using the Multiplier (USE_MULT = NONE). For improved power characteristics, set DREG and ADREG to '1', tie CED, CEAD, and RSTD to logic '0'.
 Related violations: <none>
 
 REQP-28#1 Advisory
@@ -418,6 +535,21 @@ Related violations: <none>
 REQP-30#2 Advisory
 enum_MREG_0_connects_CEM_GND  
 Digital_Freq_Meter_inst/DDC1_inst/ddc_frontend_lowpass_filter_inst_Q/N_times_clk_FIR_wrapper_H_inst/fir_compiler_minimumphase_N_times_clk_inst/U0/i_synth/g_single_rate.i_single_rate/g_semi_parallel_and_smac.g_paths[0].g_madd_array_and_accum.g_accum.i_accum/i_add_accum/g_dsp48.g_dsp48e1.i_dsp48e1: When the DSP48E1 MREG attribute is set to 0, the CEM input pin should be tied to GND to save power.
+Related violations: <none>
+
+REQP-31#1 Advisory
+enum_PREG_0_connects_CEP_GND  
+dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_product_r_reg: When the DSP48E1 PREG attribute is set to 0, the CEP input pin should be tied to GND to save power.
+Related violations: <none>
+
+REQP-31#2 Advisory
+enum_PREG_0_connects_CEP_GND  
+dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_i_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg: When the DSP48E1 PREG attribute is set to 0, the CEP input pin should be tied to GND to save power.
+Related violations: <none>
+
+REQP-31#3 Advisory
+enum_PREG_0_connects_CEP_GND  
+dpll_wrapper_inst/dpll_single_clock_core_stage_a_inst/input_multiplier_q_inst/U0/i_mult/gDSP.gDSP_only.iDSP/inferred_dsp.reg_mult.m_reg_reg: When the DSP48E1 PREG attribute is set to 0, the CEP input pin should be tied to GND to save power.
 Related violations: <none>
 
 

@@ -92,6 +92,9 @@ module dpll_single_clock_core_stage_a #(
     wire mixer_valid;
     wire signed [MIXER_WIDTH-1:0] mixer_i;
     wire signed [MIXER_WIDTH-1:0] mixer_q;
+    reg mixer_cic_valid_r;
+    reg signed [MIXER_WIDTH-1:0] mixer_i_cic_r;
+    reg signed [MIXER_WIDTH-1:0] mixer_q_cic_r;
     wire cordic_valid;
     wire [31:0] cordic_data;
     wire signed [15:0] cordic_phase;
@@ -283,6 +286,20 @@ module dpll_single_clock_core_stage_a #(
     assign mixer_q = {{(MIXER_WIDTH-16){mixer_q_rounded[15]}}, mixer_q_rounded};
     assign mixer_valid = mixer_product_valid;
 
+    always @(posedge clk_125m) begin
+        if (rst_125m) begin
+            mixer_cic_valid_r <= 1'b0;
+            mixer_i_cic_r <= {MIXER_WIDTH{1'b0}};
+            mixer_q_cic_r <= {MIXER_WIDTH{1'b0}};
+        end else begin
+            mixer_cic_valid_r <= mixer_valid;
+            if (mixer_valid) begin
+                mixer_i_cic_r <= mixer_i;
+                mixer_q_cic_r <= mixer_q;
+            end
+        end
+    end
+
     function signed [15:0] round_cic20_to_cordic16;
         input signed [CIC_WIDTH-1:0] value;
         reg signed [CIC_WIDTH:0] magnitude_ext;
@@ -313,9 +330,9 @@ module dpll_single_clock_core_stage_a #(
     ) post_iq_cic_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_cic_r),
-        .in_valid(mixer_valid),
-        .i_in(mixer_i),
-        .q_in(mixer_q),
+        .in_valid(mixer_cic_valid_r),
+        .i_in(mixer_i_cic_r),
+        .q_in(mixer_q_cic_r),
         .config_apply(config_apply),
         .shadow_rate_r(cic_rate_r),
         .shadow_output_shift(cic_output_shift),

@@ -60,6 +60,8 @@ def main() -> int:
     fixed_point_doc = read(ROOT / "docs" / "dpll_fixed_point_v1.md")
     cic_shift_audit = read(ROOT / "scripts" / "audit_cic_shift_model.py")
     cic_shift_report = read(CIC_SHIFT_REPORT) if CIC_SHIFT_REPORT.exists() else ""
+    system_bus_clock_audit = read(ROOT / "scripts" / "audit_system_bus_clock.py")
+    system_bus_clock_report = read(ROOT / "reports" / "system_bus_clock_audit_20260630.md") if (ROOT / "reports" / "system_bus_clock_audit_20260630.md").exists() else ""
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     wrapper_tb = read(ROOT / "verification" / "rtl" / "dpll_wrapper_cdc_tb.v")
     arm_tb = read(ROOT / "verification" / "arm" / "dpll_driver_host_test.c")
@@ -275,6 +277,23 @@ def main() -> int:
         and 'MODELPARAM_VALUE.C_LATENCY">8<' in mult_xci,
         "VCO multiplier RTL latency assumption matches the generated multiplier IP latency",
         "`PLL_VCO_MUL_DIV.v` and `mult_gen_pll.xci` both specify an 8-cycle multiplier latency",
+    ))
+
+    checks.append(check(
+        ".axi0_clk_i(adc_clk)" in top
+        and ".axi0_clk_i(adc_clk_in)" not in top
+        and contains_all(system_bus_clock_audit, [
+            ".axi0_clk_i(adc_clk)",
+            "not .axi0_clk_i(adc_clk_in)",
+            "raw ADC input clock",
+        ])
+        and contains_all(system_bus_clock_report, [
+            "System Bus Clock Audit",
+            "PASS",
+            "PLL/BUFG ADC clock",
+        ]),
+        "The PS GP0/system-bus clock is aligned with the PLL/BUFG ADC peripheral clock",
+        "`red_pitaya_top.v` drives `axi0_clk_i` from `adc_clk`; `audit_system_bus_clock.py` records the timing intent",
     ))
 
     lines = [

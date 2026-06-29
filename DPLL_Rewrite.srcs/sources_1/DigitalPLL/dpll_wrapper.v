@@ -337,6 +337,11 @@ localparam [7:0] APPLY_ERR_DWELL      = 8'h07;
 localparam [7:0] APPLY_ERR_MEAS_TIME  = 8'h08;
 localparam [7:0] APPLY_ERR_HOLDOVER   = 8'h09;
 localparam [7:0] APPLY_ERR_WIDTH      = 8'h0A;
+localparam [2:0] APPLY_STATE_IDLE     = 3'd0;
+localparam [2:0] APPLY_STATE_MUL      = 3'd1;
+localparam [2:0] APPLY_STATE_CHECK    = 3'd2;
+localparam [2:0] APPLY_STATE_DONE     = 3'd3;
+localparam [2:0] APPLY_STATE_WAIT_ACK = 3'd4;
 
 function [5:0] expected_cic_shift;
     input [8:0] rate_r;
@@ -350,12 +355,27 @@ function [5:0] expected_cic_shift;
     end
 endfunction
 
+function [7:0] apply_error_code_from_mask;
+    input [15:0] rejected_mask;
+    begin
+        apply_error_code_from_mask =
+            rejected_mask[0] ? APPLY_ERR_CIC_RATE :
+            rejected_mask[1] ? APPLY_ERR_CIC_SHIFT :
+            rejected_mask[2] ? APPLY_ERR_FLL_DELAY :
+            rejected_mask[3] ? APPLY_ERR_MUL_DIV :
+            rejected_mask[4] ? APPLY_ERR_LIMITS :
+            rejected_mask[5] ? APPLY_ERR_MAGNITUDE :
+            rejected_mask[6] ? APPLY_ERR_DWELL :
+            rejected_mask[7] ? APPLY_ERR_MEAS_TIME :
+            rejected_mask[8] ? APPLY_ERR_HOLDOVER :
+            rejected_mask[9] ? APPLY_ERR_WIDTH : APPLY_ERR_NONE;
+    end
+endfunction
+
 wire [5:0] shadow_expected_cic_shift = expected_cic_shift(post_iq_cic_rate_r);
 wire [15:0] shadow_vco_mul_factor = VCO_Mul_Factor0[15:0];
 wire [15:0] shadow_vco_div_factor = VCO_Div_Factor0[15:0];
 wire [23:0] shadow_measurement_min = (24'd120 * post_iq_cic_rate_r) + 24'd256;
-wire [63:0] shadow_vco_product = shadow_center_word * shadow_vco_mul_factor;
-wire [63:0] shadow_vco_max_product = 48'hffff_ffff_ffff * shadow_vco_div_factor;
 wire shadow_coeff_width_legal =
     (pll0_gainp[31:24] == {8{pll0_gainp[23]}}) &&
     (pll0_gaini[31:24] == {8{pll0_gaini[23]}}) &&
@@ -395,9 +415,6 @@ wire shadow_cic_rate_legal = (post_iq_cic_rate_r >= 9'd8) && (post_iq_cic_rate_r
 wire shadow_cic_shift_legal = (post_iq_cic_shift + 6'd1 >= shadow_expected_cic_shift) &&
                               (post_iq_cic_shift <= shadow_expected_cic_shift + 6'd3);
 wire shadow_fll_delay_legal = (fll_delay_sel <= 2'd3);
-wire shadow_vco_mul_div_legal = (shadow_vco_mul_factor != 16'h0000) &&
-                                (shadow_vco_div_factor != 16'h0000) &&
-                                (shadow_vco_product <= shadow_vco_max_product);
 wire shadow_limits_legal = !positive_limit_dac0[31] && shadow_negative_limit_effective[31] &&
                            ($signed(positive_limit_dac0) >= $signed(shadow_negative_limit_effective));
 wire shadow_magnitude_legal = (Magnitude_Enter_Threshold0[15:0] > Magnitude_Exit_Threshold0[15:0]) &&
@@ -408,22 +425,10 @@ wire shadow_dwell_legal = (Acquire_Dwell0[15:0] != 16'd0) &&
 wire shadow_measurement_timeout_legal = (Measurement_Timeout0[23:0] == 24'd0) ||
                                         (Measurement_Timeout0[23:0] >= shadow_measurement_min);
 wire shadow_holdover_legal = Holdover_Timeout0[23:0] != 24'd0;
-wire [15:0] shadow_rejected_mask = {6'd0, !shadow_width_legal, !shadow_holdover_legal,
+wire [15:0] shadow_rejected_mask_no_mul = {6'd0, !shadow_width_legal, !shadow_holdover_legal,
     !shadow_measurement_timeout_legal, !shadow_dwell_legal, !shadow_magnitude_legal,
-    !shadow_limits_legal, !shadow_vco_mul_div_legal, !shadow_fll_delay_legal,
+    !shadow_limits_legal, 1'b0, !shadow_fll_delay_legal,
     !shadow_cic_shift_legal, !shadow_cic_rate_legal};
-wire shadow_config_legal = shadow_rejected_mask == 16'd0;
-wire [7:0] shadow_apply_error_code =
-    !shadow_cic_rate_legal ? APPLY_ERR_CIC_RATE :
-    !shadow_cic_shift_legal ? APPLY_ERR_CIC_SHIFT :
-    !shadow_fll_delay_legal ? APPLY_ERR_FLL_DELAY :
-    !shadow_vco_mul_div_legal ? APPLY_ERR_MUL_DIV :
-    !shadow_limits_legal ? APPLY_ERR_LIMITS :
-    !shadow_magnitude_legal ? APPLY_ERR_MAGNITUDE :
-    !shadow_dwell_legal ? APPLY_ERR_DWELL :
-    !shadow_measurement_timeout_legal ? APPLY_ERR_MEAS_TIME :
-    !shadow_holdover_legal ? APPLY_ERR_HOLDOVER :
-    !shadow_width_legal ? APPLY_ERR_WIDTH : APPLY_ERR_NONE;
 
 function [31:0] config_crc_mix;
     input [31:0] crc;
@@ -530,6 +535,12 @@ reg config_apply_error;
 reg [7:0] config_apply_error_code;
 reg [15:0] config_apply_rejected_mask;
 reg [7:0] config_apply_sequence;
+reg [2:0] config_apply_state;
+reg [15:0] apply_rejected_mask_base_r;
+reg [63:0] apply_vco_product_r;
+reg [63:0] apply_vco_max_product_r;
+reg apply_vco_factors_nonzero_r;
+reg [15:0] apply_rejected_mask_next_r;
 reg config_commit_toggle_sys;
 (* ASYNC_REG = "TRUE" *) reg config_commit_meta_clk;
 (* ASYNC_REG = "TRUE" *) reg config_commit_sync_clk;
@@ -559,6 +570,12 @@ always @(posedge sys_clk or negedge sys_rstn) begin
         config_apply_error_code <= APPLY_ERR_NONE;
         config_apply_rejected_mask <= 16'd0;
         config_apply_sequence <= 8'd0;
+        config_apply_state <= APPLY_STATE_IDLE;
+        apply_rejected_mask_base_r <= 16'd0;
+        apply_vco_product_r <= 64'd0;
+        apply_vco_max_product_r <= 64'd0;
+        apply_vco_factors_nonzero_r <= 1'b0;
+        apply_rejected_mask_next_r <= 16'd0;
         config_commit_toggle_sys <= 1'b0;
         config_ack_meta_sys <= 1'b0;
         config_ack_sync_sys <= 1'b0;
@@ -568,19 +585,59 @@ always @(posedge sys_clk or negedge sys_rstn) begin
         config_ack_meta_sys <= config_ack_toggle_clk;
         config_ack_sync_sys <= config_ack_meta_sys;
         if (ok_reset) reset_toggle_sys <= ~reset_toggle_sys;
-        if (config_apply_flag && !config_apply_busy) begin
-            config_apply_error <= !shadow_config_legal;
-            config_apply_error_code <= shadow_apply_error_code;
-            config_apply_rejected_mask <= shadow_rejected_mask;
-            if (shadow_config_legal) begin
-                config_apply_busy <= 1'b1;
-                config_commit_toggle_sys <= ~config_commit_toggle_sys;
+        case (config_apply_state)
+            APPLY_STATE_IDLE: begin
+                if (config_apply_flag && !config_apply_busy) begin
+                    config_apply_busy <= 1'b1;
+                    config_apply_error <= 1'b0;
+                    config_apply_error_code <= APPLY_ERR_NONE;
+                    config_apply_rejected_mask <= 16'd0;
+                    apply_rejected_mask_base_r <= shadow_rejected_mask_no_mul;
+                    apply_vco_product_r <= shadow_center_word * shadow_vco_mul_factor;
+                    apply_vco_max_product_r <= 48'hffff_ffff_ffff * shadow_vco_div_factor;
+                    apply_vco_factors_nonzero_r <= (shadow_vco_mul_factor != 16'h0000) &&
+                                                   (shadow_vco_div_factor != 16'h0000);
+                    config_apply_state <= APPLY_STATE_MUL;
+                end
             end
-        end
+            APPLY_STATE_MUL: begin
+                apply_rejected_mask_next_r <= apply_rejected_mask_base_r |
+                    {12'd0, !(apply_vco_factors_nonzero_r &&
+                              (apply_vco_product_r <= apply_vco_max_product_r)), 3'd0};
+                config_apply_state <= APPLY_STATE_CHECK;
+            end
+            APPLY_STATE_CHECK: begin
+                config_apply_rejected_mask <= apply_rejected_mask_next_r;
+                config_apply_error <= (apply_rejected_mask_next_r != 16'd0);
+                config_apply_error_code <= apply_error_code_from_mask(apply_rejected_mask_next_r);
+                config_apply_state <= APPLY_STATE_DONE;
+            end
+            APPLY_STATE_DONE: begin
+                if (config_apply_error) begin
+                    config_apply_busy <= 1'b0;
+                    config_apply_state <= APPLY_STATE_IDLE;
+                end else begin
+                    config_commit_toggle_sys <= ~config_commit_toggle_sys;
+                    config_apply_state <= APPLY_STATE_WAIT_ACK;
+                end
+            end
+            APPLY_STATE_WAIT_ACK: begin
+                if (config_ack_sync_sys != config_ack_seen_sys) begin
+                    config_ack_seen_sys <= config_ack_sync_sys;
+                    config_apply_busy <= 1'b0;
+                    config_apply_sequence <= config_apply_sequence + 1'b1;
+                    config_apply_state <= APPLY_STATE_IDLE;
+                end
+            end
+            default: begin
+                config_apply_busy <= 1'b0;
+                config_apply_state <= APPLY_STATE_IDLE;
+            end
+        endcase
         if (config_ack_sync_sys != config_ack_seen_sys) begin
-            config_ack_seen_sys <= config_ack_sync_sys;
-            config_apply_busy <= 1'b0;
-            config_apply_sequence <= config_apply_sequence + 1'b1;
+            if (config_apply_state != APPLY_STATE_WAIT_ACK) begin
+                config_ack_seen_sys <= config_ack_sync_sys;
+            end
         end
     end
 end

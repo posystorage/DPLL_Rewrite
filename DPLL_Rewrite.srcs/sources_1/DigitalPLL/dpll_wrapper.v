@@ -69,12 +69,12 @@ wire [31:0] pll_ki_blend;
 wire signed [31:0] positive_limit_dac0;
 wire signed [31:0] negative_limit_dac0;
 wire signed [31:0] manual_offset_dac0;
-wire signed [13:0] VCO_Voffset0;
-wire signed [15:0] VCO_Vamplitude0;
-wire [15:0] VCO_Mul_Factor0;
-wire [15:0] VCO_Div_Factor0;
-wire signed [13:0] debug_dac_offset;
-wire signed [15:0] debug_dac_gain;
+wire signed [31:0] VCO_Voffset0;
+wire signed [31:0] VCO_Vamplitude0;
+wire [31:0] VCO_Mul_Factor0;
+wire [31:0] VCO_Div_Factor0;
+wire signed [31:0] debug_dac_offset;
+wire signed [31:0] debug_dac_gain;
 wire [31:0] debug_dac_source;
 wire [31:0] debug_dac_format;
 wire [31:0] Phase_Residuals_Threshold0;
@@ -87,10 +87,10 @@ wire [31:0] Blend_Dwell0;
 wire [31:0] Loss_Dwell0;
 wire [31:0] Holdover_Timeout0;
 wire [31:0] Measurement_Timeout0;
-wire [8:0]  post_iq_cic_rate_r;
-wire [5:0]  post_iq_cic_shift;
-wire [1:0]  fll_delay_sel;
-wire [15:0] warmup_samples;
+wire [31:0] post_iq_cic_rate_r;
+wire [31:0] post_iq_cic_shift;
+wire [31:0] fll_delay_sel;
+wire [31:0] warmup_samples;
 wire        config_apply_flag;
 
 wire unused_sys_sel = |sys_sel;
@@ -181,23 +181,23 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VAL
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(manual_offset_dac0), .update_flag()
 );
 
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(14), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0030)) reg_dac0_offset (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0030)) reg_dac0_offset (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(VCO_Voffset0), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(DEFAULT_DAC_AMP), .ADDRESS(16'h0031)) reg_dac0_amp (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_DAC_AMP), .ADDRESS(16'h0031)) reg_dac0_amp (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(VCO_Vamplitude0), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(DEFAULT_FREQ_MUL), .ADDRESS(16'h0032)) reg_freq_mul (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_FREQ_MUL), .ADDRESS(16'h0032)) reg_freq_mul (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(VCO_Mul_Factor0), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(DEFAULT_FREQ_DIV), .ADDRESS(16'h0033)) reg_freq_div (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_FREQ_DIV), .ADDRESS(16'h0033)) reg_freq_div (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(VCO_Div_Factor0), .update_flag()
 );
 
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(14), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0040)) reg_debug_offset (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0040)) reg_debug_offset (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_offset), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(DEFAULT_DAC_AMP), .ADDRESS(16'h0041)) reg_debug_gain (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_DAC_AMP), .ADDRESS(16'h0041)) reg_debug_gain (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_gain), .update_flag()
 );
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0042)) reg_debug_source (
@@ -238,16 +238,16 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VAL
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Measurement_Timeout0), .update_flag()
 );
 
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(9), .REGISTER_DEFAULT_VALUE(8), .ADDRESS(16'h0060)) reg_cic_rate (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(8), .ADDRESS(16'h0060)) reg_cic_rate (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(post_iq_cic_rate_r), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(6), .REGISTER_DEFAULT_VALUE(4), .ADDRESS(16'h0061)) reg_cic_shift (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(4), .ADDRESS(16'h0061)) reg_cic_shift (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(post_iq_cic_shift), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(2), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0062)) reg_fll_delay (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0062)) reg_fll_delay (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(fll_delay_sel), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(16), .REGISTER_DEFAULT_VALUE(4), .ADDRESS(16'h0063)) reg_warmup_samples (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(4), .ADDRESS(16'h0063)) reg_warmup_samples (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(warmup_samples), .update_flag()
 );
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(1), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h006F)) reg_config_apply (
@@ -336,6 +336,7 @@ localparam [7:0] APPLY_ERR_MAGNITUDE  = 8'h06;
 localparam [7:0] APPLY_ERR_DWELL      = 8'h07;
 localparam [7:0] APPLY_ERR_MEAS_TIME  = 8'h08;
 localparam [7:0] APPLY_ERR_HOLDOVER   = 8'h09;
+localparam [7:0] APPLY_ERR_WIDTH      = 8'h0A;
 
 function [5:0] expected_cic_shift;
     input [8:0] rate_r;
@@ -350,26 +351,64 @@ function [5:0] expected_cic_shift;
 endfunction
 
 wire [5:0] shadow_expected_cic_shift = expected_cic_shift(post_iq_cic_rate_r);
+wire [15:0] shadow_vco_mul_factor = VCO_Mul_Factor0[15:0];
+wire [15:0] shadow_vco_div_factor = VCO_Div_Factor0[15:0];
 wire [23:0] shadow_measurement_min = (24'd120 * post_iq_cic_rate_r) + 24'd256;
-wire [63:0] shadow_vco_product = shadow_center_word * VCO_Mul_Factor0;
-wire [63:0] shadow_vco_max_product = 48'hffff_ffff_ffff * VCO_Div_Factor0;
+wire [63:0] shadow_vco_product = shadow_center_word * shadow_vco_mul_factor;
+wire [63:0] shadow_vco_max_product = 48'hffff_ffff_ffff * shadow_vco_div_factor;
+wire shadow_coeff_width_legal =
+    (pll0_gainp[31:24] == {8{pll0_gainp[23]}}) &&
+    (pll0_gaini[31:24] == {8{pll0_gaini[23]}}) &&
+    (pll0_gainii[31:24] == {8{pll0_gainii[23]}}) &&
+    (fll_kf_blend[31:24] == {8{fll_kf_blend[23]}}) &&
+    (fll_kf_track[31:24] == {8{fll_kf_track[23]}}) &&
+    (pll_kp_blend[31:24] == {8{pll_kp_blend[23]}}) &&
+    (pll_ki_blend[31:24] == {8{pll_ki_blend[23]}});
+wire shadow_phase_width_legal =
+    (Phase_Residuals_Offset0[31:18] == {14{Phase_Residuals_Offset0[17]}}) &&
+    (Phase_Residuals_Threshold0[31:18] == 14'd0) &&
+    (Freq_Residuals_Threshold0[31:22] == 10'd0);
+wire shadow_dac_width_legal =
+    (VCO_Voffset0[31:14] == {18{VCO_Voffset0[13]}}) &&
+    (VCO_Vamplitude0[31:16] == {16{VCO_Vamplitude0[15]}}) &&
+    (debug_dac_offset[31:14] == {18{debug_dac_offset[13]}}) &&
+    (debug_dac_gain[31:16] == {16{debug_dac_gain[15]}}) &&
+    (VCO_Mul_Factor0[31:16] == 16'd0) &&
+    (VCO_Div_Factor0[31:16] == 16'd0);
+wire shadow_detector_width_legal =
+    (Magnitude_Enter_Threshold0[31:16] == 16'd0) &&
+    (Magnitude_Exit_Threshold0[31:16] == 16'd0) &&
+    (Acquire_Dwell0[31:16] == 16'd0) &&
+    (Blend_Dwell0[31:16] == 16'd0) &&
+    (Loss_Dwell0[31:16] == 16'd0) &&
+    (Holdover_Timeout0[31:24] == 8'd0) &&
+    (Measurement_Timeout0[31:24] == 8'd0);
+wire shadow_cic_width_legal =
+    (post_iq_cic_rate_r[31:9] == 23'd0) &&
+    (post_iq_cic_shift[31:6] == 26'd0) &&
+    (fll_delay_sel[31:2] == 30'd0) &&
+    (warmup_samples[31:16] == 16'd0);
+wire shadow_width_legal = shadow_coeff_width_legal && shadow_phase_width_legal &&
+                          shadow_dac_width_legal && shadow_detector_width_legal &&
+                          shadow_cic_width_legal;
 wire shadow_cic_rate_legal = (post_iq_cic_rate_r >= 9'd8) && (post_iq_cic_rate_r <= 9'd312);
-wire shadow_cic_shift_legal = (post_iq_cic_shift + 6'd2 >= shadow_expected_cic_shift) &&
-                              (post_iq_cic_shift <= shadow_expected_cic_shift + 6'd2);
+wire shadow_cic_shift_legal = (post_iq_cic_shift + 6'd1 >= shadow_expected_cic_shift) &&
+                              (post_iq_cic_shift <= shadow_expected_cic_shift + 6'd3);
 wire shadow_fll_delay_legal = (fll_delay_sel <= 2'd3);
-wire shadow_vco_mul_div_legal = (VCO_Mul_Factor0 != 16'h0000) &&
-                                (VCO_Div_Factor0 != 16'h0000) &&
+wire shadow_vco_mul_div_legal = (shadow_vco_mul_factor != 16'h0000) &&
+                                (shadow_vco_div_factor != 16'h0000) &&
                                 (shadow_vco_product <= shadow_vco_max_product);
 wire shadow_limits_legal = !positive_limit_dac0[31] && shadow_negative_limit_effective[31] &&
                            ($signed(positive_limit_dac0) >= $signed(shadow_negative_limit_effective));
-wire shadow_magnitude_legal = Magnitude_Enter_Threshold0[15:0] >= Magnitude_Exit_Threshold0[15:0];
+wire shadow_magnitude_legal = (Magnitude_Enter_Threshold0[15:0] > Magnitude_Exit_Threshold0[15:0]) &&
+                              (Magnitude_Enter_Threshold0[15:0] != 16'd0);
 wire shadow_dwell_legal = (Acquire_Dwell0[15:0] != 16'd0) &&
                           (Blend_Dwell0[15:0] != 16'd0) &&
                           (Loss_Dwell0[15:0] != 16'd0);
 wire shadow_measurement_timeout_legal = (Measurement_Timeout0[23:0] == 24'd0) ||
                                         (Measurement_Timeout0[23:0] >= shadow_measurement_min);
 wire shadow_holdover_legal = Holdover_Timeout0[23:0] != 24'd0;
-wire [15:0] shadow_rejected_mask = {7'd0, !shadow_holdover_legal,
+wire [15:0] shadow_rejected_mask = {6'd0, !shadow_width_legal, !shadow_holdover_legal,
     !shadow_measurement_timeout_legal, !shadow_dwell_legal, !shadow_magnitude_legal,
     !shadow_limits_legal, !shadow_vco_mul_div_legal, !shadow_fll_delay_legal,
     !shadow_cic_shift_legal, !shadow_cic_rate_legal};
@@ -383,7 +422,8 @@ wire [7:0] shadow_apply_error_code =
     !shadow_magnitude_legal ? APPLY_ERR_MAGNITUDE :
     !shadow_dwell_legal ? APPLY_ERR_DWELL :
     !shadow_measurement_timeout_legal ? APPLY_ERR_MEAS_TIME :
-    !shadow_holdover_legal ? APPLY_ERR_HOLDOVER : APPLY_ERR_NONE;
+    !shadow_holdover_legal ? APPLY_ERR_HOLDOVER :
+    !shadow_width_legal ? APPLY_ERR_WIDTH : APPLY_ERR_NONE;
 
 reg [47:0] active_center_word;
 reg signed [23:0] active_kf;
@@ -562,14 +602,14 @@ always @(posedge clk1 or negedge rst) begin
             active_post_iq_cic_shift <= post_iq_cic_shift;
             active_fll_delay_sel <= fll_delay_sel;
             active_manual_offset_dac0 <= manual_offset_dac0;
-            active_vco_offset <= VCO_Voffset0;
-            active_vco_amplitude <= VCO_Vamplitude0;
-            active_debug_dac_offset <= debug_dac_offset;
-            active_debug_dac_gain <= debug_dac_gain;
+            active_vco_offset <= VCO_Voffset0[13:0];
+            active_vco_amplitude <= VCO_Vamplitude0[15:0];
+            active_debug_dac_offset <= debug_dac_offset[13:0];
+            active_debug_dac_gain <= debug_dac_gain[15:0];
             active_debug_dac_source <= debug_dac_source;
             active_debug_dac_format <= debug_dac_format;
-            active_vco_mul_factor <= VCO_Mul_Factor0;
-            active_vco_div_factor <= VCO_Div_Factor0;
+            active_vco_mul_factor <= shadow_vco_mul_factor;
+            active_vco_div_factor <= shadow_vco_div_factor;
         end
     end
 end
@@ -802,13 +842,13 @@ always @(posedge clk1 or negedge rst) begin
                 16'h0110: status_response_data_clk <= active_center_word[47:16];
                 16'h0111: status_response_data_clk <= {17'h0, active_post_iq_cic_shift, active_post_iq_cic_rate_r};
                 16'h0112: status_response_data_clk <= {active_vco_mul_factor, active_vco_div_factor};
-                16'h0113: status_response_data_clk <= {8'h0, active_kp};
-                16'h0114: status_response_data_clk <= {8'h0, active_ki};
-                16'h0115: status_response_data_clk <= {8'h0, active_kf};
-                16'h0116: status_response_data_clk <= {8'h0, active_kf_blend};
-                16'h0117: status_response_data_clk <= {8'h0, active_kf_track};
-                16'h0118: status_response_data_clk <= {8'h0, active_kp_blend};
-                16'h0119: status_response_data_clk <= {8'h0, active_ki_blend};
+                16'h0113: status_response_data_clk <= {{8{active_kp[23]}}, active_kp};
+                16'h0114: status_response_data_clk <= {{8{active_ki[23]}}, active_ki};
+                16'h0115: status_response_data_clk <= {{8{active_kf[23]}}, active_kf};
+                16'h0116: status_response_data_clk <= {{8{active_kf_blend[23]}}, active_kf_blend};
+                16'h0117: status_response_data_clk <= {{8{active_kf_track[23]}}, active_kf_track};
+                16'h0118: status_response_data_clk <= {{8{active_kp_blend[23]}}, active_kp_blend};
+                16'h0119: status_response_data_clk <= {{8{active_ki_blend[23]}}, active_ki_blend};
                 16'h011A: status_response_data_clk <= {8'h0, active_measurement_timeout};
                 16'h011B: status_response_data_clk <= {8'h0, active_holdover_timeout};
                 16'h011C: status_response_data_clk <= ABI_VERSION;
@@ -865,12 +905,12 @@ always @(posedge sys_clk or negedge sys_rstn) begin
                     16'h0028: sys_rdata <= positive_limit_dac0;
                     16'h0029: sys_rdata <= shadow_negative_limit_effective;
                     16'h002A: sys_rdata <= manual_offset_dac0;
-                    16'h0030: sys_rdata <= {{18{VCO_Voffset0[13]}}, VCO_Voffset0};
-                    16'h0031: sys_rdata <= {{16{VCO_Vamplitude0[15]}}, VCO_Vamplitude0};
-                    16'h0032: sys_rdata <= {16'h0, VCO_Mul_Factor0};
-                    16'h0033: sys_rdata <= {16'h0, VCO_Div_Factor0};
-                    16'h0040: sys_rdata <= {{18{debug_dac_offset[13]}}, debug_dac_offset};
-                    16'h0041: sys_rdata <= {{16{debug_dac_gain[15]}}, debug_dac_gain};
+                    16'h0030: sys_rdata <= VCO_Voffset0;
+                    16'h0031: sys_rdata <= VCO_Vamplitude0;
+                    16'h0032: sys_rdata <= VCO_Mul_Factor0;
+                    16'h0033: sys_rdata <= VCO_Div_Factor0;
+                    16'h0040: sys_rdata <= debug_dac_offset;
+                    16'h0041: sys_rdata <= debug_dac_gain;
                     16'h0042: sys_rdata <= debug_dac_source;
                     16'h0043: sys_rdata <= debug_dac_format;
                     16'h0050: sys_rdata <= Phase_Residuals_Threshold0;
@@ -883,10 +923,10 @@ always @(posedge sys_clk or negedge sys_rstn) begin
                     16'h0057: sys_rdata <= Loss_Dwell0;
                     16'h0058: sys_rdata <= Holdover_Timeout0;
                     16'h0059: sys_rdata <= Measurement_Timeout0;
-                    16'h0060: sys_rdata <= {23'h0, post_iq_cic_rate_r};
-                    16'h0061: sys_rdata <= {26'h0, post_iq_cic_shift};
-                    16'h0062: sys_rdata <= {30'h0, fll_delay_sel};
-                    16'h0063: sys_rdata <= {16'h0, warmup_samples};
+                    16'h0060: sys_rdata <= post_iq_cic_rate_r;
+                    16'h0061: sys_rdata <= post_iq_cic_shift;
+                    16'h0062: sys_rdata <= fll_delay_sel;
+                    16'h0063: sys_rdata <= warmup_samples;
                     16'h006F: sys_rdata <= {16'h0000, config_apply_sequence,
                         config_apply_error_code[3:0], 2'b00, config_apply_error, config_apply_busy};
                     16'h0070: sys_rdata <= {16'h0000, config_apply_rejected_mask};

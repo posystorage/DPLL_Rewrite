@@ -44,7 +44,7 @@ def source_paths() -> list[Path]:
     return paths
 
 
-def compute_source_id() -> int:
+def compute_source_digest() -> bytes:
     digest = hashlib.sha256()
     for path in source_paths():
         relative = path.relative_to(ROOT).as_posix().encode("utf-8")
@@ -52,17 +52,18 @@ def compute_source_id() -> int:
         digest.update(b"\0")
         digest.update(path.read_bytes())
         digest.update(b"\0")
-    return int.from_bytes(digest.digest()[:4], "big")
+    return digest.digest()
 
 
 def render() -> tuple[str, str, dict[str, int | str]]:
     sha = git("rev-parse", "HEAD")
     porcelain = git("status", "--porcelain", "--untracked-files=all")
     dirty = 1 if porcelain else 0
+    source_digest = compute_source_digest()
     values: dict[str, int | str] = {
         "sha": sha,
-        "git_hash": int(sha[-8:], 16),
-        "build_id": compute_source_id(),
+        "git_hash": int.from_bytes(source_digest[4:8], "big"),
+        "build_id": int.from_bytes(source_digest[:4], "big"),
         "dirty": dirty,
     }
     verilog = f"""`ifndef DPLL_BUILD_ID_VH

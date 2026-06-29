@@ -37,7 +37,7 @@ enum {
     REG_GIT = 0x74
 };
 
-enum { APPLY_ACCEPT, APPLY_STUCK, APPLY_REJECT, APPLY_VERIFY_MISMATCH };
+enum { APPLY_ACCEPT, APPLY_STUCK, APPLY_REJECT, APPLY_VERIFY_MISMATCH, APPLY_BAD_SIGNEXT };
 
 typedef struct {
     uint32_t mem[64];
@@ -93,6 +93,11 @@ static void seed_shadow(mock_mmio_t *mock)
     MEM(mock, REG_KIB) = 0x616263U;
 }
 
+static uint32_t sign_extend_24(uint32_t value)
+{
+    return (value & 0x800000U) != 0U ? (value | 0xff000000U) : (value & 0x00ffffffU);
+}
+
 static void copy_active(mock_mmio_t *mock)
 {
     MEM(mock, REG_ACTIVE_CENTER) = MEM(mock, REG_CENTER);
@@ -100,13 +105,13 @@ static void copy_active(mock_mmio_t *mock)
                                  (MEM(mock, REG_R) & 0x1ffU);
     MEM(mock, REG_ACTIVE_MULDIV) = ((MEM(mock, REG_MUL) & 0xffffU) << 16) |
                                     (MEM(mock, REG_DIV) & 0xffffU);
-    MEM(mock, REG_ACTIVE_KP) = MEM(mock, REG_KP);
-    MEM(mock, REG_ACTIVE_KI) = MEM(mock, REG_KI);
-    MEM(mock, REG_ACTIVE_KFA) = MEM(mock, REG_KFA);
-    MEM(mock, REG_ACTIVE_KFB) = MEM(mock, REG_KFB);
-    MEM(mock, REG_ACTIVE_KFT) = MEM(mock, REG_KFT);
-    MEM(mock, REG_ACTIVE_KPB) = MEM(mock, REG_KPB);
-    MEM(mock, REG_ACTIVE_KIB) = MEM(mock, REG_KIB);
+    MEM(mock, REG_ACTIVE_KP) = sign_extend_24(MEM(mock, REG_KP));
+    MEM(mock, REG_ACTIVE_KI) = sign_extend_24(MEM(mock, REG_KI));
+    MEM(mock, REG_ACTIVE_KFA) = sign_extend_24(MEM(mock, REG_KFA));
+    MEM(mock, REG_ACTIVE_KFB) = sign_extend_24(MEM(mock, REG_KFB));
+    MEM(mock, REG_ACTIVE_KFT) = sign_extend_24(MEM(mock, REG_KFT));
+    MEM(mock, REG_ACTIVE_KPB) = sign_extend_24(MEM(mock, REG_KPB));
+    MEM(mock, REG_ACTIVE_KIB) = sign_extend_24(MEM(mock, REG_KIB));
     MEM(mock, REG_APPLIED_ABI) = expected_identity.abi_version;
     mock->debug_active = mock->debug_shadow;
 }
@@ -144,6 +149,9 @@ static void mock_write(void *context, uint32_t address, uint32_t value)
         copy_active(mock);
         if (mock->apply_mode == APPLY_VERIFY_MISMATCH) {
             MEM(mock, REG_ACTIVE_CENTER) ^= 1U;
+        }
+        if (mock->apply_mode == APPLY_BAD_SIGNEXT) {
+            MEM(mock, REG_ACTIVE_KP) = 0x00800001U;
         }
         sequence = (sequence + 1U) & 0xffU;
         MEM(mock, REG_APPLY) = sequence << DPLL_APPLY_SEQ_SHIFT;
@@ -221,6 +229,26 @@ static int test_atomic_apply_and_active_verify(void)
     return 0;
 }
 
+static int test_active_verify_checks_full_sign_extension(void)
+{
+    dpll_driver_t driver;
+    mock_mmio_t mock;
+    dpll_apply_result_t result;
+    init_driver(&driver, &mock);
+    seed_good_identity(&mock);
+    MEM(&mock, REG_KP) = 0xff800001U;
+    CHECK(dpll_driver_check_abi(&driver) == DPLL_DRIVER_OK);
+    CHECK(dpll_driver_apply(&driver, &result) == DPLL_DRIVER_OK);
+
+    init_driver(&driver, &mock);
+    seed_good_identity(&mock);
+    MEM(&mock, REG_KP) = 0xff800001U;
+    CHECK(dpll_driver_check_abi(&driver) == DPLL_DRIVER_OK);
+    mock.apply_mode = APPLY_BAD_SIGNEXT;
+    CHECK(dpll_driver_apply(&driver, &result) == DPLL_DRIVER_ERR_VERIFY);
+    return 0;
+}
+
 static int test_reject_timeout_and_verify_failure(void)
 {
     dpll_driver_t driver;
@@ -268,6 +296,7 @@ int main(void)
     CHECK(test_abi_retry_and_enable() == 0);
     CHECK(test_abi_mismatch_blocks_enable_and_apply() == 0);
     CHECK(test_atomic_apply_and_active_verify() == 0);
+    CHECK(test_active_verify_checks_full_sign_extension() == 0);
     CHECK(test_reject_timeout_and_verify_failure() == 0);
     CHECK(test_reset_invalidates_and_rechecks_abi() == 0);
     puts("PASS: dpll_driver_host_test");

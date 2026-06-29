@@ -68,6 +68,8 @@ class DpllArmControlContractTest(unittest.TestCase):
             "DPLL_DRIVER_ERR_VERIFY",
         ):
             self.assertIn(needle, self.driver_c + self.driver_h)
+        self.assertNotIn("& 0xFFFFFFU) != requested_", self.driver_c)
+        self.assertIn("dpll_read(driver, driver->regs.active_kp_track) != requested_kp_track", self.driver_c)
 
     def test_every_shadow_command_commits_before_success(self):
         commands = (

@@ -102,13 +102,13 @@ int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result)
                     (dpll_read(driver, driver->regs.shadow_cic_r) & 0x1FFU);
     requested_mul_div = ((dpll_read(driver, driver->regs.shadow_mul) & 0xFFFFU) << 16) |
                         (dpll_read(driver, driver->regs.shadow_div) & 0xFFFFU);
-    requested_kp_track = dpll_read(driver, driver->regs.shadow_kp_track) & 0xFFFFFFU;
-    requested_ki_track = dpll_read(driver, driver->regs.shadow_ki_track) & 0xFFFFFFU;
-    requested_kf_acquire = dpll_read(driver, driver->regs.shadow_kf_acquire) & 0xFFFFFFU;
-    requested_kf_blend = dpll_read(driver, driver->regs.shadow_kf_blend) & 0xFFFFFFU;
-    requested_kf_track = dpll_read(driver, driver->regs.shadow_kf_track) & 0xFFFFFFU;
-    requested_kp_blend = dpll_read(driver, driver->regs.shadow_kp_blend) & 0xFFFFFFU;
-    requested_ki_blend = dpll_read(driver, driver->regs.shadow_ki_blend) & 0xFFFFFFU;
+    requested_kp_track = dpll_read(driver, driver->regs.shadow_kp_track);
+    requested_ki_track = dpll_read(driver, driver->regs.shadow_ki_track);
+    requested_kf_acquire = dpll_read(driver, driver->regs.shadow_kf_acquire);
+    requested_kf_blend = dpll_read(driver, driver->regs.shadow_kf_blend);
+    requested_kf_track = dpll_read(driver, driver->regs.shadow_kf_track);
+    requested_kp_blend = dpll_read(driver, driver->regs.shadow_kp_blend);
+    requested_ki_blend = dpll_read(driver, driver->regs.shadow_ki_blend);
 
     before = dpll_read(driver, driver->regs.config_apply);
     before_sequence = (before & DPLL_APPLY_SEQ_MASK) >> DPLL_APPLY_SEQ_SHIFT;
@@ -143,13 +143,13 @@ int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result)
     if (dpll_read(driver, driver->regs.active_center) != requested_center ||
         active_cic != requested_cic ||
         dpll_read(driver, driver->regs.active_mul_div) != requested_mul_div ||
-        (dpll_read(driver, driver->regs.active_kp_track) & 0xFFFFFFU) != requested_kp_track ||
-        (dpll_read(driver, driver->regs.active_ki_track) & 0xFFFFFFU) != requested_ki_track ||
-        (dpll_read(driver, driver->regs.active_kf_acquire) & 0xFFFFFFU) != requested_kf_acquire ||
-        (dpll_read(driver, driver->regs.active_kf_blend) & 0xFFFFFFU) != requested_kf_blend ||
-        (dpll_read(driver, driver->regs.active_kf_track) & 0xFFFFFFU) != requested_kf_track ||
-        (dpll_read(driver, driver->regs.active_kp_blend) & 0xFFFFFFU) != requested_kp_blend ||
-        (dpll_read(driver, driver->regs.active_ki_blend) & 0xFFFFFFU) != requested_ki_blend ||
+        dpll_read(driver, driver->regs.active_kp_track) != requested_kp_track ||
+        dpll_read(driver, driver->regs.active_ki_track) != requested_ki_track ||
+        dpll_read(driver, driver->regs.active_kf_acquire) != requested_kf_acquire ||
+        dpll_read(driver, driver->regs.active_kf_blend) != requested_kf_blend ||
+        dpll_read(driver, driver->regs.active_kf_track) != requested_kf_track ||
+        dpll_read(driver, driver->regs.active_kp_blend) != requested_kp_blend ||
+        dpll_read(driver, driver->regs.active_ki_blend) != requested_ki_blend ||
         dpll_read(driver, driver->regs.applied_abi_version) != driver->expected.abi_version) {
         return DPLL_DRIVER_ERR_VERIFY;
     }

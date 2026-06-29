@@ -80,6 +80,14 @@ Internal arithmetic:
 - output applies configured right shift, symmetric rounding, and saturation.
 - `overflow_seen` records output saturation or illegal config, not natural internal wrap.
 
+Shift contract:
+
+- The review4-fixed APPLY validator accepts a bounded shift range for each R bucket: `recommended_shift - 1` through `recommended_shift + 3`.
+- The recommended table is audited in `reports/cic_shift_model_20260630.md` by `scripts/audit_cic_shift_model.py`.
+- The table intentionally keeps 5 to 6 bits of CIC gain relative to full `ceil(log2(R^3))` compensation, rather than fully normalizing the CIC output.
+- This closes the hard-coded-table contradiction for the v1 configuration contract; it does not prove arbitrary full-scale ADC input cannot saturate.
+- Saturation remains a runtime status condition through `overflow_seen` and `DPLL_CORE_FLAGS[0]`.
+
 ## CORDIC Magnitude
 
 The active `angle_CORDIC` IP is configured as Translate, SignedFraction, 16-bit input/output, Scaled_Radians phase, coarse rotation enabled, and `No_Scale_Compensation`.
@@ -138,7 +146,6 @@ The model/verification owner must confirm before final RTL tuning:
 
 - coefficient Q format and product shifts.
 - Kf/Kp/Ki per frequency mode.
-- CIC output shift per R.
 - default debug DAC `FREQ_CORRECTION` bit window.
 - final tuned magnitude thresholds in raw no-scale-compensation CORDIC output units.
 - phase and frequency lock thresholds.

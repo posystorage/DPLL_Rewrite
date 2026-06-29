@@ -35,6 +35,7 @@ module dpll_wrapper_cdc_tb;
    rd(16'h010e,v);if(v!==`DPLL_GENERATED_ABI_VERSION)begin $display("FAIL: ABI version %h",v);$finish;end
    rd(16'h010f,v);if(v!==`DPLL_GENERATED_BUILD_ID)begin $display("FAIL: build id %h",v);$finish;end
    rd(16'h011d,v);if(v!==`DPLL_GENERATED_GIT_HASH)begin $display("FAIL: git hash %h",v);$finish;end
+   force dut.pre_cic_ready=1'b0;repeat(4)@(posedge clk1);release dut.pre_cic_ready;rd(16'h0108,v);if(!v[19])begin $display("FAIL: pre-CIC backpressure fault not latched flags=%h",v);$finish;end
    wr(16'h0010,32'h12345678);wr(16'h0021,32'hff800001);wr(16'h0040,32'h00000012);wr(16'h0041,32'h00003456);wr(16'h0042,32'h89abcdef);wr(16'h0043,32'h10203040);wr(16'h0060,78);wr(16'h0061,13);wr(16'h0058,1250000);wr(16'h0059,0);wr(16'h006f,1);wait_idle();
    if(dut.active_center_word!==48'h123456780000||dut.active_post_iq_cic_rate_r!==78||dut.active_kp!==24'h800001||dut.active_debug_dac_offset!==14'h0012||dut.active_debug_dac_gain!==16'h3456||dut.active_debug_dac_source!==32'h89abcdef||dut.active_debug_dac_format!==32'h10203040||dut.config_apply_sequence!==1)begin $display("FAIL: legal commit active=%h r=%0d kp=%h seq=%0d",dut.active_center_word,dut.active_post_iq_cic_rate_r,dut.active_kp,dut.config_apply_sequence);$finish;end
    rd(16'h0110,v);if(v!==32'h12345678)begin $display("FAIL: snapshot center %h",v);$finish;end saved_center=dut.active_center_word;

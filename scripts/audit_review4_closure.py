@@ -54,6 +54,8 @@ def main() -> int:
     driver_c = read(SDK / "dpll_driver.c")
     periph = read(SDK / "Peripherals.h")
     generator = read(ROOT / "scripts" / "generate_dpll_build_id.py")
+    vco_mul_div = read(DPLL / "VCO" / "PLL_VCO_MUL_DIV.v")
+    mult_xci = read(DPLL / "VCO" / "mult_gen_pll" / "mult_gen_pll.xci")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     wrapper_tb = read(ROOT / "verification" / "rtl" / "dpll_wrapper_cdc_tb.v")
     arm_tb = read(ROOT / "verification" / "arm" / "dpll_driver_host_test.c")
@@ -211,12 +213,34 @@ def main() -> int:
     checks.append(check(
         tracked_build_headers
         and contains_all(generator, [
-            "CONFIG_VERSION = 0x00010002",
+            "CONFIG_VERSION = 0x00010003",
             "VERILOG_HEADER",
             "ARM_HEADER",
         ]),
         "Build identity headers are tracked fallbacks and the generator carries the current config version",
         "`dpll_build_id.vh` and `dpll_build_id.h` exist in git for GUI/SDK clean checkout; generator updates them for scripted builds",
+    ))
+
+    checks.append(check(
+        contains_all(wrapper, [
+            "reg pre_cic_backpressure_seen",
+            "if (~rst_125m_stage_a && !pre_cic_ready)",
+            "pre_cic_backpressure_seen <= 1'b1",
+        ])
+        and contains_all(periph, [
+            "DPLL_CORE_FLAG_PRE_CIC_BACKPRESSURE",
+            "(1U<<19)",
+        ])
+        and "pre-CIC backpressure fault not latched" in wrapper_tb,
+        "Pre-IQ CIC input backpressure is latched into a readable fault bit",
+        "`DPLL_CORE_FLAGS[19]` reports any deasserted pre-CIC `TREADY`; wrapper CDC TB forces the fault path",
+    ))
+
+    checks.append(check(
+        "localparam integer MULT_LATENCY = 8" in vco_mul_div
+        and 'MODELPARAM_VALUE.C_LATENCY">8<' in mult_xci,
+        "VCO multiplier RTL latency assumption matches the generated multiplier IP latency",
+        "`PLL_VCO_MUL_DIV.v` and `mult_gen_pll.xci` both specify an 8-cycle multiplier latency",
     ))
 
     head = git("rev-parse", "--short=12", "HEAD")

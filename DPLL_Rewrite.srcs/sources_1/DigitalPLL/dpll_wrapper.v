@@ -875,6 +875,7 @@ wire pll0_locked_instant = dpll_locked;
 reg residuals0_are_above_threshold;
 reg LED_G0;
 reg LED_R0;
+reg pre_cic_backpressure_seen;
 reg [23:0] status_counter;
 
 always @(posedge clk1) begin
@@ -882,10 +883,14 @@ always @(posedge clk1) begin
         residuals0_are_above_threshold <= 1'b0;
         LED_G0 <= 1'b0;
         LED_R0 <= 1'b1;
+        pre_cic_backpressure_seen <= 1'b0;
         status_counter <= 24'h0;
     end else begin
         residuals0_are_above_threshold <= residuals0_are_above_threshold_phase |
                                            residuals0_are_above_threshold_freq;
+        if (~rst_125m_stage_a && !pre_cic_ready) begin
+            pre_cic_backpressure_seen <= 1'b1;
+        end
         status_counter <= status_counter + 24'h1;
         LED_G0 <= dpll_locked;
         LED_R0 <= ~dpll_locked;
@@ -927,7 +932,8 @@ always @(posedge clk1 or negedge rst) begin
                 16'h0105: status_response_data_clk <= dpll_tracking_word[31:0];
                 16'h0106: status_response_data_clk <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
                 16'h0107: status_response_data_clk <= dpll_freq_state[31:0];
-                16'h0108: status_response_data_clk <= {13'h0, manual_offset_overflow, vco_mul_div_config_error,
+                16'h0108: status_response_data_clk <= {12'h0, pre_cic_backpressure_seen,
+                    manual_offset_overflow, vco_mul_div_config_error,
                     dpll_loop_state, dpll_loss_reason, dpll_signal_present, dpll_phase_locked,
                     dpll_frequency_locked, dpll_locked, dpll_tracking_valid, dpll_freq_error_valid,
                     dpll_iq_valid, dpll_cic_illegal, dpll_cic_overflow};

@@ -23,24 +23,53 @@ enum {
     REG_KFT = 0x3c,
     REG_KPB = 0x40,
     REG_KIB = 0x44,
-    REG_ACTIVE_CENTER = 0x48,
-    REG_ACTIVE_CIC = 0x4c,
-    REG_ACTIVE_MULDIV = 0x50,
-    REG_ACTIVE_KP = 0x54,
-    REG_ACTIVE_KI = 0x58,
-    REG_ACTIVE_KFA = 0x5c,
-    REG_ACTIVE_KFB = 0x60,
-    REG_ACTIVE_KFT = 0x64,
-    REG_ACTIVE_KPB = 0x68,
-    REG_ACTIVE_KIB = 0x6c,
-    REG_APPLIED_ABI = 0x70,
-    REG_GIT = 0x74
+    REG_PHASE_THR = 0x48,
+    REG_PHASE_SETPOINT = 0x4c,
+    REG_FREQ_THR = 0x50,
+    REG_MAG_ENTER = 0x54,
+    REG_MAG_EXIT = 0x58,
+    REG_ACQ_DWELL = 0x5c,
+    REG_BLEND_DWELL = 0x60,
+    REG_LOSS_DWELL = 0x64,
+    REG_HOLDOVER = 0x68,
+    REG_MEAS_TIMEOUT = 0x6c,
+    REG_FLL_DELAY = 0x70,
+    REG_WARMUP = 0x74,
+    REG_POS_LIMIT = 0x78,
+    REG_NEG_LIMIT = 0x7c,
+    REG_MANUAL_OFFSET = 0x80,
+    REG_DAC0_OFFSET = 0x84,
+    REG_DAC0_AMP = 0x88,
+    REG_DEBUG_OFFSET = 0x8c,
+    REG_DEBUG_GAIN = 0x90,
+    REG_DEBUG_SOURCE = 0x94,
+    REG_DEBUG_FORMAT = 0x98,
+    REG_ACTIVE_CENTER = 0x9c,
+    REG_ACTIVE_CIC = 0xa0,
+    REG_ACTIVE_MULDIV = 0xa4,
+    REG_ACTIVE_KP = 0xa8,
+    REG_ACTIVE_KI = 0xac,
+    REG_ACTIVE_KFA = 0xb0,
+    REG_ACTIVE_KFB = 0xb4,
+    REG_ACTIVE_KFT = 0xb8,
+    REG_ACTIVE_KPB = 0xbc,
+    REG_ACTIVE_KIB = 0xc0,
+    REG_APPLIED_ABI = 0xc4,
+    REG_GIT = 0xc8,
+    REG_ACTIVE_CRC = 0xcc
 };
 
-enum { APPLY_ACCEPT, APPLY_STUCK, APPLY_REJECT, APPLY_VERIFY_MISMATCH, APPLY_BAD_SIGNEXT };
+enum {
+    APPLY_ACCEPT,
+    APPLY_STUCK,
+    APPLY_REJECT,
+    APPLY_VERIFY_MISMATCH,
+    APPLY_BAD_SIGNEXT,
+    APPLY_BAD_CRC
+};
 
 typedef struct {
-    uint32_t mem[64];
+    uint32_t mem[128];
     uint32_t writes_address[64];
     uint32_t writes_value[64];
     uint32_t write_count;
@@ -59,9 +88,17 @@ static const dpll_reg_map_t regs = {
     REG_LOCK, REG_APPLY, REG_REJECTED, REG_ABI, REG_CONFIG, REG_BUILD, REG_GIT,
     REG_CENTER, REG_R, REG_SHIFT, REG_MUL, REG_DIV,
     REG_KP, REG_KI, REG_KFA, REG_KFB, REG_KFT, REG_KPB, REG_KIB,
+    REG_PHASE_THR, REG_PHASE_SETPOINT, REG_FREQ_THR,
+    REG_MAG_ENTER, REG_MAG_EXIT,
+    REG_ACQ_DWELL, REG_BLEND_DWELL, REG_LOSS_DWELL,
+    REG_HOLDOVER, REG_MEAS_TIMEOUT, REG_FLL_DELAY, REG_WARMUP,
+    REG_POS_LIMIT, REG_NEG_LIMIT, REG_MANUAL_OFFSET,
+    REG_DAC0_OFFSET, REG_DAC0_AMP,
+    REG_DEBUG_OFFSET, REG_DEBUG_GAIN, REG_DEBUG_SOURCE, REG_DEBUG_FORMAT,
     REG_ACTIVE_CENTER, REG_ACTIVE_CIC, REG_ACTIVE_MULDIV,
     REG_ACTIVE_KP, REG_ACTIVE_KI, REG_ACTIVE_KFA, REG_ACTIVE_KFB,
-    REG_ACTIVE_KFT, REG_ACTIVE_KPB, REG_ACTIVE_KIB, REG_APPLIED_ABI
+    REG_ACTIVE_KFT, REG_ACTIVE_KPB, REG_ACTIVE_KIB, REG_APPLIED_ABI,
+    REG_ACTIVE_CRC
 };
 
 #define MEM(mock, address) ((mock)->mem[(address) / 4U])
@@ -91,11 +128,96 @@ static void seed_shadow(mock_mmio_t *mock)
     MEM(mock, REG_KFT) = 0x414243U;
     MEM(mock, REG_KPB) = 0x515253U;
     MEM(mock, REG_KIB) = 0x616263U;
+    MEM(mock, REG_PHASE_THR) = 0x00012345U;
+    MEM(mock, REG_PHASE_SETPOINT) = 0xfffe0001U;
+    MEM(mock, REG_FREQ_THR) = 0x00123456U;
+    MEM(mock, REG_MAG_ENTER) = 0x1000U;
+    MEM(mock, REG_MAG_EXIT) = 0x0800U;
+    MEM(mock, REG_ACQ_DWELL) = 0x21U;
+    MEM(mock, REG_BLEND_DWELL) = 0x22U;
+    MEM(mock, REG_LOSS_DWELL) = 0x23U;
+    MEM(mock, REG_HOLDOVER) = 1250000U;
+    MEM(mock, REG_MEAS_TIMEOUT) = 0U;
+    MEM(mock, REG_FLL_DELAY) = 2U;
+    MEM(mock, REG_WARMUP) = 64U;
+    MEM(mock, REG_POS_LIMIT) = 0x7ffffffeU;
+    MEM(mock, REG_NEG_LIMIT) = 0x80000001U;
+    MEM(mock, REG_MANUAL_OFFSET) = 0x00010000U;
+    MEM(mock, REG_DAC0_OFFSET) = 0x00001234U;
+    MEM(mock, REG_DAC0_AMP) = 0x00005678U;
+    MEM(mock, REG_DEBUG_OFFSET) = 0xfffff111U;
+    MEM(mock, REG_DEBUG_GAIN) = 0x00007fffU;
+    MEM(mock, REG_DEBUG_SOURCE) = 0xabcdef01U;
+    MEM(mock, REG_DEBUG_FORMAT) = 0x10203040U;
 }
 
 static uint32_t sign_extend_24(uint32_t value)
 {
     return (value & 0x800000U) != 0U ? (value | 0xff000000U) : (value & 0x00ffffffU);
+}
+
+static uint32_t sign_extend_width(uint32_t value, uint32_t sign_bit)
+{
+    uint32_t mask = (sign_bit >= 31U) ? 0xffffffffU : ((1UL << (sign_bit + 1U)) - 1U);
+    value &= mask;
+    return (value & (1UL << sign_bit)) != 0U ? (value | ~mask) : value;
+}
+
+static uint32_t crc_mix(uint32_t crc, uint32_t value)
+{
+    uint32_t mixed = crc ^ value;
+    return ((mixed << 5) | (mixed >> 27)) ^ 0x9E3779B9U;
+}
+
+static uint32_t expected_crc(mock_mmio_t *mock)
+{
+    uint32_t crc = 0x44504C4CU;
+    uint32_t r = MEM(mock, REG_R) & 0x1ffU;
+    uint32_t measurement = MEM(mock, REG_MEAS_TIMEOUT) & 0x00ffffffU;
+    uint32_t negative_limit = MEM(mock, REG_NEG_LIMIT);
+    uint32_t words[25];
+    uint32_t i;
+
+    if (measurement == 0U) {
+        measurement = (120U * r) + 256U;
+    }
+    if (negative_limit == 0U) {
+        negative_limit = 0x80000000U;
+    }
+
+    words[0] = MEM(mock, REG_CENTER);
+    words[1] = ((MEM(mock, REG_FLL_DELAY) & 0x3U) << 15) |
+               ((MEM(mock, REG_SHIFT) & 0x3fU) << 9) | r;
+    words[2] = ((MEM(mock, REG_MUL) & 0xffffU) << 16) | (MEM(mock, REG_DIV) & 0xffffU);
+    words[3] = sign_extend_24(MEM(mock, REG_KP));
+    words[4] = sign_extend_24(MEM(mock, REG_KI));
+    words[5] = sign_extend_24(MEM(mock, REG_KFA));
+    words[6] = sign_extend_24(MEM(mock, REG_KFB));
+    words[7] = sign_extend_24(MEM(mock, REG_KFT));
+    words[8] = sign_extend_24(MEM(mock, REG_KPB));
+    words[9] = sign_extend_24(MEM(mock, REG_KIB));
+    words[10] = sign_extend_width(MEM(mock, REG_PHASE_SETPOINT), 17U);
+    words[11] = MEM(mock, REG_PHASE_THR) & 0x0003ffffU;
+    words[12] = MEM(mock, REG_FREQ_THR) & 0x003fffffU;
+    words[13] = ((MEM(mock, REG_MAG_ENTER) & 0xffffU) << 16) | (MEM(mock, REG_MAG_EXIT) & 0xffffU);
+    words[14] = ((MEM(mock, REG_ACQ_DWELL) & 0xffffU) << 16) | (MEM(mock, REG_BLEND_DWELL) & 0xffffU);
+    words[15] = ((MEM(mock, REG_LOSS_DWELL) & 0xffffU) << 16) | (MEM(mock, REG_WARMUP) & 0xffffU);
+    words[16] = measurement;
+    words[17] = MEM(mock, REG_HOLDOVER) & 0x00ffffffU;
+    words[18] = MEM(mock, REG_POS_LIMIT);
+    words[19] = negative_limit;
+    words[20] = MEM(mock, REG_MANUAL_OFFSET);
+    words[21] = ((sign_extend_width(MEM(mock, REG_DAC0_OFFSET), 13U) & 0xffffU) << 16) |
+                (sign_extend_width(MEM(mock, REG_DAC0_AMP), 15U) & 0xffffU);
+    words[22] = ((sign_extend_width(MEM(mock, REG_DEBUG_OFFSET), 13U) & 0xffffU) << 16) |
+                (sign_extend_width(MEM(mock, REG_DEBUG_GAIN), 15U) & 0xffffU);
+    words[23] = MEM(mock, REG_DEBUG_SOURCE);
+    words[24] = MEM(mock, REG_DEBUG_FORMAT);
+
+    for (i = 0U; i < 25U; ++i) {
+        crc = crc_mix(crc, words[i]);
+    }
+    return crc;
 }
 
 static void copy_active(mock_mmio_t *mock)
@@ -113,6 +235,7 @@ static void copy_active(mock_mmio_t *mock)
     MEM(mock, REG_ACTIVE_KPB) = sign_extend_24(MEM(mock, REG_KPB));
     MEM(mock, REG_ACTIVE_KIB) = sign_extend_24(MEM(mock, REG_KIB));
     MEM(mock, REG_APPLIED_ABI) = expected_identity.abi_version;
+    MEM(mock, REG_ACTIVE_CRC) = expected_crc(mock);
     mock->debug_active = mock->debug_shadow;
 }
 
@@ -152,6 +275,9 @@ static void mock_write(void *context, uint32_t address, uint32_t value)
         }
         if (mock->apply_mode == APPLY_BAD_SIGNEXT) {
             MEM(mock, REG_ACTIVE_KP) = 0x00800001U;
+        }
+        if (mock->apply_mode == APPLY_BAD_CRC) {
+            MEM(mock, REG_ACTIVE_CRC) ^= 0x01000000U;
         }
         sequence = (sequence + 1U) & 0xffU;
         MEM(mock, REG_APPLY) = sequence << DPLL_APPLY_SEQ_SHIFT;
@@ -249,6 +375,19 @@ static int test_active_verify_checks_full_sign_extension(void)
     return 0;
 }
 
+static int test_active_crc_covers_non_legacy_readback_fields(void)
+{
+    dpll_driver_t driver;
+    mock_mmio_t mock;
+    dpll_apply_result_t result;
+    init_driver(&driver, &mock);
+    seed_good_identity(&mock);
+    CHECK(dpll_driver_check_abi(&driver) == DPLL_DRIVER_OK);
+    mock.apply_mode = APPLY_BAD_CRC;
+    CHECK(dpll_driver_apply(&driver, &result) == DPLL_DRIVER_ERR_VERIFY);
+    return 0;
+}
+
 static int test_reject_timeout_and_verify_failure(void)
 {
     dpll_driver_t driver;
@@ -297,6 +436,7 @@ int main(void)
     CHECK(test_abi_mismatch_blocks_enable_and_apply() == 0);
     CHECK(test_atomic_apply_and_active_verify() == 0);
     CHECK(test_active_verify_checks_full_sign_extension() == 0);
+    CHECK(test_active_crc_covers_non_legacy_readback_fields() == 0);
     CHECK(test_reject_timeout_and_verify_failure() == 0);
     CHECK(test_reset_invalidates_and_rechecks_abi() == 0);
     puts("PASS: dpll_driver_host_test");

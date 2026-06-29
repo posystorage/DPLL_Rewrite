@@ -184,6 +184,27 @@ static const dpll_reg_map_t dpll_register_map = {
 	DPLL_FLL_KF_TRACK_Addr,
 	DPLL_PLL_KP_BLEND_Addr,
 	DPLL_PLL_KI_BLEND_Addr,
+	DAC0_Phase_Residuals_Threshold_Addr,
+	DAC0_Phase_Residuals_Offset_Addr,
+	DAC0_Freq_Residuals_Threshold_Addr,
+	DPLL_MAG_ENTER_THRESHOLD_Addr,
+	DPLL_MAG_EXIT_THRESHOLD_Addr,
+	DPLL_ACQUIRE_DWELL_Addr,
+	DPLL_BLEND_DWELL_Addr,
+	DPLL_LOSS_DWELL_Addr,
+	DPLL_HOLDOVER_TIMEOUT_Addr,
+	DPLL_MEASUREMENT_TIMEOUT_Addr,
+	DPLL_FLL_DELAY_SEL_Addr,
+	DPLL_WARMUP_SAMPLES_Addr,
+	DPLL_FREQ_POS_LIMIT_Addr,
+	DPLL_FREQ_NEG_LIMIT_Addr,
+	VCO_Freq_Manual_Offset_Addr,
+	DAC0_VCO_Offset_Addr,
+	DAC0_VOC_Amplitude_Addr,
+	DAC1_DDS_Offset_Addr,
+	DAC1_DDS_Amplitude_Addr,
+	DAC1_DDS_Frequency_Addr,
+	DAC1_DDS_Phase_Addr,
 	DPLL_ACTIVE_CENTER_Addr,
 	DPLL_ACTIVE_CIC_CONFIG_Addr,
 	DPLL_ACTIVE_MUL_DIV_Addr,
@@ -194,7 +215,8 @@ static const dpll_reg_map_t dpll_register_map = {
 	DPLL_ACTIVE_KF_TRACK_Addr,
 	DPLL_ACTIVE_KP_BLEND_Addr,
 	DPLL_ACTIVE_KI_BLEND_Addr,
-	DPLL_APPLIED_ABI_VERSION_Addr
+	DPLL_APPLIED_ABI_VERSION_Addr,
+	DPLL_ACTIVE_CONFIG_CRC_Addr
 };
 
 static const dpll_identity_t dpll_expected_identity = {

@@ -50,8 +50,13 @@ def main() -> int:
     core = read(DPLL / "core" / "dpll_single_clock_core_stage_a.v")
     wrapper = read(DPLL / "dpll_wrapper.v")
     arm = read(SDK / "helloworld.c")
+    driver_h = read(SDK / "dpll_driver.h")
+    driver_c = read(SDK / "dpll_driver.c")
+    periph = read(SDK / "Peripherals.h")
+    generator = read(ROOT / "scripts" / "generate_dpll_build_id.py")
     core_tb = read(ROOT / "verification" / "rtl" / "dpll_single_clock_core_stage_a_tb.v")
     wrapper_tb = read(ROOT / "verification" / "rtl" / "dpll_wrapper_cdc_tb.v")
+    arm_tb = read(ROOT / "verification" / "arm" / "dpll_driver_host_test.c")
     frontend_summary = read(ROOT / "reports" / "frontend_stage_a_summary.md")
 
     checks: list[tuple[str, bool]] = []
@@ -167,6 +172,51 @@ def main() -> int:
         ]),
         "P1 validator covers width, magnitude hysteresis, and CIC shift range semantics",
         "`dpll_wrapper.v` central validator and wrapper CDC TB cover the review4 validation gaps",
+    ))
+
+    checks.append(check(
+        contains_all(wrapper, [
+            "function [31:0] dpll_config_crc",
+            "wire [31:0] active_config_crc",
+            "16'h011E: status_response_data_clk <= active_config_crc",
+        ])
+        and contains_all(periph, [
+            "DPLL_ACTIVE_CONFIG_CRC_Addr",
+            "(0x011E<<2)",
+        ])
+        and contains_all(driver_h, [
+            "shadow_phase_threshold",
+            "shadow_debug_dac_format",
+            "active_config_crc",
+        ])
+        and contains_all(driver_c, [
+            "dpll_expected_active_config_crc",
+            "shadow_measurement_timeout",
+            "shadow_negative_limit",
+            "active_config_crc",
+        ])
+        and contains_all(arm_tb, [
+            "APPLY_BAD_CRC",
+            "test_active_crc_covers_non_legacy_readback_fields",
+        ])
+        and "active config crc" in wrapper_tb,
+        "P1 ARM applies verify the complete active configuration through an active-config CRC",
+        "RTL exposes `0x011E` active CRC; ARM driver computes the same normalized CRC over shadow fields and host/RTL tests cover mismatch detection",
+    ))
+
+    tracked_build_headers = {
+        "DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_build_id.vh",
+        "DPLL_Rewrite.sdk/DPLL_2COM/src/dpll_build_id.h",
+    }.issubset(set(git("ls-files").splitlines()))
+    checks.append(check(
+        tracked_build_headers
+        and contains_all(generator, [
+            "CONFIG_VERSION = 0x00010002",
+            "VERILOG_HEADER",
+            "ARM_HEADER",
+        ]),
+        "Build identity headers are tracked fallbacks and the generator carries the current config version",
+        "`dpll_build_id.vh` and `dpll_build_id.h` exist in git for GUI/SDK clean checkout; generator updates them for scripted builds",
     ))
 
     head = git("rev-parse", "--short=12", "HEAD")

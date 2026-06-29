@@ -425,6 +425,73 @@ wire [7:0] shadow_apply_error_code =
     !shadow_holdover_legal ? APPLY_ERR_HOLDOVER :
     !shadow_width_legal ? APPLY_ERR_WIDTH : APPLY_ERR_NONE;
 
+function [31:0] config_crc_mix;
+    input [31:0] crc;
+    input [31:0] value;
+    reg [31:0] mixed;
+    begin
+        mixed = crc ^ value;
+        config_crc_mix = {mixed[26:0], mixed[31:27]} ^ 32'h9E37_79B9;
+    end
+endfunction
+
+function [31:0] dpll_config_crc;
+    input [31:0] center_hi;
+    input [31:0] cic_config;
+    input [31:0] mul_div_config;
+    input [31:0] kp_track;
+    input [31:0] ki_track;
+    input [31:0] kf_acquire;
+    input [31:0] kf_blend_in;
+    input [31:0] kf_track_in;
+    input [31:0] kp_blend_in;
+    input [31:0] ki_blend_in;
+    input [31:0] phase_setpoint;
+    input [31:0] phase_threshold;
+    input [31:0] freq_threshold;
+    input [31:0] magnitude_pair;
+    input [31:0] acquire_blend_dwell;
+    input [31:0] loss_warmup_dwell;
+    input [31:0] timeout_measurement;
+    input [31:0] timeout_holdover;
+    input [31:0] correction_limit_pos;
+    input [31:0] correction_limit_neg;
+    input [31:0] manual_offset;
+    input [31:0] dac0_pair;
+    input [31:0] debug_dac_pair;
+    input [31:0] debug_source;
+    input [31:0] debug_format;
+    reg [31:0] crc;
+    begin
+        crc = 32'h4450_4C4C; // "DPLL"
+        crc = config_crc_mix(crc, center_hi);
+        crc = config_crc_mix(crc, cic_config);
+        crc = config_crc_mix(crc, mul_div_config);
+        crc = config_crc_mix(crc, kp_track);
+        crc = config_crc_mix(crc, ki_track);
+        crc = config_crc_mix(crc, kf_acquire);
+        crc = config_crc_mix(crc, kf_blend_in);
+        crc = config_crc_mix(crc, kf_track_in);
+        crc = config_crc_mix(crc, kp_blend_in);
+        crc = config_crc_mix(crc, ki_blend_in);
+        crc = config_crc_mix(crc, phase_setpoint);
+        crc = config_crc_mix(crc, phase_threshold);
+        crc = config_crc_mix(crc, freq_threshold);
+        crc = config_crc_mix(crc, magnitude_pair);
+        crc = config_crc_mix(crc, acquire_blend_dwell);
+        crc = config_crc_mix(crc, loss_warmup_dwell);
+        crc = config_crc_mix(crc, timeout_measurement);
+        crc = config_crc_mix(crc, timeout_holdover);
+        crc = config_crc_mix(crc, correction_limit_pos);
+        crc = config_crc_mix(crc, correction_limit_neg);
+        crc = config_crc_mix(crc, manual_offset);
+        crc = config_crc_mix(crc, dac0_pair);
+        crc = config_crc_mix(crc, debug_dac_pair);
+        crc = config_crc_mix(crc, debug_source);
+        dpll_config_crc = config_crc_mix(crc, debug_format);
+    end
+endfunction
+
 reg [47:0] active_center_word;
 reg signed [23:0] active_kf;
 reg signed [23:0] active_ki;
@@ -616,6 +683,34 @@ end
 wire signed [55:0] correction_limit_pos = active_correction_limit_pos;
 wire signed [55:0] correction_limit_neg = active_correction_limit_neg;
 
+wire [31:0] active_config_crc = dpll_config_crc(
+    active_center_word[47:16],
+    {15'h0, active_fll_delay_sel, active_post_iq_cic_shift, active_post_iq_cic_rate_r},
+    {active_vco_mul_factor, active_vco_div_factor},
+    {{8{active_kp[23]}}, active_kp},
+    {{8{active_ki[23]}}, active_ki},
+    {{8{active_kf[23]}}, active_kf},
+    {{8{active_kf_blend[23]}}, active_kf_blend},
+    {{8{active_kf_track[23]}}, active_kf_track},
+    {{8{active_kp_blend[23]}}, active_kp_blend},
+    {{8{active_ki_blend[23]}}, active_ki_blend},
+    {{14{active_phase_setpoint[17]}}, active_phase_setpoint},
+    {14'h0, active_phase_lock_threshold},
+    {10'h0, active_freq_lock_threshold},
+    {active_mag_enter_threshold, active_mag_exit_threshold},
+    {active_acquire_dwell, active_blend_dwell},
+    {active_loss_dwell, active_warmup_samples},
+    {8'h0, active_measurement_timeout},
+    {8'h0, active_holdover_timeout},
+    active_correction_limit_pos[31:0],
+    active_correction_limit_neg[31:0],
+    active_manual_offset_dac0,
+    {{2{active_vco_offset[13]}}, active_vco_offset, active_vco_amplitude},
+    {{2{active_debug_dac_offset[13]}}, active_debug_dac_offset, active_debug_dac_gain},
+    active_debug_dac_source,
+    active_debug_dac_format
+);
+
 dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .clk_125m(clk1),
     .rst_125m(rst_125m_stage_a),
@@ -804,7 +899,8 @@ function status_snapshot_address;
     input [15:0] address;
     begin
         status_snapshot_address = ((address >= 16'h0100) && (address <= 16'h010C)) ||
-                                  ((address >= 16'h0110) && (address <= 16'h011C));
+                                  ((address >= 16'h0110) && (address <= 16'h011C)) ||
+                                  (address == 16'h011E);
     end
 endfunction
 
@@ -852,6 +948,7 @@ always @(posedge clk1 or negedge rst) begin
                 16'h011A: status_response_data_clk <= {8'h0, active_measurement_timeout};
                 16'h011B: status_response_data_clk <= {8'h0, active_holdover_timeout};
                 16'h011C: status_response_data_clk <= ABI_VERSION;
+                16'h011E: status_response_data_clk <= active_config_crc;
                 default:  status_response_data_clk <= 32'd0;
             endcase
             status_response_toggle_clk <= ~status_response_toggle_clk;

@@ -16,6 +16,19 @@ module dpll_wrapper_cdc_tb;
  task wr_expect_err; input [15:0] a; input [31:0] d; begin @(negedge sys_clk); sys_addr={14'd0,a,2'b00}; sys_wdata=d; sys_wen=1; @(posedge sys_clk); #1; if(!sys_ack||!sys_err) begin $display("FAIL: busy write did not return err addr=%h ack=%b err=%b",a,sys_ack,sys_err);$finish;end @(negedge sys_clk);sys_wen=0; end endtask
  task rd; input [15:0] a; output [31:0] d; integer n; begin @(negedge sys_clk);sys_addr={14'd0,a,2'b00};sys_ren=1;@(posedge sys_clk);#1;@(negedge sys_clk);sys_ren=0;n=0;while(!sys_ack&&n<20)begin @(posedge sys_clk);#1;n=n+1;end if(!sys_ack)begin $display("FAIL: read timeout addr=%h",a);$finish;end d=sys_rdata;end endtask
  task wait_idle; integer n; reg [31:0] s; begin n=0;s=1;while((s[0]||s[15:8]==0)&&n<30)begin rd(16'h006f,s);n=n+1;end if(s[0])begin $display("FAIL: apply busy stuck");$finish;end end endtask
+ function [31:0] crc_mix; input [31:0] crc; input [31:0] value; reg [31:0] mixed; begin mixed=crc^value; crc_mix={mixed[26:0],mixed[31:27]}^32'h9e37_79b9; end endfunction
+ function [31:0] expected_active_crc; input dummy; reg [31:0] crc; begin
+   crc=32'h4450_4c4c;
+   crc=crc_mix(crc,32'h12345678); crc=crc_mix(crc,{17'h0,6'd13,9'd78}); crc=crc_mix(crc,{16'd1,16'd1});
+   crc=crc_mix(crc,32'hff800001); crc=crc_mix(crc,32'h00000002); crc=crc_mix(crc,32'h00000008);
+   crc=crc_mix(crc,32'h00000004); crc=crc_mix(crc,32'h00000001); crc=crc_mix(crc,32'h00000002);
+   crc=crc_mix(crc,32'h00000001); crc=crc_mix(crc,32'h00000000); crc=crc_mix(crc,32'h00007fff);
+   crc=crc_mix(crc,32'h00007fff); crc=crc_mix(crc,{16'h0100,16'h0040}); crc=crc_mix(crc,{16'd4,16'd4});
+   crc=crc_mix(crc,{16'd4,16'd4}); crc=crc_mix(crc,32'd9616); crc=crc_mix(crc,32'd1250000);
+   crc=crc_mix(crc,32'h7fffffff); crc=crc_mix(crc,32'h80000000); crc=crc_mix(crc,32'h00000000);
+   crc=crc_mix(crc,32'h00007fff); crc=crc_mix(crc,32'h00123456); crc=crc_mix(crc,32'h89abcdef);
+   expected_active_crc=crc_mix(crc,32'h10203040);
+ end endfunction
  reg [31:0] v; reg [47:0] saved_center;
  initial begin repeat(4)@(posedge clk1); rst=1;sys_rstn=1;repeat(4)@(posedge sys_clk);
    rd(16'h010d,v);if(v!==`DPLL_GENERATED_CONFIG_VERSION)begin $display("FAIL: config version %h",v);$finish;end
@@ -25,6 +38,7 @@ module dpll_wrapper_cdc_tb;
    wr(16'h0010,32'h12345678);wr(16'h0021,32'hff800001);wr(16'h0040,32'h00000012);wr(16'h0041,32'h00003456);wr(16'h0042,32'h89abcdef);wr(16'h0043,32'h10203040);wr(16'h0060,78);wr(16'h0061,13);wr(16'h0058,1250000);wr(16'h0059,0);wr(16'h006f,1);wait_idle();
    if(dut.active_center_word!==48'h123456780000||dut.active_post_iq_cic_rate_r!==78||dut.active_kp!==24'h800001||dut.active_debug_dac_offset!==14'h0012||dut.active_debug_dac_gain!==16'h3456||dut.active_debug_dac_source!==32'h89abcdef||dut.active_debug_dac_format!==32'h10203040||dut.config_apply_sequence!==1)begin $display("FAIL: legal commit active=%h r=%0d kp=%h seq=%0d",dut.active_center_word,dut.active_post_iq_cic_rate_r,dut.active_kp,dut.config_apply_sequence);$finish;end
    rd(16'h0110,v);if(v!==32'h12345678)begin $display("FAIL: snapshot center %h",v);$finish;end saved_center=dut.active_center_word;
+   rd(16'h011e,v);if(v!==expected_active_crc(1'b0))begin $display("FAIL: active config crc %h expected %h",v,expected_active_crc(1'b0));$finish;end
    wr(16'h0010,32'hdeadbeef);wr(16'h0060,7);wr(16'h006f,1);repeat(8)@(posedge sys_clk);rd(16'h006f,v);if(!v[1]||v[15:8]!==1||dut.active_center_word!==saved_center)begin $display("FAIL: rejected apply status=%h center=%h",v,dut.active_center_word);$finish;end rd(16'h0070,v);if(!v[0])begin $display("FAIL: rejected mask=%h",v);$finish;end
    wr(16'h0060,8);wr(16'h0061,4);wr(16'h0021,32'h01800001);wr(16'h006f,1);repeat(8)@(posedge sys_clk);rd(16'h006f,v);if(!v[1]||v[7:4]!==4'ha)begin $display("FAIL: illegal coefficient width accepted status=%h",v);$finish;end rd(16'h0070,v);if(!v[9])begin $display("FAIL: illegal width rejected mask=%h",v);$finish;end
    wr(16'h0021,32'hff800001);wr(16'h0053,32'h00000100);wr(16'h0054,32'h00000100);wr(16'h006f,1);repeat(8)@(posedge sys_clk);rd(16'h006f,v);if(!v[1]||v[7:4]!==4'h6)begin $display("FAIL: equal magnitude thresholds accepted status=%h",v);$finish;end

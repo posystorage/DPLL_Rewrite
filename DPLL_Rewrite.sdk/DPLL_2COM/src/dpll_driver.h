@@ -38,6 +38,27 @@ typedef struct {
     uint32_t shadow_kf_track;
     uint32_t shadow_kp_blend;
     uint32_t shadow_ki_blend;
+    uint32_t shadow_phase_threshold;
+    uint32_t shadow_phase_setpoint;
+    uint32_t shadow_freq_threshold;
+    uint32_t shadow_mag_enter;
+    uint32_t shadow_mag_exit;
+    uint32_t shadow_acquire_dwell;
+    uint32_t shadow_blend_dwell;
+    uint32_t shadow_loss_dwell;
+    uint32_t shadow_holdover_timeout;
+    uint32_t shadow_measurement_timeout;
+    uint32_t shadow_fll_delay;
+    uint32_t shadow_warmup_samples;
+    uint32_t shadow_positive_limit;
+    uint32_t shadow_negative_limit;
+    uint32_t shadow_manual_offset;
+    uint32_t shadow_dac0_offset;
+    uint32_t shadow_dac0_amplitude;
+    uint32_t shadow_debug_dac_offset;
+    uint32_t shadow_debug_dac_gain;
+    uint32_t shadow_debug_dac_source;
+    uint32_t shadow_debug_dac_format;
     uint32_t active_center;
     uint32_t active_cic;
     uint32_t active_mul_div;
@@ -49,6 +70,7 @@ typedef struct {
     uint32_t active_kp_blend;
     uint32_t active_ki_blend;
     uint32_t applied_abi_version;
+    uint32_t active_config_crc;
 } dpll_reg_map_t;
 
 typedef struct {

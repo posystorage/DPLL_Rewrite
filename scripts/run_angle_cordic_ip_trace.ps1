@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$VivadoBin = 'D:\Xilinx\Vivado\2018.3\bin'
+$VivadoBin = 'C:\Xilinx\Vivado\2018.3\bin'
 $RunStamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
 $OutDir = Join-Path $RepoRoot "reports\xsim\angle_cordic_ip_cli_$RunStamp"
 
@@ -11,7 +11,7 @@ Push-Location $OutDir
 try {
     $snapshot = 'angle_cordic_ip_trace_tb'
     $vhdl = @(
-        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\DDC\ip\angle_CORDIC\sim\angle_CORDIC.vhd'
+        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\DDC\ip\dpll_angle_CORDIC\synth\dpll_angle_CORDIC.vhd'
     )
     $rtl = @(
         Join-Path $RepoRoot 'verification\rtl\angle_cordic_ip_trace_tb.v'

@@ -40,7 +40,7 @@
 #define Freq_Meter_Run_Trigger_Addr (FREQ_METER_BASE_ADDR|(0x0072<<2))
 
 #define Freq_Meter_System_Statue_Addr   (FREQ_METER_BASE_ADDR|(0x0100<<2))// LED_R0,LED_G0,dac0_railed_positive,dac0_railed_negative,residuals0_are_above_threshold_freq,residuals0_are_above_threshold_phase
-#define Freq_Meter_Amplitude_Addr   (FREQ_METER_BASE_ADDR|(0x0101<<2))//16bits
+#define Freq_Meter_Amplitude_Addr   (FREQ_METER_BASE_ADDR|(0x0101<<2))//20bits
 #define Freq_Meter_wrapped_phase_Addr   (FREQ_METER_BASE_ADDR|(0x0102<<2))//14bits
 #define Freq_Meter_inst_frequency_Addr   (FREQ_METER_BASE_ADDR|(0x0103<<2))//14bits
 
@@ -131,7 +131,7 @@
 
 //ֻ��
 #define System_Statue   (DPLL_BASE_ADDR|(0x0100<<2))// LED_R0,LED_G0,dac0_railed_positive,dac0_railed_negative,residuals0_are_above_threshold_freq,residuals0_are_above_threshold_phase
-#define DDC0_Amplitude   (DPLL_BASE_ADDR|(0x0101<<2))//16bits
+#define DDC0_Amplitude   (DPLL_BASE_ADDR|(0x0101<<2))//20bits
 #define DDC0_wrapped_phase   (DPLL_BASE_ADDR|(0x0102<<2))//DPLL phase_error sign-extended
 #define DDC0_inst_frequency   (DPLL_BASE_ADDR|(0x0103<<2))//DPLL freq_error sign-extended
 

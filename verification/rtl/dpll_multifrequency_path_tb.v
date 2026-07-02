@@ -16,7 +16,7 @@ module dpll_multifrequency_path_tb;
     wire signed [19:0] i_baseband;
     wire signed [19:0] q_baseband;
     wire iq_valid;
-    wire [15:0] magnitude;
+    wire [19:0] magnitude;
     wire [3:0] loop_state;
     wire [3:0] loss_reason;
     wire signal_present;
@@ -67,8 +67,8 @@ module dpll_multifrequency_path_tb;
         .phase_setpoint(18'sd0),
         .phase_lock_threshold(18'd131071),
         .freq_lock_threshold(22'd2097151),
-        .mag_enter_threshold(16'd1),
-        .mag_exit_threshold(16'd0),
+        .mag_enter_threshold(20'd1),
+        .mag_exit_threshold(20'd0),
         .acquire_dwell(16'd1),
         .blend_dwell(16'd1),
         .loss_dwell(16'd4),

@@ -4,9 +4,10 @@ import csv
 from pathlib import Path
 
 
-def s16(value: str) -> int:
-    raw = int(value) & 0xFFFF
-    return raw - 0x10000 if raw & 0x8000 else raw
+def signed(value: str, width: int) -> int:
+    raw = int(value) & ((1 << width) - 1)
+    sign = 1 << (width - 1)
+    return raw - (1 << width) if raw & sign else raw
 
 
 def main() -> int:
@@ -20,22 +21,22 @@ def main() -> int:
     inputs = []
     outputs = []
     for row in rows:
-        if int(row["in_valid"]):
-            inputs.append((s16(row["i_in"]), s16(row["q_in"])))
+        if int(row["in_valid"]) and int(row["in_ready"]):
+            inputs.append((signed(row["i_in"], 20), signed(row["q_in"], 20)))
         if int(row["out_valid"]):
             outputs.append({
                 "cycle": int(row["cycle"]),
-                "phase": s16(row["phase"]),
-                "magnitude": int(row["magnitude"]) & 0xFFFF,
+                "phase": signed(row["phase"], 18),
+                "magnitude": int(row["magnitude"]) & 0xFFFFF,
             })
 
     expected_inputs = [
-        (16384, 0),
-        (0, 16384),
-        (-16384, 0),
-        (0, -16384),
-        (11585, 11585),
-        (11585, -11585),
+        (131072, 0),
+        (0, 131072),
+        (-131072, 0),
+        (0, -131072),
+        (92782, 92782),
+        (92782, -92782),
     ]
     if inputs[:len(expected_inputs)] != expected_inputs:
         print(f"FAIL: unexpected CORDIC input sequence {inputs[:len(expected_inputs)]}")
@@ -48,34 +49,34 @@ def main() -> int:
     phase = [row["phase"] for row in got]
     mag = [row["magnitude"] for row in got]
 
-    if abs(phase[0]) > 128:
+    if abs(phase[0]) > 2048:
         print(f"FAIL: +I phase should be near zero, got {phase[0]}")
         return 1
-    if not (3900 <= phase[1] <= 4300):
+    if not (62400 <= phase[1] <= 68800):
         print(f"FAIL: +Q phase should be near +pi/2 scaled radians, got {phase[1]}")
         return 1
-    if not (phase[2] >= 7900 or phase[2] <= -7900):
+    if not (phase[2] >= 126000 or phase[2] <= -126000):
         print(f"FAIL: -I phase should be near +/-pi scaled boundary, got {phase[2]}")
         return 1
-    if not (-4300 <= phase[3] <= -3900):
+    if not (-68800 <= phase[3] <= -62400):
         print(f"FAIL: -Q phase should be near -pi/2 scaled radians, got {phase[3]}")
         return 1
-    if not (1900 <= phase[4] <= 2200):
+    if not (30400 <= phase[4] <= 35200):
         print(f"FAIL: +45 degree phase should be near +pi/4 scaled radians, got {phase[4]}")
         return 1
-    if not (-2200 <= phase[5] <= -1900):
+    if not (-35200 <= phase[5] <= -30400):
         print(f"FAIL: -45 degree phase should be near -pi/4 scaled radians, got {phase[5]}")
         return 1
 
     axis_mags = mag[:4]
     diag_mags = mag[4:6]
-    if min(axis_mags) < 18000 or max(axis_mags) > 20000:
+    if min(axis_mags) < 144000 or max(axis_mags) > 160000:
         print(f"FAIL: axis magnitudes should reflect raw no-scale-compensation gain, got {axis_mags}")
         return 1
-    if min(diag_mags) < 18000 or max(diag_mags) > 20000:
+    if min(diag_mags) < 144000 or max(diag_mags) > 160000:
         print(f"FAIL: diagonal magnitudes should match axis magnitude scale, got {diag_mags}")
         return 1
-    if max(axis_mags + diag_mags) - min(axis_mags + diag_mags) > 1024:
+    if max(axis_mags + diag_mags) - min(axis_mags + diag_mags) > 8192:
         print(f"FAIL: equal-amplitude vectors produced inconsistent magnitudes {mag}")
         return 1
 

@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$VivadoBin = 'D:\Xilinx\Vivado\2018.3\bin'
+$VivadoBin = 'C:\Xilinx\Vivado\2018.3\bin'
 $RunStamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
 $OutDir = Join-Path $RepoRoot "reports\xsim\input_multiplier_mixer_cli_$RunStamp"
 
@@ -11,7 +11,7 @@ Push-Location $OutDir
 try {
     $snapshot = 'input_multiplier_mixer_latency_tb'
     $vhdl = @(
-        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\DDC\ip\input_multiplier\sim\input_multiplier.vhd'
+        Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\DDC\ip\dpll_input_multiplier\synth\dpll_input_multiplier.vhd'
     )
     $rtl = @(
         Join-Path $RepoRoot 'verification\rtl\input_multiplier_mixer_latency_tb.v'

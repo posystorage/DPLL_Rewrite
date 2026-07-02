@@ -24,7 +24,7 @@ The tests parse the real ARM register definitions and exercise ABI gating, CONFI
 
 ## RTL XSIM Checks
 
-Run from the repository root with Vivado 2018.3 installed at `D:\Xilinx\Vivado\2018.3`:
+Run from the repository root with Vivado 2018.3 installed at `C:\Xilinx\Vivado\2018.3`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\run_frontend_stage_a_xsim.ps1
@@ -59,7 +59,7 @@ the golden tracking word equals the applied center word.
 checks FLL, PI, P, anti-windup, correction saturation, and tracking-word
 saturation against a Python fixed-point model.
 
-`run_angle_cordic_ip_trace.ps1` drives the real Vivado `angle_CORDIC`
+`run_angle_cordic_ip_trace.ps1` drives the DPLL `dpll_angle_CORDIC`
 simulation model and checks `{Q,I}` packing, scaled-radian phase quadrants,
 valid output, and raw no-scale-compensation magnitude behavior.
 

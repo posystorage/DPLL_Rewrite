@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$Gcc = 'D:\Xilinx\Vivado\2018.3\tps\mingw\6.2.0\win64.o\nt\bin\gcc.exe'
+$Gcc = 'C:\Xilinx\Vivado\2018.3\tps\mingw\6.2.0\win64.o\nt\bin\gcc.exe'
 $OutDir = Join-Path $RepoRoot 'reports\arm_dpll_driver_host_test'
 $Exe = Join-Path $OutDir 'dpll_driver_host_test.exe'
 $Log = Join-Path $OutDir 'dpll_driver_host_test.log'

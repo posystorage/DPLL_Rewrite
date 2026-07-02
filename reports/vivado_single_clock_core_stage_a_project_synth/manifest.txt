@@ -1,7 +1,7 @@
 Vivado project synthesis smoke check
-project_file=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.xpr
+project_file=E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.xpr
 synth_run=synth_1
 synth_status=synth_design Complete!
 synth_progress=100%
-synth_dir=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.runs/synth_1
-generated_at=2026-06-28 21:36:55
+synth_dir=E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.runs/synth_1
+generated_at=2026-07-01 17:27:36

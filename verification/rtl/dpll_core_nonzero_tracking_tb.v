@@ -17,7 +17,7 @@ module dpll_core_nonzero_tracking_tb;
     wire signed [55:0] freq_correction;
     wire [3:0] loop_state;
     wire locked;
-    wire [15:0] magnitude;
+    wire [19:0] magnitude;
     wire cic_overflow_seen;
     wire cic_illegal_config_seen;
 
@@ -50,8 +50,8 @@ module dpll_core_nonzero_tracking_tb;
         .phase_setpoint(18'sd0),
         .phase_lock_threshold(18'd131071),
         .freq_lock_threshold(22'd2097151),
-        .mag_enter_threshold(16'd1),
-        .mag_exit_threshold(16'd0),
+        .mag_enter_threshold(20'd1),
+        .mag_exit_threshold(20'd0),
         .acquire_dwell(16'd1),
         .blend_dwell(16'd1),
         .loss_dwell(16'd6),

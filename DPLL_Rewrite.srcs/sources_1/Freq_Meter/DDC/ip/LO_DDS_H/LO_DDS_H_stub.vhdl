@@ -1,10 +1,10 @@
 -- Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
--- Date        : Thu Jun  8 12:07:20 2023
+-- Date        : Mon Jun 29 17:26:50 2026
 -- Host        : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 -- Command     : write_vhdl -force -mode synth_stub
---               E:/JiangSiyi/FPGA/DPLL_Rewrite_InstrumentBox/DPLL_Rewrite.srcs/sources_1/Freq_Meter/DDC/ip/LO_DDS_H/LO_DDS_H_stub.vhdl
+--               E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/Freq_Meter/DDC/ip/LO_DDS_H/LO_DDS_H_stub.vhdl
 -- Design      : LO_DDS_H
 -- Purpose     : Stub declaration of top-level module interface
 -- Device      : xc7z010clg400-1

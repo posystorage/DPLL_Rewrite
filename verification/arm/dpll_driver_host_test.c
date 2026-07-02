@@ -131,8 +131,8 @@ static void seed_shadow(mock_mmio_t *mock)
     MEM(mock, REG_PHASE_THR) = 0x00012345U;
     MEM(mock, REG_PHASE_SETPOINT) = 0xfffe0001U;
     MEM(mock, REG_FREQ_THR) = 0x00123456U;
-    MEM(mock, REG_MAG_ENTER) = 0x1000U;
-    MEM(mock, REG_MAG_EXIT) = 0x0800U;
+    MEM(mock, REG_MAG_ENTER) = 0x21000U;
+    MEM(mock, REG_MAG_EXIT) = 0x10800U;
     MEM(mock, REG_ACQ_DWELL) = 0x21U;
     MEM(mock, REG_BLEND_DWELL) = 0x22U;
     MEM(mock, REG_LOSS_DWELL) = 0x23U;
@@ -175,7 +175,7 @@ static uint32_t expected_crc(mock_mmio_t *mock)
     uint32_t r = MEM(mock, REG_R) & 0x1ffU;
     uint32_t measurement = MEM(mock, REG_MEAS_TIMEOUT) & 0x00ffffffU;
     uint32_t negative_limit = MEM(mock, REG_NEG_LIMIT);
-    uint32_t words[25];
+    uint32_t words[26];
     uint32_t i;
 
     if (measurement == 0U) {
@@ -199,22 +199,23 @@ static uint32_t expected_crc(mock_mmio_t *mock)
     words[10] = sign_extend_width(MEM(mock, REG_PHASE_SETPOINT), 17U);
     words[11] = MEM(mock, REG_PHASE_THR) & 0x0003ffffU;
     words[12] = MEM(mock, REG_FREQ_THR) & 0x003fffffU;
-    words[13] = ((MEM(mock, REG_MAG_ENTER) & 0xffffU) << 16) | (MEM(mock, REG_MAG_EXIT) & 0xffffU);
-    words[14] = ((MEM(mock, REG_ACQ_DWELL) & 0xffffU) << 16) | (MEM(mock, REG_BLEND_DWELL) & 0xffffU);
-    words[15] = ((MEM(mock, REG_LOSS_DWELL) & 0xffffU) << 16) | (MEM(mock, REG_WARMUP) & 0xffffU);
-    words[16] = measurement;
-    words[17] = MEM(mock, REG_HOLDOVER) & 0x00ffffffU;
-    words[18] = MEM(mock, REG_POS_LIMIT);
-    words[19] = negative_limit;
-    words[20] = MEM(mock, REG_MANUAL_OFFSET);
-    words[21] = ((sign_extend_width(MEM(mock, REG_DAC0_OFFSET), 13U) & 0xffffU) << 16) |
+    words[13] = MEM(mock, REG_MAG_ENTER) & 0x000fffffU;
+    words[14] = MEM(mock, REG_MAG_EXIT) & 0x000fffffU;
+    words[15] = ((MEM(mock, REG_ACQ_DWELL) & 0xffffU) << 16) | (MEM(mock, REG_BLEND_DWELL) & 0xffffU);
+    words[16] = ((MEM(mock, REG_LOSS_DWELL) & 0xffffU) << 16) | (MEM(mock, REG_WARMUP) & 0xffffU);
+    words[17] = measurement;
+    words[18] = MEM(mock, REG_HOLDOVER) & 0x00ffffffU;
+    words[19] = MEM(mock, REG_POS_LIMIT);
+    words[20] = negative_limit;
+    words[21] = MEM(mock, REG_MANUAL_OFFSET);
+    words[22] = ((sign_extend_width(MEM(mock, REG_DAC0_OFFSET), 13U) & 0xffffU) << 16) |
                 (sign_extend_width(MEM(mock, REG_DAC0_AMP), 15U) & 0xffffU);
-    words[22] = ((sign_extend_width(MEM(mock, REG_DEBUG_OFFSET), 13U) & 0xffffU) << 16) |
+    words[23] = ((sign_extend_width(MEM(mock, REG_DEBUG_OFFSET), 13U) & 0xffffU) << 16) |
                 (sign_extend_width(MEM(mock, REG_DEBUG_GAIN), 15U) & 0xffffU);
-    words[23] = MEM(mock, REG_DEBUG_SOURCE);
-    words[24] = MEM(mock, REG_DEBUG_FORMAT);
+    words[24] = MEM(mock, REG_DEBUG_SOURCE);
+    words[25] = MEM(mock, REG_DEBUG_FORMAT);
 
-    for (i = 0U; i < 25U; ++i) {
+    for (i = 0U; i < 26U; ++i) {
         crc = crc_mix(crc, words[i]);
     }
     return crc;

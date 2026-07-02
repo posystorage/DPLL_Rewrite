@@ -107,6 +107,7 @@ BUFG bufg_fm_rst    (.O (rst0), .I (rst0_c));
 wire [32-1:0]Centre_Freq_Set;//寄存器设置的锁相环中心频率（相位累加字）
 wire [48-1:0]Centre_Freq_DDC_Phase;//设置的锁相环中心频率-同步位数
 wire [32-1:0]PID_OUT_With_Limit;//PID输出的值（相位累加字）
+wire [48-1:0]PID_OUT_DDC_Phase;//PID输出的值-同步位数
 reg  [47:0] Reference_frequency_DDC_Phase = 48'h0;//最终合成后输入到DDC的相位累加字
 wire [32-1:0] Freq_Meter_Phase_Add;//用于频率测量的相位累计字 32位 半相位
 
@@ -130,6 +131,7 @@ parallel_bus_register_32bits_or_less # (
 ); 
 
 
+assign PID_OUT_DDC_Phase = {PID_OUT_With_Limit[31],PID_OUT_With_Limit,15'h000};
 assign Centre_Freq_DDC_Phase = {Centre_Freq_Set,16'h0000};
 
 always @ (posedge clk1 or posedge rst0) begin
@@ -137,7 +139,7 @@ always @ (posedge clk1 or posedge rst0) begin
     Reference_frequency_DDC_Phase <= 48'h0;
     end
     else begin
-    Reference_frequency_DDC_Phase <= Centre_Freq_DDC_Phase;
+    Reference_frequency_DDC_Phase <= PID_OUT_DDC_Phase+Centre_Freq_DDC_Phase;
     end
 end 
 
@@ -186,7 +188,7 @@ Freq_Meter_DDC_wideband_filters DDC1_inst (
 // Loop filters 
 //PID
 ///////////////////////////////////////////////////////////////////////////////
-wire pll0_gain_changedp, pll0_gain_changedi, pll0_gain_changedii, pll0_gain_changedd, pll0_coef_changedd;
+wire pll0_gain_changed, pll0_gain_changedp, pll0_gain_changedi, pll0_gain_changedii, pll0_gain_changedd, pll0_coef_changedd;
 wire [32-1:0] pll0_gainp, pll0_gaini, pll0_gainii, pll0_gaind, pll0_coefdfilter;
 wire [32-1:0] pll0_output;
 wire [31:0] phase_residuals0;
@@ -264,9 +266,32 @@ parallel_bus_register_pll0_coefdfilter (
     .update_flag(pll0_coef_changedd)
     );
      
-assign pll0_output = 32'h0000_0000;
-assign PID_OUT_With_Limit = 32'h0000_0000;
-assign phase_residuals0 = {{18{wrapped_phase0[13]}}, wrapped_phase0};
+// This is used for bumpless change of the gain settings (TODO, most probably in the output summing block)
+assign pll0_gain_changed = pll0_gain_changedp | pll0_gain_changedi | pll0_gain_changedii | pll0_gain_changedd | pll0_coef_changedd;
+     
+// Finally the PLL itself:
+PLL_loop_filters_with_saturation # (
+    .N_DIVIDE_P(6),  
+    .N_DIVIDE_I(8), 
+    .N_DIVIDE_II(19),
+    .N_DIVIDE_D(0),
+    .N_OUTPUT(32)
+)
+PLL0_loop_filters (
+    .clk(clk1), 
+    .lock(pll0_lock_on), 
+    .gain_changed(pll0_gain_changed), 
+    .data_in(inst_frequency0), 
+    .gain_p(pll0_gainp), 
+    .gain_i(pll0_gaini), 
+    .gain_ii(pll0_gainii),
+    .gain_d(pll0_gaind),
+    .coef_d_filter(pll0_coefdfilter),
+    .phase_residuals(phase_residuals0),
+    .data_out(pll0_output),
+    .saturated_low(),
+    .saturated_high()
+    );
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -316,8 +341,21 @@ parallel_bus_register_manual_offset_dac0 (
     .update_flag()
     ); 
     
-assign pid0_railed_positive = 1'b0;
-assign pid0_railed_negative = 1'b0;
+output_summing #(
+    .INPUT_SIZE(32),
+    .OUTPUT_SIZE(32)
+)
+output_summing_dac0
+    (
+        .clk(clk1),
+        .in0(pll0_output),
+        .in1(manual_offset_dac0),
+        .data_output(PID_OUT_With_Limit),
+        .positive_limit(positive_limit_dac0),
+        .negative_limit(negative_limit_dac0),
+        .railed_positive(pid0_railed_positive),
+        .railed_negative(pid0_railed_negative)
+    );
 
 
  ///////////////////////////////////////////////////////////////////////////////   

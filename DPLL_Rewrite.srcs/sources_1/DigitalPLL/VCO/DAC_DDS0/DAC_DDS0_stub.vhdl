@@ -1,10 +1,10 @@
 -- Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
--- Date        : Fri Sep  4 10:14:06 2020
--- Host        : LeakyShip running 64-bit major release  (build 9200)
+-- Date        : Wed Jul  1 15:48:30 2026
+-- Host        : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 -- Command     : write_vhdl -force -mode synth_stub
---               d:/FPGA_DPLL/DPLL_Rewrite/DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/DAC_DDS0/DAC_DDS0_stub.vhdl
+--               E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/DAC_DDS0/DAC_DDS0_stub.vhdl
 -- Design      : DAC_DDS0
 -- Purpose     : Stub declaration of top-level module interface
 -- Device      : xc7z010clg400-1

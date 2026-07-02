@@ -21,14 +21,14 @@ module input_multiplier_mixer_latency_tb;
 
     always #4 clk = ~clk;
 
-    input_multiplier input_multiplier_i_inst (
+    dpll_input_multiplier input_multiplier_i_inst (
         .CLK(clk),
         .A(sample_r),
         .B(lo_i_r),
         .P(product_i)
     );
 
-    input_multiplier input_multiplier_q_inst (
+    dpll_input_multiplier input_multiplier_q_inst (
         .CLK(clk),
         .A(sample_r),
         .B(lo_q_r),

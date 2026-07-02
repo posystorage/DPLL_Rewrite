@@ -40,7 +40,7 @@ Phase wrap is pure two's-complement modular arithmetic.
 | mixer product retained to CIC | 18 | yes | rounded from full product |
 | post-IQ CIC internal | 44 | yes | `18 + ceil(3*log2(312)) + 1` |
 | post-IQ CIC output | 20 | yes | after shift/round/saturate |
-| magnitude | 16 | no | raw `angle_CORDIC` Translate magnitude, no scale compensation |
+| magnitude | 20 | no | raw `dpll_angle_CORDIC` Translate magnitude, no scale compensation |
 | phase | 18 | yes | one turn is `2^18` |
 | FLL error | 22 | yes | phase difference plus margin, model-confirm |
 | coefficients | 24 | yes | Kf/Kp/Ki, model-confirm Q format |
@@ -90,14 +90,14 @@ Shift contract:
 
 ## CORDIC Magnitude
 
-The active `angle_CORDIC` IP is configured as Translate, SignedFraction, 16-bit input/output, Scaled_Radians phase, coarse rotation enabled, and `No_Scale_Compensation`.
+The active DPLL CORDIC wrapper, `dpll_angle_CORDIC`, is configured as Translate, Word Serial, SignedFraction, 20-bit input/output, Scaled_Radians phase, coarse rotation enabled, and `No_Scale_Compensation`. The legacy `angle_CORDIC` name remains reserved for the frequency meter's validated 16-bit parallel CORDIC path.
 
 Magnitude contract:
 
-- CORDIC X/Y inputs are rounded and saturated from post-IQ CIC 20-bit I/Q into 16-bit SignedFraction samples by the DPLL core.
-- `magnitude`, `MAG_ENTER_THRESHOLD`, `MAG_EXIT_THRESHOLD`, register `0x0101 MAGNITUDE`, and debug DAC source 8 all use the raw 16-bit CORDIC magnitude output.
+- CORDIC X/Y inputs are the post-IQ CIC 20-bit I/Q samples, packed into 24-bit AXI lanes.
+- `magnitude`, `MAG_ENTER_THRESHOLD`, `MAG_EXIT_THRESHOLD`, register `0x0101 MAGNITUDE`, and debug DAC source 8 all use the raw 20-bit CORDIC magnitude output.
 - No RTL or ARM-side gain compensation is applied to magnitude in v1.
-- Threshold tuning must account for the CORDIC no-scale-compensation gain and the 20-bit to 16-bit input rounding step.
+- Threshold tuning must account for the CORDIC no-scale-compensation gain and the post-IQ CIC output scale.
 
 The initial ARM defaults `MAG_ENTER_THRESHOLD=1024` and `MAG_EXIT_THRESHOLD=512` are bring-up defaults in this raw CORDIC output scale, not calibrated physical amplitude limits.
 

@@ -39,8 +39,8 @@ localparam [31:0] DEFAULT_FREQ_MUL  = 32'h0000_0001;
 localparam [31:0] DEFAULT_FREQ_DIV  = 32'h0000_0001;
 localparam [31:0] DEFAULT_PHASE_THR = 32'h0000_7FFF;
 localparam [31:0] DEFAULT_FREQ_THR  = 32'h0000_7FFF;
-localparam [31:0] DEFAULT_MAG_ENTER = 32'h0000_0100;
-localparam [31:0] DEFAULT_MAG_EXIT  = 32'h0000_0040;
+localparam [31:0] DEFAULT_MAG_ENTER = 32'h0000_1000;
+localparam [31:0] DEFAULT_MAG_EXIT  = 32'h0000_0400;
 localparam [31:0] DEFAULT_DWELL     = 32'h0000_0004;
 localparam [31:0] DEFAULT_HOLDOVER  = 32'h0013_12D0; // 10 ms at 125 MHz
 localparam [31:0] DEFAULT_MEAS_TIMEOUT = 32'h0000_0000; // zero selects 120*R+256
@@ -307,7 +307,7 @@ wire signed [19:0] dpll_q_baseband;
 wire        dpll_iq_valid;
 wire signed [55:0] dpll_freq_state;
 wire signed [55:0] dpll_freq_correction;
-wire [15:0] dpll_magnitude;
+wire [19:0] dpll_magnitude;
 wire [3:0]  dpll_loop_state;
 wire [3:0]  dpll_loss_reason;
 wire        dpll_signal_present;
@@ -318,6 +318,9 @@ wire [8:0]  dpll_active_cic_rate_r;
 wire [5:0]  dpll_active_cic_shift;
 wire        dpll_cic_overflow;
 wire        dpll_cic_illegal;
+wire        dpll_cordic_input_overrun;
+wire        dpll_cordic_input_out_of_range;
+wire        dpll_cordic_output_format_error;
 wire signed [15:0] dpll_lo_cos;
 wire signed [15:0] dpll_lo_sin;
 
@@ -396,8 +399,8 @@ wire shadow_dac_width_legal =
     (VCO_Mul_Factor0[31:16] == 16'd0) &&
     (VCO_Div_Factor0[31:16] == 16'd0);
 wire shadow_detector_width_legal =
-    (Magnitude_Enter_Threshold0[31:16] == 16'd0) &&
-    (Magnitude_Exit_Threshold0[31:16] == 16'd0) &&
+    (Magnitude_Enter_Threshold0[31:20] == 12'd0) &&
+    (Magnitude_Exit_Threshold0[31:20] == 12'd0) &&
     (Acquire_Dwell0[31:16] == 16'd0) &&
     (Blend_Dwell0[31:16] == 16'd0) &&
     (Loss_Dwell0[31:16] == 16'd0) &&
@@ -417,8 +420,8 @@ wire shadow_cic_shift_legal = (post_iq_cic_shift + 6'd1 >= shadow_expected_cic_s
 wire shadow_fll_delay_legal = (fll_delay_sel <= 2'd3);
 wire shadow_limits_legal = !positive_limit_dac0[31] && shadow_negative_limit_effective[31] &&
                            ($signed(positive_limit_dac0) >= $signed(shadow_negative_limit_effective));
-wire shadow_magnitude_legal = (Magnitude_Enter_Threshold0[15:0] > Magnitude_Exit_Threshold0[15:0]) &&
-                              (Magnitude_Enter_Threshold0[15:0] != 16'd0);
+wire shadow_magnitude_legal = (Magnitude_Enter_Threshold0[19:0] > Magnitude_Exit_Threshold0[19:0]) &&
+                              (Magnitude_Enter_Threshold0[19:0] != 20'd0);
 wire shadow_dwell_legal = (Acquire_Dwell0[15:0] != 16'd0) &&
                           (Blend_Dwell0[15:0] != 16'd0) &&
                           (Loss_Dwell0[15:0] != 16'd0);
@@ -454,7 +457,8 @@ function [31:0] dpll_config_crc;
     input [31:0] phase_setpoint;
     input [31:0] phase_threshold;
     input [31:0] freq_threshold;
-    input [31:0] magnitude_pair;
+    input [31:0] magnitude_enter;
+    input [31:0] magnitude_exit;
     input [31:0] acquire_blend_dwell;
     input [31:0] loss_warmup_dwell;
     input [31:0] timeout_measurement;
@@ -482,7 +486,8 @@ function [31:0] dpll_config_crc;
         crc = config_crc_mix(crc, phase_setpoint);
         crc = config_crc_mix(crc, phase_threshold);
         crc = config_crc_mix(crc, freq_threshold);
-        crc = config_crc_mix(crc, magnitude_pair);
+        crc = config_crc_mix(crc, magnitude_enter);
+        crc = config_crc_mix(crc, magnitude_exit);
         crc = config_crc_mix(crc, acquire_blend_dwell);
         crc = config_crc_mix(crc, loss_warmup_dwell);
         crc = config_crc_mix(crc, timeout_measurement);
@@ -508,8 +513,8 @@ reg signed [23:0] active_ki_blend;
 reg signed [17:0] active_phase_setpoint;
 reg [17:0] active_phase_lock_threshold;
 reg [21:0] active_freq_lock_threshold;
-reg [15:0] active_mag_enter_threshold;
-reg [15:0] active_mag_exit_threshold;
+reg [19:0] active_mag_enter_threshold;
+reg [19:0] active_mag_exit_threshold;
 reg [15:0] active_acquire_dwell;
 reg [15:0] active_blend_dwell;
 reg [15:0] active_loss_dwell;
@@ -665,8 +670,8 @@ always @(posedge clk1 or negedge rst) begin
         active_phase_setpoint <= 18'sd0;
         active_phase_lock_threshold <= DEFAULT_PHASE_THR[17:0];
         active_freq_lock_threshold <= DEFAULT_FREQ_THR[21:0];
-        active_mag_enter_threshold <= DEFAULT_MAG_ENTER[15:0];
-        active_mag_exit_threshold <= DEFAULT_MAG_EXIT[15:0];
+        active_mag_enter_threshold <= DEFAULT_MAG_ENTER[19:0];
+        active_mag_exit_threshold <= DEFAULT_MAG_EXIT[19:0];
         active_acquire_dwell <= DEFAULT_DWELL[15:0];
         active_blend_dwell <= DEFAULT_DWELL[15:0];
         active_loss_dwell <= DEFAULT_DWELL[15:0];
@@ -711,8 +716,8 @@ always @(posedge clk1 or negedge rst) begin
             active_phase_setpoint <= Phase_Residuals_Offset0[17:0];
             active_phase_lock_threshold <= Phase_Residuals_Threshold0[17:0];
             active_freq_lock_threshold <= Freq_Residuals_Threshold0[21:0];
-            active_mag_enter_threshold <= Magnitude_Enter_Threshold0[15:0];
-            active_mag_exit_threshold <= Magnitude_Exit_Threshold0[15:0];
+            active_mag_enter_threshold <= Magnitude_Enter_Threshold0[19:0];
+            active_mag_exit_threshold <= Magnitude_Exit_Threshold0[19:0];
             active_acquire_dwell <= Acquire_Dwell0[15:0];
             active_blend_dwell <= Blend_Dwell0[15:0];
             active_loss_dwell <= Loss_Dwell0[15:0];
@@ -754,7 +759,8 @@ wire [31:0] active_config_crc = dpll_config_crc(
     {{14{active_phase_setpoint[17]}}, active_phase_setpoint},
     {14'h0, active_phase_lock_threshold},
     {10'h0, active_freq_lock_threshold},
-    {active_mag_enter_threshold, active_mag_exit_threshold},
+    {12'h0, active_mag_enter_threshold},
+    {12'h0, active_mag_exit_threshold},
     {active_acquire_dwell, active_blend_dwell},
     {active_loss_dwell, active_warmup_samples},
     {8'h0, active_measurement_timeout},
@@ -822,6 +828,9 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .active_cic_output_shift(dpll_active_cic_shift),
     .cic_overflow_seen(dpll_cic_overflow),
     .cic_illegal_config_seen(dpll_cic_illegal),
+    .cordic_input_overrun_seen(dpll_cordic_input_overrun),
+    .cordic_input_out_of_range_seen(dpll_cordic_input_out_of_range),
+    .cordic_output_format_error_seen(dpll_cordic_output_format_error),
     .lo_cos(dpll_lo_cos),
     .lo_sin(dpll_lo_sin)
 );
@@ -893,7 +902,7 @@ function signed [31:0] debug_source_mux;
             4'h5: debug_source_mux = {{12{dpll_i_baseband[19]}}, dpll_i_baseband};
             4'h6: debug_source_mux = {{12{dpll_q_baseband[19]}}, dpll_q_baseband};
             4'h7: debug_source_mux = {{14{dpll_cordic_phase[17]}}, dpll_cordic_phase};
-            4'h8: debug_source_mux = {16'h0000, dpll_magnitude};
+            4'h8: debug_source_mux = {12'h000, dpll_magnitude};
             4'h9: debug_source_mux = debug_output_delta[47:16];
             4'hA: debug_source_mux = {28'h0, dpll_loop_state};
             default: debug_source_mux = {{14{dpll_phase_error[17]}}, dpll_phase_error};
@@ -982,14 +991,15 @@ always @(posedge clk1 or negedge rst) begin
                 16'h0100: status_response_data_clk <= {24'h0, residuals0_are_above_threshold,
                     residuals0_are_above_threshold_freq, residuals0_are_above_threshold_phase,
                     dac0_railed_negative, dac0_railed_positive, pll0_locked_instant, LED_R0, LED_G0};
-                16'h0101: status_response_data_clk <= {16'h0, dpll_magnitude};
+                16'h0101: status_response_data_clk <= {12'h0, dpll_magnitude};
                 16'h0102: status_response_data_clk <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
                 16'h0103: status_response_data_clk <= {{10{dpll_freq_error[21]}}, dpll_freq_error};
                 16'h0104: status_response_data_clk <= dpll_freq_correction[31:0];
                 16'h0105: status_response_data_clk <= dpll_tracking_word[31:0];
                 16'h0106: status_response_data_clk <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
                 16'h0107: status_response_data_clk <= dpll_freq_state[31:0];
-                16'h0108: status_response_data_clk <= {12'h0, pre_cic_backpressure_seen,
+                16'h0108: status_response_data_clk <= {9'h0, dpll_cordic_output_format_error,
+                    dpll_cordic_input_out_of_range, dpll_cordic_input_overrun, pre_cic_backpressure_seen,
                     manual_offset_overflow, vco_mul_div_config_error,
                     dpll_loop_state, dpll_loss_reason, dpll_signal_present, dpll_phase_locked,
                     dpll_frequency_locked, dpll_locked, dpll_tracking_valid, dpll_freq_error_valid,

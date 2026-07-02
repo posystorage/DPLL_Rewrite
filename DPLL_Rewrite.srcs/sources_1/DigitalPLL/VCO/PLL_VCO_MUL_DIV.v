@@ -35,6 +35,8 @@ reg [15:0] divisor_reg = 16'd1;
 
 reg divisor_valid = 1'b0;
 reg dividend_valid = 1'b0;
+wire divisor_ready;
+wire dividend_ready;
 wire div_result_valid;
 wire [79:0] div_result;
 
@@ -113,9 +115,18 @@ always @(posedge clk) begin
             end
 
             ST_DIV_SEND: begin
-                divisor_valid <= 1'b0;
-                dividend_valid <= 1'b0;
-                state <= ST_DIV_WAIT;
+                if (divisor_valid && divisor_ready) begin
+                    divisor_valid <= 1'b0;
+                end
+                if (dividend_valid && dividend_ready) begin
+                    dividend_valid <= 1'b0;
+                end
+                if ((!divisor_valid || divisor_ready) &&
+                    (!dividend_valid || dividend_ready)) begin
+                    divisor_valid <= 1'b0;
+                    dividend_valid <= 1'b0;
+                    state <= ST_DIV_WAIT;
+                end
             end
 
             ST_DIV_WAIT: begin
@@ -168,8 +179,10 @@ mult_gen_pll VCO0_Multiplier(
 div_gen_pll_u VCO0_Divider(
     .aclk(clk),
     .s_axis_divisor_tvalid(divisor_valid),
+    .s_axis_divisor_tready(divisor_ready),
     .s_axis_divisor_tdata(divisor_reg),
     .s_axis_dividend_tvalid(dividend_valid),
+    .s_axis_dividend_tready(dividend_ready),
     .s_axis_dividend_tdata(dividend_reg),
     .m_axis_dout_tvalid(div_result_valid),
     .m_axis_dout_tdata(div_result)

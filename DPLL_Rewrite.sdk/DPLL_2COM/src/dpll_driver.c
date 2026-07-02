@@ -104,7 +104,7 @@ static uint32_t dpll_expected_active_config_crc(const dpll_driver_t *driver)
     uint32_t measurement_timeout =
         dpll_read(driver, driver->regs.shadow_measurement_timeout) & 0x00FFFFFFU;
     uint32_t negative_limit = dpll_read(driver, driver->regs.shadow_negative_limit);
-    uint32_t words[25];
+    uint32_t words[26];
 
     if (measurement_timeout == 0U) {
         measurement_timeout = (120U * cic_r) + 256U;
@@ -128,25 +128,25 @@ static uint32_t dpll_expected_active_config_crc(const dpll_driver_t *driver)
     words[10] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_phase_setpoint), 17U);
     words[11] = dpll_read(driver, driver->regs.shadow_phase_threshold) & 0x0003FFFFU;
     words[12] = dpll_read(driver, driver->regs.shadow_freq_threshold) & 0x003FFFFFU;
-    words[13] = ((dpll_read(driver, driver->regs.shadow_mag_enter) & 0xFFFFU) << 16) |
-                (dpll_read(driver, driver->regs.shadow_mag_exit) & 0xFFFFU);
-    words[14] = ((dpll_read(driver, driver->regs.shadow_acquire_dwell) & 0xFFFFU) << 16) |
+    words[13] = dpll_read(driver, driver->regs.shadow_mag_enter) & 0x000FFFFFU;
+    words[14] = dpll_read(driver, driver->regs.shadow_mag_exit) & 0x000FFFFFU;
+    words[15] = ((dpll_read(driver, driver->regs.shadow_acquire_dwell) & 0xFFFFU) << 16) |
                 (dpll_read(driver, driver->regs.shadow_blend_dwell) & 0xFFFFU);
-    words[15] = ((dpll_read(driver, driver->regs.shadow_loss_dwell) & 0xFFFFU) << 16) |
+    words[16] = ((dpll_read(driver, driver->regs.shadow_loss_dwell) & 0xFFFFU) << 16) |
                 (dpll_read(driver, driver->regs.shadow_warmup_samples) & 0xFFFFU);
-    words[16] = measurement_timeout;
-    words[17] = dpll_read(driver, driver->regs.shadow_holdover_timeout) & 0x00FFFFFFU;
-    words[18] = dpll_read(driver, driver->regs.shadow_positive_limit);
-    words[19] = negative_limit;
-    words[20] = dpll_read(driver, driver->regs.shadow_manual_offset);
-    words[21] = ((dpll_sign_extend(dpll_read(driver, driver->regs.shadow_dac0_offset), 13U) & 0xFFFFU) << 16) |
+    words[17] = measurement_timeout;
+    words[18] = dpll_read(driver, driver->regs.shadow_holdover_timeout) & 0x00FFFFFFU;
+    words[19] = dpll_read(driver, driver->regs.shadow_positive_limit);
+    words[20] = negative_limit;
+    words[21] = dpll_read(driver, driver->regs.shadow_manual_offset);
+    words[22] = ((dpll_sign_extend(dpll_read(driver, driver->regs.shadow_dac0_offset), 13U) & 0xFFFFU) << 16) |
                 (dpll_sign_extend(dpll_read(driver, driver->regs.shadow_dac0_amplitude), 15U) & 0xFFFFU);
-    words[22] = ((dpll_sign_extend(dpll_read(driver, driver->regs.shadow_debug_dac_offset), 13U) & 0xFFFFU) << 16) |
+    words[23] = ((dpll_sign_extend(dpll_read(driver, driver->regs.shadow_debug_dac_offset), 13U) & 0xFFFFU) << 16) |
                 (dpll_sign_extend(dpll_read(driver, driver->regs.shadow_debug_dac_gain), 15U) & 0xFFFFU);
-    words[23] = dpll_read(driver, driver->regs.shadow_debug_dac_source);
-    words[24] = dpll_read(driver, driver->regs.shadow_debug_dac_format);
+    words[24] = dpll_read(driver, driver->regs.shadow_debug_dac_source);
+    words[25] = dpll_read(driver, driver->regs.shadow_debug_dac_format);
 
-    return dpll_config_crc_words(words, 25U);
+    return dpll_config_crc_words(words, 26U);
 }
 
 int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result)

@@ -7,6 +7,7 @@ module dpll_single_clock_core_stage_a #(
     parameter integer PHASE_WIDTH = 18,
     parameter integer MIXER_WIDTH = 18,
     parameter integer CIC_WIDTH = 20,
+    parameter integer MAG_WIDTH = 20,
     parameter integer FERR_WIDTH = 22,
     parameter integer COEFF_WIDTH = 24,
     parameter integer STATE_WIDTH = 56
@@ -32,8 +33,8 @@ module dpll_single_clock_core_stage_a #(
     input  wire signed [PHASE_WIDTH-1:0]         phase_setpoint,
     input  wire [PHASE_WIDTH-1:0]                phase_lock_threshold,
     input  wire [FERR_WIDTH-1:0]                 freq_lock_threshold,
-    input  wire [15:0]                           mag_enter_threshold,
-    input  wire [15:0]                           mag_exit_threshold,
+    input  wire [MAG_WIDTH-1:0]                  mag_enter_threshold,
+    input  wire [MAG_WIDTH-1:0]                  mag_exit_threshold,
     input  wire [15:0]                           acquire_dwell,
     input  wire [15:0]                           blend_dwell,
     input  wire [15:0]                           loss_dwell,
@@ -53,7 +54,7 @@ module dpll_single_clock_core_stage_a #(
     output wire                                  iq_valid,
     output wire signed [STATE_WIDTH-1:0]         freq_state,
     output wire signed [STATE_WIDTH-1:0]         freq_correction,
-    output wire [15:0]                           magnitude,
+    output wire [MAG_WIDTH-1:0]                  magnitude,
     output wire [3:0]                            loop_state,
     output wire [3:0]                            loss_reason,
     output wire                                  signal_present,
@@ -64,6 +65,9 @@ module dpll_single_clock_core_stage_a #(
     output wire [5:0]                            active_cic_output_shift,
     output wire                                  cic_overflow_seen,
     output wire                                  cic_illegal_config_seen,
+    output wire                                  cordic_input_overrun_seen,
+    output wire                                  cordic_input_out_of_range_seen,
+    output wire                                  cordic_output_format_error_seen,
     output wire signed [15:0]                    lo_cos,
     output wire signed [15:0]                    lo_sin
 );
@@ -99,18 +103,9 @@ module dpll_single_clock_core_stage_a #(
     reg signed [MIXER_WIDTH-1:0] mixer_i_cic_r;
     reg signed [MIXER_WIDTH-1:0] mixer_q_cic_r;
     wire cordic_valid;
-    wire [31:0] cordic_data;
-    wire signed [15:0] cordic_phase;
-    wire [15:0] cordic_magnitude;
-    wire signed [15:0] cordic_i_rounded;
-    wire signed [15:0] cordic_q_rounded;
-    reg cordic_round_valid_r;
-    reg signed [CIC_WIDTH-1:0] cordic_i_baseband_r;
-    reg signed [CIC_WIDTH-1:0] cordic_q_baseband_r;
-    reg cordic_input_valid_r;
-    reg signed [15:0] cordic_i_in_r;
-    reg signed [15:0] cordic_q_in_r;
     wire signed [PHASE_WIDTH-1:0] cordic_phase_word;
+    wire [MAG_WIDTH-1:0] cordic_magnitude;
+    wire cordic_busy;
     wire signed [PHASE_WIDTH-1:0] phase_error_next;
     wire [PHASE_WIDTH-1:0] phase_abs;
     wire [FERR_WIDTH-1:0] freq_abs;
@@ -119,12 +114,12 @@ module dpll_single_clock_core_stage_a #(
     wire fll_ambiguous;
     wire freq_error_usable;
     reg signed [PHASE_WIDTH-1:0] phase_error_hold;
-    reg [15:0] cordic_magnitude_hold;
+    reg [MAG_WIDTH-1:0] cordic_magnitude_hold;
     reg freq_error_valid_d;
     reg state_measurement_valid_r;
     reg [PHASE_WIDTH-1:0] state_phase_abs_r;
     reg [FERR_WIDTH-1:0] state_freq_abs_r;
-    reg [15:0] state_magnitude_r;
+    reg [MAG_WIDTH-1:0] state_magnitude_r;
     reg signal_present_r;
     wire correction_valid;
     wire [WORD_WIDTH-1:0] correction_tracking_word;
@@ -261,14 +256,14 @@ module dpll_single_clock_core_stage_a #(
         end
     end
 
-    input_multiplier input_multiplier_i_inst (
+    dpll_input_multiplier input_multiplier_i_inst (
         .CLK(clk_125m),
         .A(adc_sample_r1),
         .B(lo_cos_r1),
         .P(mixer_i_product)
     );
 
-    input_multiplier input_multiplier_q_inst (
+    dpll_input_multiplier input_multiplier_q_inst (
         .CLK(clk_125m),
         .A(adc_sample_r1),
         // LO_DDS_H is configured with Negative_Sine=true; use the IP output directly.
@@ -317,27 +312,6 @@ module dpll_single_clock_core_stage_a #(
         end
     end
 
-    function signed [15:0] round_cic20_to_cordic16;
-        input signed [CIC_WIDTH-1:0] value;
-        reg signed [CIC_WIDTH:0] magnitude_ext;
-        reg signed [CIC_WIDTH:0] rounded;
-        begin
-            if (value[CIC_WIDTH-1]) begin
-                magnitude_ext = -{value[CIC_WIDTH-1], value};
-                rounded = -((magnitude_ext + 21'sd8) >>> 4);
-            end else begin
-                rounded = ({value[CIC_WIDTH-1], value} + 21'sd8) >>> 4;
-            end
-            if (rounded > 21'sd32767) begin
-                round_cic20_to_cordic16 = 16'sh7fff;
-            end else if (rounded < -21'sd32768) begin
-                round_cic20_to_cordic16 = 16'sh8000;
-            end else begin
-                round_cic20_to_cordic16 = rounded[15:0];
-            end
-        end
-    endfunction
-
     post_iq_cic_stage_a #(
         .INPUT_WIDTH(MIXER_WIDTH),
         .ACC_WIDTH(44),
@@ -363,21 +337,26 @@ module dpll_single_clock_core_stage_a #(
         .illegal_config_seen(cic_illegal_config_seen)
     );
 
-    angle_CORDIC phase_cordic_inst (
-        .aclk(clk_125m),
-        .s_axis_cartesian_tvalid(cordic_input_valid_r),
-        .s_axis_cartesian_tdata({cordic_q_in_r, cordic_i_in_r}),
-        .m_axis_dout_tvalid(cordic_valid),
-        .m_axis_dout_tdata(cordic_data)
+    cordic_word_serial_adapter #(
+        .IQ_WIDTH(CIC_WIDTH),
+        .PHASE_WIDTH(PHASE_WIDTH),
+        .MAG_WIDTH(MAG_WIDTH)
+    ) phase_cordic_adapter_inst (
+        .clk_125m(clk_125m),
+        .rst_125m(rst_detector_r),
+        .clear(config_apply | cic_flush),
+        .in_valid(iq_valid),
+        .i_in(i_baseband),
+        .q_in(q_baseband),
+        .out_valid(cordic_valid),
+        .phase_out(cordic_phase_word),
+        .magnitude_out(cordic_magnitude),
+        .busy(cordic_busy),
+        .input_overrun_seen(cordic_input_overrun_seen),
+        .input_out_of_range_seen(cordic_input_out_of_range_seen),
+        .output_format_error_seen(cordic_output_format_error_seen)
     );
 
-    assign cordic_i_rounded = round_cic20_to_cordic16(cordic_i_baseband_r);
-    assign cordic_q_rounded = round_cic20_to_cordic16(cordic_q_baseband_r);
-    assign cordic_phase = cordic_data[31:16];
-    assign cordic_magnitude = cordic_data[15:0];
-    // Scaled-radians CORDIC uses +/-8192 for +/-pi; map its effective
-    // signed 14-bit full circle into the complete 18-bit phase domain.
-    assign cordic_phase_word = {cordic_phase[13:0], 4'b0000};
     assign phase_error_next = cordic_phase_word - phase_setpoint;
     assign phase_abs = phase_error_hold[PHASE_WIDTH-1] ?
                        (~phase_error_hold + {{(PHASE_WIDTH-1){1'b0}}, 1'b1}) :
@@ -390,36 +369,14 @@ module dpll_single_clock_core_stage_a #(
     assign freq_error_usable = freq_error_valid && !fll_ambiguous;
 
     always @(posedge clk_125m) begin
-        if (rst_detector_r) begin
-            cordic_round_valid_r <= 1'b0;
-            cordic_i_baseband_r <= {CIC_WIDTH{1'b0}};
-            cordic_q_baseband_r <= {CIC_WIDTH{1'b0}};
-            cordic_input_valid_r <= 1'b0;
-            cordic_i_in_r <= 16'sd0;
-            cordic_q_in_r <= 16'sd0;
-        end else begin
-            cordic_round_valid_r <= iq_valid;
-            cordic_input_valid_r <= cordic_round_valid_r;
-            if (iq_valid) begin
-                cordic_i_baseband_r <= i_baseband;
-                cordic_q_baseband_r <= q_baseband;
-            end
-            if (cordic_round_valid_r) begin
-                cordic_i_in_r <= cordic_i_rounded;
-                cordic_q_in_r <= cordic_q_rounded;
-            end
-        end
-    end
-
-    always @(posedge clk_125m) begin
         if (rst_measure_r) begin
             phase_error_hold <= {PHASE_WIDTH{1'b0}};
-            cordic_magnitude_hold <= 16'd0;
+            cordic_magnitude_hold <= {MAG_WIDTH{1'b0}};
             freq_error_valid_d <= 1'b0;
             state_measurement_valid_r <= 1'b0;
             state_phase_abs_r <= {PHASE_WIDTH{1'b0}};
             state_freq_abs_r <= {FERR_WIDTH{1'b0}};
-            state_magnitude_r <= 16'd0;
+            state_magnitude_r <= {MAG_WIDTH{1'b0}};
             signal_present_r <= 1'b0;
         end else begin
             freq_error_valid_d <= freq_error_usable;
@@ -429,11 +386,11 @@ module dpll_single_clock_core_stage_a #(
                 phase_error_hold <= phase_error_next;
                 cordic_magnitude_hold <= cordic_magnitude;
                 if (signal_present_r) begin
-                    if ((mag_exit_threshold != 16'd0) &&
+                    if ((mag_exit_threshold != {MAG_WIDTH{1'b0}}) &&
                         (cordic_magnitude < mag_exit_threshold)) begin
                         signal_present_r <= 1'b0;
                     end
-                end else if ((mag_enter_threshold == 16'd0) ||
+                end else if ((mag_enter_threshold == {MAG_WIDTH{1'b0}}) ||
                              (cordic_magnitude >= mag_enter_threshold)) begin
                     signal_present_r <= 1'b1;
                 end
@@ -453,7 +410,7 @@ module dpll_single_clock_core_stage_a #(
     loop_state_manager_stage_a #(
         .PHASE_WIDTH(PHASE_WIDTH),
         .FERR_WIDTH(FERR_WIDTH),
-        .MAG_WIDTH(16),
+        .MAG_WIDTH(MAG_WIDTH),
         .COEFF_WIDTH(COEFF_WIDTH),
         .DWELL_WIDTH(16),
         .TIMEOUT_WIDTH(24)

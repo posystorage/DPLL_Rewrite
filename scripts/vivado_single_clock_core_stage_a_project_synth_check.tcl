@@ -24,6 +24,18 @@ proc write_lines {path lines} {
 }
 
 open_project $project_file
+set dpll_cordic [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL DDC ip dpll_angle_CORDIC synth dpll_angle_CORDIC.vhd]
+set dpll_input_multiplier [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL DDC ip dpll_input_multiplier synth dpll_input_multiplier.vhd]
+set cordic_adapter [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL detector_fll cordic_word_serial_adapter.v]
+if {[llength [get_files -quiet $dpll_cordic]] == 0} {
+    add_files -fileset sources_1 $dpll_cordic
+}
+if {[llength [get_files -quiet $dpll_input_multiplier]] == 0} {
+    add_files -fileset sources_1 $dpll_input_multiplier
+}
+if {[llength [get_files -quiet $cordic_adapter]] == 0} {
+    add_files -fileset sources_1 $cordic_adapter
+}
 update_compile_order -fileset sources_1
 
 reset_run $synth_run

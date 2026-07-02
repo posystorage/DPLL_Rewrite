@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$VivadoBin = 'D:\Xilinx\Vivado\2018.3\bin'
+$VivadoBin = 'C:\Xilinx\Vivado\2018.3\bin'
 $RunStamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
 $OutDir = Join-Path $RepoRoot "reports\xsim\lo_dds_h_streaming_pinc_cli_$RunStamp"
 

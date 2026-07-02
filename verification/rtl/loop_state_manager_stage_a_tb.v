@@ -21,7 +21,7 @@ module loop_state_manager_stage_a_tb;
     reg signal_present_in = 1'b0;
     reg [17:0] phase_abs = 18'd0;
     reg [21:0] freq_abs = 22'd0;
-    reg [15:0] magnitude = 16'd0;
+    reg [19:0] magnitude = 20'd0;
     reg cic_fault = 1'b0;
     reg correction_saturated = 1'b0;
 
@@ -40,7 +40,9 @@ module loop_state_manager_stage_a_tb;
 
     always #4 clk = ~clk;
 
-    loop_state_manager_stage_a dut (
+    loop_state_manager_stage_a #(
+        .MAG_WIDTH(20)
+    ) dut (
         .clk_125m(clk),
         .rst_125m(rst),
         .loop_enable(loop_enable),
@@ -58,8 +60,8 @@ module loop_state_manager_stage_a_tb;
         .correction_saturated(correction_saturated),
         .phase_lock_threshold(18'd100),
         .freq_lock_threshold(22'd200),
-        .mag_enter_threshold(16'd10),
-        .mag_exit_threshold(16'd4),
+        .mag_enter_threshold(20'd10),
+        .mag_exit_threshold(20'd4),
         .acquire_dwell(16'd2),
         .blend_dwell(16'd2),
         .loss_dwell(16'd2),

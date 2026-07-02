@@ -11,6 +11,11 @@ module pll_vco_mul_div_tb;
     wire config_error;
 
     integer seen_first;
+    localparam integer MULT_LATENCY_CYCLES = 8;
+    localparam integer DIV_LATENCY_CYCLES = 83;
+    localparam integer DIV_CLOCKS_PER_DIVISION = 8;
+    localparam integer OUTPUT_TIMEOUT_CYCLES =
+        MULT_LATENCY_CYCLES + DIV_LATENCY_CYCLES + (2 * DIV_CLOCKS_PER_DIVISION) + 16;
 
     always #4 clk = ~clk;
 
@@ -46,7 +51,7 @@ module pll_vco_mul_div_tb;
         integer timeout;
         begin
             timeout = 0;
-            while (data_out !== expected && timeout < 96) begin
+            while (data_out !== expected && timeout < OUTPUT_TIMEOUT_CYCLES) begin
                 @(posedge clk);
                 #1;
                 timeout = timeout + 1;
@@ -70,7 +75,7 @@ module pll_vco_mul_div_tb;
         wait_output(48'd501);
 
         push_sample(48'd5, 16'd7, 16'd0);
-        repeat (96) @(posedge clk);
+        repeat (OUTPUT_TIMEOUT_CYCLES) @(posedge clk);
         #1;
         if (data_out !== 48'd501 || config_error !== 1'b1) begin
             $display("FAIL: DIV=0 should preserve previous output and set config_error, got out=%0d err=%b",
@@ -82,7 +87,7 @@ module pll_vco_mul_div_tb;
         wait_output(48'd1);
 
         push_sample(48'd1234, 16'd0, 16'd1);
-        repeat (96) @(posedge clk);
+        repeat (OUTPUT_TIMEOUT_CYCLES) @(posedge clk);
         #1;
         if (data_out !== 48'd1 || config_error !== 1'b1) begin
             $display("FAIL: MUL=0 should be rejected without output change, got out=%0d err=%b",

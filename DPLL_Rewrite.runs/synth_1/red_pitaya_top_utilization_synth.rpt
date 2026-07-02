@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Thu Jul  2 16:57:22 2026
+| Date         : Thu Jul  2 20:17:25 2026
 | Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 | Command      : report_utilization -file red_pitaya_top_utilization_synth.rpt -pb red_pitaya_top_utilization_synth.pb
 | Design       : red_pitaya_top
@@ -30,13 +30,13 @@ Table of Contents
 +----------------------------+-------+-------+-----------+-------+
 |          Site Type         |  Used | Fixed | Available | Util% |
 +----------------------------+-------+-------+-----------+-------+
-| Slice LUTs*                |  7986 |     0 |     17600 | 45.38 |
-|   LUT as Logic             |  7902 |     0 |     17600 | 44.90 |
+| Slice LUTs*                |  7989 |     0 |     17600 | 45.39 |
+|   LUT as Logic             |  7905 |     0 |     17600 | 44.91 |
 |   LUT as Memory            |    84 |     0 |      6000 |  1.40 |
 |     LUT as Distributed RAM |     0 |     0 |           |       |
 |     LUT as Shift Register  |    84 |     0 |           |       |
-| Slice Registers            | 10846 |     0 |     35200 | 30.81 |
-|   Register as Flip Flop    | 10846 |     0 |     35200 | 30.81 |
+| Slice Registers            | 10686 |     0 |     35200 | 30.36 |
+|   Register as Flip Flop    | 10686 |     0 |     35200 | 30.36 |
 |   Register as Latch        |     0 |     0 |     35200 |  0.00 |
 | F7 Muxes                   |   131 |     0 |      8800 |  1.49 |
 | F8 Muxes                   |     3 |     0 |      4400 |  0.07 |
@@ -59,7 +59,7 @@ Table of Contents
 | 125   |          Yes |           - |          Set |
 | 995   |          Yes |           - |        Reset |
 | 140   |          Yes |         Set |            - |
-| 9586  |          Yes |       Reset |            - |
+| 9426  |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -151,12 +151,12 @@ Table of Contents
 +-----------+------+----------------------+
 |  Ref Name | Used |  Functional Category |
 +-----------+------+----------------------+
-| FDRE      | 9586 |         Flop & Latch |
-| LUT2      | 2544 |                  LUT |
-| LUT6      | 2328 |                  LUT |
-| LUT3      | 1946 |                  LUT |
-| LUT4      | 1310 |                  LUT |
-| LUT5      | 1029 |                  LUT |
+| FDRE      | 9426 |         Flop & Latch |
+| LUT2      | 2543 |                  LUT |
+| LUT6      | 2326 |                  LUT |
+| LUT3      | 1944 |                  LUT |
+| LUT4      | 1314 |                  LUT |
+| LUT5      | 1031 |                  LUT |
 | CARRY4    | 1018 |           CarryLogic |
 | FDCE      |  995 |         Flop & Latch |
 | LUT1      |  788 |                  LUT |
@@ -194,8 +194,8 @@ Table of Contents
 | LO_DDS_H                    |    2 |
 | pre_iq_cic_40_125m_v1       |    1 |
 | mult_gen_pll                |    1 |
+| dpll_angle_CORDIC           |    1 |
 | div_gen_pll_u               |    1 |
-| cordic_v6_0_14              |    1 |
 | clk_10MHz_sync              |    1 |
 | angle_CORDIC                |    1 |
 | DAC_DDS0                    |    1 |

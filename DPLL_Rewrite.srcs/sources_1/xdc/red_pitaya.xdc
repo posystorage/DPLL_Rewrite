@@ -232,9 +232,7 @@ create_generated_clock -name dna_clk -source [get_ports adc_clk_p_i] -divide_by 
 set dpll_cdc_first_stage_d [get_pins -quiet -hier -filter {
   NAME =~ *dpll_wrapper_inst/*meta*_reg/D
 }]
-if {[llength $dpll_cdc_first_stage_d] > 0} {
-  set_false_path -to $dpll_cdc_first_stage_d
-}
+set_false_path -quiet -to $dpll_cdc_first_stage_d
 
 set dpll_shadow_q [get_pins -quiet -hier -filter {
   NAME =~ *dpll_wrapper_inst/reg_*/*register_output_reg*/Q
@@ -242,9 +240,7 @@ set dpll_shadow_q [get_pins -quiet -hier -filter {
 set dpll_active_d [get_pins -quiet -hier -filter {
   NAME =~ *dpll_wrapper_inst/active*_reg*/D
 }]
-if {[llength $dpll_shadow_q] > 0 && [llength $dpll_active_d] > 0} {
-  set_max_delay -datapath_only 16.000 -from $dpll_shadow_q -to $dpll_active_d
-}
+set_max_delay -quiet -datapath_only -from $dpll_shadow_q -to $dpll_active_d 16.000
 
 set dpll_status_q [get_pins -quiet -hier -filter {
   NAME =~ *dpll_wrapper_inst/status_response_data_clk_reg*/Q
@@ -252,13 +248,9 @@ set dpll_status_q [get_pins -quiet -hier -filter {
 set dpll_sys_rdata_d [get_pins -quiet -hier -filter {
   NAME =~ *dpll_wrapper_inst/sys_rdata_reg*/D
 }]
-if {[llength $dpll_status_q] > 0 && [llength $dpll_sys_rdata_d] > 0} {
-  set_max_delay -datapath_only 20.000 -from $dpll_status_q -to $dpll_sys_rdata_d
-}
+set_max_delay -quiet -datapath_only -from $dpll_status_q -to $dpll_sys_rdata_d 20.000
 
 set dpll_status_addr_q [get_pins -quiet -hier -filter {
   NAME =~ *dpll_wrapper_inst/status_request_addr_sys_reg*/Q
 }]
-if {[llength $dpll_status_addr_q] > 0 && [llength $dpll_status_q] > 0} {
-  set_max_delay -datapath_only 20.000 -from $dpll_status_addr_q -to $dpll_status_q
-}
+set_max_delay -quiet -datapath_only -from $dpll_status_addr_q -to $dpll_status_q 20.000

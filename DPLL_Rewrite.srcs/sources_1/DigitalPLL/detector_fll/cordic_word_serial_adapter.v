@@ -65,6 +65,7 @@ module cordic_word_serial_adapter #(
         .s_axis_cartesian_tready(cordic_s_tready),
         .s_axis_cartesian_tdata(cordic_s_tdata),
         .m_axis_dout_tvalid(cordic_m_tvalid),
+        .m_axis_dout_tready(1'b1),
         .m_axis_dout_tdata(cordic_m_tdata)
     );
 

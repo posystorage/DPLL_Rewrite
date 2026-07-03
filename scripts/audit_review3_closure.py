@@ -9,6 +9,7 @@ and a matching automated verification artifact in the current worktree.
 from __future__ import annotations
 
 import subprocess
+import re
 from pathlib import Path
 
 
@@ -50,6 +51,18 @@ def check(condition: bool, requirement: str, evidence: str) -> tuple[str, bool]:
 
 def contains_all(text: str, tokens: list[str]) -> bool:
     return all(token in text for token in tokens)
+
+
+def function_body(text: str, name: str) -> str:
+    match = re.search(rf"(?:static\s+)?(?:void|int|uint8_t)\s+{name}\s*\([^)]*\)\s*\{{", text)
+    if not match:
+        return ""
+    depth = 1
+    index = match.end()
+    while index < len(text) and depth:
+        depth += (text[index] == "{") - (text[index] == "}")
+        index += 1
+    return text[match.end():index - 1] if depth == 0 else ""
 
 
 def main() -> int:
@@ -100,14 +113,16 @@ def main() -> int:
         "CMD_86_WRITE_DPLL_LOOP_BASIC",
         "CMD_87_WRITE_PLL_AMP",
         "CMD_8F_WRITE_DPLL_ADV_CONFIG",
-        "CMD_97_WRITE_DPLL_DEBUG_CONFIG",
     ]
     checks.append(check(
         all(cmd in arm for cmd in auto_apply_commands)
-        and arm.count("pc_send_dpll_apply_result(dpll_apply_config());") >= 8
+        and arm.count("pc_send_dpll_apply_result(dpll_apply_config());") >= 7
+        and "CMD_97_WRITE_DPLL_DEBUG_CONFIG" in arm
+        and "PC_HOST_Send_ASK_Only(0);" in function_body(arm, "CMD_97_WRITE_DPLL_DEBUG_CONFIG")
+        and "dpll_apply_config" not in function_body(arm, "CMD_97_WRITE_DPLL_DEBUG_CONFIG")
         and "return (dpll_apply_config() == 0) ? STATUS_ACK : STATUS_NACK;" in arm,
-        "P0-2 high-level ARM SET commands no longer ACK shadow-only writes",
-        "PC and STM DPLL write paths call `dpll_apply_config()` and report the apply result",
+        "P0-2 high-level ARM SET commands distinguish shadow/apply and live debug writes",
+        "PC and STM DPLL shadow write paths call `dpll_apply_config()`; `CMD_97` updates live DACout1 debug registers without CONFIG_APPLY",
     ))
 
     checks.append(check(

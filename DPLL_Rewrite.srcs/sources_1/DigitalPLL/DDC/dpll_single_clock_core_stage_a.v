@@ -270,32 +270,44 @@ module dpll_single_clock_core_stage_a #(
         .B(lo_sin_r1),
         .P(mixer_q_product)
     );
+    
+    
+    
 
-    function signed [15:0] round_product32_to_s16;
-        input signed [31:0] value;
-        reg signed [32:0] magnitude_ext;
-        reg signed [32:0] rounded_ext;
-        begin
-            if (value[31]) begin
-                magnitude_ext = -{value[31], value};
-                rounded_ext = -((magnitude_ext + 33'sd16384) >>> 15);
-            end else begin
-                rounded_ext = ({value[31], value} + 33'sd16384) >>> 15;
-            end
-            if (rounded_ext > 33'sd32767) begin
-                round_product32_to_s16 = 16'sh7fff;
-            end else if (rounded_ext < -33'sd32768) begin
-                round_product32_to_s16 = 16'sh8000;
-            end else begin
-                round_product32_to_s16 = rounded_ext[15:0];
-            end
-        end
-    endfunction
+//    function signed [15:0] round_product32_to_s16;
+//        input signed [31:0] value;
+//        reg signed [32:0] magnitude_ext;
+//        reg signed [32:0] rounded_ext;
+//        begin
+//            if (value[31]) begin
+//                magnitude_ext = -{value[31], value};
+//                rounded_ext = -((magnitude_ext + 33'sd16384) >>> 15);
+//            end else begin
+//                rounded_ext = ({value[31], value} + 33'sd16384) >>> 15;
+//            end
+//            if (rounded_ext > 33'sd32767) begin
+//                round_product32_to_s16 = 16'sh7fff;
+//            end else if (rounded_ext < -33'sd32768) begin
+//                round_product32_to_s16 = 16'sh8000;
+//            end else begin
+//                round_product32_to_s16 = rounded_ext[15:0];
+//            end
+//        end
+//    endfunction
 
-    assign mixer_i_rounded = round_product32_to_s16(mixer_i_product_r);
-    assign mixer_q_rounded = round_product32_to_s16(mixer_q_product_r);
-    assign mixer_i = {{(MIXER_WIDTH-16){mixer_i_rounded[15]}}, mixer_i_rounded};
-    assign mixer_q = {{(MIXER_WIDTH-16){mixer_q_rounded[15]}}, mixer_q_rounded};
+//    assign mixer_i_rounded = round_product32_to_s16(mixer_i_product_r);
+//    assign mixer_q_rounded = round_product32_to_s16(mixer_q_product_r);
+//    assign mixer_i = {{(MIXER_WIDTH-16){mixer_i_rounded[15]}}, mixer_i_rounded};
+//    assign mixer_q = {{(MIXER_WIDTH-16){mixer_q_rounded[15]}}, mixer_q_rounded};
+
+    wire signed [17:0] mixer_i_trunc18 = mixer_i_product_r[30:13];
+    wire signed [17:0] mixer_q_trunc18 = mixer_q_product_r[30:13];
+    
+    wire mixer_i_pos_overflow_18 = (mixer_i_product_r[31:13] == 19'h2_0000);
+    wire mixer_q_pos_overflow_18 = (mixer_q_product_r[31:13] == 19'h2_0000);
+    
+    assign mixer_i = mixer_i_pos_overflow_18 ? 18'sh1ffff : mixer_i_trunc18;
+    assign mixer_q = mixer_q_pos_overflow_18 ? 18'sh1ffff : mixer_q_trunc18;
     assign mixer_valid = mixer_round_valid_r;
 
     always @(posedge clk_125m) begin

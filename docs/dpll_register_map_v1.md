@@ -64,6 +64,8 @@ ARM must not enable the DPLL when ABI/build checks fail.
 | `0x0063` | `WARMUP_SAMPLES` | shadow/apply |
 | `0x006F` | `CONFIG_APPLY` | apply trigger/status command |
 
+The `0x0040..0x0043` debug DAC registers are not part of the shadow/apply set. A write to `DEBUG_DAC_SOURCE` switches the DACout1 debug source through the live debug CDC path and must not change the active configuration CRC, loop state, or apply sequence.
+
 `CONFIG_APPLY` write bit 0 requests a commit of the shadow register set. Reads return bit 0 as apply busy and bits 15:8 as an applied sequence counter. ARM software must wait for the sequence counter to change and busy to clear before acknowledging that an apply completed.
 
 `HOLDOVER_TIMEOUT` uses raw 125 MHz clock ticks in the current v1 ABI. The active low 24 bits feed both the no-measurement watchdog and the holdover-to-fault timeout. A programmed value of zero is interpreted by RTL as one tick.

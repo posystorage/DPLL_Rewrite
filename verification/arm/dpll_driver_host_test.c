@@ -76,8 +76,6 @@ typedef struct {
     uint32_t delay_count;
     uint32_t make_good_after_delays;
     uint32_t apply_mode;
-    uint32_t debug_shadow;
-    uint32_t debug_active;
 } mock_mmio_t;
 
 static const dpll_identity_t expected_identity = {
@@ -175,7 +173,7 @@ static uint32_t expected_crc(mock_mmio_t *mock)
     uint32_t r = MEM(mock, REG_R) & 0x1ffU;
     uint32_t measurement = MEM(mock, REG_MEAS_TIMEOUT) & 0x00ffffffU;
     uint32_t negative_limit = MEM(mock, REG_NEG_LIMIT);
-    uint32_t words[26];
+    uint32_t words[23];
     uint32_t i;
 
     if (measurement == 0U) {
@@ -210,12 +208,7 @@ static uint32_t expected_crc(mock_mmio_t *mock)
     words[21] = MEM(mock, REG_MANUAL_OFFSET);
     words[22] = ((sign_extend_width(MEM(mock, REG_DAC0_OFFSET), 13U) & 0xffffU) << 16) |
                 (sign_extend_width(MEM(mock, REG_DAC0_AMP), 15U) & 0xffffU);
-    words[23] = ((sign_extend_width(MEM(mock, REG_DEBUG_OFFSET), 13U) & 0xffffU) << 16) |
-                (sign_extend_width(MEM(mock, REG_DEBUG_GAIN), 15U) & 0xffffU);
-    words[24] = MEM(mock, REG_DEBUG_SOURCE);
-    words[25] = MEM(mock, REG_DEBUG_FORMAT);
-
-    for (i = 0U; i < 26U; ++i) {
+    for (i = 0U; i < 23U; ++i) {
         crc = crc_mix(crc, words[i]);
     }
     return crc;
@@ -237,7 +230,6 @@ static void copy_active(mock_mmio_t *mock)
     MEM(mock, REG_ACTIVE_KIB) = sign_extend_24(MEM(mock, REG_KIB));
     MEM(mock, REG_APPLIED_ABI) = expected_identity.abi_version;
     MEM(mock, REG_ACTIVE_CRC) = expected_crc(mock);
-    mock->debug_active = mock->debug_shadow;
 }
 
 static uint32_t mock_read(void *context, uint32_t address)
@@ -344,7 +336,6 @@ static int test_atomic_apply_and_active_verify(void)
     dpll_apply_result_t result;
     init_driver(&driver, &mock);
     seed_good_identity(&mock);
-    mock.debug_shadow = 0xabcdef01U;
     CHECK(dpll_driver_check_abi(&driver) == DPLL_DRIVER_OK);
     CHECK(dpll_driver_apply(&driver, &result) == DPLL_DRIVER_OK);
     CHECK(result.accepted == 1U);
@@ -352,7 +343,6 @@ static int test_atomic_apply_and_active_verify(void)
     CHECK(result.active_r == 78U);
     CHECK(result.active_shift == 13U);
     CHECK(mock.writes_address[mock.write_count - 1U] == REG_APPLY);
-    CHECK(mock.debug_active == mock.debug_shadow);
     return 0;
 }
 

@@ -1056,7 +1056,7 @@ void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 	Xil_Out32(DAC1_DDS_Phase_Addr, pc_get_u32(8));
 	Xil_Out32(DAC1_DDS_Offset_Addr, pc_get_u16(12));
 	Xil_Out32(DAC1_DDS_Amplitude_Addr, pc_get_u16(14));
-	pc_send_dpll_apply_result(dpll_apply_config());
+	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_9A_WRITE_VBIAS_DAC(void)
 {

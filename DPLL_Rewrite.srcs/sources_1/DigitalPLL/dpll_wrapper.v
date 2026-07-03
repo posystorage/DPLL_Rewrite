@@ -77,6 +77,10 @@ wire signed [31:0] debug_dac_offset;
 wire signed [31:0] debug_dac_gain;
 wire [31:0] debug_dac_source;
 wire [31:0] debug_dac_format;
+wire        debug_dac_offset_update;
+wire        debug_dac_gain_update;
+wire        debug_dac_source_update;
+wire        debug_dac_format_update;
 wire [31:0] Phase_Residuals_Threshold0;
 wire [31:0] Phase_Residuals_Offset0;
 wire [31:0] Freq_Residuals_Threshold0;
@@ -195,16 +199,16 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VAL
 );
 
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0040)) reg_debug_offset (
-    .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_offset), .update_flag()
+    .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_offset), .update_flag(debug_dac_offset_update)
 );
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_DAC_AMP), .ADDRESS(16'h0041)) reg_debug_gain (
-    .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_gain), .update_flag()
+    .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_gain), .update_flag(debug_dac_gain_update)
 );
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0042)) reg_debug_source (
-    .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_source), .update_flag()
+    .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_source), .update_flag(debug_dac_source_update)
 );
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0043)) reg_debug_format (
-    .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_format), .update_flag()
+    .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(debug_dac_format), .update_flag(debug_dac_format_update)
 );
 
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(DEFAULT_PHASE_THR), .ADDRESS(16'h0050)) reg_phase_thr (
@@ -394,8 +398,6 @@ wire shadow_phase_width_legal =
 wire shadow_dac_width_legal =
     (VCO_Voffset0[31:14] == {18{VCO_Voffset0[13]}}) &&
     (VCO_Vamplitude0[31:16] == {16{VCO_Vamplitude0[15]}}) &&
-    (debug_dac_offset[31:14] == {18{debug_dac_offset[13]}}) &&
-    (debug_dac_gain[31:16] == {16{debug_dac_gain[15]}}) &&
     (VCO_Mul_Factor0[31:16] == 16'd0) &&
     (VCO_Div_Factor0[31:16] == 16'd0);
 wire shadow_detector_width_legal =
@@ -467,9 +469,6 @@ function [31:0] dpll_config_crc;
     input [31:0] correction_limit_neg;
     input [31:0] manual_offset;
     input [31:0] dac0_pair;
-    input [31:0] debug_dac_pair;
-    input [31:0] debug_source;
-    input [31:0] debug_format;
     reg [31:0] crc;
     begin
         crc = 32'h4450_4C4C; // "DPLL"
@@ -495,10 +494,7 @@ function [31:0] dpll_config_crc;
         crc = config_crc_mix(crc, correction_limit_pos);
         crc = config_crc_mix(crc, correction_limit_neg);
         crc = config_crc_mix(crc, manual_offset);
-        crc = config_crc_mix(crc, dac0_pair);
-        crc = config_crc_mix(crc, debug_dac_pair);
-        crc = config_crc_mix(crc, debug_source);
-        dpll_config_crc = config_crc_mix(crc, debug_format);
+        dpll_config_crc = config_crc_mix(crc, dac0_pair);
     end
 endfunction
 
@@ -529,10 +525,6 @@ reg [1:0] active_fll_delay_sel;
 reg signed [31:0] active_manual_offset_dac0;
 reg signed [13:0] active_vco_offset;
 reg signed [15:0] active_vco_amplitude;
-reg signed [13:0] active_debug_dac_offset;
-reg signed [15:0] active_debug_dac_gain;
-reg [31:0] active_debug_dac_source;
-reg [31:0] active_debug_dac_format;
 reg [15:0] active_vco_mul_factor;
 reg [15:0] active_vco_div_factor;
 reg config_apply_core_pulse;
@@ -567,6 +559,17 @@ reg [31:0] status_response_data_clk;
 (* ASYNC_REG = "TRUE" *) reg status_response_meta_sys;
 (* ASYNC_REG = "TRUE" *) reg status_response_sync_sys;
 reg status_response_seen_sys;
+reg debug_commit_toggle_sys;
+(* ASYNC_REG = "TRUE" *) reg debug_commit_meta_clk;
+(* ASYNC_REG = "TRUE" *) reg debug_commit_sync_clk;
+reg debug_commit_seen_clk;
+reg signed [13:0] live_debug_dac_offset;
+reg signed [15:0] live_debug_dac_gain;
+reg [31:0] live_debug_dac_source;
+reg [31:0] live_debug_dac_format;
+wire debug_commit_pulse_clk = debug_commit_sync_clk ^ debug_commit_seen_clk;
+wire debug_dac_live_update_sys = debug_dac_offset_update || debug_dac_gain_update ||
+                                 debug_dac_source_update || debug_dac_format_update;
 
 always @(posedge sys_clk or negedge sys_rstn) begin
     if (!sys_rstn) begin
@@ -586,10 +589,12 @@ always @(posedge sys_clk or negedge sys_rstn) begin
         config_ack_sync_sys <= 1'b0;
         config_ack_seen_sys <= 1'b0;
         reset_toggle_sys <= 1'b0;
+        debug_commit_toggle_sys <= 1'b0;
     end else begin
         config_ack_meta_sys <= config_ack_toggle_clk;
         config_ack_sync_sys <= config_ack_meta_sys;
         if (ok_reset) reset_toggle_sys <= ~reset_toggle_sys;
+        if (debug_dac_live_update_sys) debug_commit_toggle_sys <= ~debug_commit_toggle_sys;
         case (config_apply_state)
             APPLY_STATE_IDLE: begin
                 if (config_apply_flag && !config_apply_busy) begin
@@ -658,6 +663,9 @@ always @(posedge clk1 or negedge rst) begin
         reset_seen_clk <= 1'b0;
         pll0_lock_meta <= 1'b0;
         pll0_lock_sync <= 1'b0;
+        debug_commit_meta_clk <= 1'b0;
+        debug_commit_sync_clk <= 1'b0;
+        debug_commit_seen_clk <= 1'b0;
         config_apply_core_pulse <= 1'b0;
         active_center_word <= 48'h0000_0000_0000;
         active_kf <= 24'sd8;
@@ -686,21 +694,30 @@ always @(posedge clk1 or negedge rst) begin
         active_manual_offset_dac0 <= 32'sd0;
         active_vco_offset <= 14'sd0;
         active_vco_amplitude <= DEFAULT_DAC_AMP[15:0];
-        active_debug_dac_offset <= 14'sd0;
-        active_debug_dac_gain <= DEFAULT_DAC_AMP[15:0];
-        active_debug_dac_source <= 32'd0;
-        active_debug_dac_format <= 32'd0;
+        live_debug_dac_offset <= 14'sd0;
+        live_debug_dac_gain <= DEFAULT_DAC_AMP[15:0];
+        live_debug_dac_source <= 32'd0;
+        live_debug_dac_format <= 32'd0;
         active_vco_mul_factor <= DEFAULT_FREQ_MUL[15:0];
         active_vco_div_factor <= DEFAULT_FREQ_DIV[15:0];
     end else begin
         config_commit_meta_clk <= config_commit_toggle_sys;
         config_commit_sync_clk <= config_commit_meta_clk;
+        debug_commit_meta_clk <= debug_commit_toggle_sys;
+        debug_commit_sync_clk <= debug_commit_meta_clk;
         reset_meta_clk <= reset_toggle_sys;
         reset_sync_clk <= reset_meta_clk;
         pll0_lock_meta <= pll0_lock_i;
         pll0_lock_sync <= pll0_lock_meta;
         config_apply_core_pulse <= 1'b0;
         if (reset_pulse_clk) reset_seen_clk <= reset_sync_clk;
+        if (debug_commit_pulse_clk) begin
+            debug_commit_seen_clk <= debug_commit_sync_clk;
+            live_debug_dac_offset <= debug_dac_offset[13:0];
+            live_debug_dac_gain <= debug_dac_gain[15:0];
+            live_debug_dac_source <= debug_dac_source;
+            live_debug_dac_format <= debug_dac_format;
+        end
         if (config_commit_pulse_clk) begin
             config_commit_seen_clk <= config_commit_sync_clk;
             config_ack_toggle_clk <= ~config_ack_toggle_clk;
@@ -733,10 +750,6 @@ always @(posedge clk1 or negedge rst) begin
             active_manual_offset_dac0 <= manual_offset_dac0;
             active_vco_offset <= VCO_Voffset0[13:0];
             active_vco_amplitude <= VCO_Vamplitude0[15:0];
-            active_debug_dac_offset <= debug_dac_offset[13:0];
-            active_debug_dac_gain <= debug_dac_gain[15:0];
-            active_debug_dac_source <= debug_dac_source;
-            active_debug_dac_format <= debug_dac_format;
             active_vco_mul_factor <= shadow_vco_mul_factor;
             active_vco_div_factor <= shadow_vco_div_factor;
         end
@@ -768,10 +781,7 @@ wire [31:0] active_config_crc = dpll_config_crc(
     active_correction_limit_pos[31:0],
     active_correction_limit_neg[31:0],
     active_manual_offset_dac0,
-    {{2{active_vco_offset[13]}}, active_vco_offset, active_vco_amplitude},
-    {{2{active_debug_dac_offset[13]}}, active_debug_dac_offset, active_debug_dac_gain},
-    active_debug_dac_source,
-    active_debug_dac_format
+    {{2{active_vco_offset[13]}}, active_vco_offset, active_vco_amplitude}
 );
 
 dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
@@ -916,7 +926,7 @@ always @(posedge clk1) begin
     if (rst_debug_r) begin
         debug_word_r <= 32'sd0;
     end else begin
-        debug_word_r <= debug_source_mux(active_debug_dac_source[3:0]);
+        debug_word_r <= debug_source_mux(live_debug_dac_source[3:0]);
     end
 end
 
@@ -925,9 +935,9 @@ debug_dac_formatter_stage_a debug_dac_formatter_inst (
     .rst_125m(rst_debug_r),
     .source_valid(1'b1),
     .source_word(debug_word_r),
-    .format_word(active_debug_dac_format),
-    .gain(active_debug_dac_gain),
-    .offset({{2{active_debug_dac_offset[13]}}, active_debug_dac_offset}),
+    .format_word(live_debug_dac_format),
+    .gain(live_debug_dac_gain),
+    .offset({{2{live_debug_dac_offset[13]}}, live_debug_dac_offset}),
     .dac_sample(DACout1)
 );
 

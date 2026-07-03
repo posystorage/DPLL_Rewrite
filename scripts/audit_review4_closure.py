@@ -226,7 +226,6 @@ def main() -> int:
         ])
         and contains_all(driver_h, [
             "shadow_phase_threshold",
-            "shadow_debug_dac_format",
             "active_config_crc",
         ])
         and contains_all(driver_c, [
@@ -235,13 +234,19 @@ def main() -> int:
             "shadow_negative_limit",
             "active_config_crc",
         ])
+        and "shadow_debug_dac_source" not in driver_c
+        and contains_all(wrapper, [
+            "live_debug_dac_source",
+            "debug_dac_live_update_sys",
+            "debug_commit_pulse_clk",
+        ])
         and contains_all(arm_tb, [
             "APPLY_BAD_CRC",
             "test_active_crc_covers_non_legacy_readback_fields",
         ])
-        and "active config crc" in wrapper_tb,
+        and "debug source changed active config" in wrapper_tb,
         "P1 ARM applies verify the complete active configuration through an active-config CRC",
-        "RTL exposes `0x011E` active CRC; ARM driver computes the same normalized CRC over shadow fields and host/RTL tests cover mismatch detection",
+        "RTL exposes `0x011E` active CRC; ARM driver computes the same normalized CRC over active fields while DACout1 debug registers stay live-only",
     ))
 
     tracked_build_headers = {

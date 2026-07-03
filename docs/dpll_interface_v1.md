@@ -90,6 +90,8 @@ Configuration sources are split into:
 - shadow configuration: center word, gains, limits, thresholds, CIC R/scale, FLL config, dwell, output MUL/DIV.
 - active configuration: complete coherent snapshot used by the algorithm.
 
+The DACout1 debug registers are live-only. Writes to `DEBUG_DAC_SOURCE`, `DEBUG_DAC_FORMAT`, `DEBUG_DAC_GAIN`, or `DEBUG_DAC_OFFSET` update the DACout1 debug formatter without asserting `CONFIG_APPLY`, changing the active DPLL snapshot, or forcing a loop reacquire.
+
 Apply sequence:
 
 ```text

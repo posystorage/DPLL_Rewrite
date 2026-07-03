@@ -80,13 +80,24 @@ class DpllArmControlContractTest(unittest.TestCase):
             "CMD_86_WRITE_DPLL_LOOP_BASIC",
             "CMD_87_WRITE_PLL_AMP",
             "CMD_8F_WRITE_DPLL_ADV_CONFIG",
-            "CMD_97_WRITE_DPLL_DEBUG_CONFIG",
         )
         for command in commands:
             with self.subTest(command=command):
                 body = function_body(self.arm, command)
                 self.assertIn("pc_send_dpll_apply_result(dpll_apply_config())", body)
                 self.assertNotIn("PC_HOST_Send_ASK_Only(0);", body)
+
+    def test_debug_dac_command_is_live_only(self):
+        body = function_body(self.arm, "CMD_97_WRITE_DPLL_DEBUG_CONFIG")
+        for name in (
+            "DAC1_DDS_Frequency_Addr",
+            "DAC1_DDS_Phase_Addr",
+            "DAC1_DDS_Offset_Addr",
+            "DAC1_DDS_Amplitude_Addr",
+        ):
+            self.assertIn(name, body)
+        self.assertIn("PC_HOST_Send_ASK_Only(0);", body)
+        self.assertNotIn("dpll_apply_config", body)
 
     def test_advanced_payload_includes_separate_measurement_timeout(self):
         self.assertRegex(self.arm, r"#define\s+DPLL_ADV_CONFIG_PAYLOAD_BYTES\s+46U")
@@ -109,7 +120,6 @@ class DpllArmControlContractTest(unittest.TestCase):
             "APPLY_STUCK",
             "APPLY_VERIFY_MISMATCH",
             "test_reset_invalidates_and_rechecks_abi",
-            "debug_active",
         ):
             self.assertIn(needle, self.host_test)
 

@@ -94,7 +94,7 @@ The exact phase relationship to the decimated sample must be owned and tested by
 - No ARM register ABI change in this RFC.
 - No top-level `red_pitaya_top.v` port change in Stage A.
 - No DACout1 behavior change beyond preserving its debug-only role.
-- No change to `ADCraw1`; it remains outside the DPLL path and continues to feed the independent frequency meter.
+- `ADCraw1` remains outside the DPLL path and continues to feed the independent frequency meter; `dpll_wrapper` must not expose an ADC1 port.
 - No timing false path or clock group constraint shall be added to hide a real synchronous design issue.
 
 ## Acceptance Gates

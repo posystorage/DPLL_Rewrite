@@ -10,8 +10,8 @@ module debug_dac_formatter_stage_a(input clk_125m,input rst_125m,input source_va
 
 module dpll_wrapper_cdc_tb;
  reg clk1=0,sys_clk=0,rst=0,sys_rstn=0; always #4 clk1=~clk1; always #5.5 sys_clk=~sys_clk;
- reg signed [15:0] ADCraw0=0,ADCraw1=0; wire signed [15:0] DACout0,DACout1; reg [31:0] sys_addr=0,sys_wdata=0; reg [3:0] sys_sel=4'hf; reg sys_wen=0,sys_ren=0; wire [31:0] sys_rdata; wire sys_err,sys_ack; wire [6:0] led;
- dpll_wrapper dut(.clk1(clk1),.rst(rst),.sys_clk(sys_clk),.sys_rstn(sys_rstn),.ADCraw0(ADCraw0),.ADCraw1(ADCraw1),.DACout0(DACout0),.DACout1(DACout1),.sys_addr(sys_addr),.sys_wdata(sys_wdata),.sys_sel(sys_sel),.sys_wen(sys_wen),.sys_ren(sys_ren),.sys_rdata(sys_rdata),.sys_err(sys_err),.sys_ack(sys_ack),.led(led));
+ reg signed [15:0] ADCraw0=0; wire signed [15:0] DACout0,DACout1; reg [31:0] sys_addr=0,sys_wdata=0; reg [3:0] sys_sel=4'hf; reg sys_wen=0,sys_ren=0; wire [31:0] sys_rdata; wire sys_err,sys_ack; wire [6:0] led;
+ dpll_wrapper dut(.clk1(clk1),.rst(rst),.sys_clk(sys_clk),.sys_rstn(sys_rstn),.ADCraw0(ADCraw0),.DACout0(DACout0),.DACout1(DACout1),.sys_addr(sys_addr),.sys_wdata(sys_wdata),.sys_sel(sys_sel),.sys_wen(sys_wen),.sys_ren(sys_ren),.sys_rdata(sys_rdata),.sys_err(sys_err),.sys_ack(sys_ack),.led(led));
  task wr; input [15:0] a; input [31:0] d; begin @(negedge sys_clk); sys_addr={14'd0,a,2'b00}; sys_wdata=d; sys_wen=1; @(posedge sys_clk); #1; if(!sys_ack) begin $display("FAIL: write ack addr=%h",a);$finish;end @(negedge sys_clk);sys_wen=0; end endtask
  task wr_expect_err; input [15:0] a; input [31:0] d; begin @(negedge sys_clk); sys_addr={14'd0,a,2'b00}; sys_wdata=d; sys_wen=1; @(posedge sys_clk); #1; if(!sys_ack||!sys_err) begin $display("FAIL: busy write did not return err addr=%h ack=%b err=%b",a,sys_ack,sys_err);$finish;end @(negedge sys_clk);sys_wen=0; end endtask
  task rd; input [15:0] a; output [31:0] d; integer n; begin @(negedge sys_clk);sys_addr={14'd0,a,2'b00};sys_ren=1;@(posedge sys_clk);#1;@(negedge sys_clk);sys_ren=0;n=0;while(!sys_ack&&n<20)begin @(posedge sys_clk);#1;n=n+1;end if(!sys_ack)begin $display("FAIL: read timeout addr=%h",a);$finish;end d=sys_rdata;end endtask

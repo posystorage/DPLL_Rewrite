@@ -90,10 +90,10 @@ class DpllArmControlContractTest(unittest.TestCase):
     def test_debug_dac_command_is_live_only(self):
         body = function_body(self.arm, "CMD_97_WRITE_DPLL_DEBUG_CONFIG")
         for name in (
-            "DAC1_DDS_Frequency_Addr",
-            "DAC1_DDS_Phase_Addr",
-            "DAC1_DDS_Offset_Addr",
-            "DAC1_DDS_Amplitude_Addr",
+            "DPLL_DEBUG_DAC_SOURCE_ADDR",
+            "DPLL_DEBUG_DAC_FORMAT_ADDR",
+            "DPLL_DEBUG_DAC_OFFSET_ADDR",
+            "DPLL_DEBUG_DAC_GAIN_ADDR",
         ):
             self.assertIn(name, body)
         self.assertIn("PC_HOST_Send_ASK_Only(0);", body)

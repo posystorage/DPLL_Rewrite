@@ -472,7 +472,6 @@ dpll_wrapper dpll_wrapper_inst (
 
   // analog data input/output interface
   .ADCraw0                 (  ADCraw0                    ),
-  .ADCraw1                 (  ADCraw1                    ),
   .DACout0                 (  DACout0                    ),
   .DACout1                 (  DACout1                    ),
 
@@ -500,6 +499,7 @@ Digital_Freq_Meter Digital_Freq_Meter_inst (
   //.clk_10M_ref             (  ref_10m_clk_in             ),//10MHz��׼�ο�ʱ��
   .rst                     (  adc_rstn                   ), // ����Ч
 
+  // ADC1 is intentionally owned by the independent frequency-meter path.
   .ADCraw                 (  ADCraw1                    ),
 
   .sys_addr               ( sys_addr                  ),

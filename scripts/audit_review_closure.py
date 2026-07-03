@@ -135,7 +135,7 @@ def main() -> int:
     ))
     checks.append(pass_if(all(token in arm_mock for token in ["MockMmio", "parse_dpll_addr", "write_adv_config", "DPLL_CONFIG_APPLY_Addr"]), "ARM mock MMIO tests cover ABI/APPLY control", "`verification/arm/test_dpll_control_mock.py` parses real register definitions"))
     checks.append(pass_if("PID_GainI2_Addr" not in periph.replace("Freq_Meter_PID_GainI2_Addr", ""), "DPLL ARM aliases do not restore PII2", "remaining I2 name is frequency-meter only"))
-    checks.append(pass_if("DAC1 is a debug output only" in periph and "DAC1_DDS_Frequency_Addr" in periph, "DAC1/DACout1 ABI is debug-only", "legacy address retained as debug source selector"))
+    checks.append(pass_if("DAC1 is a debug output only" in periph and "DPLL_DEBUG_DAC_SOURCE_ADDR" in periph, "DAC1/DACout1 ABI is debug-only", "debug source selector uses DPLL debug DAC naming"))
     checks.append(no_uncommented_false_path())
 
     lines.extend(line for line, _ in checks)

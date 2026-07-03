@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Fri Jul  3 18:53:35 2026
+| Date         : Fri Jul  3 21:01:20 2026
 | Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 | Command      : report_utilization -file red_pitaya_top_utilization_synth.rpt -pb red_pitaya_top_utilization_synth.pb
 | Design       : red_pitaya_top
@@ -30,8 +30,8 @@ Table of Contents
 +----------------------------+-------+-------+-----------+-------+
 |          Site Type         |  Used | Fixed | Available | Util% |
 +----------------------------+-------+-------+-----------+-------+
-| Slice LUTs*                |  7801 |     0 |     17600 | 44.32 |
-|   LUT as Logic             |  7717 |     0 |     17600 | 43.85 |
+| Slice LUTs*                |  7800 |     0 |     17600 | 44.32 |
+|   LUT as Logic             |  7716 |     0 |     17600 | 43.84 |
 |   LUT as Memory            |    84 |     0 |      6000 |  1.40 |
 |     LUT as Distributed RAM |     0 |     0 |           |       |
 |     LUT as Shift Register  |    84 |     0 |           |       |
@@ -153,9 +153,9 @@ Table of Contents
 +-----------+------+----------------------+
 | FDRE      | 9434 |         Flop & Latch |
 | LUT2      | 2491 |                  LUT |
-| LUT6      | 2330 |                  LUT |
-| LUT3      | 1929 |                  LUT |
-| LUT4      | 1268 |                  LUT |
+| LUT6      | 2327 |                  LUT |
+| LUT3      | 1930 |                  LUT |
+| LUT4      | 1269 |                  LUT |
 | LUT5      | 1032 |                  LUT |
 | CARRY4    |  966 |           CarryLogic |
 | FDCE      |  950 |         Flop & Latch |

@@ -201,10 +201,10 @@ static const dpll_reg_map_t dpll_register_map = {
 	VCO_Freq_Manual_Offset_Addr,
 	DAC0_VCO_Offset_Addr,
 	DAC0_VOC_Amplitude_Addr,
-	DAC1_DDS_Offset_Addr,
-	DAC1_DDS_Amplitude_Addr,
-	DAC1_DDS_Frequency_Addr,
-	DAC1_DDS_Phase_Addr,
+	DPLL_DEBUG_DAC_OFFSET_ADDR,
+	DPLL_DEBUG_DAC_GAIN_ADDR,
+	DPLL_DEBUG_DAC_SOURCE_ADDR,
+	DPLL_DEBUG_DAC_FORMAT_ADDR,
 	DPLL_ACTIVE_CENTER_Addr,
 	DPLL_ACTIVE_CIC_CONFIG_Addr,
 	DPLL_ACTIVE_MUL_DIV_Addr,
@@ -1052,10 +1052,10 @@ void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 		PC_HOST_Send_ASK_Only(0xF2);
 		return;
 	}
-	Xil_Out32(DAC1_DDS_Frequency_Addr, pc_get_u32(4));
-	Xil_Out32(DAC1_DDS_Phase_Addr, pc_get_u32(8));
-	Xil_Out32(DAC1_DDS_Offset_Addr, pc_get_u16(12));
-	Xil_Out32(DAC1_DDS_Amplitude_Addr, pc_get_u16(14));
+	Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR, pc_get_u32(4));
+	Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR, pc_get_u32(8));
+	Xil_Out32(DPLL_DEBUG_DAC_OFFSET_ADDR, pc_get_u16(12));
+	Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR, pc_get_u16(14));
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_9A_WRITE_VBIAS_DAC(void)
@@ -1521,12 +1521,12 @@ init_platform();
 
     Xil_Out32(DAC0_DDC_Angle_Select_Addr,0);//wrapped_phase_cordic
 
-//    Xil_Out32(DAC1_DDS_Offset_Addr,0);//offset 14bit;
-//    Xil_Out32(DAC1_DDS_Amplitude_Addr,0x7fff);//amplitude 15bit;
-//    //Xil_Out32(DAC1_DDS_Frequency_Addr,0x03126E97);//Fre 31bit; 1.5Mhz
-//    //Xil_Out32(DAC1_DDS_Frequency_Addr,0x0020C49B);//Fre 31bit; 125KHz
-//    Xil_Out32(DAC1_DDS_Frequency_Addr,0x00418000);//Fre 31bit; 125KHz
-//    Xil_Out32(DAC1_DDS_Phase_Addr,0x0);//Phase 32bit
+//    Xil_Out32(DPLL_DEBUG_DAC_OFFSET_ADDR,0);//offset 14bit;
+//    Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR,0x7fff);//amplitude 15bit;
+//    //Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR,0x03126E97);//Fre 31bit; 1.5Mhz
+//    //Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR,0x0020C49B);//Fre 31bit; 125KHz
+//    Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR,0x00418000);//Fre 31bit; 125KHz
+//    Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR,0x0);//Phase 32bit
 
     Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,0x7FFFFFFE);//32Bit
     Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,0x80000001);//32Bit

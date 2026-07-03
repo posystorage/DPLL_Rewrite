@@ -12,7 +12,6 @@ module dpll_wrapper(
     input  wire               sys_rstn,
 
     input  wire signed [15:0] ADCraw0,
-    input  wire signed [15:0] ADCraw1,
     output wire signed [15:0] DACout0,
     output wire signed [15:0] DACout1,
 
@@ -98,7 +97,6 @@ wire [31:0] warmup_samples;
 wire        config_apply_flag;
 
 wire unused_sys_sel = |sys_sel;
-wire unused_adc1 = |ADCraw1;
 wire unused_angle = |angleSelect_0;
 
 parallel_bus_register_32bits_or_less #(

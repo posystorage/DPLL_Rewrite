@@ -53,7 +53,7 @@ ADCraw0
 -> DACout0
 ```
 
-`ADCraw1` is connected to `Digital_Freq_Meter_inst` in the top level and is not a second functional DPLL inside `DigitalPLL`.
+`ADCraw1` is connected to `Digital_Freq_Meter_inst` in the top level only. `dpll_wrapper` does not expose an ADC1 port, so the DPLL boundary cannot be mistaken for a second ADC/DPLL path.
 
 The two high-order FIR instances are I/Q branches of the same DPLL channel:
 

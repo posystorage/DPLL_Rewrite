@@ -94,10 +94,10 @@
 #define VOC_Fre_Div_Addr (DPLL_BASE_ADDR|(0x0033<<2))//amplitude 15bit;
 
 //DAC1 is a debug output only, not a second DPLL.
-#define DAC1_DDS_Offset_Addr (DPLL_BASE_ADDR|(0x0040<<2))//debug offset 14bit;
-#define DAC1_DDS_Amplitude_Addr (DPLL_BASE_ADDR|(0x0041<<2))//debug gain 16bit;
-#define DAC1_DDS_Frequency_Addr (DPLL_BASE_ADDR|(0x0042<<2))//debug source select;
-#define DAC1_DDS_Phase_Addr (DPLL_BASE_ADDR|(0x0043<<2))//debug format/reserved
+#define DPLL_DEBUG_DAC_OFFSET_ADDR (DPLL_BASE_ADDR|(0x0040<<2))//debug offset 14bit;
+#define DPLL_DEBUG_DAC_GAIN_ADDR (DPLL_BASE_ADDR|(0x0041<<2))//debug gain 16bit;
+#define DPLL_DEBUG_DAC_SOURCE_ADDR (DPLL_BASE_ADDR|(0x0042<<2))//debug source select;
+#define DPLL_DEBUG_DAC_FORMAT_ADDR (DPLL_BASE_ADDR|(0x0043<<2))//debug format/reserved
 
 
 //��������ָʾ

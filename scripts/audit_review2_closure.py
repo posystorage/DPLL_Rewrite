@@ -295,7 +295,7 @@ def main() -> int:
         and "if (pc_payload_len() < DPLL_ADV_CONFIG_PAYLOAD_BYTES)" in arm
         and "if (pc_payload_len() < DPLL_DEBUG_CONFIG_PAYLOAD_BYTES)" in arm
         and "Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));" in arm
-        and "Xil_Out32(DAC1_DDS_Amplitude_Addr, pc_get_u16(14));" in arm,
+        and "Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR, pc_get_u16(14));" in arm,
         "ARM DPLL command payload length checks cover the highest consumed byte offsets",
         "`CMD_8F` requires 42 payload bytes for offsets 4..45; `CMD_97` requires 12 payload bytes for offsets 4..15",
     ))

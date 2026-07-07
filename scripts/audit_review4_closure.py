@@ -48,7 +48,7 @@ def check(condition: bool, requirement: str, evidence: str) -> tuple[str, bool]:
 def main() -> int:
     xpr = read(XPR)
     top = read(TOP)
-    core = read(DPLL / "core" / "dpll_single_clock_core_stage_a.v")
+    core = read(DPLL / "DDC" / "dpll_single_clock_core_stage_a.v")
     wrapper = read(DPLL / "dpll_wrapper.v")
     arm = read(SDK / "helloworld.c")
     driver_h = read(SDK / "dpll_driver.h")

@@ -23,6 +23,17 @@ module dpll_single_clock_core_stage_a #(
     input  wire [5:0]                            cic_output_shift,
     input  wire                                  cic_flush,
     input  wire [1:0]                            fll_delay_sel,
+    input  wire [1:0]                            post_iir_mode,
+    input  wire signed [31:0]                    post_iir_acq_b0,
+    input  wire signed [31:0]                    post_iir_acq_b1,
+    input  wire signed [31:0]                    post_iir_acq_b2,
+    input  wire signed [31:0]                    post_iir_acq_a1,
+    input  wire signed [31:0]                    post_iir_acq_a2,
+    input  wire signed [31:0]                    post_iir_track_b0,
+    input  wire signed [31:0]                    post_iir_track_b1,
+    input  wire signed [31:0]                    post_iir_track_b2,
+    input  wire signed [31:0]                    post_iir_track_a1,
+    input  wire signed [31:0]                    post_iir_track_a2,
     input  wire signed [COEFF_WIDTH-1:0]         kf,
     input  wire signed [COEFF_WIDTH-1:0]         ki,
     input  wire signed [COEFF_WIDTH-1:0]         kp,
@@ -63,6 +74,8 @@ module dpll_single_clock_core_stage_a #(
     output wire                                  locked,
     output wire [8:0]                            active_cic_rate_r,
     output wire [5:0]                            active_cic_output_shift,
+    output wire                                  post_iir_active_bypass,
+    output wire                                  post_iir_active_use_track,
     output wire                                  cic_overflow_seen,
     output wire                                  cic_illegal_config_seen,
     output wire                                  cordic_input_overrun_seen,
@@ -102,6 +115,10 @@ module dpll_single_clock_core_stage_a #(
     reg mixer_cic_valid_r;
     reg signed [MIXER_WIDTH-1:0] mixer_i_cic_r;
     reg signed [MIXER_WIDTH-1:0] mixer_q_cic_r;
+    wire cic_iq_valid;
+    wire signed [CIC_WIDTH-1:0] cic_i_baseband;
+    wire signed [CIC_WIDTH-1:0] cic_q_baseband;
+    wire post_iir_state_use_track;
     wire cordic_valid;
     wire signed [PHASE_WIDTH-1:0] cordic_phase_word;
     wire [MAG_WIDTH-1:0] cordic_magnitude;
@@ -160,6 +177,7 @@ module dpll_single_clock_core_stage_a #(
     assign tracking_word = config_apply ? center_word : tracking_word_hold;
     assign tracking_valid = correction_valid | config_apply;
     assign magnitude = cordic_magnitude_hold;
+    assign post_iir_state_use_track = (loop_state == 4'd5) || (loop_state == 4'd6);
 
     always @(posedge clk_125m) begin
         rst_nco_r <= rst_125m;
@@ -340,13 +358,44 @@ module dpll_single_clock_core_stage_a #(
         .shadow_rate_r(cic_rate_r),
         .shadow_output_shift(cic_output_shift),
         .flush(cic_flush),
-        .out_valid(iq_valid),
-        .i_out(i_baseband),
-        .q_out(q_baseband),
+        .out_valid(cic_iq_valid),
+        .i_out(cic_i_baseband),
+        .q_out(cic_q_baseband),
         .active_rate_r(active_cic_rate_r),
         .active_output_shift(active_cic_output_shift),
         .overflow_seen(cic_overflow_seen),
         .illegal_config_seen(cic_illegal_config_seen)
+    );
+
+    post_iir_stage_a #(
+        .DATA_WIDTH(CIC_WIDTH),
+        .COEFF_WIDTH(32),
+        .COEFF_FRAC(30),
+        .ACC_WIDTH(64)
+    ) post_iir_inst (
+        .clk_125m(clk_125m),
+        .rst_125m(rst_detector_r),
+        .clear(config_apply | cic_flush),
+        .in_valid(cic_iq_valid),
+        .i_in(cic_i_baseband),
+        .q_in(cic_q_baseband),
+        .mode(post_iir_mode),
+        .state_use_track(post_iir_state_use_track),
+        .acq_b0(post_iir_acq_b0),
+        .acq_b1(post_iir_acq_b1),
+        .acq_b2(post_iir_acq_b2),
+        .acq_a1(post_iir_acq_a1),
+        .acq_a2(post_iir_acq_a2),
+        .track_b0(post_iir_track_b0),
+        .track_b1(post_iir_track_b1),
+        .track_b2(post_iir_track_b2),
+        .track_a1(post_iir_track_a1),
+        .track_a2(post_iir_track_a2),
+        .out_valid(iq_valid),
+        .i_out(i_baseband),
+        .q_out(q_baseband),
+        .active_bypass(post_iir_active_bypass),
+        .active_use_track(post_iir_active_use_track)
     );
 
     cordic_word_serial_adapter #(

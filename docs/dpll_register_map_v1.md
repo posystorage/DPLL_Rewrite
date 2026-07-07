@@ -62,6 +62,17 @@ ARM must not enable the DPLL when ABI/build checks fail.
 | `0x0061` | `POST_IQ_CIC_SCALE` | shadow/apply |
 | `0x0062` | `FLL_CONFIG` | shadow/apply |
 | `0x0063` | `WARMUP_SAMPLES` | shadow/apply |
+| `0x0064` | `POST_IIR_CONFIG` | shadow/apply, bits 1:0 mode |
+| `0x0065` | `POST_IIR_ACQ_B0` | shadow/apply, signed Q2.30 |
+| `0x0066` | `POST_IIR_ACQ_B1` | shadow/apply, signed Q2.30 |
+| `0x0067` | `POST_IIR_ACQ_B2` | shadow/apply, signed Q2.30 |
+| `0x0068` | `POST_IIR_ACQ_A1` | shadow/apply, signed Q2.30 |
+| `0x0069` | `POST_IIR_ACQ_A2` | shadow/apply, signed Q2.30 |
+| `0x006A` | `POST_IIR_TRACK_B0` | shadow/apply, signed Q2.30 |
+| `0x006B` | `POST_IIR_TRACK_B1` | shadow/apply, signed Q2.30 |
+| `0x006C` | `POST_IIR_TRACK_B2` | shadow/apply, signed Q2.30 |
+| `0x006D` | `POST_IIR_TRACK_A1` | shadow/apply, signed Q2.30 |
+| `0x006E` | `POST_IIR_TRACK_A2` | shadow/apply, signed Q2.30 |
 | `0x006F` | `CONFIG_APPLY` | apply trigger/status command |
 
 The `0x0040..0x0043` debug DAC registers are not part of the shadow/apply set. A write to `DEBUG_DAC_SOURCE` switches the DACout1 debug source through the live debug CDC path and must not change the active configuration CRC, loop state, or apply sequence.
@@ -92,12 +103,25 @@ The `0x0040..0x0043` debug DAC registers are not part of the shadow/apply set. A
 | `0x010D` | `CONFIG_VERSION` |
 | `0x010E` | `ABI_VERSION` |
 | `0x010F` | `FPGA_BUILD_ID` |
+| `0x011F` | `ACTIVE_POST_IIR_CONFIG` |
+| `0x0120` | `ACTIVE_POST_IIR_ACQ_B0` |
+| `0x0121` | `ACTIVE_POST_IIR_ACQ_B1` |
+| `0x0122` | `ACTIVE_POST_IIR_ACQ_B2` |
+| `0x0123` | `ACTIVE_POST_IIR_ACQ_A1` |
+| `0x0124` | `ACTIVE_POST_IIR_ACQ_A2` |
+| `0x0125` | `ACTIVE_POST_IIR_TRACK_B0` |
+| `0x0126` | `ACTIVE_POST_IIR_TRACK_B1` |
+| `0x0127` | `ACTIVE_POST_IIR_TRACK_B2` |
+| `0x0128` | `ACTIVE_POST_IIR_TRACK_A1` |
+| `0x0129` | `ACTIVE_POST_IIR_TRACK_A2` |
 
 ## `0x0108` Core Flags
 
 | Bits | Name |
 |---:|---|
-| 31:23 | reserved |
+| 31:25 | reserved |
+| 24 | `POST_IIR_USE_TRACK` |
+| 23 | `POST_IIR_BYPASS` |
 | 22 | `CORDIC_OUTPUT_FORMAT_ERROR` |
 | 21 | `CORDIC_INPUT_OUT_OF_RANGE` |
 | 20 | `CORDIC_INPUT_OVERRUN` |
@@ -136,6 +160,21 @@ rather than silently clamped. The active divider IP is unsigned, so the full
 | 8 | `MAGNITUDE` |
 | 9 | `OUTPUT_WORD_DELTA` |
 | 10 | `LOOP_STATE_CODE` |
+
+## Post-IIR Mode
+
+`POST_IIR_CONFIG[1:0]`:
+
+```text
+0 BYPASS
+1 ACQUIRE coefficients
+2 TRACK coefficients
+3 AUTO: acquire outside blend/track, track in FLL_PLL_BLEND and PLL_TRACK
+```
+
+The active configuration CRC mixes the post-IIR mode word followed by all ten
+Q2.30 coefficient words after the legacy v1 fields. This is an ABI change:
+`ABI_VERSION=0x00000003`, `CONFIG_VERSION=0x00010006`.
 
 ## Debug DAC Format
 

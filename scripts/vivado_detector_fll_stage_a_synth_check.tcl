@@ -4,7 +4,7 @@ set out_dir [file join $repo_root reports vivado_detector_fll_stage_a_synth_chec
 
 file mkdir $out_dir
 create_project -in_memory -part xc7z010clg400-1
-read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL detector_fll fll_phase_difference_stage_a.v]
+read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL hybrid_loop fll_phase_difference_stage_a.v]
 synth_design -top fll_phase_difference_stage_a -mode out_of_context
 create_clock -period 8.000 -name clk_125m [get_ports clk_125m]
 report_utilization -file [file join $out_dir fll_phase_difference_utilization_ooc.rpt]

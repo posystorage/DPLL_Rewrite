@@ -67,11 +67,11 @@ def no_retired_stage_a_stubs() -> tuple[str, bool]:
 
 def main() -> int:
     wrapper = read(DPLL / "dpll_wrapper.v")
-    core = read(DPLL / "core" / "dpll_single_clock_core_stage_a.v")
-    cic = read(DPLL / "iq_cic" / "post_iq_cic_stage_a.v")
+    core = read(DPLL / "DDC" / "dpll_single_clock_core_stage_a.v")
+    cic = read(DPLL / "DDC" / "post_iq_cic_stage_a.v")
     vco = read(DPLL / "VCO" / "PLL_VCO_MUL_DIV.v")
     dbg = read(DPLL / "debug" / "debug_dac_formatter_stage_a.v")
-    fll = read(DPLL / "detector_fll" / "fll_phase_difference_stage_a.v")
+    fll = read(DPLL / "hybrid_loop" / "fll_phase_difference_stage_a.v")
     loop = read(DPLL / "hybrid_loop" / "loop_state_manager_stage_a.v")
     lo_dds_h_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     arm_mock = read(ROOT / "verification" / "arm" / "test_dpll_control_mock.py")

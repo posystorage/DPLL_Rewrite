@@ -10,7 +10,7 @@ Push-Location $OutDir
 
 try {
     $snapshot = 'fll_phase_difference_stage_a_tb'
-    $rtl = Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\detector_fll\fll_phase_difference_stage_a.v'
+    $rtl = Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\hybrid_loop\fll_phase_difference_stage_a.v'
     $tb = Join-Path $RepoRoot 'verification\rtl\fll_phase_difference_stage_a_tb.v'
 
     & (Join-Path $VivadoBin 'xvlog.bat') $rtl $tb

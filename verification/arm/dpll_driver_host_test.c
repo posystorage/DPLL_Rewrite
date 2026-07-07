@@ -56,7 +56,29 @@ enum {
     REG_ACTIVE_KIB = 0xc0,
     REG_APPLIED_ABI = 0xc4,
     REG_GIT = 0xc8,
-    REG_ACTIVE_CRC = 0xcc
+    REG_ACTIVE_CRC = 0xcc,
+    REG_POST_IIR_CONFIG = 0xd0,
+    REG_POST_IIR_ACQ_B0 = 0xd4,
+    REG_POST_IIR_ACQ_B1 = 0xd8,
+    REG_POST_IIR_ACQ_B2 = 0xdc,
+    REG_POST_IIR_ACQ_A1 = 0xe0,
+    REG_POST_IIR_ACQ_A2 = 0xe4,
+    REG_POST_IIR_TRACK_B0 = 0xe8,
+    REG_POST_IIR_TRACK_B1 = 0xec,
+    REG_POST_IIR_TRACK_B2 = 0xf0,
+    REG_POST_IIR_TRACK_A1 = 0xf4,
+    REG_POST_IIR_TRACK_A2 = 0xf8,
+    REG_ACTIVE_POST_IIR_CONFIG = 0xfc,
+    REG_ACTIVE_POST_IIR_ACQ_B0 = 0x100,
+    REG_ACTIVE_POST_IIR_ACQ_B1 = 0x104,
+    REG_ACTIVE_POST_IIR_ACQ_B2 = 0x108,
+    REG_ACTIVE_POST_IIR_ACQ_A1 = 0x10c,
+    REG_ACTIVE_POST_IIR_ACQ_A2 = 0x110,
+    REG_ACTIVE_POST_IIR_TRACK_B0 = 0x114,
+    REG_ACTIVE_POST_IIR_TRACK_B1 = 0x118,
+    REG_ACTIVE_POST_IIR_TRACK_B2 = 0x11c,
+    REG_ACTIVE_POST_IIR_TRACK_A1 = 0x120,
+    REG_ACTIVE_POST_IIR_TRACK_A2 = 0x124
 };
 
 enum {
@@ -90,12 +112,23 @@ static const dpll_reg_map_t regs = {
     REG_MAG_ENTER, REG_MAG_EXIT,
     REG_ACQ_DWELL, REG_BLEND_DWELL, REG_LOSS_DWELL,
     REG_HOLDOVER, REG_MEAS_TIMEOUT, REG_FLL_DELAY, REG_WARMUP,
+    REG_POST_IIR_CONFIG,
+    REG_POST_IIR_ACQ_B0, REG_POST_IIR_ACQ_B1, REG_POST_IIR_ACQ_B2,
+    REG_POST_IIR_ACQ_A1, REG_POST_IIR_ACQ_A2,
+    REG_POST_IIR_TRACK_B0, REG_POST_IIR_TRACK_B1, REG_POST_IIR_TRACK_B2,
+    REG_POST_IIR_TRACK_A1, REG_POST_IIR_TRACK_A2,
     REG_POS_LIMIT, REG_NEG_LIMIT, REG_MANUAL_OFFSET,
     REG_DAC0_OFFSET, REG_DAC0_AMP,
     REG_DEBUG_OFFSET, REG_DEBUG_GAIN, REG_DEBUG_SOURCE, REG_DEBUG_FORMAT,
     REG_ACTIVE_CENTER, REG_ACTIVE_CIC, REG_ACTIVE_MULDIV,
     REG_ACTIVE_KP, REG_ACTIVE_KI, REG_ACTIVE_KFA, REG_ACTIVE_KFB,
-    REG_ACTIVE_KFT, REG_ACTIVE_KPB, REG_ACTIVE_KIB, REG_APPLIED_ABI,
+    REG_ACTIVE_KFT, REG_ACTIVE_KPB, REG_ACTIVE_KIB,
+    REG_ACTIVE_POST_IIR_CONFIG,
+    REG_ACTIVE_POST_IIR_ACQ_B0, REG_ACTIVE_POST_IIR_ACQ_B1, REG_ACTIVE_POST_IIR_ACQ_B2,
+    REG_ACTIVE_POST_IIR_ACQ_A1, REG_ACTIVE_POST_IIR_ACQ_A2,
+    REG_ACTIVE_POST_IIR_TRACK_B0, REG_ACTIVE_POST_IIR_TRACK_B1, REG_ACTIVE_POST_IIR_TRACK_B2,
+    REG_ACTIVE_POST_IIR_TRACK_A1, REG_ACTIVE_POST_IIR_TRACK_A2,
+    REG_APPLIED_ABI,
     REG_ACTIVE_CRC
 };
 
@@ -138,6 +171,17 @@ static void seed_shadow(mock_mmio_t *mock)
     MEM(mock, REG_MEAS_TIMEOUT) = 0U;
     MEM(mock, REG_FLL_DELAY) = 2U;
     MEM(mock, REG_WARMUP) = 64U;
+    MEM(mock, REG_POST_IIR_CONFIG) = 3U;
+    MEM(mock, REG_POST_IIR_ACQ_B0) = 138975519U;
+    MEM(mock, REG_POST_IIR_ACQ_B1) = 277951039U;
+    MEM(mock, REG_POST_IIR_ACQ_B2) = 138975519U;
+    MEM(mock, REG_POST_IIR_ACQ_A1) = (uint32_t)-812870960;
+    MEM(mock, REG_POST_IIR_ACQ_A2) = 295031213U;
+    MEM(mock, REG_POST_IIR_TRACK_B0) = 48851600U;
+    MEM(mock, REG_POST_IIR_TRACK_B1) = 97703199U;
+    MEM(mock, REG_POST_IIR_TRACK_B2) = 48851600U;
+    MEM(mock, REG_POST_IIR_TRACK_A1) = (uint32_t)-1409400772;
+    MEM(mock, REG_POST_IIR_TRACK_A2) = 531065347U;
     MEM(mock, REG_POS_LIMIT) = 0x7ffffffeU;
     MEM(mock, REG_NEG_LIMIT) = 0x80000001U;
     MEM(mock, REG_MANUAL_OFFSET) = 0x00010000U;
@@ -173,7 +217,7 @@ static uint32_t expected_crc(mock_mmio_t *mock)
     uint32_t r = MEM(mock, REG_R) & 0x1ffU;
     uint32_t measurement = MEM(mock, REG_MEAS_TIMEOUT) & 0x00ffffffU;
     uint32_t negative_limit = MEM(mock, REG_NEG_LIMIT);
-    uint32_t words[23];
+    uint32_t words[34];
     uint32_t i;
 
     if (measurement == 0U) {
@@ -208,7 +252,18 @@ static uint32_t expected_crc(mock_mmio_t *mock)
     words[21] = MEM(mock, REG_MANUAL_OFFSET);
     words[22] = ((sign_extend_width(MEM(mock, REG_DAC0_OFFSET), 13U) & 0xffffU) << 16) |
                 (sign_extend_width(MEM(mock, REG_DAC0_AMP), 15U) & 0xffffU);
-    for (i = 0U; i < 23U; ++i) {
+    words[23] = MEM(mock, REG_POST_IIR_CONFIG) & 0x3U;
+    words[24] = MEM(mock, REG_POST_IIR_ACQ_B0);
+    words[25] = MEM(mock, REG_POST_IIR_ACQ_B1);
+    words[26] = MEM(mock, REG_POST_IIR_ACQ_B2);
+    words[27] = MEM(mock, REG_POST_IIR_ACQ_A1);
+    words[28] = MEM(mock, REG_POST_IIR_ACQ_A2);
+    words[29] = MEM(mock, REG_POST_IIR_TRACK_B0);
+    words[30] = MEM(mock, REG_POST_IIR_TRACK_B1);
+    words[31] = MEM(mock, REG_POST_IIR_TRACK_B2);
+    words[32] = MEM(mock, REG_POST_IIR_TRACK_A1);
+    words[33] = MEM(mock, REG_POST_IIR_TRACK_A2);
+    for (i = 0U; i < 34U; ++i) {
         crc = crc_mix(crc, words[i]);
     }
     return crc;
@@ -228,6 +283,17 @@ static void copy_active(mock_mmio_t *mock)
     MEM(mock, REG_ACTIVE_KFT) = sign_extend_24(MEM(mock, REG_KFT));
     MEM(mock, REG_ACTIVE_KPB) = sign_extend_24(MEM(mock, REG_KPB));
     MEM(mock, REG_ACTIVE_KIB) = sign_extend_24(MEM(mock, REG_KIB));
+    MEM(mock, REG_ACTIVE_POST_IIR_CONFIG) = MEM(mock, REG_POST_IIR_CONFIG) & 0x3U;
+    MEM(mock, REG_ACTIVE_POST_IIR_ACQ_B0) = MEM(mock, REG_POST_IIR_ACQ_B0);
+    MEM(mock, REG_ACTIVE_POST_IIR_ACQ_B1) = MEM(mock, REG_POST_IIR_ACQ_B1);
+    MEM(mock, REG_ACTIVE_POST_IIR_ACQ_B2) = MEM(mock, REG_POST_IIR_ACQ_B2);
+    MEM(mock, REG_ACTIVE_POST_IIR_ACQ_A1) = MEM(mock, REG_POST_IIR_ACQ_A1);
+    MEM(mock, REG_ACTIVE_POST_IIR_ACQ_A2) = MEM(mock, REG_POST_IIR_ACQ_A2);
+    MEM(mock, REG_ACTIVE_POST_IIR_TRACK_B0) = MEM(mock, REG_POST_IIR_TRACK_B0);
+    MEM(mock, REG_ACTIVE_POST_IIR_TRACK_B1) = MEM(mock, REG_POST_IIR_TRACK_B1);
+    MEM(mock, REG_ACTIVE_POST_IIR_TRACK_B2) = MEM(mock, REG_POST_IIR_TRACK_B2);
+    MEM(mock, REG_ACTIVE_POST_IIR_TRACK_A1) = MEM(mock, REG_POST_IIR_TRACK_A1);
+    MEM(mock, REG_ACTIVE_POST_IIR_TRACK_A2) = MEM(mock, REG_POST_IIR_TRACK_A2);
     MEM(mock, REG_APPLIED_ABI) = expected_identity.abi_version;
     MEM(mock, REG_ACTIVE_CRC) = expected_crc(mock);
 }

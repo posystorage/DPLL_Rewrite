@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DDS_XCI = ROOT / "DPLL_Rewrite.srcs" / "sources_1" / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci"
-CORE_RTL = ROOT / "DPLL_Rewrite.srcs" / "sources_1" / "DigitalPLL" / "core" / "dpll_single_clock_core_stage_a.v"
+CORE_RTL = ROOT / "DPLL_Rewrite.srcs" / "sources_1" / "DigitalPLL" / "DDC" / "dpll_single_clock_core_stage_a.v"
 
 
 def main() -> int:

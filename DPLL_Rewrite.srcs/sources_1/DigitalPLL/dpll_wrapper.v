@@ -43,6 +43,17 @@ localparam [31:0] DEFAULT_MAG_EXIT  = 32'h0000_0400;
 localparam [31:0] DEFAULT_DWELL     = 32'h0000_0004;
 localparam [31:0] DEFAULT_HOLDOVER  = 32'h0013_12D0; // 10 ms at 125 MHz
 localparam [31:0] DEFAULT_MEAS_TIMEOUT = 32'h0000_0000; // zero selects 120*R+256
+localparam [31:0] DEFAULT_POST_IIR_MODE = 32'h0000_0003; // auto: acquire in FLL, track in blend/PLL
+localparam signed [31:0] DEFAULT_POST_IIR_ACQ_B0 = 32'sd138975519;   // 15 kHz at 3.125 MSPS / 31, Q2.30
+localparam signed [31:0] DEFAULT_POST_IIR_ACQ_B1 = 32'sd277951039;
+localparam signed [31:0] DEFAULT_POST_IIR_ACQ_B2 = 32'sd138975519;
+localparam signed [31:0] DEFAULT_POST_IIR_ACQ_A1 = -32'sd812870960;
+localparam signed [31:0] DEFAULT_POST_IIR_ACQ_A2 = 32'sd295031213;
+localparam signed [31:0] DEFAULT_POST_IIR_TRACK_B0 = 32'sd48851600;   // 8 kHz at 3.125 MSPS / 31, Q2.30
+localparam signed [31:0] DEFAULT_POST_IIR_TRACK_B1 = 32'sd97703199;
+localparam signed [31:0] DEFAULT_POST_IIR_TRACK_B2 = 32'sd48851600;
+localparam signed [31:0] DEFAULT_POST_IIR_TRACK_A1 = -32'sd1409400772;
+localparam signed [31:0] DEFAULT_POST_IIR_TRACK_A2 = 32'sd531065347;
 
 wire [15:0] cmd_addr;
 wire [31:0] cmd_datain;
@@ -94,6 +105,17 @@ wire [31:0] post_iq_cic_rate_r;
 wire [31:0] post_iq_cic_shift;
 wire [31:0] fll_delay_sel;
 wire [31:0] warmup_samples;
+reg [31:0] post_iir_mode;
+reg signed [31:0] post_iir_acq_b0;
+reg signed [31:0] post_iir_acq_b1;
+reg signed [31:0] post_iir_acq_b2;
+reg signed [31:0] post_iir_acq_a1;
+reg signed [31:0] post_iir_acq_a2;
+reg signed [31:0] post_iir_track_b0;
+reg signed [31:0] post_iir_track_b1;
+reg signed [31:0] post_iir_track_b2;
+reg signed [31:0] post_iir_track_a1;
+reg signed [31:0] post_iir_track_a2;
 wire        config_apply_flag;
 
 wire unused_sys_sel = |sys_sel;
@@ -240,10 +262,10 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VAL
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(Measurement_Timeout0), .update_flag()
 );
 
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(8), .ADDRESS(16'h0060)) reg_cic_rate (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(31), .ADDRESS(16'h0060)) reg_cic_rate (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(post_iq_cic_rate_r), .update_flag()
 );
-parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(4), .ADDRESS(16'h0061)) reg_cic_shift (
+parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(10), .ADDRESS(16'h0061)) reg_cic_shift (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(post_iq_cic_shift), .update_flag()
 );
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h0062)) reg_fll_delay (
@@ -255,6 +277,37 @@ parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(32), .REGISTER_DEFAULT_VAL
 parallel_bus_register_32bits_or_less #(.REGISTER_SIZE(1), .REGISTER_DEFAULT_VALUE(0), .ADDRESS(16'h006F)) reg_config_apply (
     .clk(sys_clk), .bus_strobe(cmd_trig), .bus_address(cmd_addr), .bus_data(cmd_datain), .register_output(), .update_flag(config_apply_flag)
 );
+
+always @(posedge sys_clk or negedge sys_rstn) begin
+    if (!sys_rstn) begin
+        post_iir_mode <= DEFAULT_POST_IIR_MODE;
+        post_iir_acq_b0 <= DEFAULT_POST_IIR_ACQ_B0;
+        post_iir_acq_b1 <= DEFAULT_POST_IIR_ACQ_B1;
+        post_iir_acq_b2 <= DEFAULT_POST_IIR_ACQ_B2;
+        post_iir_acq_a1 <= DEFAULT_POST_IIR_ACQ_A1;
+        post_iir_acq_a2 <= DEFAULT_POST_IIR_ACQ_A2;
+        post_iir_track_b0 <= DEFAULT_POST_IIR_TRACK_B0;
+        post_iir_track_b1 <= DEFAULT_POST_IIR_TRACK_B1;
+        post_iir_track_b2 <= DEFAULT_POST_IIR_TRACK_B2;
+        post_iir_track_a1 <= DEFAULT_POST_IIR_TRACK_A1;
+        post_iir_track_a2 <= DEFAULT_POST_IIR_TRACK_A2;
+    end else if (cmd_trig) begin
+        case (cmd_addr)
+            16'h0064: post_iir_mode <= cmd_datain;
+            16'h0065: post_iir_acq_b0 <= cmd_datain;
+            16'h0066: post_iir_acq_b1 <= cmd_datain;
+            16'h0067: post_iir_acq_b2 <= cmd_datain;
+            16'h0068: post_iir_acq_a1 <= cmd_datain;
+            16'h0069: post_iir_acq_a2 <= cmd_datain;
+            16'h006A: post_iir_track_b0 <= cmd_datain;
+            16'h006B: post_iir_track_b1 <= cmd_datain;
+            16'h006C: post_iir_track_b2 <= cmd_datain;
+            16'h006D: post_iir_track_a1 <= cmd_datain;
+            16'h006E: post_iir_track_a2 <= cmd_datain;
+            default: begin end
+        endcase
+    end
+end
 
 (* ASYNC_REG = "TRUE" *) reg pll0_lock_meta;
 (* ASYNC_REG = "TRUE" *) reg pll0_lock_sync;
@@ -318,6 +371,8 @@ wire        dpll_frequency_locked;
 wire        dpll_locked;
 wire [8:0]  dpll_active_cic_rate_r;
 wire [5:0]  dpll_active_cic_shift;
+wire        dpll_post_iir_active_bypass;
+wire        dpll_post_iir_active_use_track;
 wire        dpll_cic_overflow;
 wire        dpll_cic_illegal;
 wire        dpll_cordic_input_overrun;
@@ -342,6 +397,7 @@ localparam [7:0] APPLY_ERR_DWELL      = 8'h07;
 localparam [7:0] APPLY_ERR_MEAS_TIME  = 8'h08;
 localparam [7:0] APPLY_ERR_HOLDOVER   = 8'h09;
 localparam [7:0] APPLY_ERR_WIDTH      = 8'h0A;
+localparam [7:0] APPLY_ERR_POST_IIR   = 8'h0B;
 localparam [2:0] APPLY_STATE_IDLE     = 3'd0;
 localparam [2:0] APPLY_STATE_MUL      = 3'd1;
 localparam [2:0] APPLY_STATE_CHECK    = 3'd2;
@@ -373,7 +429,8 @@ function [7:0] apply_error_code_from_mask;
             rejected_mask[6] ? APPLY_ERR_DWELL :
             rejected_mask[7] ? APPLY_ERR_MEAS_TIME :
             rejected_mask[8] ? APPLY_ERR_HOLDOVER :
-            rejected_mask[9] ? APPLY_ERR_WIDTH : APPLY_ERR_NONE;
+            rejected_mask[9] ? APPLY_ERR_WIDTH :
+            rejected_mask[10] ? APPLY_ERR_POST_IIR : APPLY_ERR_NONE;
     end
 endfunction
 
@@ -428,7 +485,9 @@ wire shadow_dwell_legal = (Acquire_Dwell0[15:0] != 16'd0) &&
 wire shadow_measurement_timeout_legal = (Measurement_Timeout0[23:0] == 24'd0) ||
                                         (Measurement_Timeout0[23:0] >= shadow_measurement_min);
 wire shadow_holdover_legal = Holdover_Timeout0[23:0] != 24'd0;
-wire [15:0] shadow_rejected_mask_no_mul = {6'd0, !shadow_width_legal, !shadow_holdover_legal,
+wire shadow_post_iir_mode_legal = (post_iir_mode[31:2] == 30'd0);
+wire [15:0] shadow_rejected_mask_no_mul = {5'd0, !shadow_post_iir_mode_legal,
+    !shadow_width_legal, !shadow_holdover_legal,
     !shadow_measurement_timeout_legal, !shadow_dwell_legal, !shadow_magnitude_legal,
     !shadow_limits_legal, 1'b0, !shadow_fll_delay_legal,
     !shadow_cic_shift_legal, !shadow_cic_rate_legal};
@@ -467,6 +526,17 @@ function [31:0] dpll_config_crc;
     input [31:0] correction_limit_neg;
     input [31:0] manual_offset;
     input [31:0] dac0_pair;
+    input [31:0] post_iir_config;
+    input [31:0] post_iir_acq_b0_word;
+    input [31:0] post_iir_acq_b1_word;
+    input [31:0] post_iir_acq_b2_word;
+    input [31:0] post_iir_acq_a1_word;
+    input [31:0] post_iir_acq_a2_word;
+    input [31:0] post_iir_track_b0_word;
+    input [31:0] post_iir_track_b1_word;
+    input [31:0] post_iir_track_b2_word;
+    input [31:0] post_iir_track_a1_word;
+    input [31:0] post_iir_track_a2_word;
     reg [31:0] crc;
     begin
         crc = 32'h4450_4C4C; // "DPLL"
@@ -492,7 +562,18 @@ function [31:0] dpll_config_crc;
         crc = config_crc_mix(crc, correction_limit_pos);
         crc = config_crc_mix(crc, correction_limit_neg);
         crc = config_crc_mix(crc, manual_offset);
-        dpll_config_crc = config_crc_mix(crc, dac0_pair);
+        crc = config_crc_mix(crc, dac0_pair);
+        crc = config_crc_mix(crc, post_iir_config);
+        crc = config_crc_mix(crc, post_iir_acq_b0_word);
+        crc = config_crc_mix(crc, post_iir_acq_b1_word);
+        crc = config_crc_mix(crc, post_iir_acq_b2_word);
+        crc = config_crc_mix(crc, post_iir_acq_a1_word);
+        crc = config_crc_mix(crc, post_iir_acq_a2_word);
+        crc = config_crc_mix(crc, post_iir_track_b0_word);
+        crc = config_crc_mix(crc, post_iir_track_b1_word);
+        crc = config_crc_mix(crc, post_iir_track_b2_word);
+        crc = config_crc_mix(crc, post_iir_track_a1_word);
+        dpll_config_crc = config_crc_mix(crc, post_iir_track_a2_word);
     end
 endfunction
 
@@ -520,6 +601,17 @@ reg signed [55:0] active_correction_limit_neg;
 reg [8:0] active_post_iq_cic_rate_r;
 reg [5:0] active_post_iq_cic_shift;
 reg [1:0] active_fll_delay_sel;
+reg [1:0] active_post_iir_mode;
+reg signed [31:0] active_post_iir_acq_b0;
+reg signed [31:0] active_post_iir_acq_b1;
+reg signed [31:0] active_post_iir_acq_b2;
+reg signed [31:0] active_post_iir_acq_a1;
+reg signed [31:0] active_post_iir_acq_a2;
+reg signed [31:0] active_post_iir_track_b0;
+reg signed [31:0] active_post_iir_track_b1;
+reg signed [31:0] active_post_iir_track_b2;
+reg signed [31:0] active_post_iir_track_a1;
+reg signed [31:0] active_post_iir_track_a2;
 reg signed [31:0] active_manual_offset_dac0;
 reg signed [13:0] active_vco_offset;
 reg signed [15:0] active_vco_amplitude;
@@ -682,13 +774,24 @@ always @(posedge clk1 or negedge rst) begin
         active_blend_dwell <= DEFAULT_DWELL[15:0];
         active_loss_dwell <= DEFAULT_DWELL[15:0];
         active_holdover_timeout <= DEFAULT_HOLDOVER[23:0];
-        active_measurement_timeout <= (24'd120 * 9'd8) + 24'd256;
+        active_measurement_timeout <= (24'd120 * 9'd31) + 24'd256;
         active_warmup_samples <= 16'd4;
         active_correction_limit_pos <= {{24{DEFAULT_POS_LIMIT[31]}}, DEFAULT_POS_LIMIT};
         active_correction_limit_neg <= {{24{DEFAULT_NEG_LIMIT[31]}}, DEFAULT_NEG_LIMIT};
-        active_post_iq_cic_rate_r <= 9'd8;
-        active_post_iq_cic_shift <= 6'd4;
+        active_post_iq_cic_rate_r <= 9'd31;
+        active_post_iq_cic_shift <= 6'd10;
         active_fll_delay_sel <= 2'd0;
+        active_post_iir_mode <= DEFAULT_POST_IIR_MODE[1:0];
+        active_post_iir_acq_b0 <= DEFAULT_POST_IIR_ACQ_B0;
+        active_post_iir_acq_b1 <= DEFAULT_POST_IIR_ACQ_B1;
+        active_post_iir_acq_b2 <= DEFAULT_POST_IIR_ACQ_B2;
+        active_post_iir_acq_a1 <= DEFAULT_POST_IIR_ACQ_A1;
+        active_post_iir_acq_a2 <= DEFAULT_POST_IIR_ACQ_A2;
+        active_post_iir_track_b0 <= DEFAULT_POST_IIR_TRACK_B0;
+        active_post_iir_track_b1 <= DEFAULT_POST_IIR_TRACK_B1;
+        active_post_iir_track_b2 <= DEFAULT_POST_IIR_TRACK_B2;
+        active_post_iir_track_a1 <= DEFAULT_POST_IIR_TRACK_A1;
+        active_post_iir_track_a2 <= DEFAULT_POST_IIR_TRACK_A2;
         active_manual_offset_dac0 <= 32'sd0;
         active_vco_offset <= 14'sd0;
         active_vco_amplitude <= DEFAULT_DAC_AMP[15:0];
@@ -745,6 +848,17 @@ always @(posedge clk1 or negedge rst) begin
             active_post_iq_cic_rate_r <= post_iq_cic_rate_r;
             active_post_iq_cic_shift <= post_iq_cic_shift;
             active_fll_delay_sel <= fll_delay_sel;
+            active_post_iir_mode <= post_iir_mode[1:0];
+            active_post_iir_acq_b0 <= post_iir_acq_b0;
+            active_post_iir_acq_b1 <= post_iir_acq_b1;
+            active_post_iir_acq_b2 <= post_iir_acq_b2;
+            active_post_iir_acq_a1 <= post_iir_acq_a1;
+            active_post_iir_acq_a2 <= post_iir_acq_a2;
+            active_post_iir_track_b0 <= post_iir_track_b0;
+            active_post_iir_track_b1 <= post_iir_track_b1;
+            active_post_iir_track_b2 <= post_iir_track_b2;
+            active_post_iir_track_a1 <= post_iir_track_a1;
+            active_post_iir_track_a2 <= post_iir_track_a2;
             active_manual_offset_dac0 <= manual_offset_dac0;
             active_vco_offset <= VCO_Voffset0[13:0];
             active_vco_amplitude <= VCO_Vamplitude0[15:0];
@@ -779,7 +893,18 @@ wire [31:0] active_config_crc = dpll_config_crc(
     active_correction_limit_pos[31:0],
     active_correction_limit_neg[31:0],
     active_manual_offset_dac0,
-    {{2{active_vco_offset[13]}}, active_vco_offset, active_vco_amplitude}
+    {{2{active_vco_offset[13]}}, active_vco_offset, active_vco_amplitude},
+    {30'h0, active_post_iir_mode},
+    active_post_iir_acq_b0,
+    active_post_iir_acq_b1,
+    active_post_iir_acq_b2,
+    active_post_iir_acq_a1,
+    active_post_iir_acq_a2,
+    active_post_iir_track_b0,
+    active_post_iir_track_b1,
+    active_post_iir_track_b2,
+    active_post_iir_track_a1,
+    active_post_iir_track_a2
 );
 
 dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
@@ -794,6 +919,17 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .cic_output_shift(active_post_iq_cic_shift),
     .cic_flush(reset_pulse_clk),
     .fll_delay_sel(active_fll_delay_sel),
+    .post_iir_mode(active_post_iir_mode),
+    .post_iir_acq_b0(active_post_iir_acq_b0),
+    .post_iir_acq_b1(active_post_iir_acq_b1),
+    .post_iir_acq_b2(active_post_iir_acq_b2),
+    .post_iir_acq_a1(active_post_iir_acq_a1),
+    .post_iir_acq_a2(active_post_iir_acq_a2),
+    .post_iir_track_b0(active_post_iir_track_b0),
+    .post_iir_track_b1(active_post_iir_track_b1),
+    .post_iir_track_b2(active_post_iir_track_b2),
+    .post_iir_track_a1(active_post_iir_track_a1),
+    .post_iir_track_a2(active_post_iir_track_a2),
     .kf(active_kf),
     .ki(active_ki),
     .kp(active_kp),
@@ -834,6 +970,8 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .locked(dpll_locked),
     .active_cic_rate_r(dpll_active_cic_rate_r),
     .active_cic_output_shift(dpll_active_cic_shift),
+    .post_iir_active_bypass(dpll_post_iir_active_bypass),
+    .post_iir_active_use_track(dpll_post_iir_active_use_track),
     .cic_overflow_seen(dpll_cic_overflow),
     .cic_illegal_config_seen(dpll_cic_illegal),
     .cordic_input_overrun_seen(dpll_cordic_input_overrun),
@@ -979,7 +1117,7 @@ function status_snapshot_address;
     begin
         status_snapshot_address = ((address >= 16'h0100) && (address <= 16'h010C)) ||
                                   ((address >= 16'h0110) && (address <= 16'h011C)) ||
-                                  (address == 16'h011E);
+                                  ((address >= 16'h011E) && (address <= 16'h0129));
     end
 endfunction
 
@@ -1006,7 +1144,8 @@ always @(posedge clk1 or negedge rst) begin
                 16'h0105: status_response_data_clk <= dpll_tracking_word[31:0];
                 16'h0106: status_response_data_clk <= {{14{dpll_phase_error[17]}}, dpll_phase_error};
                 16'h0107: status_response_data_clk <= dpll_freq_state[31:0];
-                16'h0108: status_response_data_clk <= {9'h0, dpll_cordic_output_format_error,
+                16'h0108: status_response_data_clk <= {7'h0, dpll_post_iir_active_use_track,
+                    dpll_post_iir_active_bypass, dpll_cordic_output_format_error,
                     dpll_cordic_input_out_of_range, dpll_cordic_input_overrun, pre_cic_backpressure_seen,
                     manual_offset_overflow, vco_mul_div_config_error,
                     dpll_loop_state, dpll_loss_reason, dpll_signal_present, dpll_phase_locked,
@@ -1030,6 +1169,17 @@ always @(posedge clk1 or negedge rst) begin
                 16'h011B: status_response_data_clk <= {8'h0, active_holdover_timeout};
                 16'h011C: status_response_data_clk <= ABI_VERSION;
                 16'h011E: status_response_data_clk <= active_config_crc;
+                16'h011F: status_response_data_clk <= {30'h0, active_post_iir_mode};
+                16'h0120: status_response_data_clk <= active_post_iir_acq_b0;
+                16'h0121: status_response_data_clk <= active_post_iir_acq_b1;
+                16'h0122: status_response_data_clk <= active_post_iir_acq_b2;
+                16'h0123: status_response_data_clk <= active_post_iir_acq_a1;
+                16'h0124: status_response_data_clk <= active_post_iir_acq_a2;
+                16'h0125: status_response_data_clk <= active_post_iir_track_b0;
+                16'h0126: status_response_data_clk <= active_post_iir_track_b1;
+                16'h0127: status_response_data_clk <= active_post_iir_track_b2;
+                16'h0128: status_response_data_clk <= active_post_iir_track_a1;
+                16'h0129: status_response_data_clk <= active_post_iir_track_a2;
                 default:  status_response_data_clk <= 32'd0;
             endcase
             status_response_toggle_clk <= ~status_response_toggle_clk;
@@ -1105,6 +1255,17 @@ always @(posedge sys_clk or negedge sys_rstn) begin
                     16'h0061: sys_rdata <= post_iq_cic_shift;
                     16'h0062: sys_rdata <= fll_delay_sel;
                     16'h0063: sys_rdata <= warmup_samples;
+                    16'h0064: sys_rdata <= post_iir_mode;
+                    16'h0065: sys_rdata <= post_iir_acq_b0;
+                    16'h0066: sys_rdata <= post_iir_acq_b1;
+                    16'h0067: sys_rdata <= post_iir_acq_b2;
+                    16'h0068: sys_rdata <= post_iir_acq_a1;
+                    16'h0069: sys_rdata <= post_iir_acq_a2;
+                    16'h006A: sys_rdata <= post_iir_track_b0;
+                    16'h006B: sys_rdata <= post_iir_track_b1;
+                    16'h006C: sys_rdata <= post_iir_track_b2;
+                    16'h006D: sys_rdata <= post_iir_track_a1;
+                    16'h006E: sys_rdata <= post_iir_track_a2;
                     16'h006F: sys_rdata <= {16'h0000, config_apply_sequence,
                         config_apply_error_code[3:0], 2'b00, config_apply_error, config_apply_busy};
                     16'h0070: sys_rdata <= {16'h0000, config_apply_rejected_mask};

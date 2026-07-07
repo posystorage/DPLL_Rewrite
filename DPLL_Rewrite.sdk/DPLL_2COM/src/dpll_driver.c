@@ -104,7 +104,7 @@ static uint32_t dpll_expected_active_config_crc(const dpll_driver_t *driver)
     uint32_t measurement_timeout =
         dpll_read(driver, driver->regs.shadow_measurement_timeout) & 0x00FFFFFFU;
     uint32_t negative_limit = dpll_read(driver, driver->regs.shadow_negative_limit);
-    uint32_t words[23];
+    uint32_t words[34];
 
     if (measurement_timeout == 0U) {
         measurement_timeout = (120U * cic_r) + 256U;
@@ -141,7 +141,18 @@ static uint32_t dpll_expected_active_config_crc(const dpll_driver_t *driver)
     words[21] = dpll_read(driver, driver->regs.shadow_manual_offset);
     words[22] = ((dpll_sign_extend(dpll_read(driver, driver->regs.shadow_dac0_offset), 13U) & 0xFFFFU) << 16) |
                 (dpll_sign_extend(dpll_read(driver, driver->regs.shadow_dac0_amplitude), 15U) & 0xFFFFU);
-    return dpll_config_crc_words(words, 23U);
+    words[23] = dpll_read(driver, driver->regs.shadow_post_iir_config) & 0x3U;
+    words[24] = dpll_read(driver, driver->regs.shadow_post_iir_acq_b0);
+    words[25] = dpll_read(driver, driver->regs.shadow_post_iir_acq_b1);
+    words[26] = dpll_read(driver, driver->regs.shadow_post_iir_acq_b2);
+    words[27] = dpll_read(driver, driver->regs.shadow_post_iir_acq_a1);
+    words[28] = dpll_read(driver, driver->regs.shadow_post_iir_acq_a2);
+    words[29] = dpll_read(driver, driver->regs.shadow_post_iir_track_b0);
+    words[30] = dpll_read(driver, driver->regs.shadow_post_iir_track_b1);
+    words[31] = dpll_read(driver, driver->regs.shadow_post_iir_track_b2);
+    words[32] = dpll_read(driver, driver->regs.shadow_post_iir_track_a1);
+    words[33] = dpll_read(driver, driver->regs.shadow_post_iir_track_a2);
+    return dpll_config_crc_words(words, 34U);
 }
 
 int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result)
@@ -162,6 +173,17 @@ int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result)
     uint32_t requested_kf_track;
     uint32_t requested_kp_blend;
     uint32_t requested_ki_blend;
+    uint32_t requested_post_iir_config;
+    uint32_t requested_post_iir_acq_b0;
+    uint32_t requested_post_iir_acq_b1;
+    uint32_t requested_post_iir_acq_b2;
+    uint32_t requested_post_iir_acq_a1;
+    uint32_t requested_post_iir_acq_a2;
+    uint32_t requested_post_iir_track_b0;
+    uint32_t requested_post_iir_track_b1;
+    uint32_t requested_post_iir_track_b2;
+    uint32_t requested_post_iir_track_a1;
+    uint32_t requested_post_iir_track_a2;
     uint32_t requested_active_config_crc;
     uint32_t active_cic;
 
@@ -183,6 +205,17 @@ int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result)
     requested_kf_track = dpll_read(driver, driver->regs.shadow_kf_track);
     requested_kp_blend = dpll_read(driver, driver->regs.shadow_kp_blend);
     requested_ki_blend = dpll_read(driver, driver->regs.shadow_ki_blend);
+    requested_post_iir_config = dpll_read(driver, driver->regs.shadow_post_iir_config) & 0x3U;
+    requested_post_iir_acq_b0 = dpll_read(driver, driver->regs.shadow_post_iir_acq_b0);
+    requested_post_iir_acq_b1 = dpll_read(driver, driver->regs.shadow_post_iir_acq_b1);
+    requested_post_iir_acq_b2 = dpll_read(driver, driver->regs.shadow_post_iir_acq_b2);
+    requested_post_iir_acq_a1 = dpll_read(driver, driver->regs.shadow_post_iir_acq_a1);
+    requested_post_iir_acq_a2 = dpll_read(driver, driver->regs.shadow_post_iir_acq_a2);
+    requested_post_iir_track_b0 = dpll_read(driver, driver->regs.shadow_post_iir_track_b0);
+    requested_post_iir_track_b1 = dpll_read(driver, driver->regs.shadow_post_iir_track_b1);
+    requested_post_iir_track_b2 = dpll_read(driver, driver->regs.shadow_post_iir_track_b2);
+    requested_post_iir_track_a1 = dpll_read(driver, driver->regs.shadow_post_iir_track_a1);
+    requested_post_iir_track_a2 = dpll_read(driver, driver->regs.shadow_post_iir_track_a2);
     requested_active_config_crc = dpll_expected_active_config_crc(driver);
 
     before = dpll_read(driver, driver->regs.config_apply);
@@ -225,6 +258,17 @@ int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result)
         dpll_read(driver, driver->regs.active_kf_track) != requested_kf_track ||
         dpll_read(driver, driver->regs.active_kp_blend) != requested_kp_blend ||
         dpll_read(driver, driver->regs.active_ki_blend) != requested_ki_blend ||
+        dpll_read(driver, driver->regs.active_post_iir_config) != requested_post_iir_config ||
+        dpll_read(driver, driver->regs.active_post_iir_acq_b0) != requested_post_iir_acq_b0 ||
+        dpll_read(driver, driver->regs.active_post_iir_acq_b1) != requested_post_iir_acq_b1 ||
+        dpll_read(driver, driver->regs.active_post_iir_acq_b2) != requested_post_iir_acq_b2 ||
+        dpll_read(driver, driver->regs.active_post_iir_acq_a1) != requested_post_iir_acq_a1 ||
+        dpll_read(driver, driver->regs.active_post_iir_acq_a2) != requested_post_iir_acq_a2 ||
+        dpll_read(driver, driver->regs.active_post_iir_track_b0) != requested_post_iir_track_b0 ||
+        dpll_read(driver, driver->regs.active_post_iir_track_b1) != requested_post_iir_track_b1 ||
+        dpll_read(driver, driver->regs.active_post_iir_track_b2) != requested_post_iir_track_b2 ||
+        dpll_read(driver, driver->regs.active_post_iir_track_a1) != requested_post_iir_track_a1 ||
+        dpll_read(driver, driver->regs.active_post_iir_track_a2) != requested_post_iir_track_a2 ||
         dpll_read(driver, driver->regs.applied_abi_version) != driver->expected.abi_version ||
         dpll_read(driver, driver->regs.active_config_crc) != requested_active_config_crc) {
         return DPLL_DRIVER_ERR_VERIFY;

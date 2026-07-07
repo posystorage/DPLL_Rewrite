@@ -156,8 +156,8 @@ uint64_t Freq_meter_gate_time_cache = 0;
 #define DPLL_APPLY_POLL_LIMIT             1024U
 #define DPLL_ABI_RETRY_COUNT              100U
 #define DPLL_ABI_RETRY_DELAY_US           100U
-#define PC_HOST_MAX_FRAME_BYTES           64U
-#define DPLL_ADV_CONFIG_PAYLOAD_BYTES     46U
+#define PC_HOST_MAX_FRAME_BYTES           128U
+#define DPLL_ADV_CONFIG_PAYLOAD_BYTES     90U
 #define DPLL_DEBUG_CONFIG_PAYLOAD_BYTES   12U
 
 static uint8_t dpll_abi_ready = 0;
@@ -196,6 +196,17 @@ static const dpll_reg_map_t dpll_register_map = {
 	DPLL_MEASUREMENT_TIMEOUT_Addr,
 	DPLL_FLL_DELAY_SEL_Addr,
 	DPLL_WARMUP_SAMPLES_Addr,
+	DPLL_POST_IIR_CONFIG_Addr,
+	DPLL_POST_IIR_ACQ_B0_Addr,
+	DPLL_POST_IIR_ACQ_B1_Addr,
+	DPLL_POST_IIR_ACQ_B2_Addr,
+	DPLL_POST_IIR_ACQ_A1_Addr,
+	DPLL_POST_IIR_ACQ_A2_Addr,
+	DPLL_POST_IIR_TRACK_B0_Addr,
+	DPLL_POST_IIR_TRACK_B1_Addr,
+	DPLL_POST_IIR_TRACK_B2_Addr,
+	DPLL_POST_IIR_TRACK_A1_Addr,
+	DPLL_POST_IIR_TRACK_A2_Addr,
 	DPLL_FREQ_POS_LIMIT_Addr,
 	DPLL_FREQ_NEG_LIMIT_Addr,
 	VCO_Freq_Manual_Offset_Addr,
@@ -215,6 +226,17 @@ static const dpll_reg_map_t dpll_register_map = {
 	DPLL_ACTIVE_KF_TRACK_Addr,
 	DPLL_ACTIVE_KP_BLEND_Addr,
 	DPLL_ACTIVE_KI_BLEND_Addr,
+	DPLL_ACTIVE_POST_IIR_CONFIG_Addr,
+	DPLL_ACTIVE_POST_IIR_ACQ_B0_Addr,
+	DPLL_ACTIVE_POST_IIR_ACQ_B1_Addr,
+	DPLL_ACTIVE_POST_IIR_ACQ_B2_Addr,
+	DPLL_ACTIVE_POST_IIR_ACQ_A1_Addr,
+	DPLL_ACTIVE_POST_IIR_ACQ_A2_Addr,
+	DPLL_ACTIVE_POST_IIR_TRACK_B0_Addr,
+	DPLL_ACTIVE_POST_IIR_TRACK_B1_Addr,
+	DPLL_ACTIVE_POST_IIR_TRACK_B2_Addr,
+	DPLL_ACTIVE_POST_IIR_TRACK_A1_Addr,
+	DPLL_ACTIVE_POST_IIR_TRACK_A2_Addr,
 	DPLL_APPLIED_ABI_VERSION_Addr,
 	DPLL_ACTIVE_CONFIG_CRC_Addr
 };
@@ -855,8 +877,19 @@ void CMD_19_READ_DPLL_ADV_CONFIG(void)
 	pc_put_u32(48, Xil_In32(DPLL_FLL_DELAY_SEL_Addr));
 	pc_put_u32(52, Xil_In32(DPLL_WARMUP_SAMPLES_Addr));
 	pc_put_u32(56, Xil_In32(DPLL_MEASUREMENT_TIMEOUT_Addr));
+	pc_put_u32(60, Xil_In32(DPLL_POST_IIR_CONFIG_Addr));
+	pc_put_u32(64, Xil_In32(DPLL_POST_IIR_ACQ_B0_Addr));
+	pc_put_u32(68, Xil_In32(DPLL_POST_IIR_ACQ_B1_Addr));
+	pc_put_u32(72, Xil_In32(DPLL_POST_IIR_ACQ_B2_Addr));
+	pc_put_u32(76, Xil_In32(DPLL_POST_IIR_ACQ_A1_Addr));
+	pc_put_u32(80, Xil_In32(DPLL_POST_IIR_ACQ_A2_Addr));
+	pc_put_u32(84, Xil_In32(DPLL_POST_IIR_TRACK_B0_Addr));
+	pc_put_u32(88, Xil_In32(DPLL_POST_IIR_TRACK_B1_Addr));
+	pc_put_u32(92, Xil_In32(DPLL_POST_IIR_TRACK_B2_Addr));
+	pc_put_u32(96, Xil_In32(DPLL_POST_IIR_TRACK_A1_Addr));
+	pc_put_u32(100, Xil_In32(DPLL_POST_IIR_TRACK_A2_Addr));
 
-	PC_HOST_ASK_Pack(56);
+	PC_HOST_ASK_Pack(100);
 }
 void CMD_1A_READ_VBIAS_DAC(void)
 {
@@ -988,6 +1021,17 @@ void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, PC_HOST_CMD_data_Buff[43]);
 	Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));
 	Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr, pc_get_u32(46));
+	Xil_Out32(DPLL_POST_IIR_CONFIG_Addr, pc_get_u32(50));
+	Xil_Out32(DPLL_POST_IIR_ACQ_B0_Addr, pc_get_u32(54));
+	Xil_Out32(DPLL_POST_IIR_ACQ_B1_Addr, pc_get_u32(58));
+	Xil_Out32(DPLL_POST_IIR_ACQ_B2_Addr, pc_get_u32(62));
+	Xil_Out32(DPLL_POST_IIR_ACQ_A1_Addr, pc_get_u32(66));
+	Xil_Out32(DPLL_POST_IIR_ACQ_A2_Addr, pc_get_u32(70));
+	Xil_Out32(DPLL_POST_IIR_TRACK_B0_Addr, pc_get_u32(74));
+	Xil_Out32(DPLL_POST_IIR_TRACK_B1_Addr, pc_get_u32(78));
+	Xil_Out32(DPLL_POST_IIR_TRACK_B2_Addr, pc_get_u32(82));
+	Xil_Out32(DPLL_POST_IIR_TRACK_A1_Addr, pc_get_u32(86));
+	Xil_Out32(DPLL_POST_IIR_TRACK_A2_Addr, pc_get_u32(90));
 	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_90_WRITE_FREQMETER_FREQ(void)
@@ -1556,10 +1600,21 @@ init_platform();
     Xil_Out32(DPLL_LOSS_DWELL_Addr,16);
     Xil_Out32(DPLL_HOLDOVER_TIMEOUT_Addr,1250000);
     Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr,0);
-    Xil_Out32(DPLL_POST_IQ_CIC_R_Addr,78);
-    Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr,12);
+    Xil_Out32(DPLL_POST_IQ_CIC_R_Addr,31);
+    Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr,10);
     Xil_Out32(DPLL_FLL_DELAY_SEL_Addr,2);
     Xil_Out32(DPLL_WARMUP_SAMPLES_Addr,64);
+    Xil_Out32(DPLL_POST_IIR_CONFIG_Addr,3);
+    Xil_Out32(DPLL_POST_IIR_ACQ_B0_Addr,138975519);
+    Xil_Out32(DPLL_POST_IIR_ACQ_B1_Addr,277951039);
+    Xil_Out32(DPLL_POST_IIR_ACQ_B2_Addr,138975519);
+    Xil_Out32(DPLL_POST_IIR_ACQ_A1_Addr,0xCF8C92D0);
+    Xil_Out32(DPLL_POST_IIR_ACQ_A2_Addr,295031213);
+    Xil_Out32(DPLL_POST_IIR_TRACK_B0_Addr,48851600);
+    Xil_Out32(DPLL_POST_IIR_TRACK_B1_Addr,97703199);
+    Xil_Out32(DPLL_POST_IIR_TRACK_B2_Addr,48851600);
+    Xil_Out32(DPLL_POST_IIR_TRACK_A1_Addr,0xABFE403C);
+    Xil_Out32(DPLL_POST_IIR_TRACK_A2_Addr,531065347);
     if (dpll_apply_config() != 0) return -1;
 
     Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);//rst;

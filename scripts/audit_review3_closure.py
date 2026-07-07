@@ -68,8 +68,8 @@ def function_body(text: str, name: str) -> str:
 def main() -> int:
     ensure_generated_identity()
     wrapper = read(DPLL / "dpll_wrapper.v")
-    core = read(DPLL / "core" / "dpll_single_clock_core_stage_a.v")
-    fll = read(DPLL / "detector_fll" / "fll_phase_difference_stage_a.v")
+    core = read(DPLL / "DDC" / "dpll_single_clock_core_stage_a.v")
+    fll = read(DPLL / "hybrid_loop" / "fll_phase_difference_stage_a.v")
     loop = read(DPLL / "hybrid_loop" / "loop_state_manager_stage_a.v")
     periph = read(SDK / "Peripherals.h")
     arm = read(SDK / "helloworld.c")

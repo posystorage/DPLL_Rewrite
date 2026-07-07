@@ -20,7 +20,7 @@ try {
         if ($content -notmatch [regex]::Escape($PassText)) { throw "missing pass marker '$PassText' in $LogPath" }
     }
 
-    $mixerRtl = Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\frontend\iq_mixer_stage_a.v'
+    $mixerRtl = Join-Path $RepoRoot 'DPLL_Rewrite.srcs\sources_1\DigitalPLL\DDC\iq_mixer_stage_a.v'
     $mixerTb = Join-Path $RepoRoot 'verification\rtl\iq_mixer_stage_a_tb.v'
 
     & (Join-Path $VivadoBin 'xvlog.bat') $mixerRtl $mixerTb

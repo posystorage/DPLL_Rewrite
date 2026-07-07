@@ -31,12 +31,12 @@ def git_tracked_files() -> set[str]:
 
 
 def main() -> int:
-    core = read(DPLL / "core" / "dpll_single_clock_core_stage_a.v")
+    core = read(DPLL / "DDC" / "dpll_single_clock_core_stage_a.v")
     dc = read(DPLL / "frontend" / "dc_blocker_valid_stage_a.v")
-    fll = read(DPLL / "detector_fll" / "fll_phase_difference_stage_a.v")
+    fll = read(DPLL / "hybrid_loop" / "fll_phase_difference_stage_a.v")
     loop = read(DPLL / "hybrid_loop" / "loop_state_manager_stage_a.v")
     hybrid = read(DPLL / "hybrid_loop" / "hybrid_fll_pll_filter_stage_a.v")
-    cic = read(DPLL / "iq_cic" / "post_iq_cic_stage_a.v")
+    cic = read(DPLL / "DDC" / "post_iq_cic_stage_a.v")
     vco = read(DPLL / "VCO" / "PLL_VCO_MUL_DIV.v")
     wrapper = read(DPLL / "dpll_wrapper.v")
     periph = read(ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h")

@@ -40,6 +40,7 @@ Phase wrap is pure two's-complement modular arithmetic.
 | mixer product retained to CIC | 18 | yes | rounded from full product |
 | post-IQ CIC internal | 44 | yes | `18 + ceil(3*log2(312)) + 1` |
 | post-IQ CIC output | 20 | yes | after shift/round/saturate |
+| post-IQ IIR coefficients | 32 | yes | Q2.30 biquad coefficients |
 | magnitude | 20 | no | raw `dpll_angle_CORDIC` Translate magnitude, no scale compensation |
 | phase | 18 | yes | one turn is `2^18` |
 | FLL error | 22 | yes | phase difference plus margin, model-confirm |
@@ -100,6 +101,28 @@ Magnitude contract:
 - Threshold tuning must account for the CORDIC no-scale-compensation gain and the post-IQ CIC output scale.
 
 The initial ARM defaults `MAG_ENTER_THRESHOLD=1024` and `MAG_EXIT_THRESHOLD=512` are bring-up defaults in this raw CORDIC output scale, not calibrated physical amplitude limits.
+
+## Post-IQ IIR Stage
+
+Stage-1 post filtering inserts `post_iir_stage_a` after `post_iq_cic_stage_a`
+and before the CORDIC/FLL phase path. The module uses two identical biquad
+sections in cascade for I and Q. Coefficients are signed Q2.30 and implement:
+
+```text
+y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
+```
+
+For the first 20 kHz validation point, keep `POST_IQ_CIC_R=31`
+(`fs_iir = 3.125 MSPS / 31 = 100.806 kSPS`) and use:
+
+| Mode | fc | b0 | b1 | b2 | a1 | a2 |
+|---|---:|---:|---:|---:|---:|---:|
+| ACQUIRE | 15 kHz | 138975519 | 277951039 | 138975519 | -812870960 | 295031213 |
+| TRACK | 8 kHz | 48851600 | 97703199 | 48851600 | -1409400772 | 531065347 |
+
+`POST_IIR_CONFIG=3` selects ACQUIRE coefficients outside blend/track states and
+TRACK coefficients during `FLL_PLL_BLEND` and `PLL_TRACK`. `POST_IIR_CONFIG=0`
+bypasses the stage for regression comparison.
 
 ## DC Blocker
 

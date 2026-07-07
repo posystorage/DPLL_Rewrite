@@ -29,7 +29,7 @@ def main() -> int:
     cic_xci = read(SRC / "DigitalPLL" / "DDC" / "ip" / "pre_iq_cic_40_125m_v1" / "pre_iq_cic_40_125m_v1" / "pre_iq_cic_40_125m_v1.xci")
     cordic_xci = read(SRC / "DigitalPLL" / "DDC" / "ip" / "angle_CORDIC" / "angle_CORDIC.xci")
     wrapper = read(SRC / "DigitalPLL" / "dpll_wrapper.v")
-    core = read(SRC / "DigitalPLL" / "core" / "dpll_single_clock_core_stage_a.v")
+    core = read(SRC / "DigitalPLL" / "DDC" / "dpll_single_clock_core_stage_a.v")
     div_xci = read(SRC / "DigitalPLL" / "VCO" / "div_gen_pll_u" / "div_gen_pll_u" / "div_gen_pll_u.xci")
     manifest_path = ROOT / "reports" / "review2_ip_config_regen" / "manifest.txt"
     manifest = read(manifest_path) if manifest_path.exists() else ""

@@ -13,6 +13,7 @@ module fll_phase_difference_stage_a_tb;
     wire ambiguous;
 
     integer wait_cycles;
+    integer sat_index;
 
     fll_phase_difference_stage_a dut (
         .clk_125m(clk_125m),
@@ -38,6 +39,15 @@ module fll_phase_difference_stage_a_tb;
             @(posedge clk_125m);
             #1;
             phase_valid = 1'b0;
+        end
+    endtask
+
+    task push_unwrapped_phase;
+        input integer value;
+        reg [17:0] wrapped_value;
+        begin
+            wrapped_value = value[17:0];
+            push_phase($signed(wrapped_value));
         end
     endtask
 
@@ -112,7 +122,7 @@ module fll_phase_difference_stage_a_tb;
 
         pulse_clear();
         delay_sel = 2'd0;
-        push_phase(18'sd0);
+        push_phase(-18'sd1);
         push_phase(18'sd131071);
         expect_result(22'sd2097151, 1'b1);
 
@@ -133,6 +143,29 @@ module fll_phase_difference_stage_a_tb;
         push_phase(18'sd125);
         push_phase(18'sd100);
         expect_result(-22'sd800, 1'b0);
+
+        // Crossing the +/-pi CORDIC boundary must be unwrapped before the
+        // instantaneous frequency calculation.
+        pulse_clear();
+        push_phase(18'sd130000);
+        push_phase(-18'sd130000);
+        expect_result(22'sd68608, 1'b0);
+
+        pulse_clear();
+        push_phase(-18'sd130000);
+        push_phase(18'sd130000);
+        expect_result(-22'sd68608, 1'b0);
+
+        // Severe unlock should rail the unwrapped phase accumulator at about
+        // +/-16pi and mark the measurement ambiguous for the control loop.
+        pulse_clear();
+        push_unwrapped_phase(0);
+        for (sat_index = 1; sat_index < 21; sat_index = sat_index + 1) begin
+            push_unwrapped_phase(sat_index * 100000);
+            expect_result(22'sd2097151, 1'b0);
+        end
+        push_unwrapped_phase(21 * 100000);
+        expect_result(22'sd2097151, 1'b1);
 
         $display("PASS: fll_phase_difference_stage_a_tb");
         $finish;

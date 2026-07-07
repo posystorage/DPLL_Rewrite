@@ -6,8 +6,8 @@ module dpll_integrated_flow_tb;
     localparam [31:0] CENTER_WORD_HI  = 32'h000b_88ca;      // 22 kHz, high 32 bits
     localparam integer RESET_DELAY_CYCLES = 4096;
     localparam integer INIT_SETTLE_CYCLES = 4096;
-    localparam integer RUN_CYCLES_0   = 12000;
-    localparam integer RUN_CYCLES_1   = 12000;
+    localparam integer RUN_CYCLES_0   = 1250000;
+    localparam integer RUN_CYCLES_1   = 125000;
 
     reg clk1 = 1'b0;
     reg sys_clk = 1'b0;
@@ -29,6 +29,9 @@ module dpll_integrated_flow_tb;
 
     wire adc_dds_valid;
     wire [15:0] adc_dds_sample_raw;
+    wire signed [31:0] adc_dds_scaled_wide;
+    wire signed [15:0] adc_dds_scaled_16;
+    wire signed [13:0] adc_dds_adc14;
     reg signed [15:0] adc_sample = 16'sd0;
     reg [31:0] adc_sample_count = 32'd0;
 
@@ -46,12 +49,17 @@ module dpll_integrated_flow_tb;
         .m_axis_data_tdata(adc_dds_sample_raw)
     );
 
+//    assign adc_dds_scaled_wide = ($signed(adc_dds_sample_raw) * 32'sd4) / 32'sd5;
+//    assign adc_dds_scaled_16 = adc_dds_scaled_wide[15:0];
+    assign adc_dds_scaled_16 = adc_dds_sample_raw;
+    assign adc_dds_adc14 = adc_dds_scaled_16[15:2];
+
     always @(posedge clk1) begin
         if (!rst) begin
             adc_sample <= 16'sd0;
             adc_sample_count <= 32'd0;
         end else if (adc_dds_valid) begin
-            adc_sample <= $signed(adc_dds_sample_raw) >>> 1;
+            adc_sample <= {adc_dds_adc14, 2'b0};
             adc_sample_count <= adc_sample_count + 32'd1;
         end
     end
@@ -190,11 +198,11 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0011, 32'h0000_0000);
         bus_write(16'h0021, 32'd40000);
         bus_write(16'h0022, 32'd117200);
-        bus_write(16'h0023, 32'd78900);
-        bus_write(16'h0024, 32'd100000);
-        bus_write(16'h0025, 32'h0000_002f);
-        bus_write(16'h0026, 32'd40000);
-        bus_write(16'h0027, 32'd117200);
+        bus_write(16'h0023, 32'd8000000);
+        bus_write(16'h0024, 32'd7000000);
+        bus_write(16'h0025, 32'd8000000);
+        bus_write(16'h0026, 32'd500000);
+        bus_write(16'h0027, 32'd1000000);
         bus_write(16'h0028, 32'h7fff_fffe);
         bus_write(16'h0029, 32'h8000_0001);
         bus_write(16'h002a, 32'h0000_0000);
@@ -206,20 +214,20 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0041, 32'h0000_7fff);
         bus_write(16'h0042, 32'h0000_0007);
         bus_write(16'h0043, 32'h0000_0106);
-        bus_write(16'h0050, 32'd1000);
+        bus_write(16'h0050, 32'd131071);
         bus_write(16'h0051, 32'h0000_0000);
-        bus_write(16'h0052, 32'd100);
+        bus_write(16'h0052, 32'd2097151);
         bus_write(16'h0053, 32'd16384);
         bus_write(16'h0054, 32'd8192);
-        bus_write(16'h0055, 32'd16);
-        bus_write(16'h0056, 32'd16);
-        bus_write(16'h0057, 32'd16);
+        bus_write(16'h0055, 32'd1);
+        bus_write(16'h0056, 32'd128);
+        bus_write(16'h0057, 32'd64);
         bus_write(16'h0058, 32'd1250000);
-        bus_write(16'h0059, 32'h0000_0000);
-        bus_write(16'h0060, 32'h0000_004e);
-        bus_write(16'h0061, 32'h0000_000c);
-        bus_write(16'h0062, 32'h0000_0002);
-        bus_write(16'h0063, 32'd64);
+        bus_write(16'h0059, 32'd65535);
+        bus_write(16'h0060, 32'h0000_0010);
+        bus_write(16'h0061, 32'h0000_0007);
+        bus_write(16'h0062, 32'h0000_0003);
+        bus_write(16'h0063, 32'd16);
         run_clocks(INIT_SETTLE_CYCLES);
         bus_write(16'h006f, 32'h0000_0001);
         wait_apply_done();

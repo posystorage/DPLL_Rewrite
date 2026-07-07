@@ -39,6 +39,8 @@ xvlog.pb
 reports/xsim/**/xsim.dir/
 reports/xsim/**/.Xil/
 reports/xsim/clock_valid_stage_a/
+reports/xsim/dac0_probe_current/
+reports/xsim/dc_blocker_stage_a_cli_*/
 reports/xsim/**/clock_valid_stage_a.cache/
 reports/xsim/**/clock_valid_stage_a.hw/
 reports/xsim/**/clock_valid_stage_a.ip_user_files/
@@ -71,6 +73,7 @@ __pycache__/
 *.py[cod]
 
 # Local/editor files
+.codex/backups/
 *.tmp
 *.bak
 *.swp

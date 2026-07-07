@@ -17,16 +17,41 @@ module fll_phase_difference_stage_a #(
     output reg                               ambiguous
 );
 
-    reg signed [PHASE_WIDTH-1:0] phase_delay [0:7];
+    localparam integer UNWRAPPED_WIDTH = PHASE_WIDTH + 5;
+    localparam integer DELTA_WIDTH = UNWRAPPED_WIDTH + 1;
+    localparam integer SUM_WIDTH = UNWRAPPED_WIDTH + 2;
+
+    localparam signed [DELTA_WIDTH-1:0] HALF_TURN =
+        (1 <<< (PHASE_WIDTH-1));
+    localparam signed [DELTA_WIDTH-1:0] FULL_TURN =
+        (1 <<< PHASE_WIDTH);
+    localparam signed [UNWRAPPED_WIDTH-1:0] UNWRAPPED_POS_LIMIT =
+        (1 <<< (PHASE_WIDTH+3)) - 1'b1;
+    localparam signed [UNWRAPPED_WIDTH-1:0] UNWRAPPED_NEG_LIMIT =
+        -(1 <<< (PHASE_WIDTH+3));
+
+    reg signed [PHASE_WIDTH-1:0] wrapped_phase_prev;
+    reg wrapped_phase_prev_valid;
+    reg signed [UNWRAPPED_WIDTH-1:0] unwrapped_phase_current;
+    reg unwrapped_phase_saturated_current;
+    reg signed [UNWRAPPED_WIDTH-1:0] unwrapped_phase_delay [0:7];
+    reg unwrapped_phase_saturated_delay [0:7];
     reg [3:0] valid_count;
     integer idx;
 
-    wire signed [PHASE_WIDTH-1:0] delayed_phase;
-    wire signed [PHASE_WIDTH-1:0] phase_delta_wrapped;
+    wire signed [UNWRAPPED_WIDTH-1:0] delayed_unwrapped_phase;
+    wire delayed_unwrapped_saturated;
+    wire signed [DELTA_WIDTH-1:0] wrapped_phase_delta_raw;
+    wire signed [DELTA_WIDTH-1:0] wrapped_phase_delta_unwrapped;
+    wire wrapped_phase_delta_ambiguous;
+    wire signed [SUM_WIDTH-1:0] unwrapped_phase_sum_next;
+    wire signed [UNWRAPPED_WIDTH-1:0] unwrapped_phase_next;
+    wire unwrapped_phase_saturated_next;
+    wire signed [DELTA_WIDTH-1:0] instantaneous_phase_delta;
     wire [3:0] selected_delay;
     wire [12:0] normalization_denominator;
-    wire [PHASE_WIDTH-1:0] phase_delta_abs;
-    reg [PHASE_WIDTH-1:0] normalization_abs_pending;
+    wire [DELTA_WIDTH-1:0] instantaneous_phase_delta_abs;
+    reg [DELTA_WIDTH-1:0] normalization_abs_pending;
     reg [12:0] normalization_denominator_pending;
     reg normalization_negative_pending;
     reg normalization_ambiguous_pending;
@@ -52,19 +77,50 @@ module fll_phase_difference_stage_a #(
         (delay_sel == 2'd1) ? 4'd2 :
         (delay_sel == 2'd2) ? 4'd4 : 4'd8;
 
-    assign delayed_phase =
-        (delay_sel == 2'd0) ? phase_delay[0] :
-        (delay_sel == 2'd1) ? phase_delay[1] :
-        (delay_sel == 2'd2) ? phase_delay[3] : phase_delay[7];
+    assign delayed_unwrapped_phase =
+        (delay_sel == 2'd0) ? unwrapped_phase_delay[0] :
+        (delay_sel == 2'd1) ? unwrapped_phase_delay[1] :
+        (delay_sel == 2'd2) ? unwrapped_phase_delay[3] : unwrapped_phase_delay[7];
 
-    assign phase_delta_wrapped = phase_in - delayed_phase;
-    // Normalize to the R=312, M=8 reference interval. The absolute-value
-    // stage and constant multiply are registered before the sequential
-    // divider so no variable division or long multiply chain reaches 125 MHz.
+    assign delayed_unwrapped_saturated =
+        (delay_sel == 2'd0) ? unwrapped_phase_saturated_delay[0] :
+        (delay_sel == 2'd1) ? unwrapped_phase_saturated_delay[1] :
+        (delay_sel == 2'd2) ? unwrapped_phase_saturated_delay[3] :
+                               unwrapped_phase_saturated_delay[7];
+
+    assign wrapped_phase_delta_raw =
+        {{(DELTA_WIDTH-PHASE_WIDTH){phase_in[PHASE_WIDTH-1]}}, phase_in} -
+        {{(DELTA_WIDTH-PHASE_WIDTH){wrapped_phase_prev[PHASE_WIDTH-1]}}, wrapped_phase_prev};
+    assign wrapped_phase_delta_unwrapped =
+        !wrapped_phase_prev_valid ? {{(DELTA_WIDTH-PHASE_WIDTH){phase_in[PHASE_WIDTH-1]}}, phase_in} :
+        (wrapped_phase_delta_raw > HALF_TURN) ? (wrapped_phase_delta_raw - FULL_TURN) :
+        (wrapped_phase_delta_raw < -HALF_TURN) ? (wrapped_phase_delta_raw + FULL_TURN) :
+        wrapped_phase_delta_raw;
+    assign wrapped_phase_delta_ambiguous =
+        wrapped_phase_prev_valid &&
+        ((wrapped_phase_delta_raw == HALF_TURN) || (wrapped_phase_delta_raw == -HALF_TURN));
+    assign unwrapped_phase_sum_next =
+        !wrapped_phase_prev_valid ?
+            {{(SUM_WIDTH-PHASE_WIDTH){phase_in[PHASE_WIDTH-1]}}, phase_in} :
+            {{(SUM_WIDTH-UNWRAPPED_WIDTH){unwrapped_phase_current[UNWRAPPED_WIDTH-1]}}, unwrapped_phase_current} +
+            {{(SUM_WIDTH-DELTA_WIDTH){wrapped_phase_delta_unwrapped[DELTA_WIDTH-1]}}, wrapped_phase_delta_unwrapped};
+    assign unwrapped_phase_next = saturate_unwrapped_phase(unwrapped_phase_sum_next);
+    assign unwrapped_phase_saturated_next =
+        (unwrapped_phase_sum_next > $signed({{(SUM_WIDTH-UNWRAPPED_WIDTH){UNWRAPPED_POS_LIMIT[UNWRAPPED_WIDTH-1]}}, UNWRAPPED_POS_LIMIT})) ||
+        (unwrapped_phase_sum_next < $signed({{(SUM_WIDTH-UNWRAPPED_WIDTH){UNWRAPPED_NEG_LIMIT[UNWRAPPED_WIDTH-1]}}, UNWRAPPED_NEG_LIMIT}));
+
+    assign instantaneous_phase_delta =
+        {{(DELTA_WIDTH-UNWRAPPED_WIDTH){unwrapped_phase_next[UNWRAPPED_WIDTH-1]}}, unwrapped_phase_next} -
+        {{(DELTA_WIDTH-UNWRAPPED_WIDTH){delayed_unwrapped_phase[UNWRAPPED_WIDTH-1]}}, delayed_unwrapped_phase};
+    // Normalize instantaneous frequency to the R=312, M=8 reference interval.
+    // The absolute-value stage and constant multiply are registered before the
+    // sequential divider so no variable division or long multiply chain reaches
+    // 125 MHz.
     assign normalization_denominator = rate_r * selected_delay;
-    assign phase_delta_abs = phase_delta_wrapped[PHASE_WIDTH-1]
-        ? (~phase_delta_wrapped + 1'b1) : phase_delta_wrapped;
-    assign normalization_numerator_abs = {{(32-PHASE_WIDTH-8){1'b0}}, normalization_abs_pending, 8'd0};
+    assign instantaneous_phase_delta_abs = instantaneous_phase_delta[DELTA_WIDTH-1]
+        ? (~instantaneous_phase_delta + 1'b1) : instantaneous_phase_delta;
+    assign normalization_numerator_abs =
+        {{(32-DELTA_WIDTH){1'b0}}, normalization_abs_pending} << 8;
 
     assign divide_remainder_shift = {divide_remainder[12:0], divide_dividend[31]};
     assign divide_quotient_bit =
@@ -89,16 +145,33 @@ module fll_phase_difference_stage_a #(
         end
     endfunction
 
+    function signed [UNWRAPPED_WIDTH-1:0] saturate_unwrapped_phase;
+        input signed [SUM_WIDTH-1:0] value;
+        begin
+            if (value > $signed({{(SUM_WIDTH-UNWRAPPED_WIDTH){UNWRAPPED_POS_LIMIT[UNWRAPPED_WIDTH-1]}}, UNWRAPPED_POS_LIMIT}))
+                saturate_unwrapped_phase = UNWRAPPED_POS_LIMIT;
+            else if (value < $signed({{(SUM_WIDTH-UNWRAPPED_WIDTH){UNWRAPPED_NEG_LIMIT[UNWRAPPED_WIDTH-1]}}, UNWRAPPED_NEG_LIMIT}))
+                saturate_unwrapped_phase = UNWRAPPED_NEG_LIMIT;
+            else
+                saturate_unwrapped_phase = value[UNWRAPPED_WIDTH-1:0];
+        end
+    endfunction
+
     always @(posedge clk_125m) begin
         if (rst_125m || clear) begin
             for (idx = 0; idx < 8; idx = idx + 1) begin
-                phase_delay[idx] <= {PHASE_WIDTH{1'b0}};
+                unwrapped_phase_delay[idx] <= {UNWRAPPED_WIDTH{1'b0}};
+                unwrapped_phase_saturated_delay[idx] <= 1'b0;
             end
+            wrapped_phase_prev <= {PHASE_WIDTH{1'b0}};
+            wrapped_phase_prev_valid <= 1'b0;
+            unwrapped_phase_current <= {UNWRAPPED_WIDTH{1'b0}};
+            unwrapped_phase_saturated_current <= 1'b0;
             valid_count <= 4'd0;
             freq_error_valid <= 1'b0;
             freq_error <= {FERR_WIDTH{1'b0}};
             ambiguous <= 1'b0;
-            normalization_abs_pending <= {PHASE_WIDTH{1'b0}};
+            normalization_abs_pending <= {DELTA_WIDTH{1'b0}};
             normalization_denominator_pending <= 13'd0;
             normalization_negative_pending <= 1'b0;
             normalization_ambiguous_pending <= 1'b0;
@@ -140,9 +213,15 @@ module fll_phase_difference_stage_a #(
             end
 
             if (phase_valid) begin
-                phase_delay[0] <= phase_in;
+                wrapped_phase_prev <= phase_in;
+                wrapped_phase_prev_valid <= 1'b1;
+                unwrapped_phase_current <= unwrapped_phase_next;
+                unwrapped_phase_saturated_current <= unwrapped_phase_saturated_next;
+                unwrapped_phase_delay[0] <= unwrapped_phase_next;
+                unwrapped_phase_saturated_delay[0] <= unwrapped_phase_saturated_next;
                 for (idx = 1; idx < 8; idx = idx + 1) begin
-                    phase_delay[idx] <= phase_delay[idx-1];
+                    unwrapped_phase_delay[idx] <= unwrapped_phase_delay[idx-1];
+                    unwrapped_phase_saturated_delay[idx] <= unwrapped_phase_saturated_delay[idx-1];
                 end
                 if (valid_count != 4'd15) begin
                     valid_count <= valid_count + 1'b1;
@@ -150,12 +229,13 @@ module fll_phase_difference_stage_a #(
 
                 if (valid_count >= selected_delay && !divide_busy &&
                     !normalization_pending && normalization_denominator != 13'd0) begin
-                    normalization_abs_pending <= phase_delta_abs;
+                    normalization_abs_pending <= instantaneous_phase_delta_abs;
                     normalization_denominator_pending <= normalization_denominator;
-                    normalization_negative_pending <= phase_delta_wrapped[PHASE_WIDTH-1];
+                    normalization_negative_pending <= instantaneous_phase_delta[DELTA_WIDTH-1];
                     normalization_ambiguous_pending <=
-                        (phase_delta_wrapped == {1'b0, {(PHASE_WIDTH-1){1'b1}}})
-                     || (phase_delta_wrapped == {1'b1, {(PHASE_WIDTH-1){1'b0}}});
+                        wrapped_phase_delta_ambiguous ||
+                        unwrapped_phase_saturated_next ||
+                        delayed_unwrapped_saturated;
                     normalization_pending <= 1'b1;
                 end
             end

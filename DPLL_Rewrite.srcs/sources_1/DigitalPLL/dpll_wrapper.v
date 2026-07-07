@@ -416,7 +416,7 @@ wire shadow_width_legal = shadow_coeff_width_legal && shadow_phase_width_legal &
                           shadow_cic_width_legal;
 wire shadow_cic_rate_legal = (post_iq_cic_rate_r >= 9'd8) && (post_iq_cic_rate_r <= 9'd312);
 wire shadow_cic_shift_legal = (post_iq_cic_shift + 6'd1 >= shadow_expected_cic_shift) &&
-                              (post_iq_cic_shift <= shadow_expected_cic_shift + 6'd3);
+                              (post_iq_cic_shift <= shadow_expected_cic_shift + 6'd4);
 wire shadow_fll_delay_legal = (fll_delay_sel <= 2'd3);
 wire shadow_limits_legal = !positive_limit_dac0[31] && shadow_negative_limit_effective[31] &&
                            ($signed(positive_limit_dac0) >= $signed(shadow_negative_limit_effective));

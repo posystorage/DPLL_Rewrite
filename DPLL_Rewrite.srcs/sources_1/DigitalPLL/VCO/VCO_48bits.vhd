@@ -65,7 +65,9 @@ architecture Behavioral of VCO_48bits is
         m_axis_data_tdata : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
       );
     END COMPONENT;
-    signal s_axis_phase_tvalid                    : std_logic                                      := '1';  -- compiler complains otherwise
+    signal s_axis_phase_tvalid                    : std_logic                                      := '0';  -- compiler complains otherwise
+    signal dds_startup_count                      : unsigned(3 downto 0)                           := (others => '0');
+    signal dds_startup_done                       : std_logic                                      := '0';
     signal lo_dds_m_axis_data_tdata               : std_logic_vector(31 DOWNTO 0)                  := (others => '0');
     
     
@@ -89,6 +91,21 @@ begin
 --VCO_frequency_out <= vco_frequency;
 
 -- Compute cos() and sin(), or more precisely, round((2^15-1)*cos()) and round((2^15-1)*sin())
+    process (clk)
+    begin
+        if rising_edge(clk) then
+            if dds_startup_done = '0' then
+                dds_startup_count <= dds_startup_count + 1;
+                if dds_startup_count = x"f" then
+                    dds_startup_done <= '1';
+                end if;
+                s_axis_phase_tvalid <= '0';
+            else
+                s_axis_phase_tvalid <= '1';
+            end if;
+        end if;
+    end process;
+
     DAC_DDS0_inst : DAC_DDS0
       PORT MAP (
         aclk => clk,

@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="dpll_integrated_flow_tb_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="dpll_integrated_flow_tb" />
+            <top_module name="glbl" />
+            <top_module name="vpkg" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="39145333334fs"></ZoomStartTime>
+      <ZoomEndTime time="1441145333335fs"></ZoomEndTime>
+      <Cursor1Time time="276812000000fs"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="171"></NameColumnWidth>
+      <ValueColumnWidth column_width="91"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="67" />
+   <wvobject fp_name="/dpll_integrated_flow_tb/clk1" type="logic">
+      <obj_property name="ElementShortName">clk1</obj_property>
+      <obj_property name="ObjectShortName">clk1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_clk" type="logic">
+      <obj_property name="ElementShortName">sys_clk</obj_property>
+      <obj_property name="ObjectShortName">sys_clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/rst" type="logic">
+      <obj_property name="ElementShortName">rst</obj_property>
+      <obj_property name="ObjectShortName">rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_rstn" type="logic">
+      <obj_property name="ElementShortName">sys_rstn</obj_property>
+      <obj_property name="ObjectShortName">sys_rstn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_addr" type="array">
+      <obj_property name="ElementShortName">sys_addr[31:0]</obj_property>
+      <obj_property name="ObjectShortName">sys_addr[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_wdata" type="array">
+      <obj_property name="ElementShortName">sys_wdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">sys_wdata[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_rdata" type="array">
+      <obj_property name="ElementShortName">sys_rdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">sys_rdata[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dac0_out" type="array">
+      <obj_property name="ElementShortName">dac0_out[15:0]</obj_property>
+      <obj_property name="ObjectShortName">dac0_out[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dac1_debug_out" type="array">
+      <obj_property name="ElementShortName">dac1_debug_out[15:0]</obj_property>
+      <obj_property name="ObjectShortName">dac1_debug_out[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/led" type="array">
+      <obj_property name="ElementShortName">led[6:0]</obj_property>
+      <obj_property name="ObjectShortName">led[6:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/adc_dds_valid" type="logic">
+      <obj_property name="ElementShortName">adc_dds_valid</obj_property>
+      <obj_property name="ObjectShortName">adc_dds_valid</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/adc_sample" type="array">
+      <obj_property name="ElementShortName">adc_sample[15:0]</obj_property>
+      <obj_property name="ObjectShortName">adc_sample[15:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/loop_enable" type="logic">
+      <obj_property name="ElementShortName">loop_enable</obj_property>
+      <obj_property name="ObjectShortName">loop_enable</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/tracking_lo_dds_inst/m_axis_data_tdata" type="array">
+      <obj_property name="ElementShortName">m_axis_data_tdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">m_axis_data_tdata[31:0]</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/q_baseband" type="array">
+      <obj_property name="ElementShortName">q_baseband[19:0]</obj_property>
+      <obj_property name="ObjectShortName">q_baseband[19:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/i_baseband" type="array">
+      <obj_property name="ElementShortName">i_baseband[19:0]</obj_property>
+      <obj_property name="ObjectShortName">i_baseband[19:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/mixer_i" type="array">
+      <obj_property name="ElementShortName">mixer_i[17:0]</obj_property>
+      <obj_property name="ObjectShortName">mixer_i[17:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/post_iq_cic_inst/overflow_seen" type="logic">
+      <obj_property name="ElementShortName">overflow_seen</obj_property>
+      <obj_property name="ObjectShortName">overflow_seen</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/phase_error_hold" type="array">
+      <obj_property name="ElementShortName">phase_error_hold[17:0]</obj_property>
+      <obj_property name="ObjectShortName">phase_error_hold[17:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_tracking_word" type="array">
+      <obj_property name="ElementShortName">dpll_tracking_word[47:0]</obj_property>
+      <obj_property name="ObjectShortName">dpll_tracking_word[47:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_freq_correction" type="array">
+      <obj_property name="ElementShortName">dpll_freq_correction[55:0]</obj_property>
+      <obj_property name="ObjectShortName">dpll_freq_correction[55:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_wen" type="logic">
+      <obj_property name="ElementShortName">sys_wen</obj_property>
+      <obj_property name="ObjectShortName">sys_wen</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_ren" type="logic">
+      <obj_property name="ElementShortName">sys_ren</obj_property>
+      <obj_property name="ObjectShortName">sys_ren</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_ack" type="logic">
+      <obj_property name="ElementShortName">sys_ack</obj_property>
+      <obj_property name="ObjectShortName">sys_ack</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/sys_err" type="logic">
+      <obj_property name="ElementShortName">sys_err</obj_property>
+      <obj_property name="ObjectShortName">sys_err</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/adc_sample_count" type="array">
+      <obj_property name="ElementShortName">adc_sample_count[31:0]</obj_property>
+      <obj_property name="ObjectShortName">adc_sample_count[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/active_center_word" type="array">
+      <obj_property name="ElementShortName">active_center_word[47:0]</obj_property>
+      <obj_property name="ObjectShortName">active_center_word[47:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_tracking_valid" type="logic">
+      <obj_property name="ElementShortName">dpll_tracking_valid</obj_property>
+      <obj_property name="ObjectShortName">dpll_tracking_valid</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_phase_error" type="array">
+      <obj_property name="ElementShortName">dpll_phase_error[17:0]</obj_property>
+      <obj_property name="ObjectShortName">dpll_phase_error[17:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_freq_error" type="array">
+      <obj_property name="ElementShortName">dpll_freq_error[21:0]</obj_property>
+      <obj_property name="ObjectShortName">dpll_freq_error[21:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_freq_error_valid" type="logic">
+      <obj_property name="ElementShortName">dpll_freq_error_valid</obj_property>
+      <obj_property name="ObjectShortName">dpll_freq_error_valid</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_magnitude" type="array">
+      <obj_property name="ElementShortName">dpll_magnitude[19:0]</obj_property>
+      <obj_property name="ObjectShortName">dpll_magnitude[19:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_loop_state" type="array">
+      <obj_property name="ElementShortName">dpll_loop_state[3:0]</obj_property>
+      <obj_property name="ObjectShortName">dpll_loop_state[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_loss_reason" type="array">
+      <obj_property name="ElementShortName">dpll_loss_reason[3:0]</obj_property>
+      <obj_property name="ObjectShortName">dpll_loss_reason[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_signal_present" type="logic">
+      <obj_property name="ElementShortName">dpll_signal_present</obj_property>
+      <obj_property name="ObjectShortName">dpll_signal_present</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_phase_locked" type="logic">
+      <obj_property name="ElementShortName">dpll_phase_locked</obj_property>
+      <obj_property name="ObjectShortName">dpll_phase_locked</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_frequency_locked" type="logic">
+      <obj_property name="ElementShortName">dpll_frequency_locked</obj_property>
+      <obj_property name="ObjectShortName">dpll_frequency_locked</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_locked" type="logic">
+      <obj_property name="ElementShortName">dpll_locked</obj_property>
+      <obj_property name="ObjectShortName">dpll_locked</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/mixer_q" type="array">
+      <obj_property name="ElementShortName">mixer_q[17:0]</obj_property>
+      <obj_property name="ObjectShortName">mixer_q[17:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/freq_error" type="array">
+      <obj_property name="ElementShortName">freq_error[21:0]</obj_property>
+      <obj_property name="ObjectShortName">freq_error[21:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/freq_error_valid" type="logic">
+      <obj_property name="ElementShortName">freq_error_valid</obj_property>
+      <obj_property name="ObjectShortName">freq_error_valid</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/fll_ambiguous" type="logic">
+      <obj_property name="ElementShortName">fll_ambiguous</obj_property>
+      <obj_property name="ObjectShortName">fll_ambiguous</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/freq_error_usable" type="logic">
+      <obj_property name="ElementShortName">freq_error_usable</obj_property>
+      <obj_property name="ObjectShortName">freq_error_usable</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/state_measurement_valid_r" type="logic">
+      <obj_property name="ElementShortName">state_measurement_valid_r</obj_property>
+      <obj_property name="ObjectShortName">state_measurement_valid_r</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/state_phase_abs_r" type="array">
+      <obj_property name="ElementShortName">state_phase_abs_r[17:0]</obj_property>
+      <obj_property name="ObjectShortName">state_phase_abs_r[17:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/state_freq_abs_r" type="array">
+      <obj_property name="ElementShortName">state_freq_abs_r[21:0]</obj_property>
+      <obj_property name="ObjectShortName">state_freq_abs_r[21:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/signal_present_r" type="logic">
+      <obj_property name="ElementShortName">signal_present_r</obj_property>
+      <obj_property name="ObjectShortName">signal_present_r</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_error_valid_r" type="logic">
+      <obj_property name="ElementShortName">hybrid_error_valid_r</obj_property>
+      <obj_property name="ObjectShortName">hybrid_error_valid_r</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_enable_fll_r" type="logic">
+      <obj_property name="ElementShortName">hybrid_enable_fll_r</obj_property>
+      <obj_property name="ObjectShortName">hybrid_enable_fll_r</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_enable_pll_i_r" type="logic">
+      <obj_property name="ElementShortName">hybrid_enable_pll_i_r</obj_property>
+      <obj_property name="ObjectShortName">hybrid_enable_pll_i_r</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_enable_pll_p_r" type="logic">
+      <obj_property name="ElementShortName">hybrid_enable_pll_p_r</obj_property>
+      <obj_property name="ObjectShortName">hybrid_enable_pll_p_r</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_phase_error_r" type="array">
+      <obj_property name="ElementShortName">hybrid_phase_error_r[17:0]</obj_property>
+      <obj_property name="ObjectShortName">hybrid_phase_error_r[17:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_freq_error_r" type="array">
+      <obj_property name="ElementShortName">hybrid_freq_error_r[21:0]</obj_property>
+      <obj_property name="ObjectShortName">hybrid_freq_error_r[21:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_kf_r" type="array">
+      <obj_property name="ElementShortName">hybrid_kf_r[23:0]</obj_property>
+      <obj_property name="ObjectShortName">hybrid_kf_r[23:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_ki_r" type="array">
+      <obj_property name="ElementShortName">hybrid_ki_r[23:0]</obj_property>
+      <obj_property name="ObjectShortName">hybrid_ki_r[23:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_kp_r" type="array">
+      <obj_property name="ElementShortName">hybrid_kp_r[23:0]</obj_property>
+      <obj_property name="ObjectShortName">hybrid_kp_r[23:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/correction_valid" type="logic">
+      <obj_property name="ElementShortName">correction_valid</obj_property>
+      <obj_property name="ObjectShortName">correction_valid</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/saturated_high" type="logic">
+      <obj_property name="ElementShortName">saturated_high</obj_property>
+      <obj_property name="ObjectShortName">saturated_high</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/saturated_low" type="logic">
+      <obj_property name="ElementShortName">saturated_low</obj_property>
+      <obj_property name="ObjectShortName">saturated_low</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/loop_state_manager_inst/measurement_gap_count" type="array">
+      <obj_property name="ElementShortName">measurement_gap_count[23:0]</obj_property>
+      <obj_property name="ObjectShortName">measurement_gap_count[23:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/loop_state_manager_inst/measurement_timeout_target_r" type="array">
+      <obj_property name="ElementShortName">measurement_timeout_target_r[23:0]</obj_property>
+      <obj_property name="ObjectShortName">measurement_timeout_target_r[23:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/loop_state_manager_inst/good_count" type="array">
+      <obj_property name="ElementShortName">good_count[15:0]</obj_property>
+      <obj_property name="ObjectShortName">good_count[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/loop_state_manager_inst/bad_count" type="array">
+      <obj_property name="ElementShortName">bad_count[15:0]</obj_property>
+      <obj_property name="ObjectShortName">bad_count[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/fll_term_r" type="array">
+      <obj_property name="ElementShortName">fll_term_r[55:0]</obj_property>
+      <obj_property name="ObjectShortName">fll_term_r[55:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_term_r" type="array">
+      <obj_property name="ElementShortName">i_term_r[55:0]</obj_property>
+      <obj_property name="ObjectShortName">i_term_r[55:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/p_term_r" type="array">
+      <obj_property name="ElementShortName">p_term_r[55:0]</obj_property>
+      <obj_property name="ObjectShortName">p_term_r[55:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/freq_state" type="array">
+      <obj_property name="ElementShortName">freq_state[55:0]</obj_property>
+      <obj_property name="ObjectShortName">freq_state[55:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
+   </wvobject>
+</wave_config>

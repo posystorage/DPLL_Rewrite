@@ -6,9 +6,10 @@ from pathlib import Path
 
 DATA_WIDTH = 16
 ACC_WIDTH = 48
-LEAK_SHIFT = 10
-INPUT_SHIFT = ACC_WIDTH - DATA_WIDTH - LEAK_SHIFT - 2
-OUTPUT_SHIFT = ACC_WIDTH - DATA_WIDTH - 1
+LEAK_SHIFT = 7
+ACC_SCALE_SHIFT = ACC_WIDTH - DATA_WIDTH - 2
+INPUT_SHIFT = ACC_SCALE_SHIFT - LEAK_SHIFT
+OUTPUT_SHIFT = ACC_SCALE_SHIFT
 
 
 def to_signed(value: int, width: int) -> int:
@@ -44,9 +45,9 @@ def model_rows(rows: list[dict[str, str]]) -> list[int | None]:
             sample_ext = to_signed(sample, DATA_WIDTH)
             next_acc = wrap(dc_acc - arshift(dc_acc, LEAK_SHIFT) + wrap(sample_ext << INPUT_SHIFT, ACC_WIDTH), ACC_WIDTH)
             next_hp = wrap(
-                wrap(sample_ext << (OUTPUT_SHIFT - 1), ACC_WIDTH)
+                wrap(sample_ext << OUTPUT_SHIFT, ACC_WIDTH)
                 - dc_acc
-                + (1 << (OUTPUT_SHIFT - 2)),
+                + (1 << (OUTPUT_SHIFT - 1)),
                 ACC_WIDTH,
             )
             shifted = arshift(next_hp, OUTPUT_SHIFT)

@@ -14,8 +14,9 @@ module dc_blocker_valid_stage_a #(
     output reg signed [DATA_WIDTH-1:0]       sample_out
 );
 
-    localparam integer INPUT_SHIFT = ACC_WIDTH - DATA_WIDTH - LEAK_SHIFT - 2;
-    localparam integer OUTPUT_SHIFT = ACC_WIDTH - DATA_WIDTH - 1;
+    localparam integer ACC_SCALE_SHIFT = ACC_WIDTH - DATA_WIDTH - 2;
+    localparam integer INPUT_SHIFT = ACC_SCALE_SHIFT - LEAK_SHIFT;
+    localparam integer OUTPUT_SHIFT = ACC_SCALE_SHIFT;
 
     reg signed [ACC_WIDTH-1:0] dc_accumulator;
     reg signed [ACC_WIDTH-1:0] hp_value;
@@ -25,8 +26,8 @@ module dc_blocker_valid_stage_a #(
     wire signed [ACC_WIDTH-1:0] next_accumulator =
         dc_accumulator - (dc_accumulator >>> LEAK_SHIFT) + (sample_ext <<< INPUT_SHIFT);
     wire signed [ACC_WIDTH-1:0] next_hp_value =
-        (sample_ext <<< (OUTPUT_SHIFT - 1)) - dc_accumulator
-        + ({{(ACC_WIDTH-1){1'b0}}, 1'b1} <<< (OUTPUT_SHIFT - 2));
+        (sample_ext <<< OUTPUT_SHIFT) - dc_accumulator
+        + ({{(ACC_WIDTH-1){1'b0}}, 1'b1} <<< (OUTPUT_SHIFT - 1));
     wire signed [ACC_WIDTH-1:0] next_shifted_hp = next_hp_value >>> OUTPUT_SHIFT;
 
     function signed [DATA_WIDTH-1:0] saturate_to_data;

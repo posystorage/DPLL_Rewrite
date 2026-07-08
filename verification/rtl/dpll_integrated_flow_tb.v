@@ -9,7 +9,7 @@ module dpll_integrated_flow_tb;
     localparam integer RESET_DELAY_CYCLES = 4096;
     localparam integer INIT_SETTLE_CYCLES = 4096;
     localparam integer RUN_CYCLES_0   = 2500000;
-    localparam integer RUN_CYCLES_1   = 1250000;
+    localparam integer RUN_CYCLES_1   = 3750000;
 
     reg clk1 = 1'b0;
     reg sys_clk = 1'b0;
@@ -223,7 +223,7 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0054, 32'd8192);
         bus_write(16'h0055, 32'd16);
         bus_write(16'h0056, 32'd128);
-        bus_write(16'h0057, 32'd512);
+        bus_write(16'h0057, 32'd64);
         bus_write(16'h0058, 32'd1250000);
         bus_write(16'h0059, 32'd65535);
         bus_write(16'h0060, 32'h0000_000c);

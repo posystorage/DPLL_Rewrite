@@ -8,8 +8,8 @@ module dpll_integrated_flow_tb;
     localparam [31:0] FREQ_LOCK_THRESHOLD_LSB  = 32'd2147;  // 100 Hz, ~0.046566 Hz/LSB
     localparam integer RESET_DELAY_CYCLES = 4096;
     localparam integer INIT_SETTLE_CYCLES = 4096;
-    localparam integer RUN_CYCLES_0   = 1250000;
-    localparam integer RUN_CYCLES_1   = 125000;
+    localparam integer RUN_CYCLES_0   = 2500000;
+    localparam integer RUN_CYCLES_1   = 1250000;
 
     reg clk1 = 1'b0;
     reg sys_clk = 1'b0;

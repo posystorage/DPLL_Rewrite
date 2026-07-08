@@ -36,6 +36,19 @@ point. Post-IIR coefficients and post-IIR enable mode are not changed.
    `DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/dpll_single_clock_core_stage_a.v`
    so the hybrid loop receives `freq_error` from `fll_cross_dot_stage_a` instead
    of the phase-difference FLL.
+5. After the first R=31/post-IIR AUTO simulation, added block-result replay in
+   `fll_cross_dot_stage_a`: the averaged cross-dot result is replayed for
+   `BLOCK_SAMPLES` post-IIR sample periods. This preserves the physical
+   `freq_error` scale used by lock thresholds while restoring the update rate
+   expected by the existing hybrid loop.
+
+## First simulation evidence
+
+Snapshot `dpll_integrated_flow_tb_behav_crossdot_r31` compiled and ran to the
+testbench finish with post-IIR still in AUTO mode. The first implementation
+stayed in `FLL_ACQUIRE` and reached only about `freq_correction=-16.9M` by
+12 ms. The observed `freq_error` direction was correct but the loop update was
+too weak because one averaged block produced only one hybrid-loop update.
 
 ## Boundaries intentionally not changed
 

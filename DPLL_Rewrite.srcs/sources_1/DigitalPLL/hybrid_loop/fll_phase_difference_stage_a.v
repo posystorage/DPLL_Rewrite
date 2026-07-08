@@ -290,6 +290,9 @@ module fll_cross_dot_stage_a #(
     reg [DIVIDEND_WIDTH:0] divide_remainder;
     reg [DIVIDEND_WIDTH:0] divide_divisor;
     reg divide_negative;
+    reg [5:0] replay_count;
+    reg signed [FERR_WIDTH-1:0] replay_freq_error;
+    reg replay_ambiguous;
 
     wire [3:0] selected_delay;
     wire [DEN_WIDTH-1:0] normalization_denominator;
@@ -420,6 +423,9 @@ module fll_cross_dot_stage_a #(
             divide_remainder <= {(DIVIDEND_WIDTH+1){1'b0}};
             divide_divisor <= {(DIVIDEND_WIDTH+1){1'b0}};
             divide_negative <= 1'b0;
+            replay_count <= 6'd0;
+            replay_freq_error <= {FERR_WIDTH{1'b0}};
+            replay_ambiguous <= 1'b0;
         end else begin
             freq_error_valid <= 1'b0;
 
@@ -429,14 +435,21 @@ module fll_cross_dot_stage_a #(
                 divide_remainder <= divide_remainder_next;
                 divide_count <= divide_count - 1'b1;
                 if (divide_count == 8'd1) begin
-                    freq_error <= saturate_divide_result(divide_quotient_next, divide_negative);
-                    ambiguous <= 1'b0;
-                    freq_error_valid <= 1'b1;
+                    replay_freq_error <= saturate_divide_result(divide_quotient_next, divide_negative);
+                    replay_ambiguous <= 1'b0;
+                    replay_count <= BLOCK_SAMPLES;
                     divide_busy <= 1'b0;
                 end
             end
 
             if (sample_valid) begin
+                if (replay_count != 6'd0) begin
+                    freq_error <= replay_freq_error;
+                    ambiguous <= replay_ambiguous;
+                    freq_error_valid <= 1'b1;
+                    replay_count <= replay_count - 1'b1;
+                end
+
                 i_delay[0] <= i_in;
                 q_delay[0] <= q_in;
                 for (idx = 1; idx < 8; idx = idx + 1) begin
@@ -463,9 +476,9 @@ module fll_cross_dot_stage_a #(
                                 divide_divisor <= division_divisor_next;
                                 divide_negative <= cross_sum_next[ACC_WIDTH-1];
                             end else begin
-                                freq_error <= {FERR_WIDTH{1'b0}};
-                                ambiguous <= 1'b1;
-                                freq_error_valid <= 1'b1;
+                                replay_freq_error <= {FERR_WIDTH{1'b0}};
+                                replay_ambiguous <= 1'b1;
+                                replay_count <= BLOCK_SAMPLES;
                             end
                         end
                     end else begin

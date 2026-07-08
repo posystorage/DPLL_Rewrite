@@ -12,13 +12,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="39145333334fs"></ZoomStartTime>
-      <ZoomEndTime time="1441145333335fs"></ZoomEndTime>
-      <Cursor1Time time="276812000000fs"></Cursor1Time>
+      <ZoomStartTime time="312319444000fs"></ZoomStartTime>
+      <ZoomEndTime time="3837319444001fs"></ZoomEndTime>
+      <Cursor1Time time="899819444000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="171"></NameColumnWidth>
-      <ValueColumnWidth column_width="91"></ValueColumnWidth>
+      <ValueColumnWidth column_width="87"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="67" />
    <wvobject fp_name="/dpll_integrated_flow_tb/clk1" type="logic">

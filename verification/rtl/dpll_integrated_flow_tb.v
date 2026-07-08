@@ -4,6 +4,8 @@
 module dpll_integrated_flow_tb;
     localparam [47:0] ADC_DDS_WORD    = 48'h000b_45ae_5ffa; // 21.5 kHz at 125 MHz
     localparam [31:0] CENTER_WORD_HI  = 32'h000b_88ca;      // 22 kHz, high 32 bits
+    localparam [31:0] PHASE_LOCK_THRESHOLD_LSB = 32'd5825;  // 8 deg, 2^18 LSB/turn
+    localparam [31:0] FREQ_LOCK_THRESHOLD_LSB  = 32'd2147;  // 100 Hz, ~0.046566 Hz/LSB
     localparam integer RESET_DELAY_CYCLES = 4096;
     localparam integer INIT_SETTLE_CYCLES = 4096;
     localparam integer RUN_CYCLES_0   = 1250000;
@@ -214,9 +216,9 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0041, 32'h0000_7fff);
         bus_write(16'h0042, 32'h0000_0007);
         bus_write(16'h0043, 32'h0000_0106);
-        bus_write(16'h0050, 32'd131071);
+        bus_write(16'h0050, PHASE_LOCK_THRESHOLD_LSB);
         bus_write(16'h0051, 32'h0000_0000);
-        bus_write(16'h0052, 32'd2097151);
+        bus_write(16'h0052, FREQ_LOCK_THRESHOLD_LSB);
         bus_write(16'h0053, 32'd16384);
         bus_write(16'h0054, 32'd8192);
         bus_write(16'h0055, 32'd1);

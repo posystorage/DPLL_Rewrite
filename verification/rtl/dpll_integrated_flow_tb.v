@@ -201,7 +201,7 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0021, 32'd40000);
         bus_write(16'h0022, 32'd117200);
         bus_write(16'h0023, 32'd8000000);
-        bus_write(16'h0024, 32'd7000000);
+        bus_write(16'h0024, 32'd2000000);
         bus_write(16'h0025, 32'd0);
         bus_write(16'h0026, 32'd40000);
         bus_write(16'h0027, 32'd117200);

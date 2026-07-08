@@ -127,7 +127,7 @@ module dpll_single_clock_core_stage_a #(
     wire [PHASE_WIDTH-1:0] phase_abs;
     wire [FERR_WIDTH-1:0] freq_abs;
     wire cordic_signal_usable;
-    wire fll_phase_valid;
+    wire fll_iq_valid;
     wire fll_ambiguous;
     wire freq_error_usable;
     reg signed [PHASE_WIDTH-1:0] phase_error_hold;
@@ -426,7 +426,7 @@ module dpll_single_clock_core_stage_a #(
                       (~freq_error + {{(FERR_WIDTH-1){1'b0}}, 1'b1}) :
                       freq_error;
     assign cordic_signal_usable = signal_present_r;
-    assign fll_phase_valid = cordic_valid && cordic_signal_usable;
+    assign fll_iq_valid = iq_valid && cordic_signal_usable;
     assign freq_error_usable = freq_error_valid && !fll_ambiguous;
 
     always @(posedge clk_125m) begin
@@ -521,15 +521,17 @@ module dpll_single_clock_core_stage_a #(
         .locked(locked)
     );
 
-    fll_phase_difference_stage_a #(
-        .PHASE_WIDTH(PHASE_WIDTH),
-        .FERR_WIDTH(FERR_WIDTH)
-    ) fll_phase_difference_inst (
+    fll_cross_dot_stage_a #(
+        .IQ_WIDTH(CIC_WIDTH),
+        .FERR_WIDTH(FERR_WIDTH),
+        .BLOCK_SAMPLES(16)
+    ) fll_cross_dot_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
-        .clear(config_apply | (cordic_valid && !signal_present_r)),
-        .phase_valid(fll_phase_valid),
-        .phase_in(phase_error_next),
+        .clear(config_apply | (iq_valid && !signal_present_r)),
+        .sample_valid(fll_iq_valid),
+        .i_in(i_baseband),
+        .q_in(q_baseband),
         .delay_sel(fll_delay_sel),
         .rate_r(cic_rate_r),
         .freq_error_valid(freq_error_valid),

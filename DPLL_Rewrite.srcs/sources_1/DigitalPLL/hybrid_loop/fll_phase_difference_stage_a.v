@@ -244,4 +244,240 @@ module fll_phase_difference_stage_a #(
 
 endmodule
 
+module fll_cross_dot_stage_a #(
+    parameter integer IQ_WIDTH = 20,
+    parameter integer FERR_WIDTH = 22,
+    parameter integer BLOCK_SAMPLES = 16
+) (
+    input  wire                              clk_125m,
+    input  wire                              rst_125m,
+    input  wire                              clear,
+    input  wire                              sample_valid,
+    input  wire signed [IQ_WIDTH-1:0]        i_in,
+    input  wire signed [IQ_WIDTH-1:0]        q_in,
+    input  wire [1:0]                        delay_sel,
+    input  wire [8:0]                        rate_r,
+    output reg                               freq_error_valid,
+    output reg signed [FERR_WIDTH-1:0]       freq_error,
+    output reg                               ambiguous
+);
+
+    localparam integer PRODUCT_WIDTH = 2 * IQ_WIDTH;
+    localparam integer DOT_WIDTH = PRODUCT_WIDTH + 1;
+    localparam integer ACC_WIDTH = DOT_WIDTH + 6;
+    localparam integer SCALE_WIDTH = 24;
+    localparam integer DEN_WIDTH = 13;
+    localparam integer DIVIDEND_WIDTH = ACC_WIDTH + SCALE_WIDTH;
+
+    // round(2^18 / (2*pi) * 256). This keeps freq_error scaling compatible
+    // with fll_phase_difference_stage_a: about 21.4748 LSB/Hz.
+    localparam [SCALE_WIDTH-1:0] ANGLE_FREQ_SCALE = 24'd10680836;
+    localparam [FERR_WIDTH-1:0] FERR_POS_MAX = {1'b0, {(FERR_WIDTH-1){1'b1}}};
+    localparam [FERR_WIDTH-1:0] FERR_NEG_MIN = {1'b1, {(FERR_WIDTH-1){1'b0}}};
+
+    reg signed [IQ_WIDTH-1:0] i_delay [0:7];
+    reg signed [IQ_WIDTH-1:0] q_delay [0:7];
+    reg [3:0] valid_count;
+    reg [5:0] block_count;
+    reg signed [ACC_WIDTH-1:0] dot_acc;
+    reg signed [ACC_WIDTH-1:0] cross_acc;
+    integer idx;
+
+    reg divide_busy;
+    reg [7:0] divide_count;
+    reg [DIVIDEND_WIDTH-1:0] divide_dividend;
+    reg [DIVIDEND_WIDTH-1:0] divide_quotient;
+    reg [DIVIDEND_WIDTH:0] divide_remainder;
+    reg [DIVIDEND_WIDTH:0] divide_divisor;
+    reg divide_negative;
+
+    wire [3:0] selected_delay;
+    wire [DEN_WIDTH-1:0] normalization_denominator;
+    wire signed [IQ_WIDTH-1:0] delayed_i;
+    wire signed [IQ_WIDTH-1:0] delayed_q;
+    wire signed [PRODUCT_WIDTH-1:0] ii_product;
+    wire signed [PRODUCT_WIDTH-1:0] qq_product;
+    wire signed [PRODUCT_WIDTH-1:0] qi_product;
+    wire signed [PRODUCT_WIDTH-1:0] iq_product;
+    wire signed [DOT_WIDTH-1:0] dot_sample;
+    wire signed [DOT_WIDTH-1:0] cross_sample;
+    wire signed [ACC_WIDTH-1:0] dot_sample_ext;
+    wire signed [ACC_WIDTH-1:0] cross_sample_ext;
+    wire signed [ACC_WIDTH-1:0] dot_sum_next;
+    wire signed [ACC_WIDTH-1:0] cross_sum_next;
+    wire [ACC_WIDTH-1:0] dot_sum_abs;
+    wire [ACC_WIDTH-1:0] cross_sum_abs;
+    wire dot_sum_positive;
+    wire enough_history;
+    wire block_done_next;
+    wire [DIVIDEND_WIDTH-1:0] division_dividend_next;
+    wire [ACC_WIDTH+DEN_WIDTH-1:0] division_divisor_raw;
+    wire [DIVIDEND_WIDTH:0] division_divisor_next;
+    wire division_ready;
+
+    wire [DIVIDEND_WIDTH:0] divide_remainder_shift;
+    wire divide_quotient_bit;
+    wire [DIVIDEND_WIDTH:0] divide_remainder_next;
+    wire [DIVIDEND_WIDTH-1:0] divide_quotient_next;
+
+    assign selected_delay =
+        (delay_sel == 2'd0) ? 4'd1 :
+        (delay_sel == 2'd1) ? 4'd2 :
+        (delay_sel == 2'd2) ? 4'd4 : 4'd8;
+
+    assign normalization_denominator = rate_r * selected_delay;
+    assign delayed_i =
+        (delay_sel == 2'd0) ? i_delay[0] :
+        (delay_sel == 2'd1) ? i_delay[1] :
+        (delay_sel == 2'd2) ? i_delay[3] : i_delay[7];
+    assign delayed_q =
+        (delay_sel == 2'd0) ? q_delay[0] :
+        (delay_sel == 2'd1) ? q_delay[1] :
+        (delay_sel == 2'd2) ? q_delay[3] : q_delay[7];
+
+    assign ii_product = i_in * delayed_i;
+    assign qq_product = q_in * delayed_q;
+    assign qi_product = q_in * delayed_i;
+    assign iq_product = i_in * delayed_q;
+    assign dot_sample =
+        {{(DOT_WIDTH-PRODUCT_WIDTH){ii_product[PRODUCT_WIDTH-1]}}, ii_product} +
+        {{(DOT_WIDTH-PRODUCT_WIDTH){qq_product[PRODUCT_WIDTH-1]}}, qq_product};
+    assign cross_sample =
+        {{(DOT_WIDTH-PRODUCT_WIDTH){qi_product[PRODUCT_WIDTH-1]}}, qi_product} -
+        {{(DOT_WIDTH-PRODUCT_WIDTH){iq_product[PRODUCT_WIDTH-1]}}, iq_product};
+    assign dot_sample_ext = {{(ACC_WIDTH-DOT_WIDTH){dot_sample[DOT_WIDTH-1]}}, dot_sample};
+    assign cross_sample_ext = {{(ACC_WIDTH-DOT_WIDTH){cross_sample[DOT_WIDTH-1]}}, cross_sample};
+    assign dot_sum_next = dot_acc + dot_sample_ext;
+    assign cross_sum_next = cross_acc + cross_sample_ext;
+    assign dot_sum_abs = dot_sum_next[ACC_WIDTH-1] ? abs_acc(dot_sum_next) : dot_sum_next;
+    assign cross_sum_abs = abs_acc(cross_sum_next);
+    assign dot_sum_positive = !dot_sum_next[ACC_WIDTH-1] && (dot_sum_next != {ACC_WIDTH{1'b0}});
+    assign enough_history = valid_count >= selected_delay;
+    assign block_done_next = block_count >= (BLOCK_SAMPLES - 1);
+    assign division_dividend_next = cross_sum_abs * ANGLE_FREQ_SCALE;
+    assign division_divisor_raw = dot_sum_abs * normalization_denominator;
+    assign division_divisor_next =
+        {{(DIVIDEND_WIDTH+1-(ACC_WIDTH+DEN_WIDTH)){1'b0}}, division_divisor_raw};
+    assign division_ready =
+        dot_sum_positive &&
+        (normalization_denominator != {DEN_WIDTH{1'b0}}) &&
+        (division_divisor_raw != {(ACC_WIDTH+DEN_WIDTH){1'b0}});
+
+    assign divide_remainder_shift = {divide_remainder[DIVIDEND_WIDTH-1:0],
+                                     divide_dividend[DIVIDEND_WIDTH-1]};
+    assign divide_quotient_bit = divide_remainder_shift >= divide_divisor;
+    assign divide_remainder_next = divide_quotient_bit ?
+                                   (divide_remainder_shift - divide_divisor) :
+                                   divide_remainder_shift;
+    assign divide_quotient_next = {divide_quotient[DIVIDEND_WIDTH-2:0],
+                                   divide_quotient_bit};
+
+    function [ACC_WIDTH-1:0] abs_acc;
+        input signed [ACC_WIDTH-1:0] value;
+        begin
+            abs_acc = value[ACC_WIDTH-1] ? (~value + {{(ACC_WIDTH-1){1'b0}}, 1'b1}) : value;
+        end
+    endfunction
+
+    function signed [FERR_WIDTH-1:0] saturate_divide_result;
+        input [DIVIDEND_WIDTH-1:0] magnitude;
+        input negative;
+        reg [DIVIDEND_WIDTH-1:0] pos_limit;
+        reg [DIVIDEND_WIDTH-1:0] neg_limit;
+        reg signed [FERR_WIDTH-1:0] signed_magnitude;
+        begin
+            pos_limit = {{(DIVIDEND_WIDTH-FERR_WIDTH){1'b0}}, FERR_POS_MAX};
+            neg_limit = {{(DIVIDEND_WIDTH-FERR_WIDTH){1'b0}}, FERR_NEG_MIN};
+            if (!negative) begin
+                saturate_divide_result =
+                    (magnitude > pos_limit) ? FERR_POS_MAX : magnitude[FERR_WIDTH-1:0];
+            end else if (magnitude >= neg_limit) begin
+                saturate_divide_result = FERR_NEG_MIN;
+            end else begin
+                signed_magnitude = $signed(magnitude[FERR_WIDTH-1:0]);
+                saturate_divide_result = -signed_magnitude;
+            end
+        end
+    endfunction
+
+    always @(posedge clk_125m) begin
+        if (rst_125m || clear) begin
+            for (idx = 0; idx < 8; idx = idx + 1) begin
+                i_delay[idx] <= {IQ_WIDTH{1'b0}};
+                q_delay[idx] <= {IQ_WIDTH{1'b0}};
+            end
+            valid_count <= 4'd0;
+            block_count <= 6'd0;
+            dot_acc <= {ACC_WIDTH{1'b0}};
+            cross_acc <= {ACC_WIDTH{1'b0}};
+            freq_error_valid <= 1'b0;
+            freq_error <= {FERR_WIDTH{1'b0}};
+            ambiguous <= 1'b0;
+            divide_busy <= 1'b0;
+            divide_count <= 8'd0;
+            divide_dividend <= {DIVIDEND_WIDTH{1'b0}};
+            divide_quotient <= {DIVIDEND_WIDTH{1'b0}};
+            divide_remainder <= {(DIVIDEND_WIDTH+1){1'b0}};
+            divide_divisor <= {(DIVIDEND_WIDTH+1){1'b0}};
+            divide_negative <= 1'b0;
+        end else begin
+            freq_error_valid <= 1'b0;
+
+            if (divide_busy) begin
+                divide_dividend <= {divide_dividend[DIVIDEND_WIDTH-2:0], 1'b0};
+                divide_quotient <= divide_quotient_next;
+                divide_remainder <= divide_remainder_next;
+                divide_count <= divide_count - 1'b1;
+                if (divide_count == 8'd1) begin
+                    freq_error <= saturate_divide_result(divide_quotient_next, divide_negative);
+                    ambiguous <= 1'b0;
+                    freq_error_valid <= 1'b1;
+                    divide_busy <= 1'b0;
+                end
+            end
+
+            if (sample_valid) begin
+                i_delay[0] <= i_in;
+                q_delay[0] <= q_in;
+                for (idx = 1; idx < 8; idx = idx + 1) begin
+                    i_delay[idx] <= i_delay[idx-1];
+                    q_delay[idx] <= q_delay[idx-1];
+                end
+
+                if (valid_count != 4'd15) begin
+                    valid_count <= valid_count + 1'b1;
+                end
+
+                if (enough_history) begin
+                    if (block_done_next) begin
+                        dot_acc <= {ACC_WIDTH{1'b0}};
+                        cross_acc <= {ACC_WIDTH{1'b0}};
+                        block_count <= 6'd0;
+                        if (!divide_busy) begin
+                            if (division_ready) begin
+                                divide_busy <= 1'b1;
+                                divide_count <= DIVIDEND_WIDTH;
+                                divide_dividend <= division_dividend_next;
+                                divide_quotient <= {DIVIDEND_WIDTH{1'b0}};
+                                divide_remainder <= {(DIVIDEND_WIDTH+1){1'b0}};
+                                divide_divisor <= division_divisor_next;
+                                divide_negative <= cross_sum_next[ACC_WIDTH-1];
+                            end else begin
+                                freq_error <= {FERR_WIDTH{1'b0}};
+                                ambiguous <= 1'b1;
+                                freq_error_valid <= 1'b1;
+                            end
+                        end
+                    end else begin
+                        dot_acc <= dot_sum_next;
+                        cross_acc <= cross_sum_next;
+                        block_count <= block_count + 1'b1;
+                    end
+                end
+            end
+        end
+    end
+
+endmodule
+
 `default_nettype wire

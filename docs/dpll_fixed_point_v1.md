@@ -127,7 +127,8 @@ therefore shorten L automatically instead of relying on an ARM write during a
 state transition.
 
 For the 22 kHz center used by `dpll_integrated_flow_tb`, ARM selects R=16,
-shift=7, and FLL delay select=3. The coefficient banks are:
+nominal shift=7 plus one explicit CORDIC headroom bit (programmed shift=8),
+and FLL delay select=3. The coefficient banks are:
 
 | Mode | Per-section fc | b0 | b1 | b2 | a1 | a2 |
 |---|---:|---:|---:|---:|---:|---:|

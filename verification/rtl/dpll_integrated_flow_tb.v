@@ -7,9 +7,10 @@ module dpll_integrated_flow_tb;
     localparam [31:0] PHASE_LOCK_THRESHOLD_LSB = 32'd5825;  // 8 deg, 2^18 LSB/turn
     localparam [31:0] FREQ_LOCK_THRESHOLD_LSB  = 32'd2147;  // 100 Hz, ~0.046566 Hz/LSB
     // Golden 22 kHz profile from dpll_compute_filter_profile(): R=16,
-    // shift=7, FLL L=8, acquire fc=4 kHz, track/fine fc=2 kHz.
+    // nominal shift=7 plus one CORDIC headroom bit, FLL L=8,
+    // acquire fc=4 kHz, track/fine fc=2 kHz.
     localparam [31:0] PROFILE_CIC_R       = 32'd16;
-    localparam [31:0] PROFILE_CIC_SHIFT   = 32'd7;
+    localparam [31:0] PROFILE_CIC_SHIFT   = 32'd8;
     localparam [31:0] PROFILE_FLL_DELAY   = 32'd3;
     localparam [31:0] PROFILE_ACQ_B0      = 32'h003e_186b;
     localparam [31:0] PROFILE_ACQ_B1      = 32'h007c_30d5;

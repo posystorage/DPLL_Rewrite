@@ -12,13 +12,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="312319444000fs"></ZoomStartTime>
-      <ZoomEndTime time="3837319444001fs"></ZoomEndTime>
-      <Cursor1Time time="899819444000fs"></Cursor1Time>
+      <ZoomStartTime time="6664393333334fs"></ZoomStartTime>
+      <ZoomEndTime time="55264393333335fs"></ZoomEndTime>
+      <Cursor1Time time="12262836000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="171"></NameColumnWidth>
-      <ValueColumnWidth column_width="87"></ValueColumnWidth>
+      <ValueColumnWidth column_width="83"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="67" />
    <wvobject fp_name="/dpll_integrated_flow_tb/clk1" type="logic">
@@ -69,8 +69,7 @@
       <obj_property name="ElementShortName">adc_sample[15:0]</obj_property>
       <obj_property name="ObjectShortName">adc_sample[15:0]</obj_property>
       <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
    </wvobject>
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/loop_enable" type="logic">
       <obj_property name="ElementShortName">loop_enable</obj_property>
@@ -79,8 +78,7 @@
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/tracking_lo_dds_inst/m_axis_data_tdata" type="array">
       <obj_property name="ElementShortName">m_axis_data_tdata[31:0]</obj_property>
       <obj_property name="ObjectShortName">m_axis_data_tdata[31:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
       <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/q_baseband" type="array">
@@ -302,16 +300,22 @@
       <obj_property name="ElementShortName">fll_term_r[55:0]</obj_property>
       <obj_property name="ObjectShortName">fll_term_r[55:0]</obj_property>
       <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
    </wvobject>
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/i_term_r" type="array">
       <obj_property name="ElementShortName">i_term_r[55:0]</obj_property>
       <obj_property name="ObjectShortName">i_term_r[55:0]</obj_property>
       <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
    </wvobject>
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/p_term_r" type="array">
       <obj_property name="ElementShortName">p_term_r[55:0]</obj_property>
       <obj_property name="ObjectShortName">p_term_r[55:0]</obj_property>
       <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
    </wvobject>
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_loop_inst/freq_state" type="array">
       <obj_property name="ElementShortName">freq_state[55:0]</obj_property>

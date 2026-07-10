@@ -9,6 +9,7 @@
 #define DPLL_PI                    3.14159265358979323846
 #define DPLL_SQRT2                 1.41421356237309504880
 #define DPLL_IMAGE_GUARD_RATIO     2.2
+#define DPLL_CORDIC_HEADROOM_BITS  1U
 
 typedef struct {
     uint32_t max_center_hz;
@@ -177,7 +178,11 @@ int dpll_compute_filter_profile(uint32_t center_word_hi,
     profile->acquire_cutoff_hz = band->acquire_cutoff_hz;
     profile->track_cutoff_hz = band->track_cutoff_hz;
     profile->cic_r = selected_r;
-    profile->cic_shift = dpll_expected_cic_shift(selected_r);
+    /* The nominal CIC table targets the 20-bit post-CIC output.  Add one
+     * explicit headroom bit for the no-scale-compensation CORDIC rather than
+     * hiding an extra shift at the CORDIC input boundary. */
+    profile->cic_shift = (uint8_t)(dpll_expected_cic_shift(selected_r) +
+                                   DPLL_CORDIC_HEADROOM_BITS);
     profile->fll_delay_sel = dpll_select_fll_delay(
         output_rate_hz, (double)profile->acquire_cutoff_hz);
 

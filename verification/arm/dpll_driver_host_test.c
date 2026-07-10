@@ -539,7 +539,7 @@ static int test_adaptive_filter_profiles(void)
     CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(22000U), &profile) ==
           DPLL_DRIVER_OK);
     CHECK(profile.cic_r == 16U);
-    CHECK(profile.cic_shift == 7U);
+    CHECK(profile.cic_shift == 8U);
     CHECK(profile.fll_delay_sel == 3U);
     CHECK(profile.acquire_cutoff_hz == 4000U);
     CHECK(profile.track_cutoff_hz == 2000U);

@@ -1,0 +1,14 @@
+# compile vhdl design source files
+vhdl xil_defaultlib  \
+"../../../../DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/DAC_DDS0/sim/DAC_DDS0.vhd" \
+"../../../../DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/div_gen_pll_u/div_gen_pll_u/sim/div_gen_pll_u.vhd" \
+"../../../../DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/mult_gen_pll/sim/mult_gen_pll.vhd" \
+"../../../../DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ip/dpll_angle_CORDIC/sim/dpll_angle_CORDIC.vhd" \
+"../../../../DPLL_Rewrite.srcs/sources_1/Freq_Meter/DDC/ip/LO_DDS_H/sim/LO_DDS_H.vhd" \
+"../../../../DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ip/pre_iq_cic_40_125m_v1/pre_iq_cic_40_125m_v1/sim/pre_iq_cic_40_125m_v1.vhd" \
+"../../../../DPLL_Rewrite.srcs/sources_1/DigitalPLL/VCO/VCO_48bits.vhd" \
+"../../../../DPLL_Rewrite.srcs/sources_1/DigitalPLL/DDC/ip/dpll_input_multiplier/synth/dpll_input_multiplier.vhd" \
+"../../../../DPLL_Rewrite.srcs/sources_1/DigitalPLL/Basic/parallel_bus_register.vhd" \
+
+# Do not sort compile order
+nosort

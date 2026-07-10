@@ -288,20 +288,29 @@ module loop_state_manager_stage_a #(
 
                     ST_FLL_PLL_BLEND: begin
                         if (measurement_valid) begin
-                            if (loop_ok) begin
+                            if (signal_present && freq_ok && !correction_saturated) begin
                                 bad_count <= {DWELL_WIDTH{1'b0}};
-                                if (good_count >= blend_target_r) begin
-                                    loop_state <= ST_PLL_TRACK;
-                                    loss_reason <= LOSS_NONE;
-                                    good_count <= {DWELL_WIDTH{1'b0}};
+                                loss_reason <= LOSS_NONE;
+                                if (phase_ok) begin
+                                    if (good_count >= blend_target_r) begin
+                                        loop_state <= ST_PLL_TRACK;
+                                        good_count <= {DWELL_WIDTH{1'b0}};
+                                    end else begin
+                                        good_count <= good_count + 1'b1;
+                                    end
                                 end else begin
-                                    good_count <= good_count + 1'b1;
+                                    // BLEND is the phase-acquisition state. A phase
+                                    // error outside the lock window is not a loss;
+                                    // keep PI active until phase converges while
+                                    // frequency and signal quality remain valid.
+                                    good_count <= {DWELL_WIDTH{1'b0}};
                                 end
                             end else begin
                                 good_count <= {DWELL_WIDTH{1'b0}};
                                 if (bad_count >= loss_target_r) begin
                                     loop_state <= signal_present ? ST_REACQUIRE : ST_HOLDOVER;
-                                    loss_reason <= signal_present ? (!freq_ok ? LOSS_FREQUENCY : LOSS_PHASE) : LOSS_SIGNAL;
+                                    loss_reason <= !signal_present ? LOSS_SIGNAL :
+                                                   (correction_saturated ? LOSS_SATURATION : LOSS_FREQUENCY);
                                     bad_count <= {DWELL_WIDTH{1'b0}};
                                 end else begin
                                     bad_count <= bad_count + 1'b1;

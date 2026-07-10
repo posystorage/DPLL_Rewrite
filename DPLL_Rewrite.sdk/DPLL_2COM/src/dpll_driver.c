@@ -2,6 +2,203 @@
 
 #include <string.h>
 
+#define DPLL_DDS_CLOCK_HZ       125000000.0
+#define DPLL_IQ_INPUT_RATE_HZ     3125000.0
+#define DPLL_PHASE_WORD_SCALE  4294967296.0
+#define DPLL_Q30_SCALE          1073741824.0
+#define DPLL_PI                    3.14159265358979323846
+#define DPLL_SQRT2                 1.41421356237309504880
+#define DPLL_IMAGE_GUARD_RATIO     2.2
+
+typedef struct {
+    uint32_t max_center_hz;
+    uint32_t acquire_cutoff_hz;
+    uint32_t track_cutoff_hz;
+} dpll_filter_band_t;
+
+static const dpll_filter_band_t dpll_filter_bands[] = {
+    {   8000U,  1200U,  800U },
+    {  15000U,  2000U, 1200U },
+    {  30000U,  4000U, 2000U },
+    {  60000U,  8000U, 3500U },
+    { 100000U, 12000U, 5000U },
+    { 150000U, 15000U, 7000U },
+    { 200000U, 18000U, 8000U }
+};
+
+/* Keep R <= 16 so the existing 24-bit Kf range can retain useful pull-in
+ * bandwidth. Pick the largest usable R to maximize CIC/image rejection. */
+static const uint16_t dpll_cic_candidates[] = { 16U, 15U, 12U, 10U, 8U };
+
+static double dpll_abs_double(double value)
+{
+    return (value < 0.0) ? -value : value;
+}
+
+static double dpll_tan_approx(double value)
+{
+    double value2 = value * value;
+    double value3 = value * value2;
+    double value5 = value3 * value2;
+    double value7 = value5 * value2;
+    double value9 = value7 * value2;
+
+    return value + value3 / 3.0 + (2.0 * value5) / 15.0 +
+           (17.0 * value7) / 315.0 + (62.0 * value9) / 2835.0;
+}
+
+static int32_t dpll_q30_from_double(double value)
+{
+    double scaled = value * DPLL_Q30_SCALE;
+    scaled += (scaled >= 0.0) ? 0.5 : -0.5;
+    return (int32_t)scaled;
+}
+
+static uint8_t dpll_expected_cic_shift(uint16_t rate_r)
+{
+    if (rate_r <= 8U) return 4U;
+    if (rate_r <= 16U) return 7U;
+    if (rate_r <= 31U) return 10U;
+    if (rate_r <= 78U) return 13U;
+    if (rate_r <= 156U) return 16U;
+    return 19U;
+}
+
+static uint8_t dpll_select_fll_delay(double sample_rate_hz,
+                                     double acquire_cutoff_hz)
+{
+    /* The cross/dot discriminator requires a positive dot product:
+     * 2*pi*f_error*L/fs < pi/2, or fs > 4*L*f_error. Select the largest
+     * delay that covers the complete acquire band. Candidate-R selection
+     * already guarantees enough rate for at least L=2. */
+    if (sample_rate_hz >= 32.0 * acquire_cutoff_hz) return 3U; /* L=8 */
+    if (sample_rate_hz >= 16.0 * acquire_cutoff_hz) return 2U; /* L=4 */
+    if (sample_rate_hz >=  8.0 * acquire_cutoff_hz) return 1U; /* L=2 */
+    return 0U;                                                /* L=1 */
+}
+
+static double dpll_mirror_alias_hz(double center_hz, double output_rate_hz)
+{
+    double alias = 2.0 * center_hz;
+    uint32_t nearest_multiple = (uint32_t)(alias / output_rate_hz + 0.5);
+    alias -= (double)nearest_multiple * output_rate_hz;
+    return dpll_abs_double(alias);
+}
+
+static int dpll_design_biquad(double cutoff_hz,
+                              double sample_rate_hz,
+                              int32_t *b0,
+                              int32_t *b1,
+                              int32_t *b2,
+                              int32_t *a1,
+                              int32_t *a2)
+{
+    double k;
+    double norm;
+    double k2;
+
+    if (cutoff_hz <= 0.0 || cutoff_hz >= 0.4 * sample_rate_hz) {
+        return DPLL_DRIVER_ERR_VERIFY;
+    }
+
+    k = dpll_tan_approx(DPLL_PI * cutoff_hz / sample_rate_hz);
+    k2 = k * k;
+    norm = 1.0 / (1.0 + DPLL_SQRT2 * k + k2);
+
+    *b0 = dpll_q30_from_double(k2 * norm);
+    *b1 = dpll_q30_from_double(2.0 * k2 * norm);
+    *b2 = *b0;
+    *a1 = dpll_q30_from_double(2.0 * (k2 - 1.0) * norm);
+    *a2 = dpll_q30_from_double((1.0 - DPLL_SQRT2 * k + k2) * norm);
+    return DPLL_DRIVER_OK;
+}
+
+int dpll_compute_filter_profile(uint32_t center_word_hi,
+                                dpll_filter_profile_t *profile)
+{
+    const dpll_filter_band_t *band = 0;
+    double center_hz;
+    double output_rate_hz = 0.0;
+    double mirror_alias_hz = 0.0;
+    uint32_t index;
+    uint16_t selected_r = 0U;
+    int status;
+
+    if (profile == 0) {
+        return DPLL_DRIVER_ERR_VERIFY;
+    }
+
+    center_hz = ((double)center_word_hi * DPLL_DDS_CLOCK_HZ) /
+                DPLL_PHASE_WORD_SCALE;
+    /* Allow half-Hz endpoint tolerance for the high-32-bit DDS word
+     * quantization used by the register ABI. */
+    if (center_hz < 4999.5 || center_hz > 200000.5) {
+        return DPLL_DRIVER_ERR_VERIFY;
+    }
+
+    for (index = 0U; index <
+         (uint32_t)(sizeof(dpll_filter_bands) / sizeof(dpll_filter_bands[0]));
+         ++index) {
+        if (center_hz <= (double)dpll_filter_bands[index].max_center_hz + 0.5) {
+            band = &dpll_filter_bands[index];
+            break;
+        }
+    }
+    if (band == 0) {
+        return DPLL_DRIVER_ERR_VERIFY;
+    }
+
+    for (index = 0U; index <
+         (uint32_t)(sizeof(dpll_cic_candidates) / sizeof(dpll_cic_candidates[0]));
+         ++index) {
+        uint16_t candidate_r = dpll_cic_candidates[index];
+        double candidate_rate = DPLL_IQ_INPUT_RATE_HZ / (double)candidate_r;
+        double candidate_alias = dpll_mirror_alias_hz(center_hz, candidate_rate);
+
+        /* Two identical second-order Butterworth sections give more than
+         * 25 dB attenuation when the image/cutoff ratio is at least 2.2.
+         * Also retain at least 8 samples per acquire cutoff period. */
+        if (candidate_alias >= DPLL_IMAGE_GUARD_RATIO *
+                               (double)band->acquire_cutoff_hz &&
+            candidate_rate >= 8.0 * (double)band->acquire_cutoff_hz) {
+            selected_r = candidate_r;
+            output_rate_hz = candidate_rate;
+            mirror_alias_hz = candidate_alias;
+            break;
+        }
+    }
+    if (selected_r == 0U) {
+        return DPLL_DRIVER_ERR_VERIFY;
+    }
+
+    memset(profile, 0, sizeof(*profile));
+    profile->center_hz = (uint32_t)(center_hz + 0.5);
+    profile->mirror_alias_hz = (uint32_t)(mirror_alias_hz + 0.5);
+    profile->acquire_cutoff_hz = band->acquire_cutoff_hz;
+    profile->track_cutoff_hz = band->track_cutoff_hz;
+    profile->cic_r = selected_r;
+    profile->cic_shift = dpll_expected_cic_shift(selected_r);
+    profile->fll_delay_sel = dpll_select_fll_delay(
+        output_rate_hz, (double)profile->acquire_cutoff_hz);
+
+    status = dpll_design_biquad((double)profile->acquire_cutoff_hz,
+                                output_rate_hz,
+                                &profile->acquire_b0,
+                                &profile->acquire_b1,
+                                &profile->acquire_b2,
+                                &profile->acquire_a1,
+                                &profile->acquire_a2);
+    if (status != DPLL_DRIVER_OK) return status;
+
+    return dpll_design_biquad((double)profile->track_cutoff_hz,
+                              output_rate_hz,
+                              &profile->track_b0,
+                              &profile->track_b1,
+                              &profile->track_b2,
+                              &profile->track_a1,
+                              &profile->track_a2);
+}
+
 static uint32_t dpll_read(const dpll_driver_t *driver, uint32_t address)
 {
     return driver->io.read32(driver->io.context, address);

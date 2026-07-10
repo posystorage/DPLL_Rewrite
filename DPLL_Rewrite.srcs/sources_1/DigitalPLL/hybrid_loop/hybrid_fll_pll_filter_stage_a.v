@@ -7,6 +7,8 @@ module hybrid_fll_pll_filter_stage_a #(
     parameter integer COEFF_WIDTH = 24,
     parameter integer STATE_WIDTH = 56,
     parameter integer WORD_WIDTH = 48,
+    parameter integer FLL_PRODUCT_SHIFT = 16,
+    parameter integer P_PRODUCT_SHIFT = 12,
     parameter integer PRODUCT_SHIFT = 18
 ) (
     input  wire                                  clk_125m,
@@ -135,9 +137,16 @@ module hybrid_fll_pll_filter_stage_a #(
     assign i_product_next = phase_error_product_r * ki_product_r;
     assign p_product_next = phase_error_product_r * kp_product_r;
 
-    assign fll_term_next = enable_fll_product_r ? {{(STATE_WIDTH-(F_PRODUCT_WIDTH-PRODUCT_SHIFT)){fll_product_r[F_PRODUCT_WIDTH-1]}}, fll_product_r[F_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
+    // FLL error is only about 21.47 LSB/Hz. Give it an independent scale so
+    // the signed 24-bit Kf range can provide useful capture bandwidth without
+    // changing the phase PI coefficient contract.
+    assign fll_term_next = enable_fll_product_r ? {{(STATE_WIDTH-(F_PRODUCT_WIDTH-FLL_PRODUCT_SHIFT)){fll_product_r[F_PRODUCT_WIDTH-1]}}, fll_product_r[F_PRODUCT_WIDTH-1:FLL_PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
     assign i_term_next = enable_pll_i_product_r ? {{(STATE_WIDTH-(P_PRODUCT_WIDTH-PRODUCT_SHIFT)){i_product_r[P_PRODUCT_WIDTH-1]}}, i_product_r[P_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
-    assign p_term_next = enable_pll_p_product_r ? {{(STATE_WIDTH-(P_PRODUCT_WIDTH-PRODUCT_SHIFT)){p_product_r[P_PRODUCT_WIDTH-1]}}, p_product_r[P_PRODUCT_WIDTH-1:PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
+    // The proportional phase path is an instantaneous frequency correction.
+    // It needs substantially more word-domain gain than the per-sample phase
+    // integrator; sharing PRODUCT_SHIFT made the full 24-bit Kp range too weak
+    // to provide useful damping.
+    assign p_term_next = enable_pll_p_product_r ? {{(STATE_WIDTH-(P_PRODUCT_WIDTH-P_PRODUCT_SHIFT)){p_product_r[P_PRODUCT_WIDTH-1]}}, p_product_r[P_PRODUCT_WIDTH-1:P_PRODUCT_SHIFT]} : {STATE_WIDTH{1'b0}};
 
     assign state_delta_next = fll_term_r + i_term_r;
     assign state_sum_ext_next = {freq_state[STATE_WIDTH-1], freq_state} + {state_delta_next[STATE_WIDTH-1], state_delta_next};

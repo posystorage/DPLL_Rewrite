@@ -198,6 +198,13 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PSRCDIR/sources_1/DigitalPLL/DDC/post_iir_stage_a.v">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PSRCDIR/sources_1/DigitalPLL/DDC/post_iq_cic_stage_a.v">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>

@@ -1,7 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$Gcc = 'C:\Xilinx\Vivado\2018.3\tps\mingw\6.2.0\win64.o\nt\bin\gcc.exe'
+$GccCandidates = @(
+    'C:\Xilinx\Vivado\2018.3\tps\mingw\6.2.0\win64.o\nt\bin\gcc.exe',
+    'D:\Xilinx\Vivado\2018.3\tps\mingw\6.2.0\win64.o\nt\bin\gcc.exe'
+)
+$Gcc = $GccCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $Gcc) { throw 'Vivado 2018.3 MinGW GCC was not found on C: or D:' }
 $OutDir = Join-Path $RepoRoot 'reports\arm_dpll_driver_host_test'
 $Exe = Join-Path $OutDir 'dpll_driver_host_test.exe'
 $Log = Join-Path $OutDir 'dpll_driver_host_test.log'

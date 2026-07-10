@@ -1,7 +1,9 @@
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$VivadoBin = 'C:\Xilinx\Vivado\2018.3\bin'
+$VivadoBin = @('C:\Xilinx\Vivado\2018.3\bin', 'D:\Xilinx\Vivado\2018.3\bin') |
+    Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $VivadoBin) { throw 'Vivado 2018.3 bin directory was not found on C: or D:' }
 $RunStamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
 $OutDir = Join-Path $RepoRoot "reports\xsim\post_iir_stage_a_cli_$RunStamp"
 

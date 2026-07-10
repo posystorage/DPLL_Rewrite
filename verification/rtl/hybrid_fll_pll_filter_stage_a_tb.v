@@ -125,16 +125,16 @@ module hybrid_fll_pll_filter_stage_a_tb;
 
         push_error_case(0, 1'b1, 1'b1, 1'b1, 18'sd3, 22'sd5,
                         24'sd262144, 24'sd262144, 24'sd262144, 48'd1000);
-        if (freq_state !== 56'sd8) begin
-            $display("FAIL: expected state 8, valid=1 got state=%0d valid=%b", freq_state, correction_valid);
+        if (freq_state !== 56'sd23) begin
+            $display("FAIL: expected state 23, valid=1 got state=%0d valid=%b", freq_state, correction_valid);
             $finish;
         end
-        if (freq_correction !== 56'sd11) begin
-            $display("FAIL: expected correction 11 got %0d", freq_correction);
+        if (freq_correction !== 56'sd215) begin
+            $display("FAIL: expected correction 215 got %0d", freq_correction);
             $finish;
         end
-        if (tracking_word !== 48'd1011) begin
-            $display("FAIL: expected tracking word 1011 got %0d", tracking_word);
+        if (tracking_word !== 48'd1215) begin
+            $display("FAIL: expected tracking word 1215 got %0d", tracking_word);
             $finish;
         end
 

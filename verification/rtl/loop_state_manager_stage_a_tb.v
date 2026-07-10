@@ -171,6 +171,12 @@ module loop_state_manager_stage_a_tb;
             $finish;
         end
 
+        // Phase outside the lock window is normal during BLEND and must not
+        // force REACQUIRE while signal and frequency remain good.
+        push_measurement(18'd200, 22'd30, 16'd20);
+        push_measurement(18'd200, 22'd30, 16'd20);
+        push_measurement(18'd200, 22'd30, 16'd20);
+        expect_state(ST_FLL_PLL_BLEND);
         push_measurement(18'd20, 22'd30, 16'd20);
         push_measurement(18'd20, 22'd30, 16'd20);
         expect_state(ST_PLL_TRACK);

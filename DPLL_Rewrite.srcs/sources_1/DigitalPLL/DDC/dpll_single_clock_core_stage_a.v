@@ -129,10 +129,16 @@ module dpll_single_clock_core_stage_a #(
     wire cordic_signal_usable;
     wire fll_iq_valid;
     wire fll_ambiguous;
+    wire freq_error_block_valid;
     wire freq_error_usable;
+    wire freq_error_block_usable;
+    wire post_iir_requested_bypass;
+    wire post_iir_requested_track;
+    wire post_iir_selection_changed;
+    wire detector_reconfigure;
     reg signed [PHASE_WIDTH-1:0] phase_error_hold;
     reg [MAG_WIDTH-1:0] cordic_magnitude_hold;
-    reg freq_error_valid_d;
+    reg freq_error_block_valid_d;
     reg state_measurement_valid_r;
     reg [PHASE_WIDTH-1:0] state_phase_abs_r;
     reg [FERR_WIDTH-1:0] state_freq_abs_r;
@@ -178,6 +184,13 @@ module dpll_single_clock_core_stage_a #(
     assign tracking_valid = correction_valid | config_apply;
     assign magnitude = cordic_magnitude_hold;
     assign post_iir_state_use_track = (loop_state == 4'd5) || (loop_state == 4'd6);
+    assign post_iir_requested_bypass = (post_iir_mode == 2'd0);
+    assign post_iir_requested_track = (post_iir_mode == 2'd2) ||
+                                      ((post_iir_mode == 2'd3) && post_iir_state_use_track);
+    assign post_iir_selection_changed =
+        (post_iir_active_bypass != post_iir_requested_bypass) ||
+        (post_iir_active_use_track != post_iir_requested_track);
+    assign detector_reconfigure = config_apply | cic_flush | post_iir_selection_changed;
 
     always @(posedge clk_125m) begin
         rst_nco_r <= rst_125m;
@@ -375,7 +388,7 @@ module dpll_single_clock_core_stage_a #(
     ) post_iir_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
-        .clear(config_apply | cic_flush),
+        .clear(detector_reconfigure),
         .in_valid(cic_iq_valid),
         .i_in(cic_i_baseband),
         .q_in(cic_q_baseband),
@@ -405,7 +418,7 @@ module dpll_single_clock_core_stage_a #(
     ) phase_cordic_adapter_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
-        .clear(config_apply | cic_flush),
+        .clear(detector_reconfigure),
         .in_valid(iq_valid),
         .i_in(i_baseband),
         .q_in(q_baseband),
@@ -428,20 +441,21 @@ module dpll_single_clock_core_stage_a #(
     assign cordic_signal_usable = signal_present_r;
     assign fll_iq_valid = iq_valid && cordic_signal_usable;
     assign freq_error_usable = freq_error_valid && !fll_ambiguous;
+    assign freq_error_block_usable = freq_error_block_valid && !fll_ambiguous;
 
     always @(posedge clk_125m) begin
         if (rst_measure_r) begin
             phase_error_hold <= {PHASE_WIDTH{1'b0}};
             cordic_magnitude_hold <= {MAG_WIDTH{1'b0}};
-            freq_error_valid_d <= 1'b0;
+            freq_error_block_valid_d <= 1'b0;
             state_measurement_valid_r <= 1'b0;
             state_phase_abs_r <= {PHASE_WIDTH{1'b0}};
             state_freq_abs_r <= {FERR_WIDTH{1'b0}};
             state_magnitude_r <= {MAG_WIDTH{1'b0}};
             signal_present_r <= 1'b0;
         end else begin
-            freq_error_valid_d <= freq_error_usable;
-            state_measurement_valid_r <= freq_error_valid_d;
+            freq_error_block_valid_d <= freq_error_block_usable;
+            state_measurement_valid_r <= freq_error_block_valid_d;
 
             if (cordic_valid) begin
                 phase_error_hold <= phase_error_next;
@@ -457,7 +471,7 @@ module dpll_single_clock_core_stage_a #(
                 end
             end
 
-            if (freq_error_valid_d) begin
+            if (freq_error_block_valid_d) begin
                 state_phase_abs_r <= phase_abs;
                 state_freq_abs_r <= freq_abs;
                 state_magnitude_r <= cordic_magnitude_hold;
@@ -528,13 +542,14 @@ module dpll_single_clock_core_stage_a #(
     ) fll_cross_dot_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
-        .clear(config_apply | (iq_valid && !signal_present_r)),
+        .clear(detector_reconfigure | (iq_valid && !signal_present_r)),
         .sample_valid(fll_iq_valid),
         .i_in(i_baseband),
         .q_in(q_baseband),
         .delay_sel(fll_delay_sel),
         .rate_r(cic_rate_r),
         .freq_error_valid(freq_error_valid),
+        .freq_error_block_valid(freq_error_block_valid),
         .freq_error(freq_error),
         .ambiguous(fll_ambiguous)
     );
@@ -583,6 +598,8 @@ module dpll_single_clock_core_stage_a #(
         .COEFF_WIDTH(COEFF_WIDTH),
         .STATE_WIDTH(STATE_WIDTH),
         .WORD_WIDTH(WORD_WIDTH),
+        .FLL_PRODUCT_SHIFT(16),
+        .P_PRODUCT_SHIFT(12),
         .PRODUCT_SHIFT(18)
     ) hybrid_loop_inst (
         .clk_125m(clk_125m),

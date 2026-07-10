@@ -6,6 +6,21 @@ module dpll_integrated_flow_tb;
     localparam [31:0] CENTER_WORD_HI  = 32'h000b_88ca;      // 22 kHz, high 32 bits
     localparam [31:0] PHASE_LOCK_THRESHOLD_LSB = 32'd5825;  // 8 deg, 2^18 LSB/turn
     localparam [31:0] FREQ_LOCK_THRESHOLD_LSB  = 32'd2147;  // 100 Hz, ~0.046566 Hz/LSB
+    // Golden 22 kHz profile from dpll_compute_filter_profile(): R=16,
+    // shift=7, FLL L=8, acquire fc=4 kHz, track/fine fc=2 kHz.
+    localparam [31:0] PROFILE_CIC_R       = 32'd16;
+    localparam [31:0] PROFILE_CIC_SHIFT   = 32'd7;
+    localparam [31:0] PROFILE_FLL_DELAY   = 32'd3;
+    localparam [31:0] PROFILE_ACQ_B0      = 32'h003e_186b;
+    localparam [31:0] PROFILE_ACQ_B1      = 32'h007c_30d5;
+    localparam [31:0] PROFILE_ACQ_B2      = 32'h003e_186b;
+    localparam [31:0] PROFILE_ACQ_A1      = 32'h8b9e_5f9e;
+    localparam [31:0] PROFILE_ACQ_A2      = 32'h355a_020c;
+    localparam [31:0] PROFILE_TRACK_B0    = 32'h0010_3681;
+    localparam [31:0] PROFILE_TRACK_B1    = 32'h0020_6d02;
+    localparam [31:0] PROFILE_TRACK_B2    = 32'h0010_3681;
+    localparam [31:0] PROFILE_TRACK_A1    = 32'h85d1_d2a9;
+    localparam [31:0] PROFILE_TRACK_A2    = 32'h3a6f_075a;
     localparam integer RESET_DELAY_CYCLES = 4096;
     localparam integer INIT_SETTLE_CYCLES = 4096;
     localparam integer RUN_CYCLES_0   = 2500000;
@@ -198,12 +213,14 @@ module dpll_integrated_flow_tb;
         $display("Programming DPLL register shadow set for 22 kHz center, 21.5 kHz ADC DDS input");
         bus_write(16'h0010, CENTER_WORD_HI);
         bus_write(16'h0011, 32'h0000_0000);
-        bus_write(16'h0021, 32'd60000);
+        bus_write(16'h0021, 32'd6000000);
         bus_write(16'h0022, 32'd180000);
         bus_write(16'h0023, 32'd8000000);
-        bus_write(16'h0024, 32'd6000000);
-        bus_write(16'h0025, 32'd1000000);
-        bus_write(16'h0026, 32'd40000);
+        // FLL uses PRODUCT_SHIFT=16. Preserve the former BLEND/TRACK
+        // equivalent gains while allowing ACQUIRE to use the full Kf range.
+        bus_write(16'h0024, 32'd1500000);
+        bus_write(16'h0025, 32'd250000);
+        bus_write(16'h0026, 32'd6000000);
         bus_write(16'h0027, 32'd117200);
         bus_write(16'h0028, 32'h7fff_fffe);
         bus_write(16'h0029, 32'h8000_0001);
@@ -217,7 +234,7 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0042, 32'h0000_0007);
         bus_write(16'h0043, 32'h0000_0106);
         bus_write(16'h0050, PHASE_LOCK_THRESHOLD_LSB);
-        bus_write(16'h0051, 32'h0000_0000);
+        bus_write(16'h0051, 32'hffff_0000); // -pi/2 sine/IQ setpoint
         bus_write(16'h0052, FREQ_LOCK_THRESHOLD_LSB);
         bus_write(16'h0053, 32'd16384);
         bus_write(16'h0054, 32'd8192);
@@ -225,22 +242,22 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0056, 32'd64);
         bus_write(16'h0057, 32'd64);
         bus_write(16'h0058, 32'd1250000);
-        bus_write(16'h0059, 32'd65535);
-        bus_write(16'h0060, 32'h0000_000c);
-        bus_write(16'h0061, 32'h0000_0006);
-        bus_write(16'h0062, 32'h0000_0003);
+        bus_write(16'h0059, 32'd0); // auto: block-valid measurement timeout
+        bus_write(16'h0060, PROFILE_CIC_R);
+        bus_write(16'h0061, PROFILE_CIC_SHIFT);
+        bus_write(16'h0062, PROFILE_FLL_DELAY);
         bus_write(16'h0063, 32'd16);
         bus_write(16'h0064, 32'h0000_0003);
-        bus_write(16'h0065, 32'h0848_991f);
-        bus_write(16'h0066, 32'h1091_323f);
-        bus_write(16'h0067, 32'h0848_991f);
-        bus_write(16'h0068, 32'hcf8c_92d0);
-        bus_write(16'h0069, 32'h1195_d1ad);
-        bus_write(16'h006a, 32'h02e9_6a90);
-        bus_write(16'h006b, 32'h05d2_d51f);
-        bus_write(16'h006c, 32'h02e9_6a90);
-        bus_write(16'h006d, 32'habfe_403c);
-        bus_write(16'h006e, 32'h1fa7_6a03);
+        bus_write(16'h0065, PROFILE_ACQ_B0);
+        bus_write(16'h0066, PROFILE_ACQ_B1);
+        bus_write(16'h0067, PROFILE_ACQ_B2);
+        bus_write(16'h0068, PROFILE_ACQ_A1);
+        bus_write(16'h0069, PROFILE_ACQ_A2);
+        bus_write(16'h006a, PROFILE_TRACK_B0);
+        bus_write(16'h006b, PROFILE_TRACK_B1);
+        bus_write(16'h006c, PROFILE_TRACK_B2);
+        bus_write(16'h006d, PROFILE_TRACK_A1);
+        bus_write(16'h006e, PROFILE_TRACK_A2);
         run_clocks(INIT_SETTLE_CYCLES);
         bus_write(16'h006f, 32'h0000_0001);
         wait_apply_done();
@@ -281,6 +298,14 @@ module dpll_integrated_flow_tb;
 
         if (adc_sample_count == 32'd0) begin
             $display("FAIL: ADC DDS never produced a valid sample");
+            $finish;
+        end
+
+        if (dut.dpll_loop_state !== 4'd6 || !dut.dpll_locked ||
+            !dut.dpll_phase_locked || !dut.dpll_frequency_locked) begin
+            $display("FAIL: expected final PLL lock state=%0d locked=%0b phase=%0b frequency=%0b reason=%0d",
+                     dut.dpll_loop_state, dut.dpll_locked, dut.dpll_phase_locked,
+                     dut.dpll_frequency_locked, dut.dpll_loss_reason);
             $finish;
         end
 

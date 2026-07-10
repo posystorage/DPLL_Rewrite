@@ -25,7 +25,7 @@ module dpll_wrapper_cdc_tb;
    crc=crc_mix(crc,32'h00000001); crc=crc_mix(crc,32'h00000000); crc=crc_mix(crc,32'h00007fff);
    crc=crc_mix(crc,32'h00007fff); crc=crc_mix(crc,32'h00001000); crc=crc_mix(crc,32'h00000400);
    crc=crc_mix(crc,{16'd4,16'd4});
-   crc=crc_mix(crc,{16'd4,16'd4}); crc=crc_mix(crc,32'd9616); crc=crc_mix(crc,32'd1250000);
+   crc=crc_mix(crc,{16'd4,16'd4}); crc=crc_mix(crc,32'd187712); crc=crc_mix(crc,32'd1250000);
    crc=crc_mix(crc,32'h7fffffff); crc=crc_mix(crc,32'h80000000); crc=crc_mix(crc,32'h00000000);
    crc=crc_mix(crc,32'h00007fff);
    crc=crc_mix(crc,32'h00000003); crc=crc_mix(crc,32'h0848991f); crc=crc_mix(crc,32'h1091323f);

@@ -174,7 +174,7 @@ def main() -> int:
         ])
         and contains_all(loop, ["measurement_timeout", "holdover_timeout", "measurement_gap_count", "holdover_count"]),
         "P0-5 measurement timeout and holdover timeout are separated; zero measurement timeout auto-scales with R",
-        "registers `0x0058/0x0059` feed separate loop-state counters; wrapper computes `120*R+256` default",
+        "registers `0x0058/0x0059` feed separate loop-state counters; wrapper computes `2400*R+512` reconfiguration-safe default",
     ))
 
     checks.append(check(

@@ -437,7 +437,12 @@ endfunction
 wire [5:0] shadow_expected_cic_shift = expected_cic_shift(post_iq_cic_rate_r);
 wire [15:0] shadow_vco_mul_factor = VCO_Mul_Factor0[15:0];
 wire [15:0] shadow_vco_div_factor = VCO_Div_Factor0[15:0];
-wire [23:0] shadow_measurement_min = (24'd120 * post_iq_cic_rate_r) + 24'd256;
+// State-manager measurements now arrive once per 16-sample cross-dot block.
+// After detector reconfiguration, cover IIR + word-serial CORDIC + L=8
+// history + cross/dot block restart. Sixty post-CIC periods are 3.75 times
+// the steady 16-sample measurement interval and remain sub-millisecond for
+// the adaptive R<=16 profiles.
+wire [23:0] shadow_measurement_min = (24'd2400 * post_iq_cic_rate_r) + 24'd512;
 wire shadow_coeff_width_legal =
     (pll0_gainp[31:24] == {8{pll0_gainp[23]}}) &&
     (pll0_gaini[31:24] == {8{pll0_gaini[23]}}) &&
@@ -774,7 +779,7 @@ always @(posedge clk1 or negedge rst) begin
         active_blend_dwell <= DEFAULT_DWELL[15:0];
         active_loss_dwell <= DEFAULT_DWELL[15:0];
         active_holdover_timeout <= DEFAULT_HOLDOVER[23:0];
-        active_measurement_timeout <= (24'd120 * 9'd31) + 24'd256;
+        active_measurement_timeout <= (24'd2400 * 9'd31) + 24'd512;
         active_warmup_samples <= 16'd4;
         active_correction_limit_pos <= {{24{DEFAULT_POS_LIMIT[31]}}, DEFAULT_POS_LIMIT};
         active_correction_limit_neg <= {{24{DEFAULT_NEG_LIMIT[31]}}, DEFAULT_NEG_LIMIT};

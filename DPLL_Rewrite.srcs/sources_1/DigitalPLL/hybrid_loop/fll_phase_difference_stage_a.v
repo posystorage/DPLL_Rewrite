@@ -258,6 +258,7 @@ module fll_cross_dot_stage_a #(
     input  wire [1:0]                        delay_sel,
     input  wire [8:0]                        rate_r,
     output reg                               freq_error_valid,
+    output reg                               freq_error_block_valid,
     output reg signed [FERR_WIDTH-1:0]       freq_error,
     output reg                               ambiguous
 );
@@ -414,6 +415,7 @@ module fll_cross_dot_stage_a #(
             dot_acc <= {ACC_WIDTH{1'b0}};
             cross_acc <= {ACC_WIDTH{1'b0}};
             freq_error_valid <= 1'b0;
+            freq_error_block_valid <= 1'b0;
             freq_error <= {FERR_WIDTH{1'b0}};
             ambiguous <= 1'b0;
             divide_busy <= 1'b0;
@@ -428,6 +430,7 @@ module fll_cross_dot_stage_a #(
             replay_ambiguous <= 1'b0;
         end else begin
             freq_error_valid <= 1'b0;
+            freq_error_block_valid <= 1'b0;
 
             if (divide_busy) begin
                 divide_dividend <= {divide_dividend[DIVIDEND_WIDTH-2:0], 1'b0};
@@ -447,6 +450,9 @@ module fll_cross_dot_stage_a #(
                     freq_error <= replay_freq_error;
                     ambiguous <= replay_ambiguous;
                     freq_error_valid <= 1'b1;
+                    if (replay_count == BLOCK_SAMPLES) begin
+                        freq_error_block_valid <= 1'b1;
+                    end
                     replay_count <= replay_count - 1'b1;
                 end
 

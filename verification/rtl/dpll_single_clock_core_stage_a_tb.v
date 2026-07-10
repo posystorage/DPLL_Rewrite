@@ -130,7 +130,9 @@ module dpll_single_clock_core_stage_a_tb;
         end
         config_apply = 1'b0;
 
-        for (n = 0; n < 160; n = n + 1) begin
+        // Cross-dot FLL needs delay history plus a complete 16-sample block
+        // before division/replay can emit frequency results.
+        for (n = 0; n < 480; n = n + 1) begin
             push_sample((n[0] == 1'b0) ? 16'sd12000 : -16'sd8000);
         end
 

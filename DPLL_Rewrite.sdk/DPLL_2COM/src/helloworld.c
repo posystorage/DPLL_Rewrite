@@ -389,6 +389,41 @@ static int dpll_set_enable(uint32_t enable)
 	PLL_Lock_Status = (status == DPLL_DRIVER_OK && enable) ? 0x20 : 0x00;
 	return status;
 }
+
+static int dpll_write_center_filter_profile(uint32_t center_word_hi)
+{
+	dpll_filter_profile_t profile;
+	int status = dpll_compute_filter_profile(center_word_hi, &profile);
+
+	if (status != DPLL_DRIVER_OK) return status;
+
+	Xil_Out32(DAC0_Centre_Frequency_Addr, center_word_hi);
+	Xil_Out32(DPLL_POST_IQ_CIC_R_Addr, profile.cic_r);
+	Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr, profile.cic_shift);
+	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, profile.fll_delay_sel);
+	Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr, 0U);
+	Xil_Out32(DPLL_POST_IIR_CONFIG_Addr, 3U);
+	Xil_Out32(DPLL_POST_IIR_ACQ_B0_Addr, (uint32_t)profile.acquire_b0);
+	Xil_Out32(DPLL_POST_IIR_ACQ_B1_Addr, (uint32_t)profile.acquire_b1);
+	Xil_Out32(DPLL_POST_IIR_ACQ_B2_Addr, (uint32_t)profile.acquire_b2);
+	Xil_Out32(DPLL_POST_IIR_ACQ_A1_Addr, (uint32_t)profile.acquire_a1);
+	Xil_Out32(DPLL_POST_IIR_ACQ_A2_Addr, (uint32_t)profile.acquire_a2);
+	Xil_Out32(DPLL_POST_IIR_TRACK_B0_Addr, (uint32_t)profile.track_b0);
+	Xil_Out32(DPLL_POST_IIR_TRACK_B1_Addr, (uint32_t)profile.track_b1);
+	Xil_Out32(DPLL_POST_IIR_TRACK_B2_Addr, (uint32_t)profile.track_b2);
+	Xil_Out32(DPLL_POST_IIR_TRACK_A1_Addr, (uint32_t)profile.track_a1);
+	Xil_Out32(DPLL_POST_IIR_TRACK_A2_Addr, (uint32_t)profile.track_a2);
+
+	xil_printf("DPLL filter center=%luHz R=%u shift=%u L=%u image=%luHz acq=%luHz track=%luHz\r\n",
+	           (unsigned long)profile.center_hz,
+	           (unsigned int)profile.cic_r,
+	           (unsigned int)profile.cic_shift,
+	           (unsigned int)(1U << profile.fll_delay_sel),
+	           (unsigned long)profile.mirror_alias_hz,
+	           (unsigned long)profile.acquire_cutoff_hz,
+	           (unsigned long)profile.track_cutoff_hz);
+	return DPLL_DRIVER_OK;
+}
 void PC_HOST_CMD_Get(void);
 
 void Uart0_Handler(void *CallBackRef)
@@ -422,14 +457,14 @@ void Uart0PS_Init(void)
 
 	int status;
 
-	XUartPs_Config_uart0 = XUartPs_LookupConfig(XPAR_PS7_UART_0_DEVICE_ID);//ªÒµ√¥Æø⁄1≈‰÷√–≈œ¢
+	XUartPs_Config_uart0 = XUartPs_LookupConfig(XPAR_PS7_UART_0_DEVICE_ID);//Ëé∑Âæó‰∏≤Âè£1ÈÖçÁΩÆ‰ø°ÊÅØ
 	status = XUartPs_CfgInitialize(&XUartPs_uart0,XUartPs_Config_uart0,XUartPs_Config_uart0->BaseAddress);
 	if(status != XST_SUCCESS)
 	{
 		print("Initialize uart1 fail\n");
 	}
 	XUartPs_SetOperMode(&XUartPs_uart0, XUARTPS_OPER_MODE_NORMAL);
-	XUartPsFormat_uart0.BaudRate = 921600;//≤®Ãÿ¬ 921600
+	XUartPsFormat_uart0.BaudRate = 921600;//Ê≥¢ÁâπÁéá921600
 	XUartPsFormat_uart0.DataBits = XUARTPS_FORMAT_8_BITS;
 	XUartPsFormat_uart0.Parity = XUARTPS_FORMAT_NO_PARITY;
 	XUartPsFormat_uart0.StopBits = XUARTPS_FORMAT_1_STOP_BIT;
@@ -440,11 +475,11 @@ void Uart0PS_Init(void)
 	}
 	XUartPs_SetFifoThreshold(&XUartPs_uart0,32);
 	XUartPs_SetRecvTimeout(&XUartPs_uart0,4);//4*4=16 timeout IXR
-	XUartPs_SetInterruptMask(&XUartPs_uart0,XUARTPS_IXR_RXOVR|XUARTPS_IXR_TOUT);//ø™÷–∂œ
+	XUartPs_SetInterruptMask(&XUartPs_uart0,XUARTPS_IXR_RXOVR|XUARTPS_IXR_TOUT);//ÂºÄ‰∏≠Êñ≠
 
 	XScuGic_Disable(&XPS_XScuGic,XPS_UART0_INT_ID);
 	//XScuGic_SetPriorityTriggerType(&XPS_XScuGic,XPS_UART0_INT_ID,16,1);
-	XScuGic_Connect(&XPS_XScuGic,XPS_UART0_INT_ID,(Xil_ExceptionHandler)Uart0_Handler,(void *)&XUartPs_uart0);//»Îø⁄
+	XScuGic_Connect(&XPS_XScuGic,XPS_UART0_INT_ID,(Xil_ExceptionHandler)Uart0_Handler,(void *)&XUartPs_uart0);//ÂÖ•Âè£
 	XScuGic_Enable(&XPS_XScuGic,XPS_UART0_INT_ID);
 
 	Uart0_RX_Num=0;
@@ -925,8 +960,11 @@ void CMD_1B_READ_VBIAS_ADC(void)
 //}
 void CMD_82_WRITE_PLL_FREQ(void)
 {
-	//*((uint32_t*)&STM8_EEPROM_Data[0+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
-	Xil_Out32(DAC0_Centre_Frequency_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//÷––ƒ∆µ¬ 
+	uint32_t center_word_hi = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
+	if (dpll_write_center_filter_profile(center_word_hi) != DPLL_DRIVER_OK) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_VERIFY);
+		return;
+	}
 	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_83_WRITE_PLL_MUL_DIV(void)
@@ -949,12 +987,12 @@ void CMD_85_WRITE_PLL_LIMIT(void)
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
 	if(data > 0x7FFF) data = 0x7FFF;
 	//*((uint16_t*)&STM8_EEPROM_Data[24+8]) = data;
-    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,data<<16);//…œŒªª˙¥¢¥Ê∫Õ¥´»Î≤Œ ˝Œ™∏ﬂ16bit–¥»ÎµΩFPGAƒ⁄≤øŒ™32Bit
+    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,data<<16);//‰∏ä‰ΩçÊú∫ÂÇ®Â≠òÂíå‰º†ÂÖ•ÂèÇÊï∞‰∏∫È´ò16bitÂÜôÂÖ•Âà∞FPGAÂÜÖÈÉ®‰∏∫32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
 	if(data < 0x8000) data = 0x8000;
 	//*((uint16_t*)&STM8_EEPROM_Data[26+8]) = data;
-    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//…œŒªª˙¥¢¥Ê∫Õ¥´»Î≤Œ ˝Œ™∏ﬂ16bit–¥»ÎµΩFPGAƒ⁄≤øŒ™32Bit
+    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//‰∏ä‰ΩçÊú∫ÂÇ®Â≠òÂíå‰º†ÂÖ•ÂèÇÊï∞‰∏∫È´ò16bitÂÜôÂÖ•Âà∞FPGAÂÜÖÈÉ®‰∏∫32Bit
 	pc_send_dpll_apply_result(dpll_apply_config());
 }
 void CMD_86_WRITE_DPLL_LOOP_BASIC(void)
@@ -1037,7 +1075,7 @@ void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 void CMD_90_WRITE_FREQMETER_FREQ(void)
 {
 	//*((uint32_t*)&STM8_EEPROM_Data[0+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
-	Xil_Out32(Freq_Meter_Centre_Frequency_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//÷––ƒ∆µ¬ 
+	Xil_Out32(Freq_Meter_Centre_Frequency_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//‰∏≠ÂøÉÈ¢ëÁéá
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_91_WRITE_FREQMETER_THRESHOLD(void)
@@ -1054,19 +1092,19 @@ void CMD_92_WRITE_FREQMETER_LIMIT(void)
 	//*((uint16_t*)&STM8_EEPROM_Data[8+44]) = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
 	//*((uint16_t*)&STM8_EEPROM_Data[10+44]) = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
     //data = *((uint16_t*)&STM8_EEPROM_Data[8+44]);
-    //Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//…œŒªª˙¥¢¥Ê∫Õ¥´»Î≤Œ ˝Œ™∏ﬂ16bit–¥»ÎµΩFPGAƒ⁄≤øŒ™32Bit
+    //Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//‰∏ä‰ΩçÊú∫ÂÇ®Â≠òÂíå‰º†ÂÖ•ÂèÇÊï∞‰∏∫È´ò16bitÂÜôÂÖ•Âà∞FPGAÂÜÖÈÉ®‰∏∫32Bit
     //data = *((uint16_t*)&STM8_EEPROM_Data[10+44]);
-    //Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//…œŒªª˙¥¢¥Ê∫Õ¥´»Î≤Œ ˝Œ™∏ﬂ16bit–¥»ÎµΩFPGAƒ⁄≤øŒ™32Bit
+    //Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//‰∏ä‰ΩçÊú∫ÂÇ®Â≠òÂíå‰º†ÂÖ•ÂèÇÊï∞‰∏∫È´ò16bitÂÜôÂÖ•Âà∞FPGAÂÜÖÈÉ®‰∏∫32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
 	if(data > 0x7FFF) data = 0x3FFF;
 	//*((uint16_t*)&STM8_EEPROM_Data[8+44]) = data;
-    Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//…œŒªª˙¥¢¥Ê∫Õ¥´»Î≤Œ ˝Œ™∏ﬂ16bit–¥»ÎµΩFPGAƒ⁄≤øŒ™32Bit
+    Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//‰∏ä‰ΩçÊú∫ÂÇ®Â≠òÂíå‰º†ÂÖ•ÂèÇÊï∞‰∏∫È´ò16bitÂÜôÂÖ•Âà∞FPGAÂÜÖÈÉ®‰∏∫32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
 	if(data < 0xA000) data = 0xA000;
 	//*((uint16_t*)&STM8_EEPROM_Data[10+44]) = data;
-    Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//…œŒªª˙¥¢¥Ê∫Õ¥´»Î≤Œ ˝Œ™∏ﬂ16bit–¥»ÎµΩFPGAƒ⁄≤øŒ™32Bit
+    Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//‰∏ä‰ΩçÊú∫ÂÇ®Â≠òÂíå‰º†ÂÖ•ÂèÇÊï∞‰∏∫È´ò16bitÂÜôÂÖ•Âà∞FPGAÂÜÖÈÉ®‰∏∫32Bit
 
 	PC_HOST_Send_ASK_Only(0);
 }
@@ -1085,8 +1123,8 @@ void CMD_93_WRITE_FREQMETER_PID(void)
 void CMD_94_WRITE_FREQMETER_TIMER(void)
 {
 	//*((uint32_t*)&STM8_EEPROM_Data[28+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
-	Xil_Out32(Freq_Meter_Gate_Time_L_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//÷––ƒ∆µ¬ 
-	Xil_Out32(Freq_Meter_Gate_Time_H_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[8]));//÷––ƒ∆µ¬ 
+	Xil_Out32(Freq_Meter_Gate_Time_L_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//‰∏≠ÂøÉÈ¢ëÁéá
+	Xil_Out32(Freq_Meter_Gate_Time_H_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[8]));//‰∏≠ÂøÉÈ¢ëÁéá
 	PC_HOST_Send_ASK_Only(0);
 }
 
@@ -1405,14 +1443,14 @@ void Uart1PS_Init(void)
 
 	int status;
 
-	XUartPs_Config_uart1 = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);//ªÒµ√¥Æø⁄1≈‰÷√–≈œ¢
+	XUartPs_Config_uart1 = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);//Ëé∑Âæó‰∏≤Âè£1ÈÖçÁΩÆ‰ø°ÊÅØ
 	status = XUartPs_CfgInitialize(&XUartPs_uart1,XUartPs_Config_uart1,XUartPs_Config_uart1->BaseAddress);
 	if(status != XST_SUCCESS)
 	{
 		print("Initialize uart1 fail\n");
 	}
 	XUartPs_SetOperMode(&XUartPs_uart1, XUARTPS_OPER_MODE_NORMAL);
-	XUartPsFormat_uart1.BaudRate = 921600;//≤®Ãÿ¬ 921600
+	XUartPsFormat_uart1.BaudRate = 921600;//Ê≥¢ÁâπÁéá921600
 	XUartPsFormat_uart1.DataBits = XUARTPS_FORMAT_8_BITS;
 	XUartPsFormat_uart1.Parity = XUARTPS_FORMAT_NO_PARITY;
 	XUartPsFormat_uart1.StopBits = XUARTPS_FORMAT_1_STOP_BIT;
@@ -1423,7 +1461,7 @@ void Uart1PS_Init(void)
 	}
 	XUartPs_SetFifoThreshold(&XUartPs_uart1,32);
 	XUartPs_SetRecvTimeout(&XUartPs_uart1,4);//4*4=16 timeout IXR
-	XUartPs_SetInterruptMask(&XUartPs_uart1,XUARTPS_IXR_RXOVR|XUARTPS_IXR_TOUT);//ø™÷–∂œ
+	XUartPs_SetInterruptMask(&XUartPs_uart1,XUARTPS_IXR_RXOVR|XUARTPS_IXR_TOUT);//ÂºÄ‰∏≠Êñ≠
 
 	//XScuGic_Config_ps = XScuGic_LookupConfig(XPAR_SCUGIC_SINGLE_DEVICE_ID);
 	//XScuGic_CfgInitialize(&XPS_XScuGic,XScuGic_Config_ps,XScuGic_Config_ps->CpuBaseAddress);
@@ -1434,7 +1472,7 @@ void Uart1PS_Init(void)
 
 	XScuGic_Disable(&XPS_XScuGic,XPS_UART1_INT_ID);
 	//XScuGic_SetPriorityTriggerType(&XPS_XScuGic,XPS_UART0_INT_ID,16,1);
-	XScuGic_Connect(&XPS_XScuGic,XPS_UART1_INT_ID,(Xil_ExceptionHandler)Uart1_Handler,(void *)&XUartPs_uart1);//»Îø⁄
+	XScuGic_Connect(&XPS_XScuGic,XPS_UART1_INT_ID,(Xil_ExceptionHandler)Uart1_Handler,(void *)&XUartPs_uart1);//ÂÖ•Âè£
 	XScuGic_Enable(&XPS_XScuGic,XPS_UART1_INT_ID);
 
 	Uart_RX_Num=0;
@@ -1487,7 +1525,8 @@ void STM_HOST_Respond_Data(void)
 static uint8_t STM_HOST_Write_PLL_Data(void)
 {
 	u32 data;
-	Xil_Out32(DAC0_Centre_Frequency_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[0]));//÷––ƒ∆µ¬ 
+	if (dpll_write_center_filter_profile(*((uint32_t*)&STM_HOST_CMD_data_Buff[0])) !=
+	    DPLL_DRIVER_OK) return STATUS_NACK;
 	Xil_Out32(VOC_Fre_Mul_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[4]));//MUL
 	Xil_Out32(VOC_Fre_Div_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[6]));//DIV
     Xil_Out32(DPLL_PLL_KP_TRACK_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[8]));
@@ -1495,9 +1534,9 @@ static uint8_t STM_HOST_Write_PLL_Data(void)
     Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[16]));
     Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[20]));
     data = *((uint16_t*)&STM_HOST_CMD_data_Buff[24]);
-    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,data<<16);//…œŒªª˙¥¢¥Ê∫Õ¥´»Î≤Œ ˝Œ™∏ﬂ16bit–¥»ÎµΩFPGAƒ⁄≤øŒ™32Bit
+    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,data<<16);//‰∏ä‰ΩçÊú∫ÂÇ®Â≠òÂíå‰º†ÂÖ•ÂèÇÊï∞‰∏∫È´ò16bitÂÜôÂÖ•Âà∞FPGAÂÜÖÈÉ®‰∏∫32Bit
     data = *((uint16_t*)&STM_HOST_CMD_data_Buff[26]);
-    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//…œŒªª˙¥¢¥Ê∫Õ¥´»Î≤Œ ˝Œ™∏ﬂ16bit–¥»ÎµΩFPGAƒ⁄≤øŒ™32Bit
+    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//‰∏ä‰ΩçÊú∫ÂÇ®Â≠òÂíå‰º†ÂÖ•ÂèÇÊï∞‰∏∫È´ò16bitÂÜôÂÖ•Âà∞FPGAÂÜÖÈÉ®‰∏∫32Bit
     Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[28]));//14Bit
     Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[30]));//32Bit
     Xil_Out32(DAC0_VOC_Amplitude_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[32]));//amplitude 15bit;
@@ -1561,7 +1600,7 @@ init_platform();
     Xil_Out32(DAC0_VCO_Offset_Addr,0);//offset 14bit;
     Xil_Out32(DAC0_VOC_Amplitude_Addr,0x7fff);//amplitude 15bit;
     //Xil_Out32(DAC0_VOC_Amplitude_Addr,0x0001);//amplitude 15bit;
-    Xil_Out32(DAC0_Centre_Frequency_Addr,0x051EB851);//÷––ƒ∆µ¬  120KHz@fs=3.125MHz
+    if (dpll_write_center_filter_profile(0x003EEA21U) != DPLL_DRIVER_OK) return -1; // 120 kHz at 125 MHz
 
     Xil_Out32(DAC0_DDC_Angle_Select_Addr,0);//wrapped_phase_cordic
 
@@ -1578,43 +1617,28 @@ init_platform();
     Xil_Out32(VOC_Fre_Mul_Addr,1);//mul 16bit;
     Xil_Out32(VOC_Fre_Div_Addr,1);//div 16bit;
 
-    Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,100);//14Bit
-    Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,1000);//32Bit
-    Xil_Out32(DAC0_Phase_Residuals_Offset_Addr,0);//32Bit
+    Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,2147);// 100 Hz at 21.4748 LSB/Hz
+    Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,5825);// 8 degrees at 2^18 LSB/turn
+    Xil_Out32(DAC0_Phase_Residuals_Offset_Addr,0xFFFF0000U);// -pi/2 sine/IQ setpoint
 
-    Xil_Out32(DPLL_PLL_KP_TRACK_Addr,40000);
+    Xil_Out32(DPLL_PLL_KP_TRACK_Addr,6000000);
     Xil_Out32(DPLL_PLL_KI_TRACK_Addr,117200);
-    Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,78900);//ºı…Ÿ≤–≤Ó º”øÏ◊Ó∫Ûµƒ¬˝ ’¡≤
-    Xil_Out32(DPLL_FLL_KF_BLEND_Addr,100000);
+    Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,8000000);
+    Xil_Out32(DPLL_FLL_KF_BLEND_Addr,1500000);
     //Xil_Out32(DPLL_FLL_KF_TRACK_Addr,0x0ffff);//DPLL_KF_TRACK[23:0]
-    Xil_Out32(DPLL_FLL_KF_TRACK_Addr,0x0002F);//DPLL_KF_TRACK[23:0]
+    Xil_Out32(DPLL_FLL_KF_TRACK_Addr,250000);//DPLL_KF_TRACK[23:0]
 
 
 
-    Xil_Out32(DPLL_PLL_KP_BLEND_Addr,40000);
+    Xil_Out32(DPLL_PLL_KP_BLEND_Addr,6000000);
     Xil_Out32(DPLL_PLL_KI_BLEND_Addr,117200);
     Xil_Out32(DPLL_MAG_ENTER_THRESHOLD_Addr,16384);
     Xil_Out32(DPLL_MAG_EXIT_THRESHOLD_Addr,8192);
     Xil_Out32(DPLL_ACQUIRE_DWELL_Addr,16);
-    Xil_Out32(DPLL_BLEND_DWELL_Addr,16);
-    Xil_Out32(DPLL_LOSS_DWELL_Addr,16);
+    Xil_Out32(DPLL_BLEND_DWELL_Addr,64);
+    Xil_Out32(DPLL_LOSS_DWELL_Addr,64);
     Xil_Out32(DPLL_HOLDOVER_TIMEOUT_Addr,1250000);
-    Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr,0);
-    Xil_Out32(DPLL_POST_IQ_CIC_R_Addr,31);
-    Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr,10);
-    Xil_Out32(DPLL_FLL_DELAY_SEL_Addr,2);
     Xil_Out32(DPLL_WARMUP_SAMPLES_Addr,64);
-    Xil_Out32(DPLL_POST_IIR_CONFIG_Addr,3);
-    Xil_Out32(DPLL_POST_IIR_ACQ_B0_Addr,138975519);
-    Xil_Out32(DPLL_POST_IIR_ACQ_B1_Addr,277951039);
-    Xil_Out32(DPLL_POST_IIR_ACQ_B2_Addr,138975519);
-    Xil_Out32(DPLL_POST_IIR_ACQ_A1_Addr,0xCF8C92D0);
-    Xil_Out32(DPLL_POST_IIR_ACQ_A2_Addr,295031213);
-    Xil_Out32(DPLL_POST_IIR_TRACK_B0_Addr,48851600);
-    Xil_Out32(DPLL_POST_IIR_TRACK_B1_Addr,97703199);
-    Xil_Out32(DPLL_POST_IIR_TRACK_B2_Addr,48851600);
-    Xil_Out32(DPLL_POST_IIR_TRACK_A1_Addr,0xABFE403C);
-    Xil_Out32(DPLL_POST_IIR_TRACK_A2_Addr,531065347);
     if (dpll_apply_config() != 0) return -1;
 
     Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);//rst;

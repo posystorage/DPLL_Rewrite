@@ -10,6 +10,7 @@ set project_path [file join $repo_root DPLL_Rewrite.xpr]
 set tb_path [file join $repo_root verification rtl dpll_integrated_flow_tb.v]
 set post_iir_path [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL DDC post_iir_stage_a.v]
 set include_dir [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL]
+set compile_only [expr {[llength $argv] > 0 && [lindex $argv 0] eq "compile_only"}]
 
 if {![file exists $project_path]} {
     error "Project not found: $project_path"
@@ -96,5 +97,9 @@ if {[llength [get_objects -quiet /dpll_integrated_flow_tb/clk1]] > 0} {
     add_wave /dpll_integrated_flow_tb/dac1_debug_out
     add_wave /dpll_integrated_flow_tb/led
 
-    run all
+    if {$compile_only} {
+        puts "DPLL integrated flow compile-only snapshot loaded"
+    } else {
+        run all
+    }
 }

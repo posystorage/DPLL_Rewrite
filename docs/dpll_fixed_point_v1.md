@@ -63,7 +63,7 @@ input valid rate = 3.125 MSPS
 output rate = 3.125 MSPS / R
 ```
 
-Suggested R:
+Legacy nominal R values (not used by the adaptive DPLL profile):
 
 | Center frequency | R | Output valid rate |
 |---:|---:|---:|
@@ -112,13 +112,34 @@ sections in cascade for I and Q. Coefficients are signed Q2.30 and implement:
 y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
 ```
 
-For the first 20 kHz validation point, keep `POST_IQ_CIC_R=31`
-(`fs_iir = 3.125 MSPS / 31 = 100.806 kSPS`) and use:
+ARM computes one complete profile when the user writes a 5--200 kHz center
+frequency. The profile contains CIC R/shift, FLL delay, and both IIR coefficient
+banks. It is written before one atomic APPLY; FPGA state transitions do not need
+further ARM writes. R is selected from 16, 15, 12, 10, and 8 so that the aliased
+double-frequency image is at least 2.2 times the ACQUIRE cutoff and the IIR input
+rate is at least 8 times that cutoff. The two identical Butterworth sections then
+provide more than 25 dB image attenuation.
 
-| Mode | fc | b0 | b1 | b2 | a1 | a2 |
+After selecting R, ARM chooses the largest FLL delay L in 8, 4, 2, or 1 for
+which `fs_iir >= 4*L*acquire_cutoff`. This keeps the cross/dot discriminator's
+dot product positive throughout the capture band; higher-frequency profiles
+therefore shorten L automatically instead of relying on an ARM write during a
+state transition.
+
+For the 22 kHz center used by `dpll_integrated_flow_tb`, ARM selects R=16,
+shift=7, and FLL delay select=3. The coefficient banks are:
+
+| Mode | Per-section fc | b0 | b1 | b2 | a1 | a2 |
 |---|---:|---:|---:|---:|---:|---:|
-| ACQUIRE | 15 kHz | 138975519 | 277951039 | 138975519 | -812870960 | 295031213 |
-| TRACK | 8 kHz | 48851600 | 97703199 | 48851600 | -1409400772 | 531065347 |
+| ACQUIRE | 4 kHz | 4069483 | 8138965 | 4069483 | -1952555106 | 895091212 |
+| FINE/TRACK | 2 kHz | 1062529 | 2125058 | 1062529 | -2049846615 | 980354906 |
+
+The cutoff column is the -3 dB point of each biquad. Because two identical
+sections are cascaded, the complete IIR is approximately -6 dB at that frequency.
+At the TB's 43.5 kHz mixer image, the quantized ACQUIRE and FINE/TRACK banks give
+approximately 89 dB and 113 dB attenuation respectively. The wider 2 kHz second
+bank intentionally serves both blend/fine and track, avoiding the previous
+ultra-narrow tracking response.
 
 `POST_IIR_CONFIG=3` selects ACQUIRE coefficients outside blend/track states and
 TRACK coefficients during `FLL_PLL_BLEND` and `PLL_TRACK`. `POST_IIR_CONFIG=0`
@@ -147,6 +168,16 @@ freq_state[k+1] = sat(freq_state[k] + Kf*ef + Ki*ephi)
 freq_correction = sat(freq_state[k+1] + Kp*ephi)
 tracking_word   = center_word + freq_correction
 ```
+
+The products do not share one implicit scale: the FLL term uses an arithmetic
+right shift of 16, the phase integrator uses 18, and the instantaneous phase P
+term uses 12. Cross/dot frequency error has only about 21.4748 LSB/Hz; the
+separate FLL shift lets the signed 24-bit Kf range provide adequate capture
+bandwidth. BLEND/TRACK Kf values are reduced by four relative to the earlier
+shift-18 settings when the same effective gain is desired. The stronger P scale
+also makes the 24-bit Kp range capable of damping the phase integrator; with the
+22 kHz profile, Kp=6,000,000 and Ki=117,200 give an estimated blend damping
+ratio near 0.85.
 
 Mode enables:
 

@@ -17,24 +17,27 @@
 #define DPLL_STANDARD_MIN_HZ        5000.0
 #define DPLL_STANDARD_MAX_HZ      200000.0
 
+#define DPLL_VERIFIED_5P5K_WORD  0x0002E233U
 #define DPLL_VERIFIED_22K_WORD   0x000B88CAU
 #define DPLL_VERIFIED_200K_WORD  0x0068DB8CU
+#define DPLL_LOW_BAND_MEAS_TIMEOUT 125000U
 
 typedef struct {
     uint32_t max_center_hz;
     uint32_t acquire_cutoff_hz;
     uint32_t track_cutoff_hz;
+    uint32_t measurement_timeout;
 } dpll_filter_band_t;
 
 static const dpll_filter_band_t dpll_filter_bands[] = {
-    {   8000U,  1200U,  800U },
-    {  15000U,  2000U, 1200U },
-    {  30000U,  4000U, 2000U },
-    {  60000U,  8000U, 3500U },
-    { 100000U, 12000U, 5000U },
-    { 150000U, 15000U, 7000U },
-    { 200000U, 18000U, 8000U },
-    { 250000U, 20000U, 9000U }
+    {   8000U,  1200U,  800U, DPLL_LOW_BAND_MEAS_TIMEOUT },
+    {  15000U,  2000U, 1200U, 0U },
+    {  30000U,  4000U, 2000U, 0U },
+    {  60000U,  8000U, 3500U, 0U },
+    { 100000U, 12000U, 5000U, 0U },
+    { 150000U, 15000U, 7000U, 0U },
+    { 200000U, 18000U, 8000U, 0U },
+    { 250000U, 20000U, 9000U, 0U }
 };
 
 /* R <= 16 preserves useful pull-in range with the signed 24-bit Kf path. */
@@ -148,7 +151,8 @@ static uint8_t dpll_gain_is_signed24(int32_t gain)
 static dpll_profile_support_t dpll_support_for_center(uint32_t center_word_hi,
                                                        double center_hz)
 {
-    if (center_word_hi == DPLL_VERIFIED_22K_WORD ||
+    if (center_word_hi == DPLL_VERIFIED_5P5K_WORD ||
+        center_word_hi == DPLL_VERIFIED_22K_WORD ||
         center_word_hi == DPLL_VERIFIED_200K_WORD)
         return DPLL_PROFILE_SUPPORT_VERIFIED;
     if (center_hz >= DPLL_STANDARD_MIN_HZ - 0.5 &&
@@ -356,6 +360,7 @@ int dpll_compute_filter_profile_checked(uint32_t center_word_hi,
                                                     band->acquire_cutoff_hz);
     profile->support = dpll_support_for_center(center_word_hi, center_hz);
     dpll_fill_common_loop_parameters(profile);
+    profile->measurement_timeout = band->measurement_timeout;
 
     if (dpll_design_biquad(profile->acquire_cutoff_hz, output_rate_hz,
                            &profile->acquire_b0, &profile->acquire_b1,

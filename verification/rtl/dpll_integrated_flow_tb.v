@@ -247,7 +247,9 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0056, 32'd64);
         bus_write(16'h0057, 32'd64);
         bus_write(16'h0058, 32'd1250000);
-        bus_write(16'h0059, 32'd0); // auto: block-valid measurement timeout
+        // The 0.8 kHz TRACK IIR needs longer than the R-only automatic timeout
+        // to rebuild magnitude and restart the FLL block after the state-5 switch.
+        bus_write(16'h0059, 32'd125000); // 1 ms at 125 MHz
         bus_write(16'h0060, PROFILE_CIC_R);
         bus_write(16'h0061, PROFILE_CIC_SHIFT);
         bus_write(16'h0062, PROFILE_FLL_DELAY);

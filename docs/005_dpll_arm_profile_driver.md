@@ -15,7 +15,7 @@
 
 | 等级 | 范围或中心 | 含义 |
 |---|---|---|
-| `VERIFIED` | 22 kHz、200 kHz 精确 DDS 高字 | 已有行为级仿真锁定证据 |
+| `VERIFIED` | 5.5 kHz、22 kHz、200 kHz 精确 DDS 高字 | 已有行为级仿真锁定证据 |
 | `STANDARD` | 5--200 kHz | 根据当前架构规则生成，仍需具体硬件频点验收 |
 | `EXTENDED` | 4--5 kHz、200--250 kHz | 允许配置且通过数学检查，但不保证锁定 |
 
@@ -23,16 +23,16 @@
 
 ## 3. 频段表
 
-| 中心频率 | ACQUIRE IIR | TRACK IIR |
-|---:|---:|---:|
-| 4--8 kHz | 1.2 kHz | 0.8 kHz |
-| 8--15 kHz | 2 kHz | 1.2 kHz |
-| 15--30 kHz | 4 kHz | 2 kHz |
-| 30--60 kHz | 8 kHz | 3.5 kHz |
-| 60--100 kHz | 12 kHz | 5 kHz |
-| 100--150 kHz | 15 kHz | 7 kHz |
-| 150--200 kHz | 18 kHz | 8 kHz |
-| 200--250 kHz | 20 kHz | 9 kHz |
+| 中心频率 | ACQUIRE IIR | TRACK IIR | measurement timeout |
+|---:|---:|---:|---:|
+| 4--8 kHz | 1.2 kHz | 0.8 kHz | `125000`，1 ms |
+| 8--15 kHz | 2 kHz | 1.2 kHz | `0`，自动 |
+| 15--30 kHz | 4 kHz | 2 kHz | `0`，自动 |
+| 30--60 kHz | 8 kHz | 3.5 kHz | `0`，自动 |
+| 60--100 kHz | 12 kHz | 5 kHz | `0`，自动 |
+| 100--150 kHz | 15 kHz | 7 kHz | `0`，自动 |
+| 150--200 kHz | 18 kHz | 8 kHz | `0`，自动 |
+| 200--250 kHz | 20 kHz | 9 kHz | `0`，自动 |
 
 驱动从 `R={16,15,12,10,8}` 中选择满足镜频和吞吐约束的最大值，
 shift 使用 nominal CIC shift 加 1 bit CORDIC headroom。
@@ -57,7 +57,7 @@ profile 在写入任何 shadow 寄存器前检查：
 
 ## 5. 共用环路参数
 
-当前 22 kHz 与 200 kHz 已验证 profile 使用同一组环路参数：
+当前 5.5 kHz、22 kHz 与 200 kHz 已验证 profile 使用同一组环路参数：
 
 ```text
 Kp_track=6000000   Ki_track=180000
@@ -74,11 +74,13 @@ warmup=16, holdover_timeout=1250000
 
 ## 6. CRC 一致性
 
-当 `measurement_timeout=0` 时，ARM 与 RTL 都使用：
+除 4--8 kHz 频段外，当 `measurement_timeout=0` 时，ARM 与 RTL 都使用：
 
 ```text
 measurement_timeout = 2400*R + 512
 ```
+
+4--8 kHz 的 0.8 kHz TRACK IIR 在状态 5 切换后需要更长的重建时间。该频段固定写入 `125000`（1 ms），避免自动值在 magnitude 和 FLL block 恢复前触发 `LOSS_TIMEOUT`。这项设置来自 5.5 kHz 中心、5 kHz 激励的 50 ms 行为级仿真验证。
 
 profile staging 后仍必须执行 CONFIG_APPLY，并核对 apply sequence、active snapshot、
 applied ABI 和 active config CRC，全部一致后才允许 enable。

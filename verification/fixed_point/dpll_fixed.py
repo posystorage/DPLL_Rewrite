@@ -1,6 +1,7 @@
 """Fixed-point helpers for the DPLL refactor v1 model.
 
-The functions here intentionally mirror docs/dpll_fixed_point_v1.md.  They are
+The functions here mirror the fixed-point contracts summarized in
+docs/001_dpll_current_architecture.md.  They are
 small enough to audit and strict enough to catch common RTL integration mistakes
 before Vivado is involved.
 """

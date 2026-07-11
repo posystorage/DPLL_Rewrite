@@ -401,6 +401,8 @@ static int dpll_write_center_filter_profile(uint32_t center_word_hi)
 	Xil_Out32(DPLL_POST_IQ_CIC_R_Addr, profile.cic_r);
 	Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr, profile.cic_shift);
 	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, profile.fll_delay_sel);
+	Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr, (uint32_t)profile.correction_limit_pos_hi);
+	Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr, (uint32_t)profile.correction_limit_neg_hi);
 	Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr, 0U);
 	Xil_Out32(DPLL_POST_IIR_CONFIG_Addr, 3U);
 	Xil_Out32(DPLL_POST_IIR_ACQ_B0_Addr, (uint32_t)profile.acquire_b0);
@@ -414,7 +416,7 @@ static int dpll_write_center_filter_profile(uint32_t center_word_hi)
 	Xil_Out32(DPLL_POST_IIR_TRACK_A1_Addr, (uint32_t)profile.track_a1);
 	Xil_Out32(DPLL_POST_IIR_TRACK_A2_Addr, (uint32_t)profile.track_a2);
 
-	xil_printf("DPLL filter center=%luHz R=%u shift=%u L=%u image=%luHz acq=%luHz track=%luHz\r\n",
+	xil_printf("DPLL filter center=%luHz limit=+/-20%% R=%u shift=%u L=%u image=%luHz acq=%luHz track=%luHz\r\n",
 	           (unsigned long)profile.center_hz,
 	           (unsigned int)profile.cic_r,
 	           (unsigned int)profile.cic_shift,
@@ -1611,8 +1613,6 @@ init_platform();
 //    Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR,0x00418000);//Fre 31bit; 125KHz
 //    Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR,0x0);//Phase 32bit
 
-    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,0x7FFFFFFE);//32Bit
-    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,0x80000001);//32Bit
     Xil_Out32(VCO_Freq_Manual_Offset_Addr,0);//offset 10bit;
     Xil_Out32(VOC_Fre_Mul_Addr,1);//mul 16bit;
     Xil_Out32(VOC_Fre_Div_Addr,1);//div 16bit;

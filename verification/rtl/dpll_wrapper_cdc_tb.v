@@ -26,7 +26,7 @@ module dpll_wrapper_cdc_tb;
    crc=crc_mix(crc,32'h00007fff); crc=crc_mix(crc,32'h00001000); crc=crc_mix(crc,32'h00000400);
    crc=crc_mix(crc,{16'd4,16'd4});
    crc=crc_mix(crc,{16'd4,16'd4}); crc=crc_mix(crc,32'd187712); crc=crc_mix(crc,32'd1250000);
-   crc=crc_mix(crc,32'h7fffffff); crc=crc_mix(crc,32'h80000000); crc=crc_mix(crc,32'h00000000);
+   crc=crc_mix(crc,32'h0014f8b6); crc=crc_mix(crc,32'hffeb074a); crc=crc_mix(crc,32'h00000000);
    crc=crc_mix(crc,32'h00007fff);
    crc=crc_mix(crc,32'h00000003); crc=crc_mix(crc,32'h0848991f); crc=crc_mix(crc,32'h1091323f);
    crc=crc_mix(crc,32'h0848991f); crc=crc_mix(crc,32'hcf8c92d0); crc=crc_mix(crc,32'h1195d1ad);
@@ -41,9 +41,9 @@ module dpll_wrapper_cdc_tb;
    rd(16'h010f,v);if(v!==`DPLL_GENERATED_BUILD_ID)begin $display("FAIL: build id %h",v);$finish;end
    rd(16'h011d,v);if(v!==`DPLL_GENERATED_GIT_HASH)begin $display("FAIL: git hash %h",v);$finish;end
    force dut.pre_cic_ready=1'b0;repeat(4)@(posedge clk1);release dut.pre_cic_ready;rd(16'h0108,v);if(!v[19])begin $display("FAIL: pre-CIC backpressure fault not latched flags=%h",v);$finish;end
-   wr(16'h0010,32'h12345678);wr(16'h0021,32'hff800001);wr(16'h0040,32'h00000012);wr(16'h0041,32'h00003456);wr(16'h0042,32'h89abcdef);wr(16'h0043,32'h10203040);wr(16'h0060,78);wr(16'h0061,13);wr(16'h0058,1250000);wr(16'h0059,0);wr(16'h006f,1);wait_idle();
+   wr(16'h0010,32'h12345678);wr(16'h0021,32'hff800001);wr(16'h0028,32'h0014f8b6);wr(16'h0029,32'hffeb074a);wr(16'h0040,32'h00000012);wr(16'h0041,32'h00003456);wr(16'h0042,32'h89abcdef);wr(16'h0043,32'h10203040);wr(16'h0060,78);wr(16'h0061,13);wr(16'h0058,1250000);wr(16'h0059,0);wr(16'h006f,1);wait_idle();
    repeat(8)@(posedge clk1);
-   if(dut.active_center_word!==48'h123456780000||dut.active_post_iq_cic_rate_r!==78||dut.active_kp!==24'h800001||dut.live_debug_dac_offset!==14'h0012||dut.live_debug_dac_gain!==16'h3456||dut.live_debug_dac_source!==32'h89abcdef||dut.live_debug_dac_format!==32'h10203040||dut.config_apply_sequence!==1)begin $display("FAIL: legal commit/live debug active=%h r=%0d kp=%h seq=%0d live_source=%h",dut.active_center_word,dut.active_post_iq_cic_rate_r,dut.active_kp,dut.config_apply_sequence,dut.live_debug_dac_source);$finish;end
+   if(dut.active_center_word!==48'h123456780000||dut.active_post_iq_cic_rate_r!==78||dut.active_kp!==24'h800001||dut.active_correction_limit_pos!==56'sh000014f8b60000||dut.active_correction_limit_neg!==56'shffffeb074a0000||dut.live_debug_dac_offset!==14'h0012||dut.live_debug_dac_gain!==16'h3456||dut.live_debug_dac_source!==32'h89abcdef||dut.live_debug_dac_format!==32'h10203040||dut.config_apply_sequence!==1)begin $display("FAIL: legal commit/live debug active=%h r=%0d kp=%h pos_limit=%h neg_limit=%h seq=%0d live_source=%h",dut.active_center_word,dut.active_post_iq_cic_rate_r,dut.active_kp,dut.active_correction_limit_pos,dut.active_correction_limit_neg,dut.config_apply_sequence,dut.live_debug_dac_source);$finish;end
    rd(16'h0110,v);if(v!==32'h12345678)begin $display("FAIL: snapshot center %h",v);$finish;end saved_center=dut.active_center_word;
    rd(16'h011e,v);if(v!==expected_active_crc(1'b0))begin $display("FAIL: active config crc %h expected %h",v,expected_active_crc(1'b0));$finish;end
    saved_crc=v;saved_apply_count=dut.dpll_single_clock_core_stage_a_inst.apply_count;saved_loop_state=dut.dpll_loop_state;

@@ -10,6 +10,7 @@
 #define DPLL_SQRT2                 1.41421356237309504880
 #define DPLL_IMAGE_GUARD_RATIO     2.2
 #define DPLL_CORDIC_HEADROOM_BITS  1U
+#define DPLL_DEFAULT_LIMIT_DIVISOR  5U /* symmetric +/-20% of center */
 
 typedef struct {
     uint32_t max_center_hz;
@@ -177,6 +178,14 @@ int dpll_compute_filter_profile(uint32_t center_word_hi,
     profile->mirror_alias_hz = (uint32_t)(mirror_alias_hz + 0.5);
     profile->acquire_cutoff_hz = band->acquire_cutoff_hz;
     profile->track_cutoff_hz = band->track_cutoff_hz;
+    /* Limit registers are signed high 32 bits of the 48-bit DDS correction
+     * word.  Derive the default directly from center_word_hi so both values
+     * have exactly the same fixed-point scale.  Users may overwrite these
+     * shadow registers before APPLY when a different safety window is needed. */
+    profile->correction_limit_pos_hi =
+        (int32_t)((center_word_hi + DPLL_DEFAULT_LIMIT_DIVISOR / 2U) /
+                  DPLL_DEFAULT_LIMIT_DIVISOR);
+    profile->correction_limit_neg_hi = -profile->correction_limit_pos_hi;
     profile->cic_r = selected_r;
     /* The nominal CIC table targets the 20-bit post-CIC output.  Add one
      * explicit headroom bit for the no-scale-compensation CORDIC rather than

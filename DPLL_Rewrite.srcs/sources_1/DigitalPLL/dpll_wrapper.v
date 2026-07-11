@@ -33,6 +33,11 @@ localparam [31:0] FPGA_BUILD_ID     = `DPLL_GENERATED_BUILD_ID;
 localparam [31:0] FPGA_GIT_HASH     = `DPLL_GENERATED_GIT_HASH;
 localparam [31:0] DEFAULT_POS_LIMIT = 32'h7FFF_FFFF;
 localparam [31:0] DEFAULT_NEG_LIMIT = 32'h8000_0000;
+// Correction-limit registers use the same high-word format as Centre_Freq:
+// each signed register LSB is 2^16 DDS tuning-word LSBs.  The low 16 bits of
+// the effective 48-bit correction limit are intentionally zero because a
+// sub-0.03 Hz limit resolution is already much finer than the loop needs.
+localparam integer CORRECTION_LIMIT_LOW_BITS = 16;
 localparam [31:0] DEFAULT_DAC_AMP   = 32'h0000_7FFF;
 localparam [31:0] DEFAULT_FREQ_MUL  = 32'h0000_0001;
 localparam [31:0] DEFAULT_FREQ_DIV  = 32'h0000_0001;
@@ -384,8 +389,12 @@ wire signed [15:0] dpll_lo_sin;
 wire [47:0] shadow_center_word = {Centre_Freq, 16'h0000};
 wire signed [31:0] shadow_negative_limit_effective =
     (negative_limit_dac0 == 32'h0000_0000) ? $signed(DEFAULT_NEG_LIMIT) : negative_limit_dac0;
-wire signed [55:0] shadow_correction_limit_pos = {{24{positive_limit_dac0[31]}}, positive_limit_dac0};
-wire signed [55:0] shadow_correction_limit_neg = {{24{shadow_negative_limit_effective[31]}}, shadow_negative_limit_effective};
+wire signed [55:0] shadow_correction_limit_pos =
+    {{(56-32-CORRECTION_LIMIT_LOW_BITS){positive_limit_dac0[31]}},
+     positive_limit_dac0, {CORRECTION_LIMIT_LOW_BITS{1'b0}}};
+wire signed [55:0] shadow_correction_limit_neg =
+    {{(56-32-CORRECTION_LIMIT_LOW_BITS){shadow_negative_limit_effective[31]}},
+     shadow_negative_limit_effective, {CORRECTION_LIMIT_LOW_BITS{1'b0}}};
 localparam [7:0] APPLY_ERR_NONE       = 8'h00;
 localparam [7:0] APPLY_ERR_CIC_RATE   = 8'h01;
 localparam [7:0] APPLY_ERR_CIC_SHIFT  = 8'h02;
@@ -781,8 +790,12 @@ always @(posedge clk1 or negedge rst) begin
         active_holdover_timeout <= DEFAULT_HOLDOVER[23:0];
         active_measurement_timeout <= (24'd2400 * 9'd31) + 24'd512;
         active_warmup_samples <= 16'd4;
-        active_correction_limit_pos <= {{24{DEFAULT_POS_LIMIT[31]}}, DEFAULT_POS_LIMIT};
-        active_correction_limit_neg <= {{24{DEFAULT_NEG_LIMIT[31]}}, DEFAULT_NEG_LIMIT};
+        active_correction_limit_pos <=
+            {{(56-32-CORRECTION_LIMIT_LOW_BITS){DEFAULT_POS_LIMIT[31]}},
+             DEFAULT_POS_LIMIT, {CORRECTION_LIMIT_LOW_BITS{1'b0}}};
+        active_correction_limit_neg <=
+            {{(56-32-CORRECTION_LIMIT_LOW_BITS){DEFAULT_NEG_LIMIT[31]}},
+             DEFAULT_NEG_LIMIT, {CORRECTION_LIMIT_LOW_BITS{1'b0}}};
         active_post_iq_cic_rate_r <= 9'd31;
         active_post_iq_cic_shift <= 6'd10;
         active_fll_delay_sel <= 2'd0;
@@ -895,8 +908,8 @@ wire [31:0] active_config_crc = dpll_config_crc(
     {active_loss_dwell, active_warmup_samples},
     {8'h0, active_measurement_timeout},
     {8'h0, active_holdover_timeout},
-    active_correction_limit_pos[31:0],
-    active_correction_limit_neg[31:0],
+    active_correction_limit_pos[47:16],
+    active_correction_limit_neg[47:16],
     active_manual_offset_dac0,
     {{2{active_vco_offset[13]}}, active_vco_offset, active_vco_amplitude},
     {30'h0, active_post_iir_mode},

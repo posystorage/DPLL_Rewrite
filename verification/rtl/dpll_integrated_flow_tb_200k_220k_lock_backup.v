@@ -2,30 +2,30 @@
 `default_nettype none
 
 module dpll_integrated_flow_tb;
-    localparam [47:0] ADC_DDS_WORD    = 48'h0002_9f16_b11c; // 5 kHz at 125 MHz
-    localparam [31:0] CENTER_WORD_HI  = 32'h0002_e233;      // 5.5 kHz, high 32 bits
+    localparam [47:0] ADC_DDS_WORD    = 48'h0073_57e6_70e3; // 220 kHz at 125 MHz
+    localparam [31:0] CENTER_WORD_HI  = 32'h0068_db8c;      // 200 kHz, high 32 bits
     localparam [31:0] PHASE_LOCK_THRESHOLD_LSB = 32'd5825;  // 8 deg, 2^18 LSB/turn
     localparam [31:0] FREQ_LOCK_THRESHOLD_LSB  = 32'd2147;  // 100 Hz, ~0.046566 Hz/LSB
-    // Golden 5.5 kHz profile from dpll_compute_filter_profile(): R=16,
-    // nominal shift=7 plus one CORDIC headroom bit, FLL L=8,
-    // acquire fc=1.2 kHz, track/fine fc=0.8 kHz.
-    localparam [31:0] PROFILE_CIC_R       = 32'd16;
+    // Golden 200 kHz profile from dpll_compute_filter_profile(): R=12,
+    // nominal shift=7 plus one CORDIC headroom bit, FLL L=2,
+    // acquire fc=18 kHz, track/fine fc=8 kHz.
+    localparam [31:0] PROFILE_CIC_R       = 32'd12;
     localparam [31:0] PROFILE_CIC_SHIFT   = 32'd8;
-    localparam [31:0] PROFILE_FLL_DELAY   = 32'd3;
+    localparam [31:0] PROFILE_FLL_DELAY   = 32'd1;
     // Signed high 32 bits of the 48-bit DDS correction word.  At 125 MHz,
-    // these values provide a symmetric 1.1 kHz limit (20% of 5.5 kHz).
-    localparam [31:0] PROFILE_LIMIT_POS    = 32'h0000_93a4;
-    localparam [31:0] PROFILE_LIMIT_NEG    = 32'hffff_6c5c;
-    localparam [31:0] PROFILE_ACQ_B0      = 32'h0005_f0f3;
-    localparam [31:0] PROFILE_ACQ_B1      = 32'h000b_e1e6;
-    localparam [31:0] PROFILE_ACQ_B2      = 32'h0005_f0f3;
-    localparam [31:0] PROFILE_ACQ_A1      = 32'h837e_41d7;
-    localparam [31:0] PROFILE_ACQ_A2      = 32'h3c99_81f6;
-    localparam [31:0] PROFILE_TRACK_B0    = 32'h0002_aa10;
-    localparam [31:0] PROFILE_TRACK_B1    = 32'h0005_5420;
-    localparam [31:0] PROFILE_TRACK_B2    = 32'h0002_aa10;
-    localparam [31:0] PROFILE_TRACK_A1    = 32'h8254_3fe5;
-    localparam [31:0] PROFILE_TRACK_A2    = 32'h3db6_685b;
+    // these values provide a symmetric 40 kHz limit (20% of 200 kHz).
+    localparam [31:0] PROFILE_LIMIT_POS    = 32'h0014_f8b6;
+    localparam [31:0] PROFILE_LIMIT_NEG    = 32'hffeb_074a;
+    localparam [31:0] PROFILE_ACQ_B0      = 32'h024a_1a1a;
+    localparam [31:0] PROFILE_ACQ_B1      = 32'h0494_3435;
+    localparam [31:0] PROFILE_ACQ_B2      = 32'h024a_1a1a;
+    localparam [31:0] PROFILE_ACQ_A1      = 32'ha682_4173;
+    localparam [31:0] PROFILE_ACQ_A2      = 32'h22a6_26f7;
+    localparam [31:0] PROFILE_TRACK_B0    = 32'h0085_f595;
+    localparam [31:0] PROFILE_TRACK_B1    = 32'h010b_eb29;
+    localparam [31:0] PROFILE_TRACK_B2    = 32'h0085_f595;
+    localparam [31:0] PROFILE_TRACK_A1    = 32'h9161_9bd8;
+    localparam [31:0] PROFILE_TRACK_A2    = 32'h30b6_3a7a;
     localparam integer RESET_DELAY_CYCLES = 4096;
     localparam integer INIT_SETTLE_CYCLES = 4096;
     localparam integer RUN_CYCLES_0   = 2500000;
@@ -215,7 +215,7 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0020, 32'h0000_0000);
         run_clocks(RESET_DELAY_CYCLES);
 
-        $display("Programming DPLL register shadow set for 5.5 kHz center, 5 kHz ADC DDS input");
+        $display("Programming DPLL register shadow set for 200 kHz center, 220 kHz ADC DDS input");
         bus_write(16'h0010, CENTER_WORD_HI);
         bus_write(16'h0011, 32'h0000_0000);
         bus_write(16'h0021, 32'd6000000);

@@ -61,8 +61,8 @@ typedef struct {
     uint32_t shadow_post_iir_track_b2;
     uint32_t shadow_post_iir_track_a1;
     uint32_t shadow_post_iir_track_a2;
-    uint32_t shadow_positive_limit;
-    uint32_t shadow_negative_limit;
+    uint32_t shadow_positive_limit; /* signed high 32 bits of 48-bit DDS correction */
+    uint32_t shadow_negative_limit; /* signed high 32 bits of 48-bit DDS correction */
     uint32_t shadow_manual_offset;
     uint32_t shadow_dac0_offset;
     uint32_t shadow_dac0_amplitude;
@@ -116,6 +116,8 @@ typedef struct {
     uint32_t mirror_alias_hz;
     uint32_t acquire_cutoff_hz;
     uint32_t track_cutoff_hz;
+    int32_t correction_limit_pos_hi;
+    int32_t correction_limit_neg_hi;
     uint16_t cic_r;
     uint8_t cic_shift;
     uint8_t fll_delay_sel;

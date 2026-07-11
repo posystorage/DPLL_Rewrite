@@ -513,6 +513,10 @@ static int test_adaptive_filter_profiles(void)
         CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(centers[index]),
                                           &profile) == DPLL_DRIVER_OK);
         CHECK(profile.center_hz >= 5000U && profile.center_hz <= 200000U);
+        CHECK(profile.correction_limit_pos_hi > 0);
+        CHECK(profile.correction_limit_neg_hi == -profile.correction_limit_pos_hi);
+        CHECK((uint32_t)profile.correction_limit_pos_hi ==
+              (center_word_hi_for_hz(centers[index]) + 2U) / 5U);
         CHECK(profile.cic_r >= 8U && profile.cic_r <= 16U);
         CHECK(profile.mirror_alias_hz * 10U >= profile.acquire_cutoff_hz * 22U);
         CHECK(profile.track_cutoff_hz <= profile.acquire_cutoff_hz);
@@ -544,6 +548,8 @@ static int test_adaptive_filter_profiles(void)
     CHECK(profile.acquire_cutoff_hz == 4000U);
     CHECK(profile.track_cutoff_hz == 2000U);
     CHECK(profile.mirror_alias_hz == 44000U);
+    CHECK((uint32_t)profile.correction_limit_pos_hi == 0x00024E8FU);
+    CHECK((uint32_t)profile.correction_limit_neg_hi == 0xFFFDB171U);
     CHECK((uint32_t)profile.acquire_b0 == 0x003E186BU);
     CHECK((uint32_t)profile.acquire_b1 == 0x007C30D5U);
     CHECK((uint32_t)profile.acquire_a1 == 0x8B9E5F9EU);
@@ -552,6 +558,10 @@ static int test_adaptive_filter_profiles(void)
     CHECK((uint32_t)profile.track_b1 == 0x00206D02U);
     CHECK((uint32_t)profile.track_a1 == 0x85D1D2A9U);
     CHECK((uint32_t)profile.track_a2 == 0x3A6F075AU);
+    CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(200000U), &profile) ==
+          DPLL_DRIVER_OK);
+    CHECK((uint32_t)profile.correction_limit_pos_hi == 0x0014F8B6U);
+    CHECK((uint32_t)profile.correction_limit_neg_hi == 0xFFEB074AU);
     return 0;
 }
 

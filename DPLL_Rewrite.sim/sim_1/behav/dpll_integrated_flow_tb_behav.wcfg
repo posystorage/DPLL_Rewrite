@@ -12,15 +12,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="6664393333334fs"></ZoomStartTime>
-      <ZoomEndTime time="55264393333335fs"></ZoomEndTime>
-      <Cursor1Time time="12262836000000fs"></Cursor1Time>
+      <ZoomStartTime time="0fs"></ZoomStartTime>
+      <ZoomEndTime time="89800000000001fs"></ZoomEndTime>
+      <Cursor1Time time="84667936667000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="171"></NameColumnWidth>
-      <ValueColumnWidth column_width="83"></ValueColumnWidth>
+      <ValueColumnWidth column_width="75"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="67" />
+   <WVObjectSize size="62" />
    <wvobject fp_name="/dpll_integrated_flow_tb/clk1" type="logic">
       <obj_property name="ElementShortName">clk1</obj_property>
       <obj_property name="ObjectShortName">clk1</obj_property>
@@ -118,22 +118,6 @@
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_freq_correction" type="array">
       <obj_property name="ElementShortName">dpll_freq_correction[55:0]</obj_property>
       <obj_property name="ObjectShortName">dpll_freq_correction[55:0]</obj_property>
-   </wvobject>
-   <wvobject fp_name="/dpll_integrated_flow_tb/sys_wen" type="logic">
-      <obj_property name="ElementShortName">sys_wen</obj_property>
-      <obj_property name="ObjectShortName">sys_wen</obj_property>
-   </wvobject>
-   <wvobject fp_name="/dpll_integrated_flow_tb/sys_ren" type="logic">
-      <obj_property name="ElementShortName">sys_ren</obj_property>
-      <obj_property name="ObjectShortName">sys_ren</obj_property>
-   </wvobject>
-   <wvobject fp_name="/dpll_integrated_flow_tb/sys_ack" type="logic">
-      <obj_property name="ElementShortName">sys_ack</obj_property>
-      <obj_property name="ObjectShortName">sys_ack</obj_property>
-   </wvobject>
-   <wvobject fp_name="/dpll_integrated_flow_tb/sys_err" type="logic">
-      <obj_property name="ElementShortName">sys_err</obj_property>
-      <obj_property name="ObjectShortName">sys_err</obj_property>
    </wvobject>
    <wvobject fp_name="/dpll_integrated_flow_tb/adc_sample_count" type="array">
       <obj_property name="ElementShortName">adc_sample_count[31:0]</obj_property>
@@ -238,10 +222,6 @@
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_enable_pll_i_r" type="logic">
       <obj_property name="ElementShortName">hybrid_enable_pll_i_r</obj_property>
       <obj_property name="ObjectShortName">hybrid_enable_pll_i_r</obj_property>
-   </wvobject>
-   <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_enable_pll_p_r" type="logic">
-      <obj_property name="ElementShortName">hybrid_enable_pll_p_r</obj_property>
-      <obj_property name="ObjectShortName">hybrid_enable_pll_p_r</obj_property>
    </wvobject>
    <wvobject fp_name="/dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/hybrid_phase_error_r" type="array">
       <obj_property name="ElementShortName">hybrid_phase_error_r[17:0]</obj_property>

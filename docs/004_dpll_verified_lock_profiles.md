@@ -66,3 +66,5 @@
 ## 4. 当前待验证 Profile
 
 当前活动 TB 已切换为 5.5 kHz 中心、5 kHz 激励，初始频差约 -500.013 Hz。它使用 ARM profile 生成规则给出的 `R=16`、`shift=8`、`L=8`、ACQUIRE 1.2 kHz、TRACK 0.8 kHz 和约 ±1.1 kHz 限幅；在完成本轮仿真前，不应把它标记为已验证锁定。
+
+ARM profile 驱动的可配置范围现已扩展为 4--250 kHz。5--200 kHz 为标准生成区间；4--5 kHz 与 200--250 kHz 只表示参数检查通过并允许 APPLY，不表示能够锁定。

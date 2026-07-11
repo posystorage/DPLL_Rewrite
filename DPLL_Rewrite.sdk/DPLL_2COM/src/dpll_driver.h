@@ -2,6 +2,7 @@
 #define DPLL_DRIVER_H
 
 #include <stdint.h>
+#include "dpll_profile.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,28 +113,6 @@ typedef struct {
 } dpll_apply_result_t;
 
 typedef struct {
-    uint32_t center_hz;
-    uint32_t mirror_alias_hz;
-    uint32_t acquire_cutoff_hz;
-    uint32_t track_cutoff_hz;
-    int32_t correction_limit_pos_hi;
-    int32_t correction_limit_neg_hi;
-    uint16_t cic_r;
-    uint8_t cic_shift;
-    uint8_t fll_delay_sel;
-    int32_t acquire_b0;
-    int32_t acquire_b1;
-    int32_t acquire_b2;
-    int32_t acquire_a1;
-    int32_t acquire_a2;
-    int32_t track_b0;
-    int32_t track_b1;
-    int32_t track_b2;
-    int32_t track_a1;
-    int32_t track_a2;
-} dpll_filter_profile_t;
-
-typedef struct {
     dpll_io_t io;
     dpll_reg_map_t regs;
     dpll_identity_t expected;
@@ -171,8 +150,10 @@ void dpll_driver_invalidate_abi(dpll_driver_t *driver);
 int dpll_driver_check_abi(dpll_driver_t *driver);
 int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result);
 int dpll_driver_set_enable(dpll_driver_t *driver, uint32_t enable);
-int dpll_compute_filter_profile(uint32_t center_word_hi,
-                                dpll_filter_profile_t *profile);
+int dpll_driver_stage_profile(dpll_driver_t *driver,
+                              uint32_t center_word_hi,
+                              const dpll_filter_profile_t *profile,
+                              dpll_profile_validation_t *validation);
 
 #ifdef __cplusplus
 }

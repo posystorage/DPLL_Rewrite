@@ -11,8 +11,8 @@ PERIPH = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h"
 HOST_TEST = ROOT / "verification" / "arm" / "dpll_driver_host_test.c"
 
 
-def read_gbk(path: Path) -> str:
-    return path.read_text(encoding="gbk", errors="strict")
+def read_source(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="strict")
 
 
 def function_body(text: str, name: str) -> str:
@@ -32,10 +32,10 @@ def function_body(text: str, name: str) -> str:
 class DpllArmControlContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.arm = read_gbk(ARM)
+        cls.arm = read_source(ARM)
         cls.driver_c = DRIVER_C.read_text(encoding="utf-8")
         cls.driver_h = DRIVER_H.read_text(encoding="utf-8")
-        cls.periph = read_gbk(PERIPH)
+        cls.periph = read_source(PERIPH)
         cls.host_test = HOST_TEST.read_text(encoding="utf-8")
 
     def test_firmware_uses_the_host_compiled_driver(self):
@@ -100,13 +100,13 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertNotIn("dpll_apply_config", body)
 
     def test_advanced_payload_includes_separate_measurement_timeout(self):
-        self.assertRegex(self.arm, r"#define\s+DPLL_ADV_CONFIG_PAYLOAD_BYTES\s+46U")
+        self.assertRegex(self.arm, r"#define\s+DPLL_ADV_CONFIG_PAYLOAD_BYTES\s+90U")
         body = function_body(self.arm, "CMD_8F_WRITE_DPLL_ADV_CONFIG")
         self.assertIn("DPLL_MEASUREMENT_TIMEOUT_Addr, pc_get_u32(46)", body)
         self.assertIn("DPLL_HOLDOVER_TIMEOUT_Addr, pc_get_u32(36)", body)
 
     def test_uart_parser_accepts_complete_advanced_config_frame(self):
-        self.assertRegex(self.arm, r"#define\s+PC_HOST_MAX_FRAME_BYTES\s+64U")
+        self.assertRegex(self.arm, r"#define\s+PC_HOST_MAX_FRAME_BYTES\s+128U")
         parser = function_body(self.arm, "PC_HOST_CMD_Get")
         self.assertIn("Uart0_RX_Num>PC_HOST_MAX_FRAME_BYTES", parser)
         self.assertNotIn("Uart0_RX_Num>48", parser)

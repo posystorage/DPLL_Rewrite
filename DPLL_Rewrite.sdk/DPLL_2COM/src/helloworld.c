@@ -393,31 +393,28 @@ static int dpll_set_enable(uint32_t enable)
 static int dpll_write_center_filter_profile(uint32_t center_word_hi)
 {
 	dpll_filter_profile_t profile;
-	int status = dpll_compute_filter_profile(center_word_hi, &profile);
+	dpll_profile_validation_t validation;
+	const char *support_name;
+	int status;
 
+	dpll_driver_ensure_initialized();
+	status = dpll_compute_filter_profile_checked(center_word_hi, &profile, &validation);
+	if (status != DPLL_DRIVER_OK) {
+		xil_printf("DPLL profile rejected center_word=0x%08lx errors=0x%08lx\r\n",
+		           (unsigned long)center_word_hi,
+		           (unsigned long)validation.errors);
+		return DPLL_DRIVER_ERR_VERIFY;
+	}
+	status = dpll_driver_stage_profile(&dpll_driver, center_word_hi,
+	                                   &profile, &validation);
 	if (status != DPLL_DRIVER_OK) return status;
 
-	Xil_Out32(DAC0_Centre_Frequency_Addr, center_word_hi);
-	Xil_Out32(DPLL_POST_IQ_CIC_R_Addr, profile.cic_r);
-	Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr, profile.cic_shift);
-	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, profile.fll_delay_sel);
-	Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr, (uint32_t)profile.correction_limit_pos_hi);
-	Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr, (uint32_t)profile.correction_limit_neg_hi);
-	Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr, 0U);
-	Xil_Out32(DPLL_POST_IIR_CONFIG_Addr, 3U);
-	Xil_Out32(DPLL_POST_IIR_ACQ_B0_Addr, (uint32_t)profile.acquire_b0);
-	Xil_Out32(DPLL_POST_IIR_ACQ_B1_Addr, (uint32_t)profile.acquire_b1);
-	Xil_Out32(DPLL_POST_IIR_ACQ_B2_Addr, (uint32_t)profile.acquire_b2);
-	Xil_Out32(DPLL_POST_IIR_ACQ_A1_Addr, (uint32_t)profile.acquire_a1);
-	Xil_Out32(DPLL_POST_IIR_ACQ_A2_Addr, (uint32_t)profile.acquire_a2);
-	Xil_Out32(DPLL_POST_IIR_TRACK_B0_Addr, (uint32_t)profile.track_b0);
-	Xil_Out32(DPLL_POST_IIR_TRACK_B1_Addr, (uint32_t)profile.track_b1);
-	Xil_Out32(DPLL_POST_IIR_TRACK_B2_Addr, (uint32_t)profile.track_b2);
-	Xil_Out32(DPLL_POST_IIR_TRACK_A1_Addr, (uint32_t)profile.track_a1);
-	Xil_Out32(DPLL_POST_IIR_TRACK_A2_Addr, (uint32_t)profile.track_a2);
-
-	xil_printf("DPLL filter center=%luHz limit=+/-20%% R=%u shift=%u L=%u image=%luHz acq=%luHz track=%luHz\r\n",
+	support_name = profile.support == DPLL_PROFILE_SUPPORT_VERIFIED ? "verified" :
+	               profile.support == DPLL_PROFILE_SUPPORT_STANDARD ? "standard" :
+	               "extended-unverified";
+	xil_printf("DPLL profile center=%luHz support=%s limit=+/-20%% R=%u shift=%u L=%u image=%luHz acq=%luHz track=%luHz\r\n",
 	           (unsigned long)profile.center_hz,
+	           support_name,
 	           (unsigned int)profile.cic_r,
 	           (unsigned int)profile.cic_shift,
 	           (unsigned int)(1U << profile.fll_delay_sel),
@@ -1602,7 +1599,7 @@ init_platform();
     Xil_Out32(DAC0_VCO_Offset_Addr,0);//offset 14bit;
     Xil_Out32(DAC0_VOC_Amplitude_Addr,0x7fff);//amplitude 15bit;
     //Xil_Out32(DAC0_VOC_Amplitude_Addr,0x0001);//amplitude 15bit;
-    if (dpll_write_center_filter_profile(0x003EEA21U) != DPLL_DRIVER_OK) return -1; // 120 kHz at 125 MHz
+    if (dpll_write_center_filter_profile(0x000B88CAU) != DPLL_DRIVER_OK) return -1; // verified 22 kHz profile
 
     Xil_Out32(DAC0_DDC_Angle_Select_Addr,0);//wrapped_phase_cordic
 
@@ -1617,28 +1614,6 @@ init_platform();
     Xil_Out32(VOC_Fre_Mul_Addr,1);//mul 16bit;
     Xil_Out32(VOC_Fre_Div_Addr,1);//div 16bit;
 
-    Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,2147);// 100 Hz at 21.4748 LSB/Hz
-    Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,5825);// 8 degrees at 2^18 LSB/turn
-    Xil_Out32(DAC0_Phase_Residuals_Offset_Addr,0xFFFF0000U);// -pi/2 sine/IQ setpoint
-
-    Xil_Out32(DPLL_PLL_KP_TRACK_Addr,6000000);
-    Xil_Out32(DPLL_PLL_KI_TRACK_Addr,117200);
-    Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,8000000);
-    Xil_Out32(DPLL_FLL_KF_BLEND_Addr,1500000);
-    //Xil_Out32(DPLL_FLL_KF_TRACK_Addr,0x0ffff);//DPLL_KF_TRACK[23:0]
-    Xil_Out32(DPLL_FLL_KF_TRACK_Addr,250000);//DPLL_KF_TRACK[23:0]
-
-
-
-    Xil_Out32(DPLL_PLL_KP_BLEND_Addr,6000000);
-    Xil_Out32(DPLL_PLL_KI_BLEND_Addr,117200);
-    Xil_Out32(DPLL_MAG_ENTER_THRESHOLD_Addr,16384);
-    Xil_Out32(DPLL_MAG_EXIT_THRESHOLD_Addr,8192);
-    Xil_Out32(DPLL_ACQUIRE_DWELL_Addr,16);
-    Xil_Out32(DPLL_BLEND_DWELL_Addr,64);
-    Xil_Out32(DPLL_LOSS_DWELL_Addr,64);
-    Xil_Out32(DPLL_HOLDOVER_TIMEOUT_Addr,1250000);
-    Xil_Out32(DPLL_WARMUP_SAMPLES_Addr,64);
     if (dpll_apply_config() != 0) return -1;
 
     Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);//rst;

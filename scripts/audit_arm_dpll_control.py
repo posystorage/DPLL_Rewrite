@@ -8,7 +8,7 @@ PERIPH = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h"
 
 
 def read_text(path: Path) -> str:
-    return path.read_text(encoding="gbk", errors="strict")
+    return path.read_text(encoding="utf-8", errors="strict")
 
 
 def require(text: str, needle: str, label: str) -> None:

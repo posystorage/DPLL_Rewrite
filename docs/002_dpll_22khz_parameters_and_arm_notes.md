@@ -199,33 +199,27 @@ ARM 应按以下顺序配置：
 dpll_write_center_filter_profile(0x000B88CAU);
 ```
 
-该函数只生成中心频率、CIC、FLL delay、measurement timeout 和 IIR 参数；它不会自动写入本节的 FLL/PI 调试增益。
+当前实现由 `dpll_profile.c` 生成完整 profile，并由
+`dpll_driver_stage_profile()` 一次写入中心频率、CIC、FLL delay、IIR、
+FLL/PI、阈值、dwell、warmup、timeout 和 ±20% correction limit。
 
-## 5. 当前 ARM 代码与 22 kHz 稳定 TB 的差异
+## 5. ARM 同步状态
 
-以下差异在继续 ARM 开发前必须明确处理。
+2026-07-11 的 ARM profile 驱动更新已完成以下同步。
 
-### 5.1 ARM 启动中心当前是 120 kHz
+### 5.1 默认启动 profile
 
-`helloworld.c` 当前启动调用：
+`helloworld.c` 默认启动调用已改为：
 
 ```c
-dpll_write_center_filter_profile(0x003EEA21U); // 120 kHz
+dpll_write_center_filter_profile(0x000B88CAU); // verified 22 kHz
 ```
 
-它不是 22 kHz。若要复现本次 TB，必须改为 `0x000B88CA`，并重新 APPLY。
+默认上电配置会复现本文记录的 22 kHz profile。
 
-### 5.2 ARM 的 PI 参数仍是旧值
+### 5.2 环路参数
 
-当前 ARM 启动值：
-
-```text
-Ki_track = 117200
-Ki_blend = 117200
-warmup   = 64
-```
-
-当前 22 kHz TB 值：
+profile 模块的共用值为：
 
 ```text
 Ki_track = 180000
@@ -233,27 +227,24 @@ Ki_blend = 468800
 warmup   = 16
 ```
 
-因此 ARM 当前代码不会复现最新 22 kHz 仿真结果。
+这些值不再分散硬编码在 `main()` 中。
 
-### 5.3 measurement timeout 自动公式不一致
+### 5.3 measurement timeout 与 CRC
 
-这是当前最重要的 ARM/RTL 一致性问题。
-
-RTL `dpll_wrapper.v` 的实际自动值：
+ARM expected CRC 与 RTL 已统一使用：
 
 ```text
 measurement_timeout = 2400*R + 512
 ```
 
-ARM `dpll_driver.c` 计算 expected config CRC 时使用：
+寄存器 `0x0059=0` 时，ARM 会按相同的自动值计算 active config CRC。
 
-```text
-measurement_timeout = 120*R + 256
-```
+### 5.4 可配置频率范围
 
-同时 RTL 顶部注释仍写旧公式。若寄存器 `0x0059=0`，FPGA active CRC 与 ARM expected CRC 可能不一致，使 `dpll_driver_apply()` 返回 verify error。
-
-在修复代码前，不能把 ARM APPLY CRC 失败简单归因于硬件 CDC 或 FPGA 未响应。
+- `5--200 kHz`：标准生成区间。
+- `4--5 kHz`、`200--250 kHz`：允许配置的扩展区间，但不承诺锁定。
+- 22 kHz、200 kHz 精确中心字：标记为已验证基线。
+- 所有区间都必须通过 CIC、镜频、IIR 稳定性、FLL delay、位宽、限幅和状态参数检查。
 
 ## 6. 参数设置坑点
 

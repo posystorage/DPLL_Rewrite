@@ -221,7 +221,7 @@ static uint32_t expected_crc(mock_mmio_t *mock)
     uint32_t i;
 
     if (measurement == 0U) {
-        measurement = (120U * r) + 256U;
+        measurement = (2400U * r) + 512U;
     }
     if (negative_limit == 0U) {
         negative_limit = 0x80000000U;
@@ -496,23 +496,25 @@ static uint32_t center_word_hi_for_hz(uint32_t frequency_hz)
 static int test_adaptive_filter_profiles(void)
 {
     dpll_filter_profile_t profile;
+    dpll_profile_validation_t validation;
     const uint32_t centers[] = {
-        5000U, 8000U, 10000U, 15000U, 22000U, 30000U, 60000U,
-        80000U, 100000U, 120000U, 150000U, 180000U, 200000U
+        4000U, 5000U, 5500U, 8000U, 10000U, 15000U, 22000U, 30000U,
+        60000U, 80000U, 100000U, 120000U, 150000U, 180000U, 200000U,
+        225000U, 250000U
     };
     uint32_t index;
     uint32_t center_hz;
     uint32_t fll_delay;
 
-    CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(4999U), &profile) ==
+    CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(3999U), &profile) ==
           DPLL_DRIVER_ERR_VERIFY);
-    CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(200001U), &profile) ==
+    CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(250001U), &profile) ==
           DPLL_DRIVER_ERR_VERIFY);
 
     for (index = 0U; index < sizeof(centers) / sizeof(centers[0]); ++index) {
         CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(centers[index]),
                                           &profile) == DPLL_DRIVER_OK);
-        CHECK(profile.center_hz >= 5000U && profile.center_hz <= 200000U);
+        CHECK(profile.center_hz >= 4000U && profile.center_hz <= 250000U);
         CHECK(profile.correction_limit_pos_hi > 0);
         CHECK(profile.correction_limit_neg_hi == -profile.correction_limit_pos_hi);
         CHECK((uint32_t)profile.correction_limit_pos_hi ==
@@ -524,6 +526,10 @@ static int test_adaptive_filter_profiles(void)
         CHECK(profile.track_b0 == profile.track_b2);
         CHECK(profile.acquire_a1 < 0 && profile.acquire_a2 > 0);
         CHECK(profile.track_a1 < 0 && profile.track_a2 > 0);
+        CHECK(profile.kp_track == 6000000);
+        CHECK(profile.ki_track == 180000);
+        CHECK(profile.ki_blend == 468800);
+        CHECK(profile.warmup_samples == 16U);
         fll_delay = 1U << profile.fll_delay_sel;
         CHECK(3125000U >= 4U * fll_delay * profile.acquire_cutoff_hz *
                             profile.cic_r);
@@ -531,14 +537,32 @@ static int test_adaptive_filter_profiles(void)
 
     /* The ARM selector must cover the complete user range, including the
      * alias-frequency discontinuities between the representative points. */
-    for (center_hz = 5000U; center_hz <= 200000U; center_hz += 100U) {
-        CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(center_hz),
-                                          &profile) == DPLL_DRIVER_OK);
+    for (center_hz = 4000U; center_hz <= 250000U; center_hz += 100U) {
+        CHECK(dpll_compute_filter_profile_checked(center_word_hi_for_hz(center_hz),
+                                                  &profile, &validation) ==
+              DPLL_DRIVER_OK);
+        CHECK(validation.errors == DPLL_PROFILE_ERROR_NONE);
         CHECK(profile.mirror_alias_hz * 10U >= profile.acquire_cutoff_hz * 22U);
         fll_delay = 1U << profile.fll_delay_sel;
         CHECK(3125000U >= 4U * fll_delay * profile.acquire_cutoff_hz *
                             profile.cic_r);
     }
+
+    CHECK(dpll_compute_filter_profile_checked(center_word_hi_for_hz(4000U),
+                                              &profile, &validation) == DPLL_DRIVER_OK);
+    CHECK(validation.support == DPLL_PROFILE_SUPPORT_EXTENDED);
+    CHECK(profile.acquire_cutoff_hz == 1200U);
+    CHECK(profile.track_cutoff_hz == 800U);
+    CHECK(dpll_compute_filter_profile_checked(center_word_hi_for_hz(5000U),
+                                              &profile, &validation) == DPLL_DRIVER_OK);
+    CHECK(validation.support == DPLL_PROFILE_SUPPORT_STANDARD);
+    CHECK(dpll_compute_filter_profile_checked(center_word_hi_for_hz(5500U),
+                                              &profile, &validation) == DPLL_DRIVER_OK);
+    CHECK(profile.cic_r == 16U);
+    CHECK(profile.cic_shift == 8U);
+    CHECK(profile.fll_delay_sel == 3U);
+    CHECK(profile.acquire_cutoff_hz == 1200U);
+    CHECK(profile.track_cutoff_hz == 800U);
 
     CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(22000U), &profile) ==
           DPLL_DRIVER_OK);
@@ -547,6 +571,7 @@ static int test_adaptive_filter_profiles(void)
     CHECK(profile.fll_delay_sel == 3U);
     CHECK(profile.acquire_cutoff_hz == 4000U);
     CHECK(profile.track_cutoff_hz == 2000U);
+    CHECK(profile.support == DPLL_PROFILE_SUPPORT_VERIFIED);
     CHECK(profile.mirror_alias_hz == 44000U);
     CHECK((uint32_t)profile.correction_limit_pos_hi == 0x00024E8FU);
     CHECK((uint32_t)profile.correction_limit_neg_hi == 0xFFFDB171U);
@@ -562,6 +587,42 @@ static int test_adaptive_filter_profiles(void)
           DPLL_DRIVER_OK);
     CHECK((uint32_t)profile.correction_limit_pos_hi == 0x0014F8B6U);
     CHECK((uint32_t)profile.correction_limit_neg_hi == 0xFFEB074AU);
+    CHECK(profile.support == DPLL_PROFILE_SUPPORT_VERIFIED);
+    CHECK(dpll_compute_filter_profile_checked(center_word_hi_for_hz(250000U),
+                                              &profile, &validation) == DPLL_DRIVER_OK);
+    CHECK(validation.support == DPLL_PROFILE_SUPPORT_EXTENDED);
+    CHECK(profile.acquire_cutoff_hz == 20000U);
+    CHECK(profile.track_cutoff_hz == 9000U);
+    return 0;
+}
+
+static int test_profile_staging_and_validation(void)
+{
+    dpll_driver_t driver;
+    mock_mmio_t mock;
+    dpll_filter_profile_t profile;
+    dpll_profile_validation_t validation;
+    uint32_t center_word = center_word_hi_for_hz(22000U);
+
+    init_driver(&driver, &mock);
+    CHECK(dpll_compute_filter_profile_checked(center_word, &profile, &validation) ==
+          DPLL_DRIVER_OK);
+    CHECK(dpll_driver_stage_profile(&driver, center_word, &profile, &validation) ==
+          DPLL_DRIVER_OK);
+    CHECK(MEM(&mock, REG_CENTER) == center_word);
+    CHECK(MEM(&mock, REG_R) == 16U);
+    CHECK(MEM(&mock, REG_SHIFT) == 8U);
+    CHECK(MEM(&mock, REG_KI) == 180000U);
+    CHECK(MEM(&mock, REG_KIB) == 468800U);
+    CHECK(MEM(&mock, REG_WARMUP) == 16U);
+    CHECK(MEM(&mock, REG_MEAS_TIMEOUT) == 0U);
+    CHECK(MEM(&mock, REG_POS_LIMIT) == 0x00024E8FU);
+    CHECK(MEM(&mock, REG_NEG_LIMIT) == 0xFFFDB171U);
+
+    profile.cic_shift = 31U;
+    CHECK(dpll_driver_stage_profile(&driver, center_word, &profile, &validation) ==
+          DPLL_DRIVER_ERR_VERIFY);
+    CHECK((validation.errors & DPLL_PROFILE_ERROR_CIC) != 0U);
     return 0;
 }
 
@@ -575,6 +636,7 @@ int main(void)
     CHECK(test_reject_timeout_and_verify_failure() == 0);
     CHECK(test_reset_invalidates_and_rechecks_abi() == 0);
     CHECK(test_adaptive_filter_profiles() == 0);
+    CHECK(test_profile_staging_and_validation() == 0);
     puts("PASS: dpll_driver_host_test");
     return 0;
 }

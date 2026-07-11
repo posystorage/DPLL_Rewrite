@@ -18,6 +18,7 @@ if ($LASTEXITCODE -ne 0) { throw 'failed to generate DPLL build identity' }
 python (Join-Path $RepoRoot 'scripts\generate_dpll_build_id.py') --check
 if ($LASTEXITCODE -ne 0) { throw 'generated build identity is stale' }
 & $Gcc -std=c99 -Wall -Wextra -Werror $Include `
+    (Join-Path $RepoRoot 'DPLL_Rewrite.sdk\DPLL_2COM\src\dpll_profile.c') `
     (Join-Path $RepoRoot 'DPLL_Rewrite.sdk\DPLL_2COM\src\dpll_driver.c') `
     (Join-Path $RepoRoot 'verification\arm\dpll_driver_host_test.c') `
     -o $Exe

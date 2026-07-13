@@ -75,12 +75,36 @@ class DpllArmControlContractTest(unittest.TestCase):
         bank_apply = function_body(self.arm, "Control_Apply_Persistent")
         self.assertIn("control_apply_bank()", bank_apply)
         self.assertIn("control_uart_write", bank_apply)
+        self.assertIn("control_restore_persistent", bank_apply)
         command = function_body(self.arm, "CMD_99_APPLY_CONTROL_BANK")
         self.assertIn("Control_Apply_Persistent", command)
 
         advanced = function_body(self.arm, "CMD_8F_WRITE_DPLL_ADV_CONFIG")
         self.assertIn("pc_send_dpll_apply_result(dpll_apply_config())", advanced)
         self.assertNotIn("PC_HOST_Send_ASK_Only(0);", advanced)
+
+    def test_failed_pc_and_lcd_apply_restore_previous_persistent_bank(self):
+        restore = function_body(self.arm, "control_restore_persistent")
+        self.assertIn("memcpy(&Control_Bank[CTRL_PERSIST_BEGIN], previous", restore)
+        self.assertIn("control_apply_bank()", restore)
+        self.assertIn("control_uart_write", restore)
+        self.assertIn("Control_Last_Error = original_error", restore)
+
+        pc_apply = function_body(self.arm, "Control_Apply_Persistent")
+        self.assertIn("memcpy(previous", pc_apply)
+        self.assertGreaterEqual(pc_apply.count("control_restore_persistent"), 2)
+
+        lcd_apply = function_body(self.arm, "Control_Link_Service")
+        self.assertIn("memcpy(previous", lcd_apply)
+        self.assertIn("control_restore_persistent(previous, apply_error, 1U)", lcd_apply)
+
+    def test_fast_interval_api_uses_ms_and_transactional_control_bank(self):
+        body = function_body(self.arm, "CMD_98_WRITE_FREQMETER_FAST_INTERVAL")
+        self.assertIn("pc_get_u16(4)", body)
+        self.assertIn("CTRL_FAST_INTERVAL_MIN_MS", body)
+        self.assertIn("CTRL_FAST_INTERVAL_MAX_MS", body)
+        self.assertIn("Control_Apply_Persistent(candidate)", body)
+        self.assertNotIn("Xil_Out32(Freq_Meter_Fast_Interval_Addr", body)
 
     def test_debug_dac_command_is_live_only(self):
         body = function_body(self.arm, "CMD_97_WRITE_DPLL_DEBUG_CONFIG")
@@ -128,6 +152,16 @@ class DpllArmControlContractTest(unittest.TestCase):
             "DPLL_APPLIED_ABI_VERSION_Addr",
         ):
             self.assertIn(name, self.periph)
+
+    def test_control_runtime_decodes_packed_fpga_status_at_documented_bits(self):
+        self.assertIn("(core_flags >> 13) & 0x0FU", self.arm)
+        self.assertIn("(core_flags >> 9) & 0x0FU", self.arm)
+
+    def test_control_uart_and_output_range_match_mcu_contract(self):
+        self.assertIn("format.BaudRate = 1000000;", self.arm)
+        self.assertIn("CTRL_DPLL_OUTPUT_MAX_DHZ", self.arm)
+        self.assertIn("control_output_ratio_valid", self.arm)
+        self.assertIn("CTRL_FAST_INTERVAL_MAX_MS", self.arm)
 
 
 if __name__ == "__main__":

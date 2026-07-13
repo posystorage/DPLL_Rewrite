@@ -75,6 +75,9 @@ module hybrid_fll_pll_filter_stage_a_tb;
         input signed [23:0] ki_value;
         input signed [23:0] kp_value;
         input [47:0] center_value;
+        reg signed [63:0] freq_value_ext;
+        reg signed [63:0] kf_value_ext;
+        reg signed [63:0] expected_fll_product;
         begin
             enable_fll = fll_en;
             enable_pll_i = pll_i_en;
@@ -85,6 +88,15 @@ module hybrid_fll_pll_filter_stage_a_tb;
             center_word = center_value;
             push_error(phase_value, freq_value);
             wait_correction();
+            freq_value_ext = freq_value;
+            kf_value_ext = kf_value;
+            expected_fll_product = freq_value_ext * kf_value_ext;
+            if (dut.fll_product_r !== expected_fll_product[45:0]) begin
+                $display("FAIL: FLL product mismatch freq=%0d kf=%0d got=%0d expected=%0d",
+                         freq_value, kf_value, dut.fll_product_r,
+                         expected_fll_product);
+                $finish;
+            end
             $fdisplay(trace_fd, "%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d",
                       case_no, fll_en, pll_i_en, pll_p_en, phase_value, freq_value,
                       kf_value, ki_value, kp_value, center_value, positive_limit,
@@ -148,6 +160,10 @@ module hybrid_fll_pll_filter_stage_a_tb;
                         24'sd262144, 24'sd131072, 24'sd65536, 48'd5000);
         push_error_case(5, 1'b1, 1'b1, 1'b1, -18'sd7, 22'sd9,
                         24'sd393216, -24'sd131072, 24'sd65536, 48'd5000);
+        push_error_case(6, 1'b1, 1'b0, 1'b0, 18'sd0, 22'sd12345,
+                        -24'sd7654321, 24'sd1, 24'sd1, 48'd5000);
+        push_error_case(7, 1'b1, 1'b0, 1'b0, 18'sd0, -22'sd1048575,
+                        24'sd8388607, 24'sd1, 24'sd1, 48'd5000);
 
         $display("PASS: hybrid_fll_pll_filter_stage_a_tb");
         $fclose(trace_fd);

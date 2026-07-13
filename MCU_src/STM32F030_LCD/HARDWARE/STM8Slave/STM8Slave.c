@@ -6,8 +6,10 @@
 #define STM8_SLAVE_ADDR                 0x4AU
 #define STM8_BUSY_POLL_LIMIT            5000U
 #define STM8_EEPROM_WRITE_TIME          10000U
+#define STM8_STATUS_RETRY_LIMIT         60U
 
 uint8_t STM8_Control_Bank[CTRL_BANK_SIZE];
+static uint8_t STM8_Control_Snapshot[CTRL_BANK_SIZE];
 static uint16_t STM8_EEPROM_Write_Cnt;
 
 uint16_t STM8_Bank_Get_U16(uint8_t offset)
@@ -86,15 +88,14 @@ void STM8Slave_PLL_OFF_CMD(void)
 void STM8Slave_Init(void)
 {
 	uint8_t identity[2];
-	uint8_t dpll_status;
 	IIC1_Init();
 	while (1) {
 		if (IIC_Check_Slave(STM8_SLAVE_ADDR) == 0U &&
 		    IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_ID, 2U, identity) == 2U &&
 		    identity[0] == 0xA5U && identity[1] == CTRL_PROTOCOL_VERSION &&
-		    IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_DPLL_STATUS, 1U, &dpll_status) == 1U &&
-		    (dpll_status & CTRL_DPLL_STATUS_ARM_ONLINE) != 0U &&
-		    IIC_Read(STM8_SLAVE_ADDR, 0U, CTRL_BANK_SIZE, STM8_Control_Bank) == CTRL_BANK_SIZE) {
+		    STM8_Slave_Read_Status() &&
+		    (STM8_Control_Bank[CTRL_REG_DPLL_STATUS] &
+		     CTRL_DPLL_STATUS_ARM_ONLINE) != 0U) {
 			break;
 		}
 		LCD_Clear(WHITE);
@@ -105,44 +106,57 @@ void STM8Slave_Init(void)
 
 void STM8_Slave_Set_MAX2871_Freq_Power(void)
 {
-	IIC_Write(STM8_SLAVE_ADDR, CTRL_REG_MWS_FREQ_100KHZ, 5U,
-	          &STM8_Control_Bank[CTRL_REG_MWS_FREQ_100KHZ]);
+	IIC_Write(STM8_SLAVE_ADDR, CTRL_REG_MWS_FREQ_KHZ, 5U,
+	          &STM8_Control_Bank[CTRL_REG_MWS_FREQ_KHZ]);
 	if (STM8_Control_Bank[CTRL_REG_MWS_STATUS] & CTRL_MWS_STATUS_ENABLED)
 		STM8Slave_MAX2871_ON_CMD();
 	else
 		STM8Slave_MAX2871_OFF_CMD();
 }
 
-void STM8_Slave_Send_PLL_Cfg(void)
+uint8_t STM8_Slave_Send_PLL_Cfg(void)
 {
 	IIC_Write(STM8_SLAVE_ADDR, CTRL_PERSIST_BEGIN,
 	          CTRL_PERSIST_END - CTRL_PERSIST_BEGIN,
 	          &STM8_Control_Bank[CTRL_PERSIST_BEGIN]);
-	STM8Slave_Command(0xC4U, 2U);
+	return STM8Slave_Command(0xC4U, 2U);
 }
 
-void STM8_Slave_Read_Status(void)
+uint8_t STM8_Slave_Read_Status(void)
 {
 	uint8_t sequence_before;
 	uint8_t sequence_after;
+	uint8_t persistent_changed;
+	uint8_t index;
 	uint8_t retry;
-	for (retry = 0U; retry < 3U; ++retry) {
+	for (retry = 0U; retry < STM8_STATUS_RETRY_LIMIT; ++retry) {
 		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_RESPONSE_SEQ, 1U, &sequence_before) != 1U)
-			continue;
-		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_DPLL_STATUS,
-		             CTRL_BANK_SIZE - CTRL_REG_DPLL_STATUS,
-		             &STM8_Control_Bank[CTRL_REG_DPLL_STATUS]) !=
-		    CTRL_BANK_SIZE - CTRL_REG_DPLL_STATUS) continue;
+			goto retry_status;
+		if (IIC_Read(STM8_SLAVE_ADDR, 0U, CTRL_BANK_SIZE, STM8_Control_Snapshot) !=
+		    CTRL_BANK_SIZE) goto retry_status;
 		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_RESPONSE_SEQ, 1U, &sequence_after) != 1U)
-			continue;
+			goto retry_status;
 		if (sequence_before == sequence_after &&
-		    sequence_after == STM8_Control_Bank[CTRL_REG_REQUEST_SEQ]) {
-			STM8_Control_Bank[CTRL_REG_RESPONSE_SEQ] = sequence_after;
-			return;
+		    STM8_Control_Snapshot[CTRL_REG_RESPONSE_SEQ] == sequence_after &&
+		    STM8_Control_Snapshot[CTRL_REG_REQUEST_SEQ] == sequence_after) {
+			persistent_changed = 0U;
+			for (index = CTRL_PERSIST_BEGIN; index < CTRL_PERSIST_END; ++index) {
+				if (STM8_Control_Bank[index] != STM8_Control_Snapshot[index]) {
+					persistent_changed = 1U;
+					break;
+				}
+			}
+			if (persistent_changed) STM8_EEPROM_Write_Cnt = 0U;
+			for (index = 0U; index < CTRL_BANK_SIZE; ++index)
+				STM8_Control_Bank[index] = STM8_Control_Snapshot[index];
+			return 1U;
 		}
+	retry_status:
+		delay_ms(2U);
 	}
 	STM8_Control_Bank[CTRL_REG_DPLL_STATUS] &= (uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
 	STM8_Control_Bank[CTRL_REG_DPLL_STATUS] |= CTRL_DPLL_STATUS_ERROR;
+	return 0U;
 }
 
 void STM8_Slave_EEPROM_Write_Trigger(void)
@@ -162,7 +176,9 @@ void STM8_Slave_EEPROM_Writer_Time_Service(void)
 void STM8_Slave_EEPROM_Write_Service(void)
 {
 	if (STM8_EEPROM_Write_Cnt >= STM8_EEPROM_WRITE_TIME) {
-		STM8Slave_Command(0xC3U, 6U);
+		if (STM8_Slave_Read_Status() &&
+		    STM8_EEPROM_Write_Cnt >= STM8_EEPROM_WRITE_TIME)
+			STM8Slave_Command(0xC3U, 6U);
 		STM8_EEPROM_Write_Cnt = 0U;
 	}
 }

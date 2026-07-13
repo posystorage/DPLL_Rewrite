@@ -332,17 +332,23 @@ reg reset_seen_clk;
 wire reset_pulse_clk = reset_sync_clk ^ reset_seen_clk;
 (* keep = "true", dont_touch = "true" *) reg rst_debug_r;
 (* keep = "true", dont_touch = "true" *) reg rst_status_r;
+(* keep = "true", dont_touch = "true" *) reg rst_core_r;
+(* keep = "true", dont_touch = "true" *) reg rst_vco_r;
 always @(posedge clk1 or negedge rst) begin
     if (!rst) begin
         rst_125m_meta <= 1'b1;
         rst_125m_sync <= 1'b1;
         rst_debug_r <= 1'b1;
         rst_status_r <= 1'b1;
+        rst_core_r <= 1'b1;
+        rst_vco_r <= 1'b1;
     end else begin
         rst_125m_meta <= reset_pulse_clk;
         rst_125m_sync <= rst_125m_meta;
         rst_debug_r <= rst_125m_sync;
         rst_status_r <= rst_125m_sync;
+        rst_core_r <= rst_125m_sync;
+        rst_vco_r <= rst_125m_sync;
     end
 end
 assign rst_125m_stage_a = rst_125m_sync;
@@ -927,7 +933,7 @@ wire [31:0] active_config_crc = dpll_config_crc(
 
 dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .clk_125m(clk1),
-    .rst_125m(rst_125m_stage_a),
+    .rst_125m(rst_core_r),
     .sample_valid(pre_cic_valid),
     .loop_enable(pll0_lock),
     .adc_sample(pre_cic_sample),
@@ -1019,7 +1025,7 @@ wire        vco_mul_div_config_error = vco_mul_div_runtime_config_error;
 
 PLL_VCO_MUL_DIV PLL_VCO_MUL_DIV_inst (
     .clk(clk1),
-    .rst(rst_125m_stage_a),
+    .rst(rst_vco_r),
     .sample_valid(dpll_tracking_valid),
     .data_in(vco_tracking_word),
     .data_out(VCO_Input0),

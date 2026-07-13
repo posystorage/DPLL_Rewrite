@@ -52,9 +52,9 @@
 # input clocks. You can use these to time your system. If required
 # commented constraints can be used in the top level xdc 
 #----------------------------------------------------------------
-# Connect to input port when clock capable pin is selected for input
-create_clock -period 8.000 [get_ports clk_in1]
-set_input_jitter [get_clocks -of_objects [get_ports clk_in1]] 0.08
+# In the top-level design clk_in1 is driven by pll_adc_clk. Do not create a
+# second primary clock on this scoped IP pin; Vivado derives the MMCM output
+# clocks from the propagated parent clock.
 
 
 set_property PHASESHIFT_MODE WAVEFORM [get_cells -hierarchical *adv*]

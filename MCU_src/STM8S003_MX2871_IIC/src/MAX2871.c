@@ -1,4 +1,5 @@
 #include "MAX2871.h"
+#include "control_protocol.h"
 
 //uint32_t MAX2871_Reg_Data[6]={0x00000000,0x20017D01,0x10004D42,0x00001F23,0x608C8104,0x00458005};
 uint32_t MAX2871_Reg_Data[6]={0x00000000,0x20017D01,0x10004D42,0x00001F23,0x608C8124,0x00458005};
@@ -91,6 +92,8 @@ void max2871_Set_Freq_10M(uint32_t fre,uint8_t dbm)
   uint16_t N,F;
   uint8_t i,ADIV;
   
+  if((fre < CTRL_MWS_FREQ_MIN_KHZ) || (fre > CTRL_MWS_FREQ_MAX_KHZ)) return;
+
   ((uint16_t*)&MAX2871_Reg_Data[4])[1]= 0x8124 | (dbm<<6)| (dbm<<3);
   if(fre>3000000)
   {
@@ -126,7 +129,7 @@ void max2871_Set_Freq_10M(uint32_t fre,uint8_t dbm)
           fre=fre*64;
           ADIV=6;
   }
-  else if(fre>23500)
+  else
   {
           fre=fre*128;
           ADIV=7;

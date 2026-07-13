@@ -73,8 +73,10 @@ static uint8_t Control_Bank[CTRL_BANK_SIZE];
 
 static uint8_t Control_Link_Startup(void);
 static void Control_Link_Service(void);
-static uint8_t Control_Apply_Persistent(const uint8_t *data, uint8_t save);
+static uint8_t Control_Apply_Persistent(const uint8_t *data);
 static uint8_t Control_Save_Active(void);
+static uint8_t control_restore_persistent(const uint8_t *previous,
+		uint8_t original_error, uint8_t sync_bridge);
 static uint8_t Control_Set_MWS_Enable(uint8_t enable);
 static uint8_t Control_Set_DPLL_Enable(uint8_t enable);
 static void Control_Reset_Both(void);
@@ -1058,19 +1060,26 @@ void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 
 void CMD_98_WRITE_FREQMETER_FAST_INTERVAL(void)
 {
-	uint32_t interval_cycles;
+	uint8_t candidate[CTRL_PERSIST_END - CTRL_PERSIST_BEGIN];
+	uint8_t status;
+	uint16_t interval_ms;
+	uint8_t index = CTRL_REG_FAST_INTERVAL_MS - CTRL_PERSIST_BEGIN;
 
-	if (pc_payload_len() < 4U) {
+	if (pc_payload_len() != 2U) {
 		PC_HOST_Send_ASK_Only(0xF2);
 		return;
 	}
-	interval_cycles = pc_get_u32(4);
-	if (interval_cycles == 0U) {
-		PC_HOST_Send_ASK_Only(0xF2);
+	interval_ms = pc_get_u16(4);
+	if (interval_ms < CTRL_FAST_INTERVAL_MIN_MS ||
+	    interval_ms > CTRL_FAST_INTERVAL_MAX_MS) {
+		PC_HOST_Send_ASK_Only(CTRL_ERROR_RANGE);
 		return;
 	}
-	Xil_Out32(Freq_Meter_Fast_Interval_Addr, interval_cycles);
-	PC_HOST_Send_ASK_Only(0);
+	memcpy(candidate, &Control_Bank[CTRL_PERSIST_BEGIN], sizeof(candidate));
+	candidate[index] = (uint8_t)interval_ms;
+	candidate[index + 1U] = (uint8_t)(interval_ms >> 8);
+	status = Control_Apply_Persistent(candidate);
+	PC_HOST_Send_ASK_Only(status);
 }
 
 void CMD_1D_READ_CONTROL_BANK(void)
@@ -1081,14 +1090,21 @@ void CMD_1D_READ_CONTROL_BANK(void)
 
 void CMD_81_WRITE_MWS_FREQ_PWR(void)
 {
+	uint32_t frequency_khz;
 	if (pc_payload_len() < 5U) {
 		PC_HOST_Send_ASK_Only(0xF2);
 		return;
 	}
-	control_put_u32(CTRL_REG_MWS_FREQ_100KHZ, pc_get_u32(4));
+	frequency_khz = pc_get_u32(4);
+	if (frequency_khz < CTRL_MWS_FREQ_MIN_KHZ ||
+	    frequency_khz > CTRL_MWS_FREQ_MAX_KHZ) {
+		PC_HOST_Send_ASK_Only(CTRL_ERROR_RANGE);
+		return;
+	}
+	control_put_u32(CTRL_REG_MWS_FREQ_KHZ, frequency_khz);
 	Control_Bank[CTRL_REG_MWS_POWER] = PC_HOST_CMD_data_Buff[8] & 0x03U;
-	PC_HOST_Send_ASK_Only(control_uart_write(CTRL_REG_MWS_FREQ_100KHZ, 5U,
-	                                           &Control_Bank[CTRL_REG_MWS_FREQ_100KHZ]) ? 0U :
+	PC_HOST_Send_ASK_Only(control_uart_write(CTRL_REG_MWS_FREQ_KHZ, 5U,
+	                                           &Control_Bank[CTRL_REG_MWS_FREQ_KHZ]) ? 0U :
 	                                           CTRL_ERROR_PROTOCOL);
 }
 
@@ -1099,7 +1115,7 @@ void CMD_99_APPLY_CONTROL_BANK(void)
 		PC_HOST_Send_ASK_Only(0xF2);
 		return;
 	}
-	status = Control_Apply_Persistent(&PC_HOST_CMD_data_Buff[4], 0U);
+	status = Control_Apply_Persistent(&PC_HOST_CMD_data_Buff[4]);
 	PC_HOST_Send_ASK_Only(status);
 }
 
@@ -1394,7 +1410,8 @@ void Uart1PS_Init(void)
 	if (status != XST_SUCCESS) print("Initialize uart1 fail\n");
 
 	XUartPs_SetOperMode(&XUartPs_uart1, XUARTPS_OPER_MODE_NORMAL);
-	format.BaudRate = 921600;
+	/* STM8 uses the verified original 16 MHz / 1 Mbps UART configuration. */
+	format.BaudRate = 1000000;
 	format.DataBits = XUARTPS_FORMAT_8_BITS;
 	format.Parity = XUARTPS_FORMAT_NO_PARITY;
 	format.StopBits = XUARTPS_FORMAT_1_STOP_BIT;
@@ -1509,16 +1526,28 @@ static uint32_t control_amplitude_raw(uint16_t millivolts)
 	return ((uint32_t)millivolts * 32767UL + 1000UL) / 2000UL;
 }
 
+static uint8_t control_output_ratio_valid(uint32_t center_dhz,
+		uint16_t multiplier, uint16_t divider)
+{
+	if (multiplier == 0U || divider == 0U) return 0U;
+	return (uint64_t)center_dhz * multiplier <=
+	       (uint64_t)CTRL_DPLL_OUTPUT_MAX_DHZ * divider;
+}
+
 static uint8_t control_validate_bank(void)
 {
 	uint32_t center = control_get_u32(CTRL_REG_CENTER_FREQ_DHZ);
+	uint32_t microwave_khz = control_get_u32(CTRL_REG_MWS_FREQ_KHZ);
 	int32_t positive_limit = control_get_s32(CTRL_REG_POS_LIMIT_HZ);
 	int32_t negative_limit = control_get_s32(CTRL_REG_NEG_LIMIT_HZ);
 	if (Control_Bank[CTRL_REG_ID] != 0xA5U ||
 	    Control_Bank[CTRL_REG_PROTOCOL_VERSION] != CTRL_PROTOCOL_VERSION) return 0U;
+	if (microwave_khz < CTRL_MWS_FREQ_MIN_KHZ ||
+	    microwave_khz > CTRL_MWS_FREQ_MAX_KHZ) return 0U;
 	if (center < 40000UL || center > 1250000UL) return 0U;
-	if (control_get_u16(CTRL_REG_OUTPUT_MUL) == 0U ||
-	    control_get_u16(CTRL_REG_OUTPUT_DIV) == 0U) return 0U;
+	if (!control_output_ratio_valid(center,
+	                                control_get_u16(CTRL_REG_OUTPUT_MUL),
+	                                control_get_u16(CTRL_REG_OUTPUT_DIV))) return 0U;
 	if (control_get_u32(CTRL_REG_KP_TRACK) > 0x007FFFFFUL ||
 	    control_get_u32(CTRL_REG_KI_TRACK) > 0x007FFFFFUL ||
 	    control_get_u32(CTRL_REG_KF_ACQUIRE) > 0x007FFFFFUL ||
@@ -1526,8 +1555,8 @@ static uint8_t control_validate_bank(void)
 	if (positive_limit < 0 || negative_limit > 0) return 0U;
 	if (control_get_u16(CTRL_REG_PHASE_THRESHOLD_CDEG) > 18000U ||
 	    control_get_u16(CTRL_REG_DAC_AMPLITUDE_MV) > 2000U ||
-	    control_get_u16(CTRL_REG_FAST_INTERVAL_MS) < 10U ||
-	    control_get_u16(CTRL_REG_FAST_INTERVAL_MS) > 60000U) return 0U;
+	    control_get_u16(CTRL_REG_FAST_INTERVAL_MS) < CTRL_FAST_INTERVAL_MIN_MS ||
+	    control_get_u16(CTRL_REG_FAST_INTERVAL_MS) > CTRL_FAST_INTERVAL_MAX_MS) return 0U;
 	return 1U;
 }
 
@@ -1643,9 +1672,9 @@ static uint32_t control_fast_meter_hz(void)
 	control_put_u32(CTRL_REG_FAST_METER_SEQ, status_after >> 1);
 	if ((status_after & 1U) == 0U || interval == 0U || status_before != status_after) return 0U;
 	quotient = control_divide_u80_u32((uint16_t)high, middle, low, interval);
-	if (quotient > (0xFFFFFFFFFFFFFFFFULL - 0x80000000ULL) / 125000000ULL)
+	if (quotient > (0xFFFFFFFFFFFFFFFFULL - 0x100000000ULL) / 125000000ULL)
 		return 0xFFFFFFFFUL;
-	frequency = (quotient * 125000000ULL + 0x80000000ULL) >> 32;
+	frequency = (quotient * 125000000ULL + 0x100000000ULL) >> 33;
 	return frequency > 0xFFFFFFFFULL ? 0xFFFFFFFFUL : (uint32_t)frequency;
 }
 
@@ -1684,8 +1713,8 @@ static void control_collect_runtime(void)
 	if (Control_Last_Error != CTRL_ERROR_NONE) dpll_status |= CTRL_DPLL_STATUS_ERROR;
 	Control_Bank[CTRL_REG_DPLL_STATUS] = dpll_status;
 	Control_Bank[CTRL_REG_LAST_ERROR] = Control_Last_Error;
-	Control_Bank[CTRL_REG_LOOP_STATE] = (uint8_t)((core_flags >> 9) & 0x0FU);
-	Control_Bank[CTRL_REG_LOSS_REASON] = (uint8_t)((core_flags >> 5) & 0x0FU);
+	Control_Bank[CTRL_REG_LOOP_STATE] = (uint8_t)((core_flags >> 13) & 0x0FU);
+	Control_Bank[CTRL_REG_LOSS_REASON] = (uint8_t)((core_flags >> 9) & 0x0FU);
 	control_put_u32(CTRL_REG_FREQ_ERROR_HZ,
 	                (uint32_t)control_div_round_signed((int64_t)frequency_raw * 3125000LL,
 	                                                   67108864LL));
@@ -1738,14 +1767,14 @@ static uint8_t Control_Link_Startup(void)
 	if (retry == 200U) return 0U;
 
 	Control_Bank[CTRL_REG_CONTROL_FLAGS] = 0U;
-	control_uart_write(CTRL_REG_CONTROL_FLAGS, 1U,
-	                   &Control_Bank[CTRL_REG_CONTROL_FLAGS]);
+	if (!control_uart_write(CTRL_REG_CONTROL_FLAGS, 1U,
+	                        &Control_Bank[CTRL_REG_CONTROL_FLAGS])) return 0U;
 	Control_Reset_Both();
 	if (!dpll_initialize_abi()) {
 		Control_Last_Error = CTRL_ERROR_ABI;
-		return 0U;
+	} else {
+		control_apply_bank();
 	}
-	if (!control_apply_bank()) return 0U;
 	Control_Request_Seen = Control_Bank[CTRL_REG_REQUEST_SEQ];
 	Control_Bank[CTRL_REG_RESPONSE_SEQ] = Control_Request_Seen;
 	control_collect_runtime();
@@ -1755,8 +1784,11 @@ static uint8_t Control_Link_Startup(void)
 static void Control_Link_Service(void)
 {
 	uint8_t header[67];
+	uint8_t previous[CTRL_PERSIST_END - CTRL_PERSIST_BEGIN];
+	uint8_t apply_error;
 	if (++Control_Service_Divider < CONTROL_SERVICE_PERIOD_LOOPS) return;
 	Control_Service_Divider = 0U;
+	memcpy(previous, &Control_Bank[CTRL_PERSIST_BEGIN], sizeof(previous));
 	if (!control_uart_read(CTRL_REG_REQUEST_SEQ, sizeof(header), header)) {
 		Control_Last_Error = CTRL_ERROR_PROTOCOL;
 		return;
@@ -1764,22 +1796,53 @@ static void Control_Link_Service(void)
 	memcpy(&Control_Bank[CTRL_REG_REQUEST_SEQ], header, sizeof(header));
 	if (Control_Bank[CTRL_REG_REQUEST_SEQ] != Control_Request_Seen) {
 		Control_Request_Seen = Control_Bank[CTRL_REG_REQUEST_SEQ];
-		control_apply_bank();
+		if (!control_apply_bank()) {
+			apply_error = Control_Last_Error;
+			control_restore_persistent(previous, apply_error, 1U);
+		}
 		Control_Bank[CTRL_REG_RESPONSE_SEQ] = Control_Request_Seen;
 	}
 	control_collect_runtime();
 	control_publish_runtime();
 }
 
-static uint8_t Control_Apply_Persistent(const uint8_t *data, uint8_t save)
+static uint8_t control_restore_persistent(const uint8_t *previous,
+		uint8_t original_error, uint8_t sync_bridge)
 {
+	memcpy(&Control_Bank[CTRL_PERSIST_BEGIN], previous,
+	       CTRL_PERSIST_END - CTRL_PERSIST_BEGIN);
+	if (!control_apply_bank()) return 0U;
+	if (sync_bridge &&
+	    !control_uart_write(CTRL_PERSIST_BEGIN,
+	                        CTRL_PERSIST_END - CTRL_PERSIST_BEGIN,
+	                        &Control_Bank[CTRL_PERSIST_BEGIN])) {
+		Control_Last_Error = CTRL_ERROR_PROTOCOL;
+		return 0U;
+	}
+	Control_Last_Error = original_error;
+	return 1U;
+}
+
+static uint8_t Control_Apply_Persistent(const uint8_t *data)
+{
+	uint8_t previous[CTRL_PERSIST_END - CTRL_PERSIST_BEGIN];
+	uint8_t apply_error;
+	memcpy(previous, &Control_Bank[CTRL_PERSIST_BEGIN], sizeof(previous));
 	memcpy(&Control_Bank[CTRL_PERSIST_BEGIN], data,
 	       CTRL_PERSIST_END - CTRL_PERSIST_BEGIN);
-	if (!control_apply_bank()) return Control_Last_Error;
+	if (!control_apply_bank()) {
+		apply_error = Control_Last_Error;
+		if (!control_restore_persistent(previous, apply_error, 0U))
+			return Control_Last_Error;
+		return apply_error;
+	}
 	if (!control_uart_write(CTRL_PERSIST_BEGIN,
 	                        CTRL_PERSIST_END - CTRL_PERSIST_BEGIN,
-	                        &Control_Bank[CTRL_PERSIST_BEGIN])) return CTRL_ERROR_PROTOCOL;
-	if (save && !Control_Save_Active()) return CTRL_ERROR_PROTOCOL;
+	                        &Control_Bank[CTRL_PERSIST_BEGIN])) {
+		if (!control_restore_persistent(previous, CTRL_ERROR_PROTOCOL, 1U))
+			return Control_Last_Error;
+		return CTRL_ERROR_PROTOCOL;
+	}
 	return CTRL_ERROR_NONE;
 }
 

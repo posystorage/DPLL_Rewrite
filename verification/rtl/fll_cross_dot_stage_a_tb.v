@@ -374,7 +374,7 @@ module fll_cross_dot_stage_a_tb;
                          delay_sel, rate_r, accepted_count,
                          dut.serial_numerator, expected_serial_numerator,
                          dut.serial_denominator, expected_serial_denominator,
-                         dut.serial_cross_abs, dut.serial_dot_abs,
+                         dut.block_cross_abs, dut.block_dot_abs,
                          dut.serial_normalization);
                 $finish;
             end

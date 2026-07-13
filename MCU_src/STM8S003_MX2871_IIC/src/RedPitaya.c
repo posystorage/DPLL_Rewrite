@@ -33,11 +33,11 @@ static uint8_t ranges_overlap(uint8_t offset, uint8_t length,
 static void apply_microwave_write(uint8_t offset, uint8_t length)
 {
   if(!ranges_overlap(offset, length, CTRL_REG_CONTROL_FLAGS, 1) &&
-     !ranges_overlap(offset, length, CTRL_REG_MWS_FREQ_100KHZ, 5)) return;
+     !ranges_overlap(offset, length, CTRL_REG_MWS_FREQ_KHZ, 5)) return;
 
   if(IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] & CTRL_FLAG_MWS_ENABLE)
   {
-    max2871_Set_Freq_10M(bank_get_u32(CTRL_REG_MWS_FREQ_100KHZ),
+    max2871_Set_Freq_10M(bank_get_u32(CTRL_REG_MWS_FREQ_KHZ),
                          IIC_Reg_Buff[CTRL_REG_MWS_POWER] & 0x03);
     MAX2871_RFOUT_ON();
     IIC_Reg_Buff[CTRL_REG_MWS_STATUS] |= CTRL_MWS_STATUS_ENABLED;
@@ -58,6 +58,7 @@ static uint8_t frame_checksum(const uint8_t *data, uint8_t length)
 
 void RedPitaya_Uart_Init(void)
 {
+  /* The verified original STM8S003 design uses this misnamed library bit. */
   CLK->PCKENR1 |= CLK_PCKENR1_UART2;
 
   GPIOD->ODR |= GPIO_PIN_5;

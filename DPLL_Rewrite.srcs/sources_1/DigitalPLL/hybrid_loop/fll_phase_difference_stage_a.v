@@ -269,12 +269,16 @@ module fll_cross_dot_stage_a #(
     localparam integer SCALE_WIDTH = 24;
     localparam integer DEN_WIDTH = 13;
     localparam integer DIVIDEND_WIDTH = ACC_WIDTH + SCALE_WIDTH;
+    localparam integer MUL_DSP_B_WIDTH = 18;
+    localparam integer MUL_B_SPLIT = 17;
+    localparam integer MUL_PART_WIDTH = IQ_WIDTH + MUL_DSP_B_WIDTH;
 
     localparam [1:0] MATH_IDLE  = 2'd0;
     localparam [1:0] MATH_ISSUE = 2'd1;
     localparam [1:0] MATH_DRAIN = 2'd2;
     localparam [1:0] SCALE_IDLE = 2'd0;
     localparam [1:0] SCALE_RUN  = 2'd1;
+    localparam [1:0] SCALE_COMMIT = 2'd2;
 
     // round(2^18 / (2*pi) * 256). This keeps freq_error scaling compatible
     // with fll_phase_difference_stage_a: about 21.4748 LSB/Hz.
@@ -313,10 +317,16 @@ module fll_cross_dot_stage_a #(
     reg signed [IQ_WIDTH-1:0] dot_mul_b_r;
     reg signed [IQ_WIDTH-1:0] cross_mul_a_r;
     reg signed [IQ_WIDTH-1:0] cross_mul_b_r;
-    (* use_dsp = "yes" *) reg signed [PRODUCT_WIDTH-1:0] dot_mul_product_r;
-    (* use_dsp = "yes" *) reg signed [PRODUCT_WIDTH-1:0] cross_mul_product_r;
+    (* use_dsp = "yes" *) reg signed [MUL_PART_WIDTH-1:0] dot_mul_lo_r;
+    (* use_dsp = "yes" *) reg signed [MUL_PART_WIDTH-1:0] dot_mul_hi_r;
+    (* use_dsp = "yes" *) reg signed [MUL_PART_WIDTH-1:0] cross_mul_lo_r;
+    (* use_dsp = "yes" *) reg signed [MUL_PART_WIDTH-1:0] cross_mul_hi_r;
+    reg signed [PRODUCT_WIDTH-1:0] dot_mul_product_r;
+    reg signed [PRODUCT_WIDTH-1:0] cross_mul_product_r;
     reg       mul_issue_valid_r;
     reg       mul_issue_term_r;
+    reg       mul_partial_valid_r;
+    reg       mul_partial_term_r;
     reg       mul_return_valid_r;
     reg       mul_return_term_r;
     reg signed [PRODUCT_WIDTH-1:0] dot_term0_r;
@@ -329,6 +339,9 @@ module fll_cross_dot_stage_a #(
     reg [DIVIDEND_WIDTH:0] divide_remainder;
     reg [DIVIDEND_WIDTH:0] divide_divisor;
     reg divide_negative;
+    reg divide_result_pending_r;
+    reg [DIVIDEND_WIDTH-1:0] divide_result_magnitude_r;
+    reg divide_result_negative_r;
     reg [5:0] replay_count;
     reg signed [FERR_WIDTH-1:0] replay_freq_error;
     reg replay_ambiguous;
@@ -338,13 +351,14 @@ module fll_cross_dot_stage_a #(
     // existing serial divider.
     reg [1:0] scale_state;
     reg [4:0] serial_count;
-    reg [ACC_WIDTH-1:0] serial_cross_abs;
-    reg [ACC_WIDTH-1:0] serial_dot_abs;
     reg [DEN_WIDTH-1:0] serial_normalization;
     reg                  serial_negative;
     reg [DIVIDEND_WIDTH-1:0] serial_numerator;
     reg [ACC_WIDTH+DEN_WIDTH-1:0] serial_denominator;
-    wire result_busy = (scale_state != SCALE_IDLE) || divide_busy;
+    reg [DIVIDEND_WIDTH-1:0] serial_cross_shift;
+    reg [ACC_WIDTH+DEN_WIDTH-1:0] serial_dot_shift;
+    wire result_busy = (scale_state != SCALE_IDLE) || divide_busy ||
+                       divide_result_pending_r;
 
     wire [3:0] selected_delay;
     wire [DEN_WIDTH-1:0] normalization_denominator;
@@ -368,18 +382,31 @@ module fll_cross_dot_stage_a #(
     wire block_dot_positive;
     wire division_ready;
 
-    wire [DIVIDEND_WIDTH-1:0] serial_cross_ext;
-    wire [ACC_WIDTH+DEN_WIDTH-1:0] serial_dot_ext;
     wire [DIVIDEND_WIDTH-1:0] serial_numerator_add;
     reg [ACC_WIDTH+DEN_WIDTH-1:0] serial_denominator_add;
     wire [DIVIDEND_WIDTH-1:0] serial_numerator_next;
     wire [ACC_WIDTH+DEN_WIDTH-1:0] serial_denominator_next;
-    wire [DIVIDEND_WIDTH:0] division_divisor_next;
+    wire [DIVIDEND_WIDTH:0] division_divisor_value;
 
     wire [DIVIDEND_WIDTH:0] divide_remainder_shift;
     wire divide_quotient_bit;
     wire [DIVIDEND_WIDTH:0] divide_remainder_next;
     wire [DIVIDEND_WIDTH-1:0] divide_quotient_next;
+
+    wire signed [MUL_DSP_B_WIDTH-1:0] dot_mul_b_lo_next;
+    wire signed [MUL_DSP_B_WIDTH-1:0] dot_mul_b_hi_next;
+    wire signed [MUL_DSP_B_WIDTH-1:0] cross_mul_b_lo_next;
+    wire signed [MUL_DSP_B_WIDTH-1:0] cross_mul_b_hi_next;
+    wire signed [MUL_PART_WIDTH-1:0] dot_mul_lo_next;
+    wire signed [MUL_PART_WIDTH-1:0] dot_mul_hi_next;
+    wire signed [MUL_PART_WIDTH-1:0] cross_mul_lo_next;
+    wire signed [MUL_PART_WIDTH-1:0] cross_mul_hi_next;
+    wire signed [PRODUCT_WIDTH-1:0] dot_mul_lo_ext;
+    wire signed [PRODUCT_WIDTH-1:0] dot_mul_hi_ext;
+    wire signed [PRODUCT_WIDTH-1:0] cross_mul_lo_ext;
+    wire signed [PRODUCT_WIDTH-1:0] cross_mul_hi_ext;
+    wire signed [PRODUCT_WIDTH-1:0] dot_mul_product_next;
+    wire signed [PRODUCT_WIDTH-1:0] cross_mul_product_next;
 
     assign selected_delay =
         (delay_sel == 2'd0) ? 4'd1 :
@@ -405,6 +432,42 @@ module fll_cross_dot_stage_a #(
     assign enough_history = valid_count >= selected_delay;
     assign block_done_next = block_count >= (BLOCK_SAMPLES - 1);
 
+    // A signed 20x20 multiply does not fit one DSP48E1 B port. Split B into
+    // an unsigned 17-bit low limb and a signed high limb. Each partial product
+    // fits one DSP and is registered before the 40-bit reconstruction add.
+    assign dot_mul_b_lo_next =
+        $signed({1'b0, dot_mul_b_r[MUL_B_SPLIT-1:0]});
+    assign dot_mul_b_hi_next =
+        $signed({{(MUL_DSP_B_WIDTH-(IQ_WIDTH-MUL_B_SPLIT))
+                   {dot_mul_b_r[IQ_WIDTH-1]}},
+                 dot_mul_b_r[IQ_WIDTH-1:MUL_B_SPLIT]});
+    assign cross_mul_b_lo_next =
+        $signed({1'b0, cross_mul_b_r[MUL_B_SPLIT-1:0]});
+    assign cross_mul_b_hi_next =
+        $signed({{(MUL_DSP_B_WIDTH-(IQ_WIDTH-MUL_B_SPLIT))
+                   {cross_mul_b_r[IQ_WIDTH-1]}},
+                 cross_mul_b_r[IQ_WIDTH-1:MUL_B_SPLIT]});
+    assign dot_mul_lo_next = dot_mul_a_r * dot_mul_b_lo_next;
+    assign dot_mul_hi_next = dot_mul_a_r * dot_mul_b_hi_next;
+    assign cross_mul_lo_next = cross_mul_a_r * cross_mul_b_lo_next;
+    assign cross_mul_hi_next = cross_mul_a_r * cross_mul_b_hi_next;
+    assign dot_mul_lo_ext =
+        {{(PRODUCT_WIDTH-MUL_PART_WIDTH){dot_mul_lo_r[MUL_PART_WIDTH-1]}},
+         dot_mul_lo_r};
+    assign dot_mul_hi_ext =
+        {{(PRODUCT_WIDTH-MUL_PART_WIDTH){dot_mul_hi_r[MUL_PART_WIDTH-1]}},
+         dot_mul_hi_r};
+    assign cross_mul_lo_ext =
+        {{(PRODUCT_WIDTH-MUL_PART_WIDTH){cross_mul_lo_r[MUL_PART_WIDTH-1]}},
+         cross_mul_lo_r};
+    assign cross_mul_hi_ext =
+        {{(PRODUCT_WIDTH-MUL_PART_WIDTH){cross_mul_hi_r[MUL_PART_WIDTH-1]}},
+         cross_mul_hi_r};
+    assign dot_mul_product_next =
+        dot_mul_lo_ext + (dot_mul_hi_ext <<< MUL_B_SPLIT);
+    assign cross_mul_product_next =
+        cross_mul_lo_ext + (cross_mul_hi_ext <<< MUL_B_SPLIT);
+
     assign dot_sample =
         $signed({{(DOT_WIDTH-PRODUCT_WIDTH){dot_term0_r[PRODUCT_WIDTH-1]}}, dot_term0_r}) +
         $signed({{(DOT_WIDTH-PRODUCT_WIDTH){dot_mul_product_r[PRODUCT_WIDTH-1]}}, dot_mul_product_r});
@@ -427,20 +490,18 @@ module fll_cross_dot_stage_a #(
     assign division_ready = block_dot_positive &&
                             (block_normalization_r != {DEN_WIDTH{1'b0}});
 
-    assign serial_cross_ext = {{(DIVIDEND_WIDTH-ACC_WIDTH){1'b0}}, serial_cross_abs};
-    assign serial_dot_ext = {{DEN_WIDTH{1'b0}}, serial_dot_abs};
     assign serial_numerator_add = ANGLE_FREQ_SCALE[serial_count] ?
-                                  (serial_cross_ext << serial_count) :
+                                  serial_cross_shift :
                                   {DIVIDEND_WIDTH{1'b0}};
     assign serial_numerator_next = serial_numerator + serial_numerator_add;
     assign serial_denominator_next = serial_denominator + serial_denominator_add;
-    assign division_divisor_next =
-        {{(DIVIDEND_WIDTH+1-(ACC_WIDTH+DEN_WIDTH)){1'b0}}, serial_denominator_next};
+    assign division_divisor_value =
+        {{(DIVIDEND_WIDTH+1-(ACC_WIDTH+DEN_WIDTH)){1'b0}}, serial_denominator};
 
     always @* begin
         serial_denominator_add = {(ACC_WIDTH+DEN_WIDTH){1'b0}};
         if ((serial_count < DEN_WIDTH) && serial_normalization[serial_count]) begin
-            serial_denominator_add = serial_dot_ext << serial_count;
+            serial_denominator_add = serial_dot_shift;
         end
     end
 
@@ -507,22 +568,28 @@ module fll_cross_dot_stage_a #(
             dot_mul_b_r <= {IQ_WIDTH{1'b0}};
             cross_mul_a_r <= {IQ_WIDTH{1'b0}};
             cross_mul_b_r <= {IQ_WIDTH{1'b0}};
+            dot_mul_lo_r <= {MUL_PART_WIDTH{1'b0}};
+            dot_mul_hi_r <= {MUL_PART_WIDTH{1'b0}};
+            cross_mul_lo_r <= {MUL_PART_WIDTH{1'b0}};
+            cross_mul_hi_r <= {MUL_PART_WIDTH{1'b0}};
             dot_mul_product_r <= {PRODUCT_WIDTH{1'b0}};
             cross_mul_product_r <= {PRODUCT_WIDTH{1'b0}};
             mul_issue_valid_r <= 1'b0;
             mul_issue_term_r <= 1'b0;
+            mul_partial_valid_r <= 1'b0;
+            mul_partial_term_r <= 1'b0;
             mul_return_valid_r <= 1'b0;
             mul_return_term_r <= 1'b0;
             dot_term0_r <= {PRODUCT_WIDTH{1'b0}};
             cross_term0_r <= {PRODUCT_WIDTH{1'b0}};
             scale_state <= SCALE_IDLE;
             serial_count <= 5'd0;
-            serial_cross_abs <= {ACC_WIDTH{1'b0}};
-            serial_dot_abs <= {ACC_WIDTH{1'b0}};
             serial_normalization <= {DEN_WIDTH{1'b0}};
             serial_negative <= 1'b0;
             serial_numerator <= {DIVIDEND_WIDTH{1'b0}};
             serial_denominator <= {(ACC_WIDTH+DEN_WIDTH){1'b0}};
+            serial_cross_shift <= {DIVIDEND_WIDTH{1'b0}};
+            serial_dot_shift <= {(ACC_WIDTH+DEN_WIDTH){1'b0}};
             freq_error_valid <= 1'b0;
             freq_error_block_valid <= 1'b0;
             freq_error <= {FERR_WIDTH{1'b0}};
@@ -534,6 +601,9 @@ module fll_cross_dot_stage_a #(
             divide_remainder <= {(DIVIDEND_WIDTH+1){1'b0}};
             divide_divisor <= {(DIVIDEND_WIDTH+1){1'b0}};
             divide_negative <= 1'b0;
+            divide_result_pending_r <= 1'b0;
+            divide_result_magnitude_r <= {DIVIDEND_WIDTH{1'b0}};
+            divide_result_negative_r <= 1'b0;
             replay_count <= 6'd0;
             replay_freq_error <= {FERR_WIDTH{1'b0}};
             replay_ambiguous <= 1'b0;
@@ -543,11 +613,25 @@ module fll_cross_dot_stage_a #(
 
             // The product and valid/tag pipelines advance independently of
             // the sample and result schedulers.
-            dot_mul_product_r <= dot_mul_a_r * dot_mul_b_r;
-            cross_mul_product_r <= cross_mul_a_r * cross_mul_b_r;
-            mul_return_valid_r <= mul_issue_valid_r;
-            mul_return_term_r <= mul_issue_term_r;
+            dot_mul_lo_r <= dot_mul_lo_next;
+            dot_mul_hi_r <= dot_mul_hi_next;
+            cross_mul_lo_r <= cross_mul_lo_next;
+            cross_mul_hi_r <= cross_mul_hi_next;
+            dot_mul_product_r <= dot_mul_product_next;
+            cross_mul_product_r <= cross_mul_product_next;
+            mul_partial_valid_r <= mul_issue_valid_r;
+            mul_partial_term_r <= mul_issue_term_r;
+            mul_return_valid_r <= mul_partial_valid_r;
+            mul_return_term_r <= mul_partial_term_r;
             mul_issue_valid_r <= 1'b0;
+
+            if (divide_result_pending_r) begin
+                replay_freq_error <= saturate_divide_result(
+                    divide_result_magnitude_r, divide_result_negative_r);
+                replay_ambiguous <= 1'b0;
+                replay_count <= BLOCK_SAMPLES;
+                divide_result_pending_r <= 1'b0;
+            end
 
             if (divide_busy) begin
                 divide_dividend <= {divide_dividend[DIVIDEND_WIDTH-2:0], 1'b0};
@@ -555,31 +639,35 @@ module fll_cross_dot_stage_a #(
                 divide_remainder <= divide_remainder_next;
                 divide_count <= divide_count - 1'b1;
                 if (divide_count == 8'd1) begin
-                    replay_freq_error <= saturate_divide_result(divide_quotient_next, divide_negative);
-                    replay_ambiguous <= 1'b0;
-                    replay_count <= BLOCK_SAMPLES;
+                    divide_result_magnitude_r <= divide_quotient_next;
+                    divide_result_negative_r <= divide_negative;
+                    divide_result_pending_r <= 1'b1;
                     divide_busy <= 1'b0;
                 end
             end
 
-            // Serial scaling is deliberately shift-add. The final additions
-            // are passed directly to the divider so no bit is lost at the
-            // handoff.
+            // Shift registers replace variable shifts in the serial scaler.
+            // A separate commit state isolates the final wide additions from
+            // the divider input registers.
             if (scale_state == SCALE_RUN) begin
                 serial_numerator <= serial_numerator_next;
                 serial_denominator <= serial_denominator_next;
+                serial_cross_shift <= serial_cross_shift << 1;
+                serial_dot_shift <= serial_dot_shift << 1;
                 if (serial_count == SCALE_WIDTH - 1) begin
-                    scale_state <= SCALE_IDLE;
-                    divide_busy <= 1'b1;
-                    divide_count <= DIVIDEND_WIDTH;
-                    divide_dividend <= serial_numerator_next;
-                    divide_quotient <= {DIVIDEND_WIDTH{1'b0}};
-                    divide_remainder <= {(DIVIDEND_WIDTH+1){1'b0}};
-                    divide_divisor <= division_divisor_next;
-                    divide_negative <= serial_negative;
+                    scale_state <= SCALE_COMMIT;
                 end else begin
                     serial_count <= serial_count + 1'b1;
                 end
+            end else if (scale_state == SCALE_COMMIT) begin
+                scale_state <= SCALE_IDLE;
+                divide_busy <= 1'b1;
+                divide_count <= DIVIDEND_WIDTH;
+                divide_dividend <= serial_numerator;
+                divide_quotient <= {DIVIDEND_WIDTH{1'b0}};
+                divide_remainder <= {(DIVIDEND_WIDTH+1){1'b0}};
+                divide_divisor <= division_divisor_value;
+                divide_negative <= serial_negative;
             end
 
             // Block sums are consumed one clock after the final sample
@@ -591,12 +679,13 @@ module fll_cross_dot_stage_a #(
                     if (division_ready) begin
                         scale_state <= SCALE_RUN;
                         serial_count <= 5'd0;
-                        serial_cross_abs <= block_cross_abs;
-                        serial_dot_abs <= block_dot_abs;
                         serial_normalization <= block_normalization_r;
                         serial_negative <= block_cross_sum_r[ACC_WIDTH-1];
                         serial_numerator <= {DIVIDEND_WIDTH{1'b0}};
                         serial_denominator <= {(ACC_WIDTH+DEN_WIDTH){1'b0}};
+                        serial_cross_shift <=
+                            {{(DIVIDEND_WIDTH-ACC_WIDTH){1'b0}}, block_cross_abs};
+                        serial_dot_shift <= {{DEN_WIDTH{1'b0}}, block_dot_abs};
                     end else begin
                         replay_freq_error <= {FERR_WIDTH{1'b0}};
                         replay_ambiguous <= 1'b1;

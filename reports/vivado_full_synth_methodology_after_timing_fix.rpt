@@ -1,14 +1,14 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
--------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jul 14 03:40:33 2026
+| Date         : Tue Jul 14 02:55:47 2026
 | Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
-| Command      : report_methodology -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_full_impl/methodology.rpt
+| Command      : report_methodology -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_full_synth_methodology_after_timing_fix.rpt
 | Design       : red_pitaya_top
 | Device       : xc7z010clg400-1
 | Speed File   : -1
-| Design State : Fully Routed
--------------------------------------------------------------------------------------------------------------------------
+| Design State : Synthesized
+-------------------------------------------------------------------------------------------------------------------------------------------
 
 Report Methodology
 
@@ -20,16 +20,15 @@ Table of Contents
 1. REPORT SUMMARY
 -----------------
             Netlist: netlist
-          Floorplan: impl_1
+          Floorplan: design_1
       Design limits: <entire design considered>
              Max violations: <unlimited>
-             Violations found: 107
+             Violations found: 106
 +-----------+----------+-------------------------------------------------+------------+
 | Rule      | Severity | Description                                     | Violations |
 +-----------+----------+-------------------------------------------------+------------+
 | DPIR-1    | Warning  | Asynchronous driver check                       | 18         |
 | SYNTH-10  | Warning  | Wide multiplier                                 | 6          |
-| SYNTH-11  | Warning  | DSP output not registered                       | 1          |
 | SYNTH-13  | Warning  | combinational multiplier                        | 1          |
 | SYNTH-14  | Warning  | DSP cannot absorb non-zero init register        | 7          |
 | TIMING-18 | Warning  | Missing input or output delay                   | 40         |
@@ -158,11 +157,6 @@ Related violations: <none>
 SYNTH-10#6 Warning
 Wide multiplier  
 Detected multiplier at dpll_wrapper_inst/apply_vco_product_r0__1 of size 18x17, it is decomposed from a wide multipler into 3 DSP blocks.
-Related violations: <none>
-
-SYNTH-11#1 Warning
-DSP output not registered  
-DSP instance dpll_wrapper_inst/debug_dac_formatter_inst/product_r30 is not fully pipelined on the output side. MREG/PREG are not used.
 Related violations: <none>
 
 SYNTH-13#1 Warning
@@ -410,7 +404,7 @@ Runtime inefficient way to find pin objects
 The option '-source : [get_pins -quiet -hier -filter {
 NAME =~ *i_hk/dna_clk_reg/C
 }]' of constraint 'create_generated_clock' uses inefficient query to find pin objects (see constraint position '14' in the Timing Constraint window in Vivado IDE). To reduce runtime, it is recommended to get the pins through the cell objects. Please refer to Using Constraints Guide (Constraints Efficiency). An example of optimal query is: get_pins -filter {REF_PIN_NAME=~yy*} -of_objects [get_cells -hierarchical xx*].
-Current XDC: E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/xdc/red_pitaya.xdc (Line: 229)
+Current XDC: E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/xdc/red_pitaya.xdc (Line: 232)
 Related violations: <none>
 
 XDCB-5#2 Warning
@@ -418,7 +412,7 @@ Runtime inefficient way to find pin objects
 The option 'objects : [get_pins -quiet -hier -filter {
 NAME =~ *i_hk/dna_clk_reg/Q
 }]' of constraint 'create_generated_clock' uses inefficient query to find pin objects (see constraint position '14' in the Timing Constraint window in Vivado IDE). To reduce runtime, it is recommended to get the pins through the cell objects. Please refer to Using Constraints Guide (Constraints Efficiency). An example of optimal query is: get_pins -filter {REF_PIN_NAME=~yy*} -of_objects [get_cells -hierarchical xx*].
-Current XDC: E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/xdc/red_pitaya.xdc (Line: 229)
+Current XDC: E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/xdc/red_pitaya.xdc (Line: 232)
 Related violations: <none>
 
 XDCC-5#1 Warning

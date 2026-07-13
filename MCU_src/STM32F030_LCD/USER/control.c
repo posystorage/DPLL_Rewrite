@@ -45,8 +45,9 @@ static uint8_t is_sub(Ctrl_Cursor_Enum option)
 
 static void apply_pll_change(void)
 {
-	STM8_Slave_Send_PLL_Cfg();
-	STM8_Slave_EEPROM_Write_Trigger();
+	if (STM8_Slave_Send_PLL_Cfg() && STM8_Slave_Read_Status() &&
+	    STM8_Control_Bank[CTRL_REG_LAST_ERROR] == CTRL_ERROR_NONE)
+		STM8_Slave_EEPROM_Write_Trigger();
 }
 
 static void CtrlP0I0_Microwave_Source_Enable(Ctrl_Cursor_Enum option)
@@ -79,12 +80,12 @@ static void CtrlP0I1_Microwave_Source_Power(Ctrl_Cursor_Enum option)
 
 static void CtrlP0I2_Microwave_Source_Frequency(Ctrl_Cursor_Enum option)
 {
-	uint32_t value = STM8_Bank_Get_U32(CTRL_REG_MWS_FREQ_100KHZ);
+	uint32_t value = STM8_Bank_Get_U32(CTRL_REG_MWS_FREQ_KHZ);
 	uint32_t step = POW10[Cursor_MWS_Frequency];
-	if (is_add(option) && value + step <= 6400000UL) value += step;
-	if (is_sub(option) && value >= 23500UL + step) value -= step;
+	if (is_add(option) && value + step <= CTRL_MWS_FREQ_MAX_KHZ) value += step;
+	if (is_sub(option) && value >= CTRL_MWS_FREQ_MIN_KHZ + step) value -= step;
 	if (is_add(option) || is_sub(option)) {
-		STM8_Bank_Put_U32(CTRL_REG_MWS_FREQ_100KHZ, value);
+		STM8_Bank_Put_U32(CTRL_REG_MWS_FREQ_KHZ, value);
 		STM8_Slave_Set_MAX2871_Freq_Power();
 		STM8_Slave_EEPROM_Write_Trigger();
 	} else if (option == Cursor_Left) {
@@ -102,8 +103,9 @@ static void CtrlP0I3_PLL_Enable(Ctrl_Cursor_Enum option)
 		if (STM8_Control_Bank[CTRL_REG_DPLL_STATUS] & CTRL_DPLL_STATUS_ENABLED)
 			STM8Slave_PLL_OFF_CMD();
 		else {
-			STM8_Slave_Send_PLL_Cfg();
-			STM8Slave_PLL_ON_CMD();
+			if (STM8_Slave_Send_PLL_Cfg() && STM8_Slave_Read_Status() &&
+			    STM8_Control_Bank[CTRL_REG_LAST_ERROR] == CTRL_ERROR_NONE)
+				STM8Slave_PLL_ON_CMD();
 		}
 		STM8_Slave_Read_Status();
 	}

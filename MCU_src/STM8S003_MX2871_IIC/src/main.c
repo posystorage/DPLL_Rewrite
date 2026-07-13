@@ -41,7 +41,7 @@ void IIC_CMD_Service(void)
   switch(IIC_CMD)
   {
   case 0xC0:
-    frequency = bank_get_u32(CTRL_REG_MWS_FREQ_100KHZ);
+    frequency = bank_get_u32(CTRL_REG_MWS_FREQ_KHZ);
     max2871_Set_Freq_10M(frequency, IIC_Reg_Buff[CTRL_REG_MWS_POWER] & 0x03);
     MAX2871_RFOUT_ON();
     IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] |= CTRL_FLAG_MWS_ENABLE;

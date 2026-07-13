@@ -1,11 +1,11 @@
 Vivado full implementation manifest
-project_file=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.xpr
+project_file=E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.xpr
 synth_run=synth_1
 synth_status=synth_design Complete!
 impl_run=impl_1
 impl_status=write_bitstream Complete!
 impl_progress=100%
-bitstream=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/DPLL_Rewrite.runs/impl_1/red_pitaya_top.bit
+bitstream=E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.runs/impl_1/red_pitaya_top.bit
 bitstream_exists=1
-out_dir=E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_full_impl
-generated_at=2026-06-30 03:18:14
+out_dir=E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_full_impl
+generated_at=2026-07-14 03:19:37

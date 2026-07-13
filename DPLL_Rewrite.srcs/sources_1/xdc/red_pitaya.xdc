@@ -220,37 +220,27 @@ create_clock -period 4.000 -name rx_clk  [get_ports daisy_p_i[1]]
 #set_false_path -from [get_clocks dac_clk_out] -to [get_clocks dac_2clk_out]
 #set_false_path -from [get_clocks dac_clk_out] -to [get_clocks dac_2ph_out]
 
-create_generated_clock -name dna_clk -source [get_ports adc_clk_p_i] -divide_by 8 [get_nets -hierarchical dna_clk]
+set dna_clk_c [get_pins -quiet -hier -filter {
+  NAME =~ *i_hk/dna_clk_reg/C
+}]
+set dna_clk_q [get_pins -quiet -hier -filter {
+  NAME =~ *i_hk/dna_clk_reg/Q
+}]
+create_generated_clock -name dna_clk -source $dna_clk_c -divide_by 8 $dna_clk_q
 
 ############################################################################
-# DPLL HANDSHAKE CDC                                                       #
+# DPLL TRANSACTIONAL HANDSHAKES                                            #
 ############################################################################
-# Only the first flip-flop of each single-bit toggle synchronizer is cut.
-# Multi-bit config/status bundles stay stable for the full request/ack
-# transaction and retain bounded datapath constraints; no clock-wide false
-# path is used between the PS system bus and the DPLL sample clock.
-set dpll_cdc_first_stage_d [get_pins -quiet -hier -filter {
-  NAME =~ *dpll_wrapper_inst/*meta*_reg/D
+# sys_clk and clk1 are both carried by pll_adc_clk in this design. The toggle
+# handshakes are retained for atomic transactions, but their register paths
+# must remain normally timed; cutting *meta* registers would hide same-clock
+# paths. The status address is the one intentional multi-cycle data bundle: it
+# is held stable until the request has crossed the two-register toggle pipe.
+set dpll_status_addr_regs [get_cells -quiet -hier -filter {
+  IS_SEQUENTIAL && NAME =~ *dpll_wrapper_inst/status_request_addr_sys_reg*
 }]
-set_false_path -quiet -to $dpll_cdc_first_stage_d
-
-set dpll_shadow_q [get_pins -quiet -hier -filter {
-  NAME =~ *dpll_wrapper_inst/reg_*/*register_output_reg*/Q
+set dpll_status_data_regs [get_cells -quiet -hier -filter {
+  IS_SEQUENTIAL && NAME =~ *dpll_wrapper_inst/status_response_data_clk_reg*
 }]
-set dpll_active_d [get_pins -quiet -hier -filter {
-  NAME =~ *dpll_wrapper_inst/active*_reg*/D
-}]
-set_max_delay -quiet -datapath_only -from $dpll_shadow_q -to $dpll_active_d 16.000
-
-set dpll_status_q [get_pins -quiet -hier -filter {
-  NAME =~ *dpll_wrapper_inst/status_response_data_clk_reg*/Q
-}]
-set dpll_sys_rdata_d [get_pins -quiet -hier -filter {
-  NAME =~ *dpll_wrapper_inst/sys_rdata_reg*/D
-}]
-set_max_delay -quiet -datapath_only -from $dpll_status_q -to $dpll_sys_rdata_d 20.000
-
-set dpll_status_addr_q [get_pins -quiet -hier -filter {
-  NAME =~ *dpll_wrapper_inst/status_request_addr_sys_reg*/Q
-}]
-set_max_delay -quiet -datapath_only -from $dpll_status_addr_q -to $dpll_status_q 20.000
+set_max_delay -datapath_only -from $dpll_status_addr_regs \
+  -to $dpll_status_data_regs 20.000

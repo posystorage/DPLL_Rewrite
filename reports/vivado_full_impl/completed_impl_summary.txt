@@ -1,0 +1,3 @@
+impl_status=write_bitstream Complete!
+bitstream=E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.runs/impl_1/red_pitaya_top.bit
+bitstream_exists=1

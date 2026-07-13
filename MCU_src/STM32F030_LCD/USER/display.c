@@ -253,7 +253,7 @@ void Display_UI_Microwave_Source_Freq(uint32_t blink_bit)
 {
 	uint32_t index;
 	uint16_t x = 106U;
-	uint32_t value = STM8_Bank_Get_U32(CTRL_REG_MWS_FREQ_100KHZ);
+	uint32_t value = STM8_Bank_Get_U32(CTRL_REG_MWS_FREQ_KHZ);
 	Display_U32toDec(value);
 	BACK_COLOR = WHITE;
 	for (index = 0U; index < 7U; ++index) {

@@ -9,6 +9,8 @@ HEADERS = (
     ROOT / "MCU_src/STM8S003_MX2871_IIC/src/control_protocol.h",
     ROOT / "MCU_src/STM32F030_LCD/HARDWARE/STM8Slave/control_protocol.h",
 )
+CONTROL_DOC = ROOT / "docs/009_three_controller_control_protocol.md"
+TRANSPORT_DOC = ROOT / "docs/010_arm_stm8_stm32_transport_protocol.md"
 
 
 def macro_table(path):
@@ -24,11 +26,27 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
 
     def test_bank_boundaries_and_phase_unit(self):
         macros = macro_table(HEADERS[0])
+        self.assertEqual(macros["CTRL_PROTOCOL_VERSION"], "3U")
         self.assertEqual(macros["CTRL_BANK_SIZE"], "96U")
         self.assertEqual(macros["CTRL_PERSIST_BEGIN"], "4U")
         self.assertEqual(macros["CTRL_PERSIST_END"], "64U")
         self.assertEqual(macros["CTRL_REG_PHASE_THRESHOLD_CDEG"], "44U")
         self.assertEqual(macros["CTRL_REG_PHASE_ERROR_CDEG"], "76U")
+        self.assertEqual(macros["CTRL_REG_MWS_FREQ_KHZ"], "4U")
+        self.assertEqual(macros["CTRL_DPLL_OUTPUT_MAX_DHZ"], "625000000UL")
+        self.assertEqual(macros["CTRL_FAST_INTERVAL_MAX_MS"], "34359U")
+
+    def test_old_microwave_unit_name_is_gone(self):
+        roots = (
+            ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/src",
+            ROOT / "MCU_src/STM8S003_MX2871_IIC/src",
+            ROOT / "MCU_src/STM32F030_LCD/HARDWARE/STM8Slave",
+            ROOT / "MCU_src/STM32F030_LCD/USER",
+        )
+        for root in roots:
+            for path in root.glob("*.[ch]"):
+                source = path.read_text(encoding="gbk", errors="ignore")
+                self.assertNotIn("CTRL_REG_MWS_FREQ_100KHZ", source, path)
 
     def test_stm32_has_no_float_or_legacy_boot_push(self):
         paths = (
@@ -66,6 +84,74 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         self.assertIn("DPLL_TRACKING_WORD_HI_Addr", body.group(1))
         self.assertIn("PLL0_Output_Limit", body.group(1))
         self.assertNotIn("PLL0_Output_Limit_Average", body.group(1))
+
+    def test_stm8_keeps_verified_original_one_mbps_uart_setup(self):
+        source = (ROOT / "MCU_src/STM8S003_MX2871_IIC/src/RedPitaya.c").read_text(
+            encoding="ascii"
+        )
+        self.assertIn("misnamed library bit", source)
+        self.assertIn("CLK_PCKENR1_UART2", source)
+        self.assertIn("UART1->BRR2 = 0x00", source)
+        self.assertIn("UART1->BRR1 = 0x01", source)
+
+    def test_stm32_accepts_only_a_coherent_full_bank_snapshot(self):
+        source = (
+            ROOT / "MCU_src/STM32F030_LCD/HARDWARE/STM8Slave/STM8Slave.c"
+        ).read_text(encoding="ascii")
+        self.assertIn("IIC_Read(STM8_SLAVE_ADDR, 0U, CTRL_BANK_SIZE", source)
+        self.assertIn(
+            "STM8_Control_Snapshot[CTRL_REG_RESPONSE_SEQ] == sequence_after", source
+        )
+        self.assertIn(
+            "STM8_Control_Snapshot[CTRL_REG_REQUEST_SEQ] == sequence_after", source
+        )
+        self.assertIn("STM8_EEPROM_Write_Cnt = 0U", source)
+        self.assertIn("STM8_STATUS_RETRY_LIMIT         60U", source)
+        save_service = re.search(
+            r"void STM8_Slave_EEPROM_Write_Service\(void\)\s*\{(.*?)\n\}",
+            source,
+            re.S,
+        )
+        self.assertIsNotNone(save_service)
+        self.assertIn("STM8_Slave_Read_Status()", save_service.group(1))
+
+    def test_arm_owns_center_frequency_mul_div_output_limit(self):
+        arm = (ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/src/helloworld.c").read_text(
+            encoding="utf-8"
+        )
+        lcd = (ROOT / "MCU_src/STM32F030_LCD/USER/control.c").read_text(
+            encoding="ascii"
+        )
+        self.assertIn("control_output_ratio_valid", arm)
+        self.assertIn("CTRL_DPLL_OUTPUT_MAX_DHZ", arm)
+        self.assertIn("(uint64_t)center_dhz * multiplier", arm)
+        self.assertNotIn("CTRL_DPLL_OUTPUT_MAX_DHZ", lcd)
+        self.assertNotIn("uint64_t", lcd)
+        self.assertIn("STM8_Slave_Read_Status()", lcd)
+        self.assertIn("CTRL_ERROR_NONE", lcd)
+
+    def test_max2871_range_includes_exact_lower_bound(self):
+        source = (ROOT / "MCU_src/STM8S003_MX2871_IIC/src/MAX2871.c").read_text(
+            encoding="gbk"
+        )
+        self.assertIn("fre < CTRL_MWS_FREQ_MIN_KHZ", source)
+        self.assertIn("fre > CTRL_MWS_FREQ_MAX_KHZ", source)
+        self.assertNotIn("else if(fre>23500)", source)
+
+    def test_frozen_v3_docs_cover_pc_and_both_mcu_links(self):
+        control_doc = CONTROL_DOC.read_text(encoding="utf-8")
+        transport_doc = TRANSPORT_DOC.read_text(encoding="utf-8")
+        self.assertIn("已实现并冻结，协议版本 `3`", control_doc)
+        for command in ("`0x1D`", "`0x98`", "`0x99`", "`0x9B`"):
+            self.assertIn(command, control_doc)
+        self.assertIn("`uint16 interval_ms`", control_doc)
+        self.assertIn("失败时恢复提交前配置", control_doc)
+
+        self.assertIn("`1 Mbps, 8N1`", transport_doc)
+        self.assertIn("7 bit 地址 `0x25`", transport_doc)
+        self.assertIn("READ/PING/SAVE: B1", transport_doc)
+        self.assertIn("`C4`", transport_doc)
+        self.assertIn("CRC 使用多项式 `0x1021`", transport_doc)
 
 
 if __name__ == "__main__":

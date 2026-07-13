@@ -40,7 +40,7 @@ void EEPROM_Load_Defaults(void)
   uint8_t i;
   for(i = CTRL_PERSIST_BEGIN; i < CTRL_PERSIST_END; i++) IIC_Reg_Buff[i] = 0;
 
-  bank_put_u32(CTRL_REG_MWS_FREQ_100KHZ, 25000UL);
+  bank_put_u32(CTRL_REG_MWS_FREQ_KHZ, 25000UL);
   IIC_Reg_Buff[CTRL_REG_MWS_POWER] = 3;
   bank_put_u32(CTRL_REG_CENTER_FREQ_DHZ, 220000UL);
   bank_put_u16(CTRL_REG_OUTPUT_MUL, 1);

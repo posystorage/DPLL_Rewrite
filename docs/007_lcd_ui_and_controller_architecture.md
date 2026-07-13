@@ -76,7 +76,7 @@ DDS、NCO、FPGA 定点格式或 80 bit 频率计换算。
 | 参数 | STM32/协议单位 | ARM 职责 |
 |---|---|---|
 | 中心频率 | 无符号整数，`0.1 Hz/LSB` | 换算 DDS 中心字并选择频点 profile |
-| MUL/DIV | 无符号整数 | 检查非零、位宽和输出溢出 |
+| MUL/DIV | 无符号整数 | 检查非零，并要求中心频率换算后的输出不超过 `62.5 MHz` |
 | 输出上下限 | 有符号整数 Hz | 换算为 signed DDS 修正字 |
 | 相位残差阈值 | 待确认的物理相位单位 | 换算 FPGA phase threshold |
 | 频率残差阈值 | 整数 Hz | 换算 FPGA frequency threshold |
@@ -120,6 +120,23 @@ DDS、NCO、FPGA 定点格式或 80 bit 频率计换算。
 - 以物理量读写参数，并触发保存；不再生成 FPGA 相位字。
 - 上电时能够从 STM8/ARM 读取完整当前配置并恢复显示。
 - 在没有上位机的情况下完成全部日常操作。
+
+ARM 在接收完整配置时按中心频率检查 MUL/DIV：
+
+```text
+中心频率 * MUL / DIV <= 62.5 MHz
+```
+
+`62.5 MHz` 是 `125 MSPS` DAC 的奈奎斯特上限，不是 `125 MHz`。STM32 只负责
+编辑和提交参数，不重复这项物理限制；ARM 拒绝越界配置。FPGA HDL 保留原有的
+MUL/DIV 非零和 48 bit 相位字范围保护，不承担这项中心频率限制。
+只有 APPLY 成功并返回 `last error = none` 后，STM32 才启动约 10 秒的延迟保存。
+
+STM32 的周期刷新读取完整 96 字节控制区，并同时校验快照内 request/response
+sequence 与读取前后的 response sequence。上位机临时 APPLY 改变持久字段时，
+该完整 readback 会替换屏幕缓存并取消此前尚未执行的延迟 EEPROM 保存，避免
+临时 API 被旧的屏幕定时器意外固化。延迟计时到期时还会在发送 `C3` 前强制
+再做一次一致快照；若期间已有外部配置变化，本次保存直接取消。
 
 ### 5.5 上位机
 

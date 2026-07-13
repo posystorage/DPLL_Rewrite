@@ -51,7 +51,29 @@ class FastFrequencyMeterInterfaceTest(unittest.TestCase):
             self.helloworld.count("Xil_In32(Freq_Meter_Fast_Status_Addr)"), 2
         )
         self.assertIn("PC_HOST_ASK_Pack(22);", self.helloworld)
-        self.assertIn("if (interval_cycles == 0U)", self.helloworld)
+        self.assertIn("interval_ms = pc_get_u16(4);", self.helloworld)
+        self.assertIn("Control_Apply_Persistent(candidate)", self.helloworld)
+
+    def test_lcd_reference_uses_result_window_and_33_bit_phase_word(self):
+        body = re.search(
+            r"static uint32_t control_fast_meter_hz\(void\)\s*\{(.*?)\n\}",
+            self.helloworld,
+            re.S,
+        )
+        self.assertIsNotNone(body)
+        source = body.group(1)
+        self.assertIn("Freq_Meter_Fast_Result_Interval_Addr", source)
+        self.assertIn("control_divide_u80_u32", source)
+        self.assertIn("+ 0x100000000ULL) >> 33", source)
+        self.assertNotIn(">> 32", source)
+
+        window = 62_500_000
+        expected_hz = 40_000_000
+        phase_add = round(expected_hz * (1 << 33) / 125_000_000)
+        accumulated = phase_add * window
+        quotient = accumulated // window
+        measured_hz = (quotient * 125_000_000 + (1 << 32)) >> 33
+        self.assertEqual(measured_hz, expected_hz)
 
 
 if __name__ == "__main__":

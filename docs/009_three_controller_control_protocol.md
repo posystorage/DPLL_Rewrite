@@ -1,6 +1,11 @@
 # 009 ARM、STM8 与 STM32F030 控制协议
 
-状态：已实现，协议版本 `2`。
+状态：已实现并冻结，协议版本 `3`，冻结日期 `2026-07-14`。
+
+版本 `3` 的寄存器偏移、物理单位、PC 命令号、载荷长度和成功/错误语义不得原地
+改变。后续只能在保留字段或新命令号上做向后兼容扩展；任何不兼容修改必须提升
+`CTRL_PROTOCOL_VERSION`。ARM、STM8、STM32 的低层传输细节见
+`010_arm_stm8_stm32_transport_protocol.md`。
 
 ## 1. 数据所有权
 
@@ -9,6 +14,8 @@
 - STM32F030 只编辑和显示物理定点量，不计算 DDS、FPGA 原始字或浮点数。
 - DPLL 与 MAX2871 使能不持久化，上电和 ARM 复位后均默认关闭。
 - 屏幕每次调节后的 APPLY 时机不变；EEPROM 仍在停止调节约 10 秒后写入。
+- ARM APPLY 失败时恢复提交前的 60 字节持久区和 FPGA active 配置，并把旧配置
+  同步回 STM8；错误码保留给发起方，失败候选不得进入 EEPROM。
 
 ## 2. 96 字节寄存器区
 
@@ -18,14 +25,14 @@
 | 偏移 | 长度 | 名称 | 单位或含义 |
 |---:|---:|---|---|
 | 0 | 1 | ID | 固定 `0xA5` |
-| 1 | 1 | protocol version | 固定 `2` |
+| 1 | 1 | protocol version | 固定 `3` |
 | 2 | 1 | request sequence | STM32/STM8 每次提交后递增 |
 | 3 | 1 | control flags | bit0 DPLL，bit1 MAX2871；不持久化 |
-| 4 | 4 | microwave frequency | `100 kHz/LSB` |
+| 4 | 4 | microwave frequency | 整数 kHz，范围 `23500--6400000` |
 | 8 | 1 | microwave power | `0..3` |
 | 12 | 4 | center frequency | `0.1 Hz/LSB`，范围 `4--125 kHz` |
-| 16 | 2 | output MUL | 无符号整数，非零 |
-| 18 | 2 | output DIV | 无符号整数，非零 |
+| 16 | 2 | output MUL | 无符号整数，非零；由 ARM 按中心频率校验输出上限 |
+| 18 | 2 | output DIV | 无符号整数，非零；由 ARM 按中心频率校验输出上限 |
 | 20 | 4 | Kp_track | 低 24 bit 有效 |
 | 24 | 4 | Ki_track | 低 24 bit 有效 |
 | 28 | 4 | Kf_acquire | 低 24 bit 有效 |
@@ -35,7 +42,7 @@
 | 44 | 2 | phase threshold | `0.01 degree/LSB` |
 | 46 | 2 | DAC amplitude | mV，范围 `0..2000` |
 | 48 | 2 | frequency threshold | Hz |
-| 50 | 2 | fast meter interval | ms，默认 `500` |
+| 50 | 2 | fast meter interval | ms，范围 `10--34359`，默认 `500` |
 | 64 | 1 | response sequence | ARM 完成一次请求后更新 |
 | 65 | 1 | DPLL status | 使能、锁定、超阈、限幅、错误、ARM 在线 |
 | 66 | 1 | microwave status | 使能与锁定 |
@@ -52,6 +59,15 @@
 
 相位显示只做整数拆位：绝对值达到 `100 degree` 时显示整数，达到 `10 degree`
 时显示一位小数，其余显示两位小数，例如 `100°`、`50.1°`、`1.05°`。
+
+MUL/DIV 输出上限只由 ARM 按中心频率校验：
+
+```text
+center frequency * MUL / DIV <= 62.5 MHz
+```
+
+`62.5 MHz` 对应 `125 MSPS` DAC 的奈奎斯特上限。STM32 只编辑和提交参数，
+不重复该限制；FPGA HDL 只保留原有 MUL/DIV 非零和 48 bit 相位字范围保护。
 
 ## 3. ARM 与 STM8 UART 帧
 
@@ -80,6 +96,10 @@ B2 status length [data...] checksum B3
 最大请求为 60 字节持久区写入，最大响应为 96 字节全区读取。STM8 不解释 DPLL
 字段，只有写入微波源字段或使能位时才执行 MAX2871 动作。
 
+ARM UART1 与 STM8 之间固定使用 `1 Mbps, 8N1`。STM8 保留原始实机验证过的
+`CLK_PCKENR1_UART2` 时钟位和 `UART1 BRR2=0, BRR1=1`；当前 STM8 固件库中该
+时钟位宏名称与芯片实际映射不一致，不得仅按宏名改成 `UART1`。
+
 ## 4. STM32 到 STM8 的 I2C 命令
 
 | 命令 | 行为 |
@@ -93,8 +113,11 @@ B2 status length [data...] checksum B3
 
 STM32 启动时不再发送旧 `C2 -> C9 -> C4` 序列，也不会因自身复位而复位 FPGA。
 读取运行状态时，ARM 先把 response sequence 写成临时值，完成全部状态字段后再写回
-request sequence；STM32 仅接受前后 response sequence 一致且等于 request sequence
-的快照。
+request sequence。STM32 在两次独立读取 response sequence 之间读取完整 96 字节，
+仅当三项同时成立才更新本地缓存：前后 response sequence 相等、快照内 response
+sequence 等于该值、快照内 request sequence 也等于该值。实现采用 60 次重试和
+每次 2 ms 回退，足以覆盖 ARM 约 50 ms 的服务周期；实际总等待还
+包含 I2C 读取时间，不把 120 ms 当作严格超时值。
 
 ## 5. ARM 上电顺序
 
@@ -108,19 +131,80 @@ request sequence；STM32 仅接受前后 response sequence 一致且等于 reque
 8. 回写状态与换算后的显示值，DPLL 与 MAX2871 继续保持关闭。
 
 STM32 通常先启动；在 ARM 完成上述步骤前直接显示通信失败，不增加临时启动状态。
+若 STM8 UART 链路不通，ARM 才重试整个启动握手；若 FPGA ABI 或配置 APPLY 失败，
+ARM 仍发布在线状态和明确错误码并保持 DPLL 关闭，避免屏幕永远停留在启动等待。
 
 ## 6. PC API
 
-现有精密频率计触发与读取命令保持不变。新增控制接口目前只提供驱动 API，不接
-上位机界面：
+### 6.1 PC 串口帧
 
-| 命令 | 方向 | 语义 |
-|---:|---|---|
-| `0x1D` | read | 读取 96 字节控制区 |
-| `0x99` | write | 发送持久区 60 字节，校验并临时 APPLY，不写 EEPROM |
-| `0x9B` | write | 显式保存当前持久区到 EEPROM |
+请求和响应均无帧尾，多字节载荷均为小端：
 
-`0x0A` 版本读取在新 ARM 上返回 `2`，上位机以此选择新旧驱动路径。
+```text
+request  = C6 checksum command payload_length [payload...]
+response = A2 checksum command payload_length [payload...]
+```
+
+`checksum` 是从 `command` 到载荷末尾的逐字节无符号和低 8 bit。总帧长度固定为
+`payload_length + 4`。读命令成功时响应载荷是数据；写命令响应载荷固定为一个
+status 字节。
+
+帧解析错误为 `F0` 帧头、`F1` 总长度、`F2` 载荷长度、`F3` 命令范围、`F4`
+校验和。控制命令 status 为：`00` 成功、`01` 协议/链路、`02` 参数范围、`03`
+FPGA 复位、`04` FPGA APPLY、`05` FPGA ABI。
+
+### 6.2 版本 3 公共控制 API
+
+| 命令 | 请求载荷 | 成功响应载荷 | 冻结语义 |
+|---:|---:|---:|---|
+| `0x0A` | 0 | 1 | 协议版本；版本 3 返回 `03` |
+| `0x1D` | 0 | 96 | 读取完整控制区，包含物理参数、状态和快速频率 Hz |
+| `0x88` | 0 | `00` | 打开 MAX2871；不持久化 |
+| `0x89` | 0 | `00` | 关闭 MAX2871；不持久化 |
+| `0x8A` | 0 | `00` | 打开 DPLL；不持久化，APPLY/ABI 失败返回错误 |
+| `0x8B` | 0 | `00` | 关闭 DPLL；不持久化 |
+| `0x8E` | 0 | `00` | 同时复位 DPLL 和精密频率计，重检 ABI 并恢复当前配置 |
+| `0x98` | 2 | `00` | `uint16 interval_ms`，范围 `10--34359`，事务式临时 APPLY |
+| `0x99` | 60 | `00` | 发送控制区 `[4,64)`，事务式临时 APPLY，不写 EEPROM |
+| `0x9B` | 0 | `00` | 显式保存当前 STM8 持久区到 EEPROM |
+
+`0x99` 的正确调用方式是先用 `0x1D` 取得 96 字节快照，只修改已定义字段，再原样
+发送快照的 `[4,64)`。保留字节必须原样带回，不能自行清零。成功后 ARM、FPGA
+active 配置和 STM8 RAM 一致；失败时恢复提交前配置并返回原始错误。`0x99` 与
+`0x98` 都不写 EEPROM，只有随后显式调用 `0x9B` 才持久化。
+
+### 6.3 精密频率计 API
+
+原精密测量通道保持原始寄存器单位和触发流程，上位机真实测量继续使用这一组命令：
+
+| 命令 | 方向 | 载荷长度 | 含义 |
+|---:|---|---:|---|
+| `0x10` | read | response 4 | 中心频率原始字 `u32` |
+| `0x11` | read | response 4 | 相位、频率残差阈值，各 `u16` |
+| `0x12` | read | response 4 | 正、负频率限值高 16 bit |
+| `0x13` | read | response 16 | P、I、I2、D，各 `u32` |
+| `0x14` | read | response 7 | 相位残差 `u32`、频率残差 `u16`、状态 `u8` |
+| `0x15` | read | response 1 | 运行状态，`0` 空闲、`1` 运行 |
+| `0x16` | read | response 6 | 门宽时钟数 `u48` |
+| `0x17` | read | response 16 | 测量累加值 `u80` 和本次门宽 `u48` |
+| `0x90` | write | request 4 | 写中心频率原始字 |
+| `0x91` | write | request 4 | 写频率、相位残差阈值，各 `u16` |
+| `0x92` | write | request 4 | 写正、负频率限值，各 `u16` |
+| `0x93` | write | request 16 | 写 P、I、I2、D，各 `u32` |
+| `0x94` | write | request 6 | 写门宽时钟数 `u48` |
+| `0x95` | write | request 0 | 触发一次正式测量 |
+| `0x96` | write | request 0 | 复位精密频率计 |
+
+### 6.4 快速参考与诊断
+
+日常快速频率显示应读取 `0x1D`：偏移 84 是 ARM 换算后的整数 Hz，偏移 88 是结果
+序号。`0x1C` 仅用于底层诊断，返回 22 字节：status `u32`、累加值低 `u32`、中
+`u32`、高 `u16`、实际结果间隔 `u32`、配置间隔周期数 `u32`。上位机不得把
+`0x1C` 作为正式测量结果，也不得自行假设结果间隔等于配置间隔。
+
+### 6.5 兼容和禁用接口
+
+`0x0A` 版本读取在新 ARM 上返回 `3`，上位机以此选择新旧驱动路径。
 
 因此“临时 APPLY”和“持久保存”是两个独立 API 语义。新 ARM 协议不承担兼容旧
 上位机的责任；上位机侧将通过设备/协议版本同时兼容新旧设备。

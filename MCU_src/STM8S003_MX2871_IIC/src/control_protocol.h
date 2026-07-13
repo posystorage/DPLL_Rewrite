@@ -1,17 +1,23 @@
 #ifndef CONTROL_PROTOCOL_H
 #define CONTROL_PROTOCOL_H
 
-#define CTRL_PROTOCOL_VERSION              2U
+#define CTRL_PROTOCOL_VERSION              3U
 #define CTRL_BANK_SIZE                     96U
 #define CTRL_PERSIST_BEGIN                 4U
 #define CTRL_PERSIST_END                   64U
+
+#define CTRL_MWS_FREQ_MIN_KHZ              23500UL
+#define CTRL_MWS_FREQ_MAX_KHZ              6400000UL
+#define CTRL_DPLL_OUTPUT_MAX_DHZ            625000000UL
+#define CTRL_FAST_INTERVAL_MIN_MS          10U
+#define CTRL_FAST_INTERVAL_MAX_MS          34359U
 
 #define CTRL_REG_ID                        0U
 #define CTRL_REG_PROTOCOL_VERSION          1U
 #define CTRL_REG_REQUEST_SEQ               2U
 #define CTRL_REG_CONTROL_FLAGS             3U
 
-#define CTRL_REG_MWS_FREQ_100KHZ            4U
+#define CTRL_REG_MWS_FREQ_KHZ               4U
 #define CTRL_REG_MWS_POWER                  8U
 #define CTRL_REG_CENTER_FREQ_DHZ           12U
 #define CTRL_REG_OUTPUT_MUL                16U

@@ -36,10 +36,17 @@ module hybrid_fll_pll_filter_stage_a #(
 
     localparam integer F_PRODUCT_WIDTH = FERR_WIDTH + COEFF_WIDTH;
     localparam integer P_PRODUCT_WIDTH = PHASE_WIDTH + COEFF_WIDTH;
+    localparam integer FLL_DSP_B_WIDTH = 18;
+    localparam integer FLL_COEFF_SPLIT = 17;
+    localparam integer FLL_PART_WIDTH = FERR_WIDTH + FLL_DSP_B_WIDTH;
 
     reg signed [F_PRODUCT_WIDTH-1:0] fll_product_r;
     reg signed [P_PRODUCT_WIDTH-1:0] i_product_r;
     reg signed [P_PRODUCT_WIDTH-1:0] p_product_r;
+    (* use_dsp = "yes" *) reg signed [FLL_PART_WIDTH-1:0] fll_product_lo_r;
+    (* use_dsp = "yes" *) reg signed [FLL_PART_WIDTH-1:0] fll_product_hi_r;
+    (* use_dsp = "yes" *) reg signed [P_PRODUCT_WIDTH-1:0] i_product_partial_r;
+    (* use_dsp = "yes" *) reg signed [P_PRODUCT_WIDTH-1:0] p_product_partial_r;
     reg signed [PHASE_WIDTH-1:0] phase_error_mul_r;
     reg signed [FERR_WIDTH-1:0] freq_error_mul_r;
     reg signed [COEFF_WIDTH-1:0] kf_mul_r;
@@ -58,6 +65,10 @@ module hybrid_fll_pll_filter_stage_a #(
     reg enable_pll_i_operand_r;
     reg enable_pll_p_operand_r;
     reg product_operand_valid_r;
+    reg product_partial_valid_r;
+    reg enable_fll_partial_r;
+    reg enable_pll_i_partial_r;
+    reg enable_pll_p_partial_r;
     reg enable_fll_product_r;
     reg enable_pll_i_product_r;
     reg enable_pll_p_product_r;
@@ -67,6 +78,7 @@ module hybrid_fll_pll_filter_stage_a #(
     reg [WORD_WIDTH-1:0] center_word_r0;
     reg [WORD_WIDTH-1:0] center_word_r1;
     reg [WORD_WIDTH-1:0] center_word_operand_r;
+    reg [WORD_WIDTH-1:0] center_word_partial_r;
     reg [WORD_WIDTH-1:0] center_word_product_r;
     reg signed [STATE_WIDTH-1:0] positive_limit_r0;
     reg signed [STATE_WIDTH-1:0] negative_limit_r0;
@@ -74,6 +86,8 @@ module hybrid_fll_pll_filter_stage_a #(
     reg signed [STATE_WIDTH-1:0] negative_limit_r1;
     reg signed [STATE_WIDTH-1:0] positive_limit_operand_r;
     reg signed [STATE_WIDTH-1:0] negative_limit_operand_r;
+    reg signed [STATE_WIDTH-1:0] positive_limit_partial_r;
+    reg signed [STATE_WIDTH-1:0] negative_limit_partial_r;
     reg signed [STATE_WIDTH-1:0] positive_limit_product_r;
     reg signed [STATE_WIDTH-1:0] negative_limit_product_r;
     reg [6:0] valid_pipe;
@@ -103,6 +117,12 @@ module hybrid_fll_pll_filter_stage_a #(
     (* keep = "true", dont_touch = "true" *) reg rst_output_r;
 
     wire signed [F_PRODUCT_WIDTH-1:0] fll_product_next;
+    wire signed [FLL_DSP_B_WIDTH-1:0] fll_coeff_low_next;
+    wire signed [FLL_DSP_B_WIDTH-1:0] fll_coeff_high_next;
+    wire signed [FLL_PART_WIDTH-1:0] fll_product_lo_next;
+    wire signed [FLL_PART_WIDTH-1:0] fll_product_hi_next;
+    wire signed [F_PRODUCT_WIDTH-1:0] fll_product_lo_ext;
+    wire signed [F_PRODUCT_WIDTH-1:0] fll_product_hi_ext;
     wire signed [P_PRODUCT_WIDTH-1:0] i_product_next;
     wire signed [P_PRODUCT_WIDTH-1:0] p_product_next;
     wire signed [STATE_WIDTH-1:0] fll_term_next;
@@ -133,7 +153,24 @@ module hybrid_fll_pll_filter_stage_a #(
     wire push_low;
     wire allow_state_update;
 
-    assign fll_product_next = freq_error_product_r * kf_product_r;
+    // DSP48E1 accepts one signed 25-bit and one signed 18-bit operand. Split
+    // the 24-bit Kf into an unsigned 17-bit low limb and a signed 7-bit high
+    // limb so both partial products can use registered DSP outputs.
+    assign fll_coeff_low_next = $signed({1'b0, kf_product_r[FLL_COEFF_SPLIT-1:0]});
+    assign fll_coeff_high_next =
+        $signed({{(FLL_DSP_B_WIDTH-(COEFF_WIDTH-FLL_COEFF_SPLIT))
+                   {kf_product_r[COEFF_WIDTH-1]}},
+                 kf_product_r[COEFF_WIDTH-1:FLL_COEFF_SPLIT]});
+    assign fll_product_lo_next = freq_error_product_r * fll_coeff_low_next;
+    assign fll_product_hi_next = freq_error_product_r * fll_coeff_high_next;
+    assign fll_product_lo_ext =
+        {{(F_PRODUCT_WIDTH-FLL_PART_WIDTH){fll_product_lo_r[FLL_PART_WIDTH-1]}},
+         fll_product_lo_r};
+    assign fll_product_hi_ext =
+        {{(F_PRODUCT_WIDTH-FLL_PART_WIDTH){fll_product_hi_r[FLL_PART_WIDTH-1]}},
+         fll_product_hi_r};
+    assign fll_product_next =
+        fll_product_lo_ext + (fll_product_hi_ext <<< FLL_COEFF_SPLIT);
     assign i_product_next = phase_error_product_r * ki_product_r;
     assign p_product_next = phase_error_product_r * kp_product_r;
 
@@ -213,6 +250,7 @@ module hybrid_fll_pll_filter_stage_a #(
         if (rst_pipe_r || clear) begin
             product_valid_r <= 1'b0;
             product_operand_valid_r <= 1'b0;
+            product_partial_valid_r <= 1'b0;
             valid_pipe <= 7'b0000000;
             enable_fll_mul_r <= 1'b0;
             enable_pll_i_mul_r <= 1'b0;
@@ -220,6 +258,9 @@ module hybrid_fll_pll_filter_stage_a #(
             enable_fll_operand_r <= 1'b0;
             enable_pll_i_operand_r <= 1'b0;
             enable_pll_p_operand_r <= 1'b0;
+            enable_fll_partial_r <= 1'b0;
+            enable_pll_i_partial_r <= 1'b0;
+            enable_pll_p_partial_r <= 1'b0;
             enable_fll_product_r <= 1'b0;
             enable_pll_i_product_r <= 1'b0;
             enable_pll_p_product_r <= 1'b0;
@@ -236,6 +277,10 @@ module hybrid_fll_pll_filter_stage_a #(
             fll_product_r <= {F_PRODUCT_WIDTH{1'b0}};
             i_product_r <= {P_PRODUCT_WIDTH{1'b0}};
             p_product_r <= {P_PRODUCT_WIDTH{1'b0}};
+            fll_product_lo_r <= {FLL_PART_WIDTH{1'b0}};
+            fll_product_hi_r <= {FLL_PART_WIDTH{1'b0}};
+            i_product_partial_r <= {P_PRODUCT_WIDTH{1'b0}};
+            p_product_partial_r <= {P_PRODUCT_WIDTH{1'b0}};
             fll_term_r <= {STATE_WIDTH{1'b0}};
             i_term_r <= {STATE_WIDTH{1'b0}};
             p_term_r <= {STATE_WIDTH{1'b0}};
@@ -264,6 +309,7 @@ module hybrid_fll_pll_filter_stage_a #(
             center_word_r0 <= {WORD_WIDTH{1'b0}};
             center_word_r1 <= {WORD_WIDTH{1'b0}};
             center_word_operand_r <= {WORD_WIDTH{1'b0}};
+            center_word_partial_r <= {WORD_WIDTH{1'b0}};
             center_word_product_r <= {WORD_WIDTH{1'b0}};
             positive_limit_r0 <= {STATE_WIDTH{1'b0}};
             negative_limit_r0 <= {STATE_WIDTH{1'b0}};
@@ -271,12 +317,15 @@ module hybrid_fll_pll_filter_stage_a #(
             negative_limit_r1 <= {STATE_WIDTH{1'b0}};
             positive_limit_operand_r <= {STATE_WIDTH{1'b0}};
             negative_limit_operand_r <= {STATE_WIDTH{1'b0}};
+            positive_limit_partial_r <= {STATE_WIDTH{1'b0}};
+            negative_limit_partial_r <= {STATE_WIDTH{1'b0}};
             positive_limit_product_r <= {STATE_WIDTH{1'b0}};
             negative_limit_product_r <= {STATE_WIDTH{1'b0}};
         end else begin
             product_valid_r <= error_valid;
             product_operand_valid_r <= product_valid_r;
-            valid_pipe <= {valid_pipe[5:0], product_operand_valid_r};
+            product_partial_valid_r <= product_operand_valid_r;
+            valid_pipe <= {valid_pipe[5:0], product_partial_valid_r};
 
             if (error_valid) begin
                 phase_error_mul_r <= phase_error;
@@ -307,15 +356,28 @@ module hybrid_fll_pll_filter_stage_a #(
             end
 
             if (product_operand_valid_r) begin
+                fll_product_lo_r <= fll_product_lo_next;
+                fll_product_hi_r <= fll_product_hi_next;
+                i_product_partial_r <= i_product_next;
+                p_product_partial_r <= p_product_next;
+                enable_fll_partial_r <= enable_fll_operand_r;
+                enable_pll_i_partial_r <= enable_pll_i_operand_r;
+                enable_pll_p_partial_r <= enable_pll_p_operand_r;
+                center_word_partial_r <= center_word_operand_r;
+                positive_limit_partial_r <= positive_limit_operand_r;
+                negative_limit_partial_r <= negative_limit_operand_r;
+            end
+
+            if (product_partial_valid_r) begin
                 fll_product_r <= fll_product_next;
-                i_product_r <= i_product_next;
-                p_product_r <= p_product_next;
-                enable_fll_product_r <= enable_fll_operand_r;
-                enable_pll_i_product_r <= enable_pll_i_operand_r;
-                enable_pll_p_product_r <= enable_pll_p_operand_r;
-                center_word_product_r <= center_word_operand_r;
-                positive_limit_product_r <= positive_limit_operand_r;
-                negative_limit_product_r <= negative_limit_operand_r;
+                i_product_r <= i_product_partial_r;
+                p_product_r <= p_product_partial_r;
+                enable_fll_product_r <= enable_fll_partial_r;
+                enable_pll_i_product_r <= enable_pll_i_partial_r;
+                enable_pll_p_product_r <= enable_pll_p_partial_r;
+                center_word_product_r <= center_word_partial_r;
+                positive_limit_product_r <= positive_limit_partial_r;
+                negative_limit_product_r <= negative_limit_partial_r;
             end
 
             if (valid_pipe[0]) begin

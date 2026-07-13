@@ -4,6 +4,7 @@
 
 void EEPROM_Store_Data(void);
 void EEPROM_Read_Data(void);
+void EEPROM_Load_Defaults(void);
 
 
 

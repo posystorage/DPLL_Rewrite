@@ -168,7 +168,9 @@ module dpll_core_nonzero_tracking_tb;
 
     always @(posedge clk) begin
         #1;
-        if (!rst && tracking_valid) begin
+        // config_apply also asserts tracking_valid, but it is not a sampled
+        // tracking update and the CORDIC magnitude has not populated yet.
+        if (!rst && tracking_valid && !config_apply) begin
             $fdisplay(fd, "%0d,0x%012h,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d,%0d",
                       tracking_count, CENTER_WORD, tracking_word, freq_correction,
                       phase_error, freq_error, freq_error_valid, loop_state, locked,

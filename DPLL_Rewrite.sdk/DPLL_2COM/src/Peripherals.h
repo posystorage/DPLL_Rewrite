@@ -38,6 +38,7 @@
 #define Freq_Meter_Gate_Time_L_Addr (FREQ_METER_BASE_ADDR|(0x0070<<2))
 #define Freq_Meter_Gate_Time_H_Addr (FREQ_METER_BASE_ADDR|(0x0071<<2))
 #define Freq_Meter_Run_Trigger_Addr (FREQ_METER_BASE_ADDR|(0x0072<<2))
+#define Freq_Meter_Fast_Interval_Addr (FREQ_METER_BASE_ADDR|(0x0073<<2))//32bit, clk1 cycles
 
 #define Freq_Meter_System_Statue_Addr   (FREQ_METER_BASE_ADDR|(0x0100<<2))// LED_R0,LED_G0,dac0_railed_positive,dac0_railed_negative,residuals0_are_above_threshold_freq,residuals0_are_above_threshold_phase
 #define Freq_Meter_Amplitude_Addr   (FREQ_METER_BASE_ADDR|(0x0101<<2))//20bits
@@ -54,6 +55,11 @@
 #define Freq_Meter_DataL_Output_Addr  		 (FREQ_METER_BASE_ADDR|(0x0111<<2))//32bits
 #define Freq_Meter_DataM_Output_Addr  		 (FREQ_METER_BASE_ADDR|(0x0112<<2))//32bits
 #define Freq_Meter_DataH_Output_Addr  		 (FREQ_METER_BASE_ADDR|(0x0113<<2))//16bits
+#define Freq_Meter_Fast_Status_Addr           (FREQ_METER_BASE_ADDR|(0x0114<<2))//bit0 valid, bits31:1 sequence
+#define Freq_Meter_Fast_DataL_Output_Addr     (FREQ_METER_BASE_ADDR|(0x0115<<2))//32bits
+#define Freq_Meter_Fast_DataM_Output_Addr     (FREQ_METER_BASE_ADDR|(0x0116<<2))//32bits
+#define Freq_Meter_Fast_DataH_Output_Addr     (FREQ_METER_BASE_ADDR|(0x0117<<2))//16bits
+#define Freq_Meter_Fast_Result_Interval_Addr  (FREQ_METER_BASE_ADDR|(0x0118<<2))//32bit, clk1 cycles
 
 
 

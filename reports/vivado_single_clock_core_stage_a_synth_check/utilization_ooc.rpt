@@ -1,13 +1,13 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Sun Jun 28 04:21:16 2026
-| Host         : MiaoZhi-PC running 64-bit major release  (build 9200)
-| Command      : report_utilization -file E:/FPGA/DPLL_Rewrite/DPLL_Rewrite_THbox_T3/reports/vivado_single_clock_core_stage_a_synth_check/utilization_ooc.rpt
+| Date         : Tue Jul 14 00:28:34 2026
+| Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
+| Command      : report_utilization -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_single_clock_core_stage_a_synth_check/utilization_ooc.rpt
 | Design       : dpll_single_clock_core_stage_a
 | Device       : 7z010clg400-1
 | Design State : Synthesized
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Utilization Design Information
 
@@ -27,18 +27,20 @@ Table of Contents
 1. Slice Logic
 --------------
 
-+-------------------------+------+-------+-----------+-------+
-|        Site Type        | Used | Fixed | Available | Util% |
-+-------------------------+------+-------+-----------+-------+
-| Slice LUTs*             | 1738 |     0 |     17600 |  9.88 |
-|   LUT as Logic          | 1738 |     0 |     17600 |  9.88 |
-|   LUT as Memory         |    0 |     0 |      6000 |  0.00 |
-| Slice Registers         | 2634 |     0 |     35200 |  7.48 |
-|   Register as Flip Flop | 2634 |     0 |     35200 |  7.48 |
-|   Register as Latch     |    0 |     0 |     35200 |  0.00 |
-| F7 Muxes                |    0 |     0 |      8800 |  0.00 |
-| F8 Muxes                |    0 |     0 |      4400 |  0.00 |
-+-------------------------+------+-------+-----------+-------+
++----------------------------+------+-------+-----------+-------+
+|          Site Type         | Used | Fixed | Available | Util% |
++----------------------------+------+-------+-----------+-------+
+| Slice LUTs*                | 5004 |     0 |     17600 | 28.43 |
+|   LUT as Logic             | 4964 |     0 |     17600 | 28.20 |
+|   LUT as Memory            |   40 |     0 |      6000 |  0.67 |
+|     LUT as Distributed RAM |    0 |     0 |           |       |
+|     LUT as Shift Register  |   40 |     0 |           |       |
+| Slice Registers            | 6916 |     0 |     35200 | 19.65 |
+|   Register as Flip Flop    | 6916 |     0 |     35200 | 19.65 |
+|   Register as Latch        |    0 |     0 |     35200 |  0.00 |
+| F7 Muxes                   |    0 |     0 |      8800 |  0.00 |
+| F8 Muxes                   |    0 |     0 |      4400 |  0.00 |
++----------------------------+------+-------+-----------+-------+
 * Warning! The Final LUT count, after physical optimizations and full implementation, is typically lower. Run opt_design after synthesis, if not already completed, for a more realistic count.
 
 
@@ -56,8 +58,8 @@ Table of Contents
 | 0     |          Yes |           - |            - |
 | 0     |          Yes |           - |          Set |
 | 0     |          Yes |           - |        Reset |
-| 1     |          Yes |         Set |            - |
-| 2633  |          Yes |       Reset |            - |
+| 4     |          Yes |         Set |            - |
+| 6912  |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -80,8 +82,8 @@ Table of Contents
 +----------------+------+-------+-----------+-------+
 |    Site Type   | Used | Fixed | Available | Util% |
 +----------------+------+-------+-----------+-------+
-| DSPs           |    5 |     0 |        80 |  6.25 |
-|   DSP48E1 only |    5 |       |           |       |
+| DSPs           |   13 |     0 |        80 | 16.25 |
+|   DSP48E1 only |   13 |       |           |       |
 +----------------+------+-------+-----------+-------+
 
 
@@ -147,25 +149,29 @@ Table of Contents
 +----------+------+---------------------+
 | Ref Name | Used | Functional Category |
 +----------+------+---------------------+
-| FDRE     | 2633 |        Flop & Latch |
-| LUT2     | 1023 |                 LUT |
-| LUT3     |  611 |                 LUT |
-| LUT4     |  355 |                 LUT |
-| CARRY4   |  297 |          CarryLogic |
-| LUT5     |  145 |                 LUT |
-| LUT6     |   95 |                 LUT |
-| LUT1     |   38 |                 LUT |
-| DSP48E1  |    5 |    Block Arithmetic |
-| FDSE     |    1 |        Flop & Latch |
+| FDRE     | 6912 |        Flop & Latch |
+| LUT2     | 1885 |                 LUT |
+| LUT3     | 1254 |                 LUT |
+| LUT4     |  960 |                 LUT |
+| LUT6     |  938 |                 LUT |
+| CARRY4   |  776 |          CarryLogic |
+| LUT5     |  729 |                 LUT |
+| LUT1     |  430 |                 LUT |
+| SRL16E   |   40 |  Distributed Memory |
+| DSP48E1  |   13 |    Block Arithmetic |
+| FDSE     |    4 |        Flop & Latch |
 +----------+------+---------------------+
 
 
 8. Black Boxes
 --------------
 
-+----------+------+
-| Ref Name | Used |
-+----------+------+
++----------------------+------+
+|       Ref Name       | Used |
++----------------------+------+
+| dds_compiler_v6_0_17 |    1 |
+| cordic_v6_0_14       |    1 |
++----------------------+------+
 
 
 9. Instantiated Netlists

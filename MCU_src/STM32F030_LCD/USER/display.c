@@ -1,7 +1,6 @@
 #include "display.h"
 #include "lcd.h"
 #include "STM8Slave.h"
-#include "control.h"
 #include "ADC.h"
 
 typedef struct
@@ -14,97 +13,97 @@ typedef struct
 	uint8_t Blink_Timer;
 	uint8_t Blink_Cnt;
 	uint8_t Str[8];
-}Display_UI_Blink_TypeDef;
+} Display_UI_Blink_TypeDef;
 
-Display_UI_Blink_TypeDef Display_UI_Blink_Data;
-#define Blink_Times 12
-#define Blink_Cycle 150
+#define BLINK_TIMES 12U
+#define BLINK_CYCLE 150U
 
-void Display_UI_Blink_Show(uint8_t Show)
+static Display_UI_Blink_TypeDef Display_UI_Blink_Data;
+static uint8_t U32_Dec_Buff[10];
+
+void Display_U32toDec(uint32_t data);
+
+static void Display_UI_Blink_Show(uint8_t show)
 {
-	uint16_t Color_Cache;
-	if(Show)
-	{
-		Color_Cache = BACK_COLOR;
+	uint16_t color_cache;
+	if (show) {
+		color_cache = BACK_COLOR;
 		BACK_COLOR = Display_UI_Blink_Data.Back_Color;
-		LCD_16ShowString_hanzi(Display_UI_Blink_Data.X,Display_UI_Blink_Data.Y,Display_UI_Blink_Data.Str,Display_UI_Blink_Data.Show_Color);
-		BACK_COLOR = Color_Cache;
-	}
-	else
-	{
-		LCD_Show_Square(Display_UI_Blink_Data.X,Display_UI_Blink_Data.Y,Display_UI_Blink_Data.Wide,16,Display_UI_Blink_Data.Back_Color);
+		LCD_16ShowString_hanzi(Display_UI_Blink_Data.X, Display_UI_Blink_Data.Y,
+		                       Display_UI_Blink_Data.Str,
+		                       Display_UI_Blink_Data.Show_Color);
+		BACK_COLOR = color_cache;
+	} else {
+		LCD_Show_Square(Display_UI_Blink_Data.X, Display_UI_Blink_Data.Y,
+		                Display_UI_Blink_Data.Wide, 16U,
+		                Display_UI_Blink_Data.Back_Color);
 	}
 }
 
 void Display_UI_Blink_Show_Stop(void)
 {
-	Display_UI_Blink_Data.Blink_Timer = 0;
-	if(Display_UI_Blink_Data.Blink_Cnt)
-	{
-		Display_UI_Blink_Show(1);
-	}
-	Display_UI_Blink_Data.Blink_Cnt = 0;
+	Display_UI_Blink_Data.Blink_Timer = 0U;
+	if (Display_UI_Blink_Data.Blink_Cnt) Display_UI_Blink_Show(1U);
+	Display_UI_Blink_Data.Blink_Cnt = 0U;
 }
 
-void Display_UI_Blink_Show_Register(uint16_t x,uint16_t y,uint8_t* Str,uint16_t color)
+static void Display_UI_Blink_Show_Register(uint16_t x, uint16_t y,
+		uint8_t *text, uint16_t color)
 {
-	uint32_t i;
+	uint32_t index;
 	Display_UI_Blink_Show_Stop();
 	Display_UI_Blink_Data.Show_Color = color;
 	Display_UI_Blink_Data.Back_Color = BACK_COLOR;
 	Display_UI_Blink_Data.X = x;
 	Display_UI_Blink_Data.Y = y;
-	for(i=0;i<7;i++)
-	{
-		Display_UI_Blink_Data.Str[i] = Str[i];
-		if(Str[i] == '\0')break;
+	for (index = 0U; index < 7U; ++index) {
+		Display_UI_Blink_Data.Str[index] = text[index];
+		if (text[index] == '\0') break;
 	}
 	Display_UI_Blink_Data.Str[7] = '\0';
-	Display_UI_Blink_Data.Wide = i*8;
-	Display_UI_Blink_Data.Blink_Cnt = Blink_Times*2;
-	Display_UI_Blink_Data.Blink_Timer = 250;
-	Display_UI_Blink_Show(1);
+	Display_UI_Blink_Data.Wide = (uint16_t)(index * 8U);
+	Display_UI_Blink_Data.Blink_Cnt = BLINK_TIMES * 2U;
+	Display_UI_Blink_Data.Blink_Timer = 250U;
+	Display_UI_Blink_Show(1U);
 }
 
 void Display_UI_Timer_Service(void)
 {
-	if(Display_UI_Blink_Data.Blink_Cnt)
-	{
-		if(Display_UI_Blink_Data.Blink_Timer)Display_UI_Blink_Data.Blink_Timer--;
-	}
+	if (Display_UI_Blink_Data.Blink_Cnt && Display_UI_Blink_Data.Blink_Timer)
+		Display_UI_Blink_Data.Blink_Timer--;
 }
-
-void Display_UI_Show_Modulator_Vbias(void);
 
 void Display_UI_Show_Service(void)
 {
-	if(Display_UI_Blink_Data.Blink_Cnt)
-	{
-		if(Display_UI_Blink_Data.Blink_Timer == 0)
-		{
-			Display_UI_Blink_Data.Blink_Timer = Blink_Cycle;
-			Display_UI_Blink_Show(Display_UI_Blink_Data.Blink_Cnt&0x01);
-			Display_UI_Blink_Data.Blink_Cnt--;
-		}
+	if (Display_UI_Blink_Data.Blink_Cnt && Display_UI_Blink_Data.Blink_Timer == 0U) {
+		Display_UI_Blink_Data.Blink_Timer = BLINK_CYCLE;
+		Display_UI_Blink_Show(Display_UI_Blink_Data.Blink_Cnt & 0x01U);
+		Display_UI_Blink_Data.Blink_Cnt--;
 	}
-	if(ADC_Value_Valid)
-	{
-		Display_UI_Show_Modulator_Vbias();
-		ADC_Value_Valid = 0;
-	}		
+	if (ADC_Value_Valid) {
+		int16_t vbias = ADC_VBIAS_Voltage;
+		BACK_COLOR = WHITE;
+		if (vbias < 0) {
+			LCD_SHOW_ASCII_0806(132U, 9U, 11U, INDIANRED);
+			vbias = (int16_t)-vbias;
+		} else LCD_SHOW_ASCII_0806(132U, 9U, 10U, INDIANRED);
+		Display_U32toDec((uint32_t)vbias);
+		LCD_SHOW_ASCII_0806(144U, 9U, 12U, INDIANRED);
+		LCD_SHOW_ASCII_0806(138U, 9U, U32_Dec_Buff[3], INDIANRED);
+		LCD_SHOW_ASCII_0806(148U, 9U, U32_Dec_Buff[2], INDIANRED);
+		ADC_Value_Valid = 0U;
+	}
 }
-//get blink status
+
 uint32_t Display_UI_Get_Status(void)
 {
 	return Display_UI_Blink_Data.Blink_Cnt;
 }
 
-uint8_t U32_Dec_Buff[10];
 __asm uint32_t Fun_Div10(uint32_t Data,uint8_t* Out_Buff)
 {
 	PUSH {R1}
 	MOVS R1,R0
-	
 	LSRS R0,R0,#2
 	SUBS R0,R1,R0
 	LSRS R2,R0,#4
@@ -113,525 +112,396 @@ __asm uint32_t Fun_Div10(uint32_t Data,uint8_t* Out_Buff)
 	ADDS R0,R2,R0
 	LSRS R2,R0,#16
 	ADDS R0,R2,R0
-	
 	LSRS R0,R0,#3
 	LSLS R2,R0,#2
 	ADDS R2,R2,R0
 	LSLS R2,R2,#1
 	SUBS R1,R1,R2
-	
-//	CMP	R1,#0x0A
-//	BCC No_fix_up
-//	SUBS R1,R1,#0x0A
-//	ADDS R0,R0,#1	
-//	No_fix_up
-	POP	{R2}
+	POP {R2}
 	STRB R1,[R2]
 	BX LR
 }
 
-void Display_U32toDec(uint32_t Data)
+void Display_U32toDec(uint32_t data)
 {
-	uint32_t i;
-	for(i=0;i<10;i++)
-	{
-		Data = Fun_Div10(Data,U32_Dec_Buff+i);
-		if(U32_Dec_Buff[i]>=10)
-		{
-			U32_Dec_Buff[i] -= 10;
-			Data++;
+	uint32_t index;
+	for (index = 0U; index < 10U; ++index) {
+		data = Fun_Div10(data, U32_Dec_Buff + index);
+		if (U32_Dec_Buff[index] >= 10U) {
+			U32_Dec_Buff[index] -= 10U;
+			data++;
 		}
-		//U32_Dec_Buff[i] = Data%10;
-		//Data = Data/10;
-		if(Data == 0){i++; break;}
+		if (data == 0U) { index++; break; }
 	}
-	for(;i<10;i++)U32_Dec_Buff[i] = 0;
+	for (; index < 10U; ++index) U32_Dec_Buff[index] = 0U;
+}
+
+static void display_digit_blink(uint16_t x, uint16_t y, uint8_t digit,
+		uint16_t color)
+{
+	uint8_t text[2];
+	text[0] = (uint8_t)('0' + digit);
+	text[1] = '\0';
+	Display_UI_Blink_Show_Register(x, y, text, color);
+}
+
+static void display_unsigned(uint16_t x, uint16_t y, uint32_t value,
+		uint8_t length, uint8_t blink_power, uint16_t color)
+{
+	uint8_t power;
+	uint8_t show = 0U;
+	Display_U32toDec(value);
+	for (power = length; power > 0U; --power) {
+		if (U32_Dec_Buff[power - 1U] != 0U || power == 1U || blink_power >= power)
+			show = 1U;
+		LCD_SHOW_ASCII_1608(x, y,
+		                       show ? (uint8_t)('0' + U32_Dec_Buff[power - 1U]) : ' ',
+		                       color);
+		if (blink_power == power)
+			display_digit_blink(x, y, U32_Dec_Buff[power - 1U], color);
+		x += 8U;
+	}
+}
+
+static uint8_t append_u32(uint8_t *text, uint8_t index, uint32_t value)
+{
+	uint8_t power = 10U;
+	uint8_t started = 0U;
+	Display_U32toDec(value);
+	while (power > 0U) {
+		power--;
+		if (U32_Dec_Buff[power] != 0U || power == 0U) started = 1U;
+		if (started) text[index++] = (uint8_t)('0' + U32_Dec_Buff[power]);
+	}
+	return index;
+}
+
+static void display_phase(uint16_t x, uint16_t y, int32_t centidegrees,
+		uint8_t show_sign, uint8_t blink, uint16_t color)
+{
+	uint8_t text[8];
+	uint8_t index = 0U;
+	uint32_t magnitude;
+	uint32_t scaled;
+	LCD_Show_Square(x, y, 56U, 16U, WHITE);
+	if (centidegrees < 0) {
+		text[index++] = '-';
+		magnitude = (uint32_t)(-centidegrees);
+	} else {
+		magnitude = (uint32_t)centidegrees;
+		if (show_sign) text[index++] = '+';
+	}
+	if (magnitude >= 10000U) {
+		index = append_u32(text, index, (magnitude + 50U) / 100U);
+	} else if (magnitude >= 1000U) {
+		scaled = (magnitude + 5U) / 10U;
+		index = append_u32(text, index, scaled / 10U);
+		text[index++] = '.';
+		text[index++] = (uint8_t)('0' + scaled % 10U);
+	} else {
+		index = append_u32(text, index, magnitude / 100U);
+		text[index++] = '.';
+		text[index++] = (uint8_t)('0' + (magnitude / 10U) % 10U);
+		text[index++] = (uint8_t)('0' + magnitude % 10U);
+	}
+	text[index++] = '~';
+	text[index] = '\0';
+	BACK_COLOR = WHITE;
+	LCD_16ShowString_hanzi(x, y, text, color);
+	if (blink) Display_UI_Blink_Show_Register(x, y, text, color);
 }
 
 void Display_UI_Microwave_Source_Refresh_Status(void)
 {
 	BACK_COLOR = WHITE;
-	if((STM8_Slave_Data.Data_Struct.Microwave_Source_Status&0x03)==0x03)
-	{
-		LCD_SHOW_Icon_1612(146,16,0,DARKGREEN);//Lock		
-	}
-	else
-	{
-		LCD_SHOW_Icon_1612(146,16,1,BRRED);//Unlock		
-	}	
+	if ((STM8_Control_Bank[CTRL_REG_MWS_STATUS] &
+	     (CTRL_MWS_STATUS_ENABLED | CTRL_MWS_STATUS_LOCKED)) ==
+	    (CTRL_MWS_STATUS_ENABLED | CTRL_MWS_STATUS_LOCKED))
+		LCD_SHOW_Icon_1612(146U, 16U, 0U, DARKGREEN);
+	else LCD_SHOW_Icon_1612(146U, 16U, 1U, BRRED);
 }
 
-void Display_UI_Microwave_Source_Status(uint32_t Blink)
+void Display_UI_Microwave_Source_Status(uint32_t blink)
 {
+	uint8_t *text;
+	uint16_t color;
 	BACK_COLOR = WHITE;
-	if((STM8_Slave_Data.Data_Struct.Microwave_Source_Status&0x01)==0x01)
-	{
-		LCD_16ShowString_hanzi(64,0,"开",GREEN);
-		if(Blink)Display_UI_Blink_Show_Register(64,0,"开",GREEN);
-		if((STM8_Slave_Data.Data_Struct.Microwave_Source_Status&0x02)==0x02)
-		{
-			LCD_SHOW_Icon_1612(146,16,0,DARKGREEN);//Lock		
-		}
-		else
-		{
-			LCD_SHOW_Icon_1612(146,16,1,BRRED);//Unlock		
-		}
+	if (STM8_Control_Bank[CTRL_REG_MWS_STATUS] & CTRL_MWS_STATUS_ENABLED) {
+		text = "开";
+		color = GREEN;
+	} else {
+		text = "关";
+		color = RED;
 	}
-	else
-	{
-		LCD_16ShowString_hanzi(64,0,"关",RED);
-		if(Blink)Display_UI_Blink_Show_Register(64,0,"关",RED);
-		LCD_SHOW_Icon_1612(146,16,1,BRRED);//Unlock		
-	}
-	//LCD_Show_Square(146,17,16,1,LGRAY);
+	LCD_16ShowString_hanzi(64U, 0U, text, color);
+	if (blink) Display_UI_Blink_Show_Register(64U, 0U, text, color);
+	Display_UI_Microwave_Source_Refresh_Status();
 }
 
-const uint8_t Power_Char[]="弱\0小\0中\0大";
-void Display_UI_Microwave_Source_Power(uint32_t Blink)
+static const uint8_t Power_Char[] = "弱\0小\0中\0大";
+
+void Display_UI_Microwave_Source_Power(uint32_t blink)
 {
-	uint8_t Cache;
+	uint8_t index = (STM8_Control_Bank[CTRL_REG_MWS_POWER] & 0x03U) * 3U;
 	BACK_COLOR = WHITE;
-	Cache = STM8_Slave_Data.Data_Struct.Microwave_Source_Power&0x03;
-	Cache = Cache*3;
-	LCD_16ShowString_hanzi(112,0,(uint8_t*)&Power_Char[Cache],BLUE);
-	if(Blink)Display_UI_Blink_Show_Register(112,0,(uint8_t*)&Power_Char[Cache],BLUE);
+	LCD_16ShowString_hanzi(112U, 0U, (uint8_t *)&Power_Char[index], BLUE);
+	if (blink) Display_UI_Blink_Show_Register(112U, 0U,
+	                                          (uint8_t *)&Power_Char[index], BLUE);
 }
 
-//Blink_Bit 7-1GHz ---> 1-1KHz
-void Display_UI_Microwave_Source_Freq(uint32_t Blink_Bit)
+void Display_UI_Microwave_Source_Freq(uint32_t blink_bit)
 {
-	uint32_t i,Last_Bit_x = 54+48+4;
-	uint8_t Blink_Cache[2];
+	uint32_t index;
+	uint16_t x = 106U;
+	uint32_t value = STM8_Bank_Get_U32(CTRL_REG_MWS_FREQ_100KHZ);
+	Display_U32toDec(value);
 	BACK_COLOR = WHITE;
-	Display_U32toDec(STM8_Slave_Data.Data_Struct.Microwave_Source_Frequency);
-	for(i=0;i<7;i++)
-	{
-		LCD_SHOW_ASCII_1608(Last_Bit_x,16,U32_Dec_Buff[i]+'0',DARKBLUE);
-		if(Blink_Bit == (i+1))
-		{
-			Blink_Cache[0] = U32_Dec_Buff[i]+'0';
-			Blink_Cache[1] = '\0';
-			Display_UI_Blink_Show_Register(Last_Bit_x,16,Blink_Cache,DARKBLUE);
-		}
-		Last_Bit_x -=8;
-		if(i == 5)Last_Bit_x -=4;
-		if(i == 4)LCD_SHOW_ASCII_1608(Last_Bit_x-4,16,'.',DARKBLUE);
+	for (index = 0U; index < 7U; ++index) {
+		LCD_SHOW_ASCII_1608(x, 16U, (uint8_t)('0' + U32_Dec_Buff[index]), DARKBLUE);
+		if (blink_bit == index + 1U)
+			display_digit_blink(x, 16U, U32_Dec_Buff[index], DARKBLUE);
+		x -= 8U;
+		if (index == 5U) x -= 4U;
+		if (index == 4U) LCD_SHOW_ASCII_1608(x - 4U, 16U, '.', DARKBLUE);
 	}
 }
 
-void Display_UI_Show_Modulator_Vbias(void)
-{
-	int16_t Vbias = ADC_VBIAS_Voltage;
-	BACK_COLOR = WHITE;
-	if(Vbias<0)
-	{
-		LCD_SHOW_ASCII_0806(132,9,11,INDIANRED);//-
-		Vbias = -Vbias;
-	}
-	else
-	{
-		LCD_SHOW_ASCII_0806(132,9,10,INDIANRED);//+
-	}
-	Display_U32toDec(Vbias);
-	LCD_SHOW_ASCII_0806(144,9,12,INDIANRED);//.
-	LCD_SHOW_ASCII_0806(138,9,U32_Dec_Buff[3],INDIANRED);
-	LCD_SHOW_ASCII_0806(148,9,U32_Dec_Buff[2],INDIANRED);
-	
-}
-
-void Display_UI_Microwave_Source_Init(void)
+static void Display_UI_Microwave_Source_Init(void)
 {
 	BACK_COLOR = LIGHTCYAN;
-	LCD_16ShowString_hanzi(14,0,"微波源",BLACK);	
+	LCD_16ShowString_hanzi(14U, 0U, "微波源", BLACK);
 	BACK_COLOR = WHITE;
-	LCD_16ShowString_hanzi(80,0,"功率",BLACK);	
-	LCD_16ShowString_hanzi(14,16,"频率:",BLACK);
-	LCD_16ShowString_hanzi(116,16,"GHz",BLACK);	
-	
-	LCD_SHOW_ASCII_0806(130,0,13,GRAYBLUE);//V
-	LCD_SHOW_ASCII_0806(136,0,14,GRAYBLUE);//B
-	LCD_SHOW_ASCII_0806(142,0,15,GRAYBLUE);//I
-	LCD_SHOW_ASCII_0806(148,0,16,GRAYBLUE);//A
-	LCD_SHOW_ASCII_0806(154,0,17,GRAYBLUE);//S
-	LCD_SHOW_ASCII_0806(154,9,13,GRAYBLUE);//V
-	LCD_Show_Square(128,0,1,17,LGRAY);
-	LCD_Show_Square(128,17,32,1,LGRAY);
-	
-	Display_UI_Microwave_Source_Status(0);
-	Display_UI_Microwave_Source_Power(0);
-	Display_UI_Microwave_Source_Freq(0);
-	Display_UI_Show_Modulator_Vbias();
-	
-	//LCD_16ShowString_hanzi(128,0,"+9.5V",BLACK);		
+	LCD_16ShowString_hanzi(80U, 0U, "功率", BLACK);
+	LCD_16ShowString_hanzi(14U, 16U, "频率:", BLACK);
+	LCD_16ShowString_hanzi(116U, 16U, "GHz", BLACK);
+	LCD_SHOW_ASCII_0806(130U, 0U, 13U, GRAYBLUE);
+	LCD_SHOW_ASCII_0806(136U, 0U, 14U, GRAYBLUE);
+	LCD_SHOW_ASCII_0806(142U, 0U, 15U, GRAYBLUE);
+	LCD_SHOW_ASCII_0806(148U, 0U, 16U, GRAYBLUE);
+	LCD_SHOW_ASCII_0806(154U, 0U, 17U, GRAYBLUE);
+	LCD_SHOW_ASCII_0806(154U, 9U, 13U, GRAYBLUE);
+	LCD_Show_Square(128U, 0U, 1U, 17U, LGRAY);
+	LCD_Show_Square(128U, 17U, 32U, 1U, LGRAY);
+	Display_UI_Microwave_Source_Status(0U);
+	Display_UI_Microwave_Source_Power(0U);
+	Display_UI_Microwave_Source_Freq(0U);
 }
 
-//Blink_Bit 7-100KHz ---> 1-0.1Hz
-//input frequency-->1mHz
-void Display_UI_Show_PLL_Set_Freq(uint32_t Blink_Bit)
+void Display_UI_PLL_Enable(uint32_t blink)
 {
-	uint32_t i,First_Bit_x;
-	uint8_t Blink_Cache[2];
-	uint32_t EnShow = 0;
-	Display_U32toDec(Set_Frequency);
+	uint8_t *text;
+	uint16_t color;
 	BACK_COLOR = WHITE;
-	i=7;
-	First_Bit_x = 84;
-	while(i)
-	{
-		i--;
-		if(U32_Dec_Buff[i+2]!=0)EnShow = 1;
-		if(i==1)EnShow = 1;
-		if(Blink_Bit>i)EnShow = 1;
-		if(EnShow)
-		{
-			LCD_SHOW_ASCII_1608(First_Bit_x,49,U32_Dec_Buff[i+2]+'0',DARKBLUE);
-			if(Blink_Bit == (i+1))
-			{
-				Blink_Cache[0] = U32_Dec_Buff[i+2]+'0';
-				Blink_Cache[1] = '\0';
-				Display_UI_Blink_Show_Register(First_Bit_x,49,Blink_Cache,DARKBLUE);
-			}			
+	if (STM8_Control_Bank[CTRL_REG_DPLL_STATUS] & CTRL_DPLL_STATUS_ENABLED) {
+		text = "开";
+		color = GREEN;
+	} else {
+		text = "关";
+		color = RED;
+	}
+	LCD_16ShowString_hanzi(64U, 33U, text, color);
+	if (blink) Display_UI_Blink_Show_Register(64U, 33U, text, color);
+}
+
+void Display_UI_Show_PLL_Set_Freq(uint32_t blink_bit)
+{
+	uint32_t value = STM8_Bank_Get_U32(CTRL_REG_CENTER_FREQ_DHZ);
+	uint32_t frequency_hz = value / 10U;
+	uint8_t digit;
+	uint16_t blink_x = 0U;
+	LCD_Show_Square(88U, 49U, 56U, 16U, WHITE);
+	BACK_COLOR = WHITE;
+	if (frequency_hz >= 100000UL) {
+		Display_U32toDec(frequency_hz);
+		for (digit = 6U; digit > 0U; --digit)
+			LCD_SHOW_ASCII_1608((uint16_t)(88U + (6U - digit) * 8U), 49U,
+			                       (uint8_t)('0' + U32_Dec_Buff[digit - 1U]), DARKBLUE);
+		if (blink_bit >= 2U && blink_bit <= 7U) {
+			blink_x = (uint16_t)(128U - (blink_bit - 2U) * 8U);
+			display_digit_blink(blink_x, 49U, U32_Dec_Buff[blink_bit - 2U], DARKBLUE);
 		}
-		else
-		{
-			LCD_SHOW_ASCII_1608(First_Bit_x,49,' ',DARKBLUE);
-		}		
-		First_Bit_x +=8;
-		if(i == 1)
-		{
-			LCD_SHOW_ASCII_1608(First_Bit_x,49,'.',DARKBLUE);
-			First_Bit_x += 4;
+	} else {
+		Display_U32toDec(frequency_hz);
+		display_unsigned(88U, 49U, frequency_hz, 5U, 0U, DARKBLUE);
+		LCD_SHOW_ASCII_1608(128U, 49U, '.', DARKBLUE);
+		LCD_SHOW_ASCII_1608(136U, 49U, (uint8_t)('0' + value % 10U), DARKBLUE);
+		if (blink_bit == 1U) display_digit_blink(136U, 49U, (uint8_t)(value % 10U), DARKBLUE);
+		else if (blink_bit >= 2U && blink_bit <= 6U) {
+			blink_x = (uint16_t)(120U - (blink_bit - 2U) * 8U);
+			display_digit_blink(blink_x, 49U, U32_Dec_Buff[blink_bit - 2U], DARKBLUE);
 		}
 	}
 }
 
-void Display_UI_Show_Num(uint16_t x,uint16_t y,uint32_t Num,uint32_t length,uint32_t Blink_Bit,uint16_t Color)
+void Display_UI_Show_PLL_Mux_Div_Index(uint32_t blink_mul, uint32_t blink_div)
 {
-	uint32_t i = length;
-	uint8_t Blink_Cache[2];
-	uint32_t EnShow = 0;
-	Display_U32toDec(Num);
-	BACK_COLOR = WHITE;
-	while(i)
-	{
-		i--;
-		if(U32_Dec_Buff[i]!=0)EnShow = 1;
-		if(i==0)EnShow = 1;
-		if(Blink_Bit>i)EnShow = 1;
-		if(EnShow)
-		{
-			LCD_SHOW_ASCII_1608(x,y,U32_Dec_Buff[i]+'0',Color);
-			if(Blink_Bit == (i+1))
-			{
-				Blink_Cache[0] = U32_Dec_Buff[i]+'0';
-				Blink_Cache[1] = '\0';
-				Display_UI_Blink_Show_Register(x,y,Blink_Cache,Color);
-			}			
-		}
-		else
-		{
-			LCD_SHOW_ASCII_1608(x,y,' ',Color);
-		}		
-		x +=8;
-	}	
-
+	display_unsigned(54U, 65U, STM8_Bank_Get_U16(CTRL_REG_OUTPUT_MUL),
+	                 4U, (uint8_t)blink_mul, DARKBLUE);
+	display_unsigned(126U, 65U, STM8_Bank_Get_U16(CTRL_REG_OUTPUT_DIV),
+	                 4U, (uint8_t)blink_div, DARKBLUE);
 }
 
-
-void Display_UI_PLL_Enable(uint32_t Blink)
+static void display_signed_integer(uint16_t x, uint16_t y, int32_t value,
+		uint8_t digits, uint16_t color)
 {
-	BACK_COLOR = WHITE;
-	if((STM8_Slave_Data.Data_Struct.PLL_Status&0x20)==0x20)
-	{
-		LCD_16ShowString_hanzi(64,33,"开",GREEN);
-		if(Blink)Display_UI_Blink_Show_Register(64,33,"开",GREEN);
-	}
-	else
-	{
-		LCD_16ShowString_hanzi(64,33,"关",RED);
-		if(Blink)Display_UI_Blink_Show_Register(64,33,"关",RED);
-	}
-}
-void Display_UI_Show_PLL_Amplitude(uint32_t Blink_Bit)
-{
-	uint32_t i,First_Bit_x;
-	uint8_t Blink_Cache[2];
-	//uint32_t Ampt = (STM8_Slave_Data.Data_Struct.PLL_DAC_Amplitude)*2000/32768+1;//0~32768
-	//Display_U32toDec(Ampt);
-	Display_U32toDec(Set_Amplitude);
-	i=3;
-	First_Bit_x = 48;
-	while(i)
-	{
-		i--;
-		LCD_SHOW_ASCII_1608(First_Bit_x,81,U32_Dec_Buff[i+1]+'0',DARKBLUE);
-		if(Blink_Bit == (i+1))
-		{
-			Blink_Cache[0] = U32_Dec_Buff[i+1]+'0';
-			Blink_Cache[1] = '\0';
-			Display_UI_Blink_Show_Register(First_Bit_x,81,Blink_Cache,DARKBLUE);
-		}	
-		First_Bit_x +=8;
-		if(i == 2)
-		{
-			LCD_SHOW_ASCII_1608(First_Bit_x,81,'.',DARKBLUE);
-			First_Bit_x += 4;
-		}
-	}		
-	
+	uint32_t magnitude;
+	LCD_SHOW_ASCII_1608(x, y, value < 0 ? '-' : '+', color);
+	magnitude = value < 0 ? (uint32_t)(-value) : (uint32_t)value;
+	display_unsigned((uint16_t)(x + 8U), y, magnitude, digits, 0U, color);
 }
 
-uint32_t PLL_Hex2Freq(uint32_t Hex);
-
-void Display_UI_Show_PLL_Out_Freq(void)
+static void display_fast_meter(void)
 {
-	uint32_t i,First_Bit_x;
-	uint32_t EnShow = 0;
-	int32_t PID_OUT;
-	uint32_t Frequency;//mHz
-	PID_OUT = STM8_Slave_Data.Data_Struct.PLL_PID_OUT;
-	PID_OUT/=16;
-	Frequency = STM8_Slave_Data.Data_Struct.PLL_Center_Frequency + PID_OUT;
-	Frequency = PLL_Hex2Freq(Frequency);
-	Display_U32toDec(Frequency);
-	BACK_COLOR = WHITE;
-	i=10;
-	First_Bit_x = 48;
-	while(i)
-	{
-		i--;
-		if(U32_Dec_Buff[i]!=0)EnShow = 1;
-		if(i==1)EnShow = 1;
-		if(EnShow)
-		{
-			LCD_SHOW_ASCII_1608(First_Bit_x,112,U32_Dec_Buff[i]+'0',INDIANRED);		
-		}
-		else
-		{
-			LCD_SHOW_ASCII_1608(First_Bit_x,112,' ',INDIANRED);
-		}		
-		First_Bit_x +=8;
-		if(i == 3)
-		{
-			LCD_SHOW_ASCII_1608(First_Bit_x,112,'.',INDIANRED);
-			First_Bit_x += 4;
-		}
-	}
-}
-
-void Display_UI_Show_PLL_Mux_Div_Index(uint32_t Blink_Bit_Mul ,uint32_t Blink_Bit_Div)
-{	
-	Display_UI_Show_Num(88,65,STM8_Slave_Data.Data_Struct.PLL_Mul_Index,4,Blink_Bit_Mul,DARKBLUE);//Mul
-	Display_UI_Show_Num(128,65,STM8_Slave_Data.Data_Struct.PLL_Div_Index,4,Blink_Bit_Div,DARKBLUE);//Div
-}
-
-void Display_UI_Show_PLL_Freq_Phase_Residuals_Threshold(uint32_t Blink_Bit_Freq ,uint32_t Blink_Bit_Phase)
-{
-	Display_UI_Show_Num(132,81,STM8_Slave_Data.Data_Struct.PLL_Freq_Residuals_Threshold,3,Blink_Bit_Freq,DARKBLUE);//Freq Residuals Threshold
-	Display_UI_Show_Num(56,97,STM8_Slave_Data.Data_Struct.PLL_Phase_Residuals_Threshold,4,Blink_Bit_Phase,DARKBLUE);//Phase Residuals Threshold	
+	uint32_t frequency = STM8_Bank_Get_U32(CTRL_REG_FAST_METER_HZ);
+	uint32_t integer = frequency / 1000000UL;
+	uint32_t fraction = frequency % 1000000UL;
+	uint8_t power;
+	Display_U32toDec(integer);
+	LCD_SHOW_ASCII_1608(48U, 112U, U32_Dec_Buff[2] ? (uint8_t)('0' + U32_Dec_Buff[2]) : ' ', INDIANRED);
+	LCD_SHOW_ASCII_1608(56U, 112U, (U32_Dec_Buff[2] || U32_Dec_Buff[1]) ?
+	                       (uint8_t)('0' + U32_Dec_Buff[1]) : ' ', INDIANRED);
+	LCD_SHOW_ASCII_1608(64U, 112U, (uint8_t)('0' + U32_Dec_Buff[0]), INDIANRED);
+	LCD_SHOW_ASCII_1608(72U, 112U, '.', INDIANRED);
+	Display_U32toDec(fraction);
+	for (power = 6U; power > 0U; --power)
+		LCD_SHOW_ASCII_1608((uint16_t)(80U + (6U - power) * 8U), 112U,
+		                       (uint8_t)('0' + U32_Dec_Buff[power - 1U]), INDIANRED);
 }
 
 void Display_UI_PLL_Refresh_Status(void)
 {
-	int32_t Cache;
-	//Phase Residuals
-	Cache = (int32_t)STM8_Slave_Data.Data_Struct.PLL_Phase_Residuals;
-	if(Cache<0)
-	{
-		LCD_SHOW_ASCII_1608(100,97,'-',INDIANRED);
-		Cache = -Cache;
-	}
-	else
-	{
-		LCD_SHOW_ASCII_1608(100,97,'+',INDIANRED);
-	}	
-	Display_UI_Show_Num(108,97,Cache,6,0,INDIANRED);
-	Display_UI_PLL_Enable(0);
-	if((STM8_Slave_Data.Data_Struct.PLL_Status&0x80)==0x80)//offline
-	{
-		LCD_Show_Square(82,33,72,16,WHITE);
-		LCD_SHOW_Icon_1612(82,33,14,BRRED);
+	uint8_t status = STM8_Control_Bank[CTRL_REG_DPLL_STATUS];
+	Display_UI_PLL_Enable(0U);
+	display_signed_integer(30U, 81U, STM8_Bank_Get_S32(CTRL_REG_FREQ_ERROR_HZ),
+	                       5U, INDIANRED);
+	display_phase(104U, 81U, STM8_Bank_Get_S32(CTRL_REG_PHASE_ERROR_CDEG),
+	              1U, 0U, INDIANRED);
+	display_unsigned(54U, 97U, STM8_Bank_Get_U32(CTRL_REG_OUTPUT_FREQ_HZ),
+	                 7U, 0U, INDIANRED);
+	display_fast_meter();
+	if ((status & CTRL_DPLL_STATUS_ARM_ONLINE) == 0U) {
+		LCD_SHOW_Icon_1612(142U, 33U, 15U, RED);
 		return;
 	}
-	else
-	{
-		LCD_Show_Square(82,33,12,16,WHITE);//OK	
-	}
-	
-	if((STM8_Slave_Data.Data_Struct.PLL_Status&0x10)==0x10)
-	{
-		LCD_SHOW_Icon_1612(82,33,0,DARKGREEN);//Lock
-	}
-	else
-	{
-		LCD_SHOW_Icon_1612(82,33,1,BRRED);//Unlock		
-	}		
-	
-	if((STM8_Slave_Data.Data_Struct.PLL_Status&0x01)==0x01)
-	{
-		LCD_SHOW_Icon_1612(94,33,6,RED);//phase out	
-	}
-	else
-	{
-		LCD_Show_Square(94,33,12,16,WHITE);//OK	
-	}	
-	if((STM8_Slave_Data.Data_Struct.PLL_Status&0x02)==0x02)
-	{
-		LCD_SHOW_Icon_1612(106,33,7,RED);//freq out	
-	}
-	else
-	{
-		LCD_Show_Square(106,33,12,16,WHITE);//OK	
-	}	
-	if((STM8_Slave_Data.Data_Struct.PLL_Status&0x04)==0x04)
-	{
-		LCD_SHOW_Icon_1612(130,33,9,RED);//down out	
-	}
-	else
-	{
-		LCD_Show_Square(130,33,12,16,WHITE);//OK	
-	}	
-	if((STM8_Slave_Data.Data_Struct.PLL_Status&0x08)==0x08)
-	{
-		LCD_SHOW_Icon_1612(118,33,8,RED);//up out	
-	}
-	else
-	{
-		LCD_Show_Square(118,33,12,16,WHITE);//OK	
-	}	
-	if((STM8_Slave_Data.Data_Struct.PLL_Status&0x40)==0x40)
-	{
-		LCD_SHOW_Icon_1612(142,33,15,RED);//Communication error
-	}
-	else
-	{
-		LCD_Show_Square(142,33,12,16,WHITE);//OK	
-	}	
-	Display_UI_Show_PLL_Out_Freq();
+	LCD_SHOW_Icon_1612(82U, 33U,
+	                   (status & CTRL_DPLL_STATUS_LOCKED) ? 0U : 1U,
+	                   (status & CTRL_DPLL_STATUS_LOCKED) ? DARKGREEN : BRRED);
+	if (status & CTRL_DPLL_STATUS_PHASE_OUT) LCD_SHOW_Icon_1612(94U, 33U, 6U, RED);
+	else LCD_Show_Square(94U, 33U, 12U, 16U, WHITE);
+	if (status & CTRL_DPLL_STATUS_FREQ_OUT) LCD_SHOW_Icon_1612(106U, 33U, 7U, RED);
+	else LCD_Show_Square(106U, 33U, 12U, 16U, WHITE);
+	if (status & CTRL_DPLL_STATUS_POS_RAIL) LCD_SHOW_Icon_1612(118U, 33U, 8U, RED);
+	else LCD_Show_Square(118U, 33U, 12U, 16U, WHITE);
+	if (status & CTRL_DPLL_STATUS_NEG_RAIL) LCD_SHOW_Icon_1612(130U, 33U, 9U, RED);
+	else LCD_Show_Square(130U, 33U, 12U, 16U, WHITE);
+	if (status & CTRL_DPLL_STATUS_ERROR) LCD_SHOW_Icon_1612(142U, 33U, 15U, RED);
+	else LCD_Show_Square(142U, 33U, 12U, 16U, WHITE);
 }
 
 void Display_UI_PLL_Main_Page_Init(void)
 {
-	LCD_Show_Square(14,33,146,95,WHITE);
+	Display_UI_Microwave_Source_Init();
+	LCD_Show_Square(14U, 33U, 146U, 95U, WHITE);
 	BACK_COLOR = LIGHTCYAN;
-	LCD_16ShowString_hanzi(14,33,"锁相环",BLACK);	
+	LCD_16ShowString_hanzi(14U, 33U, "锁相环", BLACK);
 	BACK_COLOR = WHITE;
-//LCD_16ShowString_hanzi(64,33,"关",RED);	
-	LCD_16ShowString_hanzi(14,49,"中心频率:",BLACK);	
-	LCD_16ShowString_hanzi(144,49,"Hz",BLACK);		
-	
-	LCD_SHOW_ASCII_1608(59,65,':',BLACK);
-	LCD_16ShowString_hanzi(14,65,"倍除频",BLACK);
-	LCD_16ShowString_hanzi(64,65,"40%    &",BLACK);
-	//LCD_SHOW_ASCII_1608(117,65,':',BLACK);	
-//LCD_16ShowString_hanzi(48,65,"99999",BLACK);
-	//LCD_16ShowString_hanzi(88,65,"除频",BLACK);	
-//LCD_16ShowString_hanzi(124,65,"9999",BLACK);
-	
-	LCD_SHOW_ASCII_1608(43,81,':',BLACK);
-	LCD_SHOW_ASCII_1608(125,81,':',BLACK);
-	LCD_16ShowString_hanzi(14,81,"幅度",BLACK);
-	LCD_SHOW_ASCII_1608(76,81,'V',BLACK);	
-	LCD_16ShowString_hanzi(88,81,"频残T",BLACK);
-//LCD_16ShowString_hanzi(132,81,"999",BLACK);
-	LCD_SHOW_ASCII_1608(51,97,':',BLACK);	
-	LCD_16ShowString_hanzi(14,97,"相残T",BLACK);	
-//LCD_16ShowString_hanzi(56,97,"9999",BLACK);
-	LCD_SHOW_ASCII_1608(93,97,':',GRAYBLUE);	
-	LCD_SHOW_ASCII_1608(88,97,'N',GRAYBLUE);	
-//LCD_16ShowString_hanzi(100,97,"-999999",BLACK);
-
-	LCD_SHOW_ASCII_1608(43,112,':',GRAYBLUE);
-	LCD_16ShowString_hanzi(14,112,"输出",GRAYBLUE);	
-	LCD_16ShowString_hanzi(132,112,"Hz",GRAYBLUE);	
-	
-	
-	Display_UI_PLL_Enable(0);
-	Display_UI_Show_PLL_Set_Freq(0);
-	Display_UI_Show_PLL_Mux_Div_Index(0,0);
-	Display_UI_Show_PLL_Freq_Phase_Residuals_Threshold(0,0);
-	Display_UI_Show_PLL_Amplitude(0);
+	LCD_16ShowString_hanzi(14U, 49U, "中心频率:", BLACK);
+	LCD_16ShowString_hanzi(144U, 49U, "Hz", BLACK);
+	LCD_16ShowString_hanzi(14U, 65U, "倍频", BLACK);
+	LCD_16ShowString_hanzi(94U, 65U, "除频", BLACK);
+	LCD_16ShowString_hanzi(14U, 81U, "频", BLACK);
+	LCD_16ShowString_hanzi(88U, 81U, "相", BLACK);
+	LCD_16ShowString_hanzi(14U, 97U, "输出:", GRAYBLUE);
+	LCD_16ShowString_hanzi(136U, 97U, "Hz", GRAYBLUE);
+	LCD_16ShowString_hanzi(14U, 112U, "频率", GRAYBLUE);
+	LCD_16ShowString_hanzi(136U, 112U, "MHz", GRAYBLUE);
+	Display_UI_PLL_Enable(0U);
+	Display_UI_Show_PLL_Set_Freq(0U);
+	Display_UI_Show_PLL_Mux_Div_Index(0U, 0U);
 	Display_UI_PLL_Refresh_Status();
 }
 
-
-void Display_UI_Show_PLL_Up_Down_Limit(uint32_t Blink_Bit_Up ,uint32_t Blink_Bit_Down)
-{	
-	Display_UI_Show_Num(104,96,Set_UpperLimit,5,Blink_Bit_Up,DARKBLUE);//up
-	Display_UI_Show_Num(104,112,-Set_LowerLimit,5,Blink_Bit_Down,DARKBLUE);//down
+void Display_UI_Show_PLL_Gain(uint8_t row, uint32_t blink_bit)
+{
+	static const uint8_t y[4] = {0U, 16U, 32U, 48U};
+	display_unsigned(88U, y[row],
+	                 STM8_Bank_Get_U32((uint8_t)(CTRL_REG_KP_TRACK + row * 4U)),
+	                 7U, (uint8_t)blink_bit, DARKBLUE);
 }
 
-void Display_UI_Show_PLL_PID_Value(uint32_t Blink_Bit_P ,uint32_t Blink_Bit_I ,uint32_t Blink_Bit_II ,uint32_t Blink_Bit_D)
+void Display_UI_Show_PLL_Limit(uint8_t row, uint32_t blink_bit)
 {
-	Display_UI_Show_Num(80,33,STM8_Slave_Data.Data_Struct.PLL_Gain_P,10,Blink_Bit_P,DARKBLUE);//P
-	Display_UI_Show_Num(80,49,STM8_Slave_Data.Data_Struct.PLL_Gain_I,10,Blink_Bit_I,DARKBLUE);//I
-	Display_UI_Show_Num(80,64,STM8_Slave_Data.Data_Struct.PLL_Gain_II,10,Blink_Bit_II,DARKBLUE);//II
-	Display_UI_Show_Num(80,81,STM8_Slave_Data.Data_Struct.PLL_Gain_D,10,Blink_Bit_D,DARKBLUE);//D
+	static const uint8_t y[2] = {64U, 80U};
+	int32_t value = STM8_Bank_Get_S32(row ? CTRL_REG_NEG_LIMIT_HZ : CTRL_REG_POS_LIMIT_HZ);
+	uint32_t magnitude = value < 0 ? (uint32_t)(-value) : (uint32_t)value;
+	LCD_SHOW_ASCII_1608(88U, y[row], row ? '-' : '+', DARKBLUE);
+	display_unsigned(96U, y[row], magnitude, 5U, (uint8_t)blink_bit, DARKBLUE);
+}
+
+void Display_UI_Show_Phase_Threshold(uint32_t blink_bit)
+{
+	display_phase(96U, 96U, (int32_t)STM8_Bank_Get_U16(CTRL_REG_PHASE_THRESHOLD_CDEG),
+	              0U, blink_bit ? 1U : 0U, DARKBLUE);
+}
+
+void Display_UI_Show_Amplitude_Freq_Threshold(uint32_t amplitude_blink,
+		uint32_t frequency_blink)
+{
+	uint32_t amplitude = STM8_Bank_Get_U16(CTRL_REG_DAC_AMPLITUDE_MV);
+	uint32_t frequency = STM8_Bank_Get_U16(CTRL_REG_FREQ_THRESHOLD_HZ);
+	uint8_t digit;
+	LCD_SHOW_ASCII_1608(46U, 112U, (uint8_t)('0' + amplitude / 1000U), DARKBLUE);
+	LCD_SHOW_ASCII_1608(54U, 112U, '.', DARKBLUE);
+	LCD_SHOW_ASCII_1608(62U, 112U, (uint8_t)('0' + (amplitude / 100U) % 10U), DARKBLUE);
+	LCD_SHOW_ASCII_1608(70U, 112U, (uint8_t)('0' + (amplitude / 10U) % 10U), DARKBLUE);
+	LCD_SHOW_ASCII_1608(78U, 112U, 'V', BLACK);
+	if (amplitude_blink == 1U) display_digit_blink(70U, 112U, (uint8_t)((amplitude / 10U) % 10U), DARKBLUE);
+	if (amplitude_blink == 2U) display_digit_blink(62U, 112U, (uint8_t)((amplitude / 100U) % 10U), DARKBLUE);
+	if (amplitude_blink == 3U) display_digit_blink(46U, 112U, (uint8_t)(amplitude / 1000U), DARKBLUE);
+	Display_U32toDec(frequency);
+	for (digit = 3U; digit > 0U; --digit)
+		LCD_SHOW_ASCII_1608((uint16_t)(128U + (3U - digit) * 8U), 112U,
+		                       (uint8_t)('0' + U32_Dec_Buff[digit - 1U]), DARKBLUE);
+	if (frequency_blink)
+		display_digit_blink((uint16_t)(128U + (3U - frequency_blink) * 8U), 112U,
+		                    U32_Dec_Buff[frequency_blink - 1U], DARKBLUE);
 }
 
 void Display_UI_PLL_Vice_Page_Init(void)
 {
-	LCD_Show_Square(14,33,146,95,WHITE);
-	BACK_COLOR = LIGHTCYAN;
-	LCD_16ShowString_hanzi(14,33,"锁",BLACK);	
-	LCD_16ShowString_hanzi(14,49,"相",BLACK);	
-	LCD_16ShowString_hanzi(14,65,"环",BLACK);	
-	BACK_COLOR = WHITE;	
-	
-	LCD_SHOW_ASCII_1608(75,33,':',BLACK);
-	LCD_SHOW_ASCII_1608(75,49,':',BLACK);
-	LCD_SHOW_ASCII_1608(75,65,':',BLACK);
-	LCD_SHOW_ASCII_1608(75,81,':',BLACK);
-	LCD_16ShowString_hanzi(30,33,"P 参数",BLACK);
-	LCD_16ShowString_hanzi(30,49,"I 参数",BLACK);
-	LCD_16ShowString_hanzi(30,64,"II参数",BLACK);
-	LCD_16ShowString_hanzi(30,81,"D 参数",BLACK);
-	
-	LCD_SHOW_ASCII_1608(91,96,':',BLACK);
-	LCD_SHOW_ASCII_1608(91,112,':',BLACK);	
-	LCD_SHOW_ASCII_1608(96,96,'+',BLACK);
-	LCD_SHOW_ASCII_1608(96,112,'-',BLACK);
-	LCD_16ShowString_hanzi(30,96,"输",BLACK);
-	LCD_16ShowString_hanzi(46,97,"出上限",BLACK);
-	//LCD_16ShowString_hanzi(30,97,"输出上限",BLACK);
-	LCD_16ShowString_hanzi(30,112,"输出下限",BLACK);
-	LCD_16ShowString_hanzi(144,96,"Hz",BLACK);
-	LCD_16ShowString_hanzi(144,112,"Hz",BLACK);
-	
-	
-	Display_UI_Show_PLL_Up_Down_Limit(0,0);
-	Display_UI_Show_PLL_PID_Value(0,0,0,0);
+	LCD_Show_Square(14U, 0U, 146U, 128U, WHITE);
+	BACK_COLOR = WHITE;
+	LCD_16ShowString_hanzi(14U, 0U, "追踪P", BLACK);
+	LCD_16ShowString_hanzi(14U, 16U, "追踪I", BLACK);
+	LCD_16ShowString_hanzi(14U, 32U, "捕获f", BLACK);
+	LCD_16ShowString_hanzi(14U, 48U, "过渡f", BLACK);
+	LCD_16ShowString_hanzi(14U, 64U, "输出上限", BLACK);
+	LCD_16ShowString_hanzi(14U, 80U, "输出下限", BLACK);
+	LCD_16ShowString_hanzi(14U, 96U, "相残限", BLACK);
+	LCD_16ShowString_hanzi(14U, 112U, "幅度", BLACK);
+	LCD_16ShowString_hanzi(88U, 112U, "频残", BLACK);
+	Display_UI_Show_PLL_Gain(0U, 0U);
+	Display_UI_Show_PLL_Gain(1U, 0U);
+	Display_UI_Show_PLL_Gain(2U, 0U);
+	Display_UI_Show_PLL_Gain(3U, 0U);
+	Display_UI_Show_PLL_Limit(0U, 0U);
+	Display_UI_Show_PLL_Limit(1U, 0U);
+	Display_UI_Show_Phase_Threshold(0U);
+	Display_UI_Show_Amplitude_Freq_Threshold(0U, 0U);
 }
-
-
 
 void Display_UI_Init(void)
 {
 	LCD_Clear(WHITE);
-	LCD_Show_Square(13,0,1,128,LGRAY);
-	LCD_Show_Square(14,32,146,1,LGRAY);
-	
-	LCD_SHOW_Icon_1612(0,17,10, LGRAYBLUE);//ms
-	LCD_SHOW_Icon_1612(0,51,11, LGRAYBLUE);//pll
-	LCD_SHOW_Icon_1612(0,75,12, LGRAYBLUE);//P1
-	LCD_SHOW_Icon_1612(0,112,13,LGRAYBLUE);//P2
-	
-	LCD_SHOW_Icon_1612(0,2,5,GRAY);//Left
-	LCD_SHOW_Icon_1612(0,36,4,GRAY);//Right
-	LCD_SHOW_Icon_1612(1,68,2,GRAY);//Up
-	LCD_SHOW_Icon_1612(1,105,3,GRAY);//Down
-	
-	STM8_Slave_Read_Status();
-	Display_UI_Microwave_Source_Init();
+	LCD_Show_Square(13U, 0U, 1U, 128U, LGRAY);
+	LCD_Show_Square(14U, 32U, 146U, 1U, LGRAY);
+	LCD_SHOW_Icon_1612(0U, 17U, 10U, LGRAYBLUE);
+	LCD_SHOW_Icon_1612(0U, 51U, 11U, LGRAYBLUE);
+	LCD_SHOW_Icon_1612(0U, 75U, 12U, LGRAYBLUE);
+	LCD_SHOW_Icon_1612(0U, 112U, 13U, LGRAYBLUE);
+	LCD_SHOW_Icon_1612(0U, 2U, 5U, GRAY);
+	LCD_SHOW_Icon_1612(0U, 36U, 4U, GRAY);
+	LCD_SHOW_Icon_1612(1U, 68U, 2U, GRAY);
+	LCD_SHOW_Icon_1612(1U, 105U, 3U, GRAY);
 	Display_UI_PLL_Main_Page_Init();
 }
-
-
-
-
-
-
-
-
-
-

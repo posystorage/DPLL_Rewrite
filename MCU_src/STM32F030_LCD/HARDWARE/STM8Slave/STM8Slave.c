@@ -2,160 +2,167 @@
 #include "LCD.h"
 #include "iic.h"
 #include "delay.h"
-#define STM8_Slave_Addr 0x4A
 
-union STM8_Slave_Data_Union STM8_Slave_Data;
-uint16_t STM8_Slave_EERPOM_Write_Cnt;
-#define STM8_Slave_EEPROM_Write_Time 10000//10√Î
+#define STM8_SLAVE_ADDR                 0x4AU
+#define STM8_BUSY_POLL_LIMIT            5000U
+#define STM8_EEPROM_WRITE_TIME          10000U
 
-void STM8Slave_Wait_Busy(void)
+uint8_t STM8_Control_Bank[CTRL_BANK_SIZE];
+static uint16_t STM8_EEPROM_Write_Cnt;
+
+uint16_t STM8_Bank_Get_U16(uint8_t offset)
 {
-	uint8_t Slave_Cache;
-	//uint32_t i=0;
-	while(1)
-	{
-		//i++;
-		IIC_Read(STM8_Slave_Addr,1,1,&Slave_Cache);
-		if((Slave_Cache&0x04)==0)return;	
-		delay_us(200);
+	return (uint16_t)STM8_Control_Bank[offset] |
+	       ((uint16_t)STM8_Control_Bank[offset + 1U] << 8);
+}
+
+uint32_t STM8_Bank_Get_U32(uint8_t offset)
+{
+	return (uint32_t)STM8_Control_Bank[offset] |
+	       ((uint32_t)STM8_Control_Bank[offset + 1U] << 8) |
+	       ((uint32_t)STM8_Control_Bank[offset + 2U] << 16) |
+	       ((uint32_t)STM8_Control_Bank[offset + 3U] << 24);
+}
+
+int32_t STM8_Bank_Get_S32(uint8_t offset)
+{
+	return (int32_t)STM8_Bank_Get_U32(offset);
+}
+
+void STM8_Bank_Put_U16(uint8_t offset, uint16_t value)
+{
+	STM8_Control_Bank[offset] = (uint8_t)value;
+	STM8_Control_Bank[offset + 1U] = (uint8_t)(value >> 8);
+}
+
+void STM8_Bank_Put_U32(uint8_t offset, uint32_t value)
+{
+	STM8_Control_Bank[offset] = (uint8_t)value;
+	STM8_Control_Bank[offset + 1U] = (uint8_t)(value >> 8);
+	STM8_Control_Bank[offset + 2U] = (uint8_t)(value >> 16);
+	STM8_Control_Bank[offset + 3U] = (uint8_t)(value >> 24);
+}
+
+static uint8_t STM8Slave_Wait_Busy(void)
+{
+	uint8_t status;
+	uint32_t poll;
+	for (poll = 0U; poll < STM8_BUSY_POLL_LIMIT; ++poll) {
+		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_BRIDGE_STATUS, 1U, &status) == 1U &&
+		    (status & CTRL_BRIDGE_STATUS_BUSY) == 0U) return 1U;
+		delay_us(200U);
 	}
+	return 0U;
+}
+
+static uint8_t STM8Slave_Command(uint8_t command, uint16_t delay_ms_after)
+{
+	if (!STM8Slave_Wait_Busy()) return 0U;
+	IIC_Write(STM8_SLAVE_ADDR, command, 0U, 0);
+	if (delay_ms_after) delay_ms(delay_ms_after);
+	return STM8Slave_Wait_Busy();
 }
 
 void STM8Slave_MAX2871_ON_CMD(void)
 {
-	IIC_Write(STM8_Slave_Addr,0xC0,0,0);
-	delay_us(100);
-	STM8Slave_Wait_Busy();
+	STM8Slave_Command(0xC0U, 1U);
 }
 
 void STM8Slave_MAX2871_OFF_CMD(void)
 {
-	IIC_Write(STM8_Slave_Addr,0xC1,0,0);
-	STM8Slave_Wait_Busy();
-}
-
-void STM8Slave_Read_EEPROM_CMD(void)
-{
-	IIC_Write(STM8_Slave_Addr,0xC2,0,0);
-	STM8Slave_Wait_Busy();
-}
-
-void STM8Slave_Write_EEPROM_CMD(void)
-{
-	STM8Slave_Wait_Busy();
-	IIC_Write(STM8_Slave_Addr,0xC3,0,0);	
-	delay_ms(6);
-	STM8Slave_Wait_Busy();
-}
-
-void STM8Slave_Write_PLL_CFG_CMD(void)
-{
-	IIC_Write(STM8_Slave_Addr,0xC4,0,0);
-	delay_ms(2);
-	STM8Slave_Wait_Busy();
-}
-
-void STM8Slave_Read_PLL_CMD(void)
-{
-	IIC_Write(STM8_Slave_Addr,0xC5,0,0);
-	delay_ms(1);
-	STM8Slave_Wait_Busy();
-}
-
-void STM8Slave_Auto_Read_PLL_ON_CMD(void)
-{
-	IIC_Write(STM8_Slave_Addr,0xC6,0,0);
-	STM8Slave_Wait_Busy();
+	STM8Slave_Command(0xC1U, 0U);
 }
 
 void STM8Slave_PLL_ON_CMD(void)
 {
-	IIC_Write(STM8_Slave_Addr,0xC7,0,0);
-	delay_ms(1);
-	STM8Slave_Wait_Busy();
+	STM8Slave_Command(0xC7U, 1U);
 }
 
 void STM8Slave_PLL_OFF_CMD(void)
 {
-	IIC_Write(STM8_Slave_Addr,0xC8,0,0);
-	delay_ms(1);
-	STM8Slave_Wait_Busy();
-}
-void STM8Slave_PLL_RESET_CMD(void)
-{
-	IIC_Write(STM8_Slave_Addr,0xC9,0,0);
-	delay_ms(1);
-	STM8Slave_Wait_Busy();
+	STM8Slave_Command(0xC8U, 1U);
 }
 
 void STM8Slave_Init(void)
 {
-	uint8_t Slave_Cache;
+	uint8_t identity[2];
+	uint8_t dpll_status;
 	IIC1_Init();
-	while(1)
-	{
-		if(IIC_Check_Slave(STM8_Slave_Addr) == 0)
-		{
-			if(IIC_Read(STM8_Slave_Addr,0,1,&Slave_Cache))
-			{
-				if(Slave_Cache == 0xA5)break;
-			}
+	while (1) {
+		if (IIC_Check_Slave(STM8_SLAVE_ADDR) == 0U &&
+		    IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_ID, 2U, identity) == 2U &&
+		    identity[0] == 0xA5U && identity[1] == CTRL_PROTOCOL_VERSION &&
+		    IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_DPLL_STATUS, 1U, &dpll_status) == 1U &&
+		    (dpll_status & CTRL_DPLL_STATUS_ARM_ONLINE) != 0U &&
+		    IIC_Read(STM8_SLAVE_ADDR, 0U, CTRL_BANK_SIZE, STM8_Control_Bank) == CTRL_BANK_SIZE) {
+			break;
 		}
 		LCD_Clear(WHITE);
-		delay_ms(100);
-		LCD_ShowString(0,0,"IIC CHECK ERROR!",RED);
-		delay_ms(400);
+		LCD_ShowString(0U, 0U, "COMMUNICATION ERROR", RED);
+		delay_ms(500U);
 	}
-	STM8Slave_Read_EEPROM_CMD();
-	IIC_Read(STM8_Slave_Addr,0,52,STM8_Slave_Data.IIC_Buff);
-	STM8Slave_PLL_RESET_CMD();
-	STM8Slave_Write_PLL_CFG_CMD();
 }
 
 void STM8_Slave_Set_MAX2871_Freq_Power(void)
 {
-	IIC_Write(STM8_Slave_Addr,0x03,5,&(STM8_Slave_Data.IIC_Buff[3]));
-	if((STM8_Slave_Data.Data_Struct.Microwave_Source_Status&0x01)==0x01)
-	{
+	IIC_Write(STM8_SLAVE_ADDR, CTRL_REG_MWS_FREQ_100KHZ, 5U,
+	          &STM8_Control_Bank[CTRL_REG_MWS_FREQ_100KHZ]);
+	if (STM8_Control_Bank[CTRL_REG_MWS_STATUS] & CTRL_MWS_STATUS_ENABLED)
 		STM8Slave_MAX2871_ON_CMD();
-	}
 	else
-	{
 		STM8Slave_MAX2871_OFF_CMD();
-	}
 }
 
 void STM8_Slave_Send_PLL_Cfg(void)
 {
-	IIC_Write(STM8_Slave_Addr,0x08,34,&(STM8_Slave_Data.IIC_Buff[0x08]));	
-	STM8Slave_Write_PLL_CFG_CMD();
+	IIC_Write(STM8_SLAVE_ADDR, CTRL_PERSIST_BEGIN,
+	          CTRL_PERSIST_END - CTRL_PERSIST_BEGIN,
+	          &STM8_Control_Bank[CTRL_PERSIST_BEGIN]);
+	STM8Slave_Command(0xC4U, 2U);
 }
 
 void STM8_Slave_Read_Status(void)
 {
-	STM8Slave_Read_PLL_CMD();
-	IIC_Read(STM8_Slave_Addr,0x01,2,&(STM8_Slave_Data.IIC_Buff[0x01]));	
-	IIC_Read(STM8_Slave_Addr,0x2A,10,&(STM8_Slave_Data.IIC_Buff[0x2A]));	
+	uint8_t sequence_before;
+	uint8_t sequence_after;
+	uint8_t retry;
+	for (retry = 0U; retry < 3U; ++retry) {
+		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_RESPONSE_SEQ, 1U, &sequence_before) != 1U)
+			continue;
+		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_DPLL_STATUS,
+		             CTRL_BANK_SIZE - CTRL_REG_DPLL_STATUS,
+		             &STM8_Control_Bank[CTRL_REG_DPLL_STATUS]) !=
+		    CTRL_BANK_SIZE - CTRL_REG_DPLL_STATUS) continue;
+		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_RESPONSE_SEQ, 1U, &sequence_after) != 1U)
+			continue;
+		if (sequence_before == sequence_after &&
+		    sequence_after == STM8_Control_Bank[CTRL_REG_REQUEST_SEQ]) {
+			STM8_Control_Bank[CTRL_REG_RESPONSE_SEQ] = sequence_after;
+			return;
+		}
+	}
+	STM8_Control_Bank[CTRL_REG_DPLL_STATUS] &= (uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
+	STM8_Control_Bank[CTRL_REG_DPLL_STATUS] |= CTRL_DPLL_STATUS_ERROR;
 }
 
 void STM8_Slave_EEPROM_Write_Trigger(void)
 {
-	STM8_Slave_EERPOM_Write_Cnt = 1;
+	STM8_EEPROM_Write_Cnt = 1U;
 }
+
 void STM8_Slave_EEPROM_Writer_Time_Service(void)
 {
-	if(STM8_Slave_EERPOM_Write_Cnt)
-	{
-		STM8_Slave_EERPOM_Write_Cnt++;
-		if(STM8_Slave_EERPOM_Write_Cnt>STM8_Slave_EEPROM_Write_Time)STM8_Slave_EERPOM_Write_Cnt = STM8_Slave_EEPROM_Write_Time;
-	}
-}
-void STM8_Slave_EEPROM_Write_Service(void)
-{
-	if(STM8_Slave_EERPOM_Write_Cnt>=STM8_Slave_EEPROM_Write_Time)
-	{
-		STM8Slave_Write_EEPROM_CMD();
-		STM8_Slave_EERPOM_Write_Cnt = 0;
+	if (STM8_EEPROM_Write_Cnt) {
+		STM8_EEPROM_Write_Cnt++;
+		if (STM8_EEPROM_Write_Cnt > STM8_EEPROM_WRITE_TIME)
+			STM8_EEPROM_Write_Cnt = STM8_EEPROM_WRITE_TIME;
 	}
 }
 
+void STM8_Slave_EEPROM_Write_Service(void)
+{
+	if (STM8_EEPROM_Write_Cnt >= STM8_EEPROM_WRITE_TIME) {
+		STM8Slave_Command(0xC3U, 6U);
+		STM8_EEPROM_Write_Cnt = 0U;
+	}
+}

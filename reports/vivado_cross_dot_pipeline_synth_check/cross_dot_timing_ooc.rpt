@@ -1,13 +1,13 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
--------------------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jul 14 00:28:42 2026
+| Date         : Tue Jul 14 00:26:46 2026
 | Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
-| Command      : report_timing_summary -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_single_clock_core_stage_a_synth_check/timing_ooc.rpt
-| Design       : dpll_single_clock_core_stage_a
+| Command      : report_timing_summary -warn_on_violation -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_cross_dot_pipeline_synth_check/cross_dot_timing_ooc.rpt
+| Design       : fll_cross_dot_stage_a
 | Device       : 7z010-clg400
 | Speed File   : -1  PRODUCTION 1.11 2014-09-11
--------------------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Timing Summary Report
 
@@ -74,14 +74,14 @@ Table of Contents
 
 5. checking no_input_delay
 --------------------------
- There are 898 input ports with no input delay specified. (HIGH)
+ There are 54 input ports with no input delay specified. (HIGH)
 
  There are 0 input ports with no input delay but user has a false path constraint.
 
 
 6. checking no_output_delay
 ---------------------------
- There are 328 ports with no output delay specified. (HIGH)
+ There are 25 ports with no output delay specified. (HIGH)
 
  There are 0 ports with no output delay but user has a false path constraint
 
@@ -126,7 +126,7 @@ Table of Contents
 
     WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
     -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-      0.398        0.000                      0                20458        0.193        0.000                      0                20458        3.020        0.000                       0                  6967  
+      0.636        0.000                      0                 3080        0.195        0.000                      0                 3080        3.020        0.000                       0                  1245  
 
 
 All user specified timing constraints are met.
@@ -149,7 +149,7 @@ clk_125m  {0.000 4.000}        8.000           125.000
 
 Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
 -----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-clk_125m            0.398        0.000                      0                20458        0.193        0.000                      0                20458        3.020        0.000                       0                  6967  
+clk_125m            0.636        0.000                      0                 3080        0.195        0.000                      0                 3080        3.020        0.000                       0                  1245  
 
 
 ------------------------------------------------------------------------------------------------
@@ -180,24 +180,24 @@ Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing 
 From Clock:  clk_125m
   To Clock:  clk_125m
 
-Setup :            0  Failing Endpoints,  Worst Slack        0.398ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.193ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        0.636ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.195ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack        3.020ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.398ns  (required time - arrival time)
-  Source:                 hybrid_loop_inst/kf_product_r_reg[4]/C
+Slack (MET) :             0.636ns  (required time - arrival time)
+  Source:                 serial_cross_abs_reg[0]/C
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
-  Destination:            hybrid_loop_inst/fll_product_r_reg[28]__0/D
+  Destination:            divide_dividend_reg[69]/D
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
   Path Group:             clk_125m
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            8.000ns  (clk_125m rise@8.000ns - clk_125m rise@0.000ns)
-  Data Path Delay:        7.613ns  (logic 4.091ns (53.737%)  route 3.522ns (46.263%))
-  Logic Levels:           13  (CARRY4=9 LUT2=1 LUT3=1 LUT6=2)
+  Data Path Delay:        7.342ns  (logic 3.857ns (52.533%)  route 3.485ns (47.467%))
+  Logic Levels:           20  (CARRY4=15 LUT2=1 LUT3=1 LUT5=1 LUT6=2)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 8.924 - 8.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -213,62 +213,82 @@ Slack (MET) :             0.398ns  (required time - arrival time)
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=6970, unset)         0.973     0.973    hybrid_loop_inst/clk_125m
-                         FDRE                                         r  hybrid_loop_inst/kf_product_r_reg[4]/C
+                         net (fo=1246, unset)         0.973     0.973    clk_125m
+                         FDRE                                         r  serial_cross_abs_reg[0]/C
   -------------------------------------------------------------------    -------------------
-                         FDRE (Prop_fdre_C_Q)         0.496     1.469 r  hybrid_loop_inst/kf_product_r_reg[4]/Q
-                         net (fo=10, unplaced)        1.008     2.477    hybrid_loop_inst/kf_product_r[4]
-                         LUT6 (Prop_lut6_I0_O)        0.295     2.772 r  hybrid_loop_inst/fll_product_r[11]__0_i_18/O
-                         net (fo=2, unplaced)         0.650     3.422    hybrid_loop_inst/fll_product_r[11]__0_i_18_n_0
-                         CARRY4 (Prop_carry4_DI[1]_CO[3])
-                                                      0.507     3.929 r  hybrid_loop_inst/fll_product_r_reg[11]__0_i_15/CO[3]
-                         net (fo=1, unplaced)         0.000     3.929    hybrid_loop_inst/fll_product_r_reg[11]__0_i_15_n_0
+                         FDRE (Prop_fdre_C_Q)         0.496     1.469 r  serial_cross_abs_reg[0]/Q
+                         net (fo=7, unplaced)         1.000     2.469    serial_cross_abs[0]
+                         LUT6 (Prop_lut6_I0_O)        0.295     2.764 r  serial_numerator[3]_i_8/O
+                         net (fo=8, unplaced)         0.940     3.704    serial_numerator[3]_i_8_n_0
+                         LUT5 (Prop_lut5_I0_O)        0.150     3.854 r  serial_numerator[26]_i_9/O
+                         net (fo=3, unplaced)         0.467     4.321    serial_numerator[26]_i_9_n_0
+                         LUT6 (Prop_lut6_I0_O)        0.124     4.445 r  serial_numerator[10]_i_8/O
+                         net (fo=2, unplaced)         0.460     4.905    serial_numerator[10]_i_8_n_0
+                         LUT2 (Prop_lut2_I1_O)        0.124     5.029 r  divide_dividend[13]_i_5/O
+                         net (fo=1, unplaced)         0.000     5.029    divide_dividend[13]_i_5_n_0
+                         CARRY4 (Prop_carry4_S[1]_CO[3])
+                                                      0.550     5.579 r  divide_dividend_reg[13]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.579    divide_dividend_reg[13]_i_2_n_0
                          CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     4.043 r  hybrid_loop_inst/fll_product_r_reg[15]__0_i_15/CO[3]
-                         net (fo=1, unplaced)         0.000     4.043    hybrid_loop_inst/fll_product_r_reg[15]__0_i_15_n_0
+                                                      0.114     5.693 r  divide_dividend_reg[17]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.693    divide_dividend_reg[17]_i_2_n_0
                          CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     4.157 r  hybrid_loop_inst/fll_product_r_reg[19]__0_i_15/CO[3]
-                         net (fo=1, unplaced)         0.000     4.157    hybrid_loop_inst/fll_product_r_reg[19]__0_i_15_n_0
+                                                      0.114     5.807 r  divide_dividend_reg[21]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.807    divide_dividend_reg[21]_i_2_n_0
                          CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     4.271 r  hybrid_loop_inst/fll_product_r_reg[23]__0_i_15/CO[3]
-                         net (fo=1, unplaced)         0.000     4.271    hybrid_loop_inst/fll_product_r_reg[23]__0_i_15_n_0
+                                                      0.114     5.921 r  divide_dividend_reg[25]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     5.921    divide_dividend_reg[25]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.035 r  divide_dividend_reg[29]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.035    divide_dividend_reg[29]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.149 r  divide_dividend_reg[33]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.149    divide_dividend_reg[33]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.263 r  divide_dividend_reg[37]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.263    divide_dividend_reg[37]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.377 r  divide_dividend_reg[41]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.377    divide_dividend_reg[41]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.491 r  divide_dividend_reg[45]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.491    divide_dividend_reg[45]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.605 r  divide_dividend_reg[49]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.605    divide_dividend_reg[49]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.719 r  divide_dividend_reg[53]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.719    divide_dividend_reg[53]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.833 r  divide_dividend_reg[57]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.833    divide_dividend_reg[57]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     6.947 r  divide_dividend_reg[61]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     6.947    divide_dividend_reg[61]_i_2_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     7.061 r  divide_dividend_reg[65]_i_2/CO[3]
+                         net (fo=1, unplaced)         0.000     7.061    divide_dividend_reg[65]_i_2_n_0
                          CARRY4 (Prop_carry4_CI_O[3])
-                                                      0.329     4.600 r  hybrid_loop_inst/fll_product_r_reg[27]__0_i_15/O[3]
-                         net (fo=6, unplaced)         0.650     5.250    hybrid_loop_inst/fll_product_r_reg[27]__0_i_15_n_4
-                         LUT3 (Prop_lut3_I2_O)        0.307     5.557 r  hybrid_loop_inst/fll_product_r[27]__0_i_17/O
-                         net (fo=1, unplaced)         0.902     6.459    hybrid_loop_inst/fll_product_r[27]__0_i_17_n_0
-                         LUT6 (Prop_lut6_I0_O)        0.124     6.583 r  hybrid_loop_inst/fll_product_r[27]__0_i_11/O
-                         net (fo=1, unplaced)         0.000     6.583    hybrid_loop_inst/fll_product_r[27]__0_i_11_n_0
-                         CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.984 r  hybrid_loop_inst/fll_product_r_reg[27]__0_i_6/CO[3]
-                         net (fo=1, unplaced)         0.000     6.984    hybrid_loop_inst/fll_product_r_reg[27]__0_i_6_n_0
-                         CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.348     7.332 r  hybrid_loop_inst/fll_product_r_reg[28]__0_i_3/O[1]
-                         net (fo=1, unplaced)         0.312     7.644    hybrid_loop_inst/fll_product_next__0[27]
-                         LUT2 (Prop_lut2_I1_O)        0.306     7.950 r  hybrid_loop_inst/fll_product_r[27]__0_i_2/O
-                         net (fo=1, unplaced)         0.000     7.950    hybrid_loop_inst/fll_product_r[27]__0_i_2_n_0
-                         CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     8.351 r  hybrid_loop_inst/fll_product_r_reg[27]__0_i_1/CO[3]
-                         net (fo=1, unplaced)         0.000     8.351    hybrid_loop_inst/fll_product_r_reg[27]__0_i_1_n_0
-                         CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.235     8.586 r  hybrid_loop_inst/fll_product_r_reg[28]__0_i_1/O[0]
-                         net (fo=1, unplaced)         0.000     8.586    hybrid_loop_inst/fll_product_next0_out[28]
-                         FDRE                                         r  hybrid_loop_inst/fll_product_r_reg[28]__0/D
+                                                      0.329     7.390 r  divide_dividend_reg[69]_i_2/O[3]
+                         net (fo=1, unplaced)         0.618     8.008    serial_numerator_next[69]
+                         LUT3 (Prop_lut3_I0_O)        0.307     8.315 r  divide_dividend[69]_i_1/O
+                         net (fo=1, unplaced)         0.000     8.315    p_1_in[69]
+                         FDRE                                         r  divide_dividend_reg[69]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk_125m rise edge)
                                                       8.000     8.000 r  
                                                       0.000     8.000 r  clk_125m (IN)
-                         net (fo=6970, unset)         0.924     8.924    hybrid_loop_inst/clk_125m
-                         FDRE                                         r  hybrid_loop_inst/fll_product_r_reg[28]__0/C
+                         net (fo=1246, unset)         0.924     8.924    clk_125m
+                         FDRE                                         r  divide_dividend_reg[69]/C
                          clock pessimism              0.000     8.924    
                          clock uncertainty           -0.035     8.889    
-                         FDRE (Setup_fdre_C_D)        0.095     8.984    hybrid_loop_inst/fll_product_r_reg[28]__0
+                         FDRE (Setup_fdre_C_D)        0.062     8.951    divide_dividend_reg[69]
   -------------------------------------------------------------------
-                         required time                          8.984    
-                         arrival time                          -8.586    
+                         required time                          8.951    
+                         arrival time                          -8.315    
   -------------------------------------------------------------------
-                         slack                                  0.398    
+                         slack                                  0.636    
 
 
 
@@ -276,15 +296,15 @@ Slack (MET) :             0.398ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.193ns  (arrival time - required time)
-  Source:                 dc_blocker_inst/dc_accumulator_reg[0]/C
+Slack (MET) :             0.195ns  (arrival time - required time)
+  Source:                 serial_denominator_reg[12]/C
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
-  Destination:            dc_blocker_inst/dc_accumulator_reg[1]/D
+  Destination:            serial_denominator_reg[13]/D
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
   Path Group:             clk_125m
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk_125m rise@0.000ns - clk_125m rise@0.000ns)
-  Data Path Delay:        0.341ns  (logic 0.252ns (74.005%)  route 0.089ns (25.995%))
+  Data Path Delay:        0.343ns  (logic 0.252ns (73.459%)  route 0.091ns (26.541%))
   Logic Levels:           1  (CARRY4=1)
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
@@ -296,29 +316,29 @@ Slack (MET) :             0.193ns  (arrival time - required time)
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=6970, unset)         0.410     0.410    dc_blocker_inst/clk_125m
-                         FDRE                                         r  dc_blocker_inst/dc_accumulator_reg[0]/C
+                         net (fo=1246, unset)         0.410     0.410    clk_125m
+                         FDRE                                         r  serial_denominator_reg[12]/C
   -------------------------------------------------------------------    -------------------
-                         FDRE (Prop_fdre_C_Q)         0.158     0.568 r  dc_blocker_inst/dc_accumulator_reg[0]/Q
-                         net (fo=3, unplaced)         0.089     0.657    dc_blocker_inst/dc_accumulator[0]
+                         FDRE (Prop_fdre_C_Q)         0.158     0.568 r  serial_denominator_reg[12]/Q
+                         net (fo=4, unplaced)         0.091     0.659    serial_denominator_reg[12]
                          CARRY4 (Prop_carry4_DI[0]_O[1])
-                                                      0.094     0.751 r  dc_blocker_inst/dc_accumulator_reg[3]_i_1/O[1]
-                         net (fo=1, unplaced)         0.000     0.751    dc_blocker_inst/dc_accumulator_reg[3]_i_1_n_6
-                         FDRE                                         r  dc_blocker_inst/dc_accumulator_reg[1]/D
+                                                      0.094     0.753 r  serial_denominator_reg[12]_i_1/O[1]
+                         net (fo=1, unplaced)         0.000     0.753    serial_denominator_reg[12]_i_1_n_6
+                         FDRE                                         r  serial_denominator_reg[13]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=6970, unset)         0.432     0.432    dc_blocker_inst/clk_125m
-                         FDRE                                         r  dc_blocker_inst/dc_accumulator_reg[1]/C
+                         net (fo=1246, unset)         0.432     0.432    clk_125m
+                         FDRE                                         r  serial_denominator_reg[13]/C
                          clock pessimism              0.000     0.432    
-                         FDRE (Hold_fdre_C_D)         0.126     0.558    dc_blocker_inst/dc_accumulator_reg[1]
+                         FDRE (Hold_fdre_C_D)         0.126     0.558    serial_denominator_reg[13]
   -------------------------------------------------------------------
                          required time                         -0.558    
-                         arrival time                           0.751    
+                         arrival time                           0.753    
   -------------------------------------------------------------------
-                         slack                                  0.193    
+                         slack                                  0.195    
 
 
 
@@ -332,9 +352,9 @@ Period(ns):         8.000
 Sources:            { clk_125m }
 
 Check Type        Corner  Lib Pin      Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location  Pin
-Min Period        n/a     DSP48E1/CLK  n/a            3.884         8.000       4.116                fll_cross_dot_inst/cross_mul_product_r_reg/CLK
-Low Pulse Width   Fast    SRL16E/CLK   n/a            0.980         4.000       3.020                fll_cross_dot_inst/i_delay_reg[5][0]_srl2___fll_cross_dot_inst_q_delay_reg_r_0/CLK
-High Pulse Width  Slow    SRL16E/CLK   n/a            0.980         4.000       3.020                fll_cross_dot_inst/i_delay_reg[5][0]_srl2___fll_cross_dot_inst_q_delay_reg_r_0/CLK
+Min Period        n/a     DSP48E1/CLK  n/a            3.884         8.000       4.116                cross_mul_product_r_reg__0/CLK
+Low Pulse Width   Fast    SRL16E/CLK   n/a            0.980         4.000       3.020                i_delay_reg[5][0]_srl2___q_delay_reg_r_0/CLK
+High Pulse Width  Slow    SRL16E/CLK   n/a            0.980         4.000       3.020                i_delay_reg[5][0]_srl2___q_delay_reg_r_0/CLK
 
 
 

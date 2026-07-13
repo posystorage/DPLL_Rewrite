@@ -46,6 +46,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "platform.h"
 #include "xil_printf.h"
 #include "xil_io.h"
@@ -59,6 +60,7 @@
 #include "xscugic.h"
 #include "xuartps.h"
 #include "xuartps_hw.h"
+#include "control_protocol.h"
 
 
 
@@ -66,6 +68,19 @@ XUartPs XUartPs_uart0;
 XUartPs XUartPs_uart1;
 XScuGic XPS_XScuGic;
 uint8_t PLL_Lock_Status;
+
+static uint8_t Control_Bank[CTRL_BANK_SIZE];
+
+static uint8_t Control_Link_Startup(void);
+static void Control_Link_Service(void);
+static uint8_t Control_Apply_Persistent(const uint8_t *data, uint8_t save);
+static uint8_t Control_Save_Active(void);
+static uint8_t Control_Set_MWS_Enable(uint8_t enable);
+static uint8_t Control_Set_DPLL_Enable(uint8_t enable);
+static void Control_Reset_Both(void);
+static void control_put_u32(uint8_t offset, uint32_t value);
+static uint8_t control_uart_write(uint8_t offset, uint8_t length, const uint8_t *data);
+static uint8_t control_apply_bank(void);
 
 void XPS_Core_init(void)
 {
@@ -104,6 +119,8 @@ void XPS_Core_init(void)
 #define PC_CMD_READ_FREQMETER_RUN_STATUS			0x15
 #define PC_CMD_READ_FREQMETER_TIMER_SETTING			0x16
 #define PC_CMD_READ_FREQMETER_CNT					0x17
+#define PC_CMD_READ_FREQMETER_FAST_REFERENCE		0x1C
+#define PC_CMD_READ_CONTROL_BANK			0x1D
 
 
 #define PC_CMD_VBIAS_READ_DAC	 			0x1A
@@ -134,7 +151,10 @@ void XPS_Core_init(void)
 #define PC_CMD_FREQMETER_RESET	 			0x96
 
 #define PC_CMD_WRITE_DPLL_DEBUG_CONFIG		0x97
+#define PC_CMD_FREQMETER_FAST_INTERVAL		0x98
+#define PC_CMD_APPLY_CONTROL_BANK		0x99
 #define PC_CMD_VBIAS_WRITE_DAC	 			0x9A
+#define PC_CMD_SAVE_CONTROL_BANK			0x9B
 
 uint8_t Uart0_RX_Buff[512];
 uint8_t Uart0_TX_Buff[512];
@@ -429,6 +449,7 @@ void Uart0_Handler(void *CallBackRef)
 {
 	u32 IsrStatus;
 	u32 RX_Num;
+	(void)CallBackRef;
 
 	IsrStatus =  XUartPs_ReadReg(XUartPs_uart0.Config.BaseAddress, XUARTPS_IMR_OFFSET);
 	IsrStatus &= XUartPs_ReadReg(XUartPs_uart0.Config.BaseAddress, XUARTPS_ISR_OFFSET);
@@ -534,7 +555,7 @@ void PC_HOST_CMD_Get(void)
 		//print("Err F2 nums\r\n");
 		return;
 	}
-	if(((Uart0_RX_Buff[2]<0x80)&&(Uart0_RX_Buff[2]>0x1B))||(Uart0_RX_Buff[2]>0x9A))
+	if(((Uart0_RX_Buff[2]<0x80)&&(Uart0_RX_Buff[2]>0x1D))||(Uart0_RX_Buff[2]>0x9B))
 	{
 		PC_HOST_CMD_ASK = 0xF3;
 		//print("Err F3 cmd\r\n");
@@ -559,39 +580,6 @@ void PC_HOST_CMD_Get(void)
 	PC_HOST_CMD_ASK = 0x00;
 }
 
-//void CMD_01_READ_MWS_SETTING(void)
-//{
-//	uint32_t Error_Code;
-//	uint32_t Freq;
-//	uint8_t pwr;
-//	Error_Code = Uart1_STM8_Get_MWS_CFG(&Freq,&pwr);
-//	if(Error_Code)
-//	{
-//		PC_HOST_Send_ASK(0xFE,Error_Code);
-//		return;
-//	}
-//	Uart0_TX_Buff[4] = Freq&0xFF;
-//	Uart0_TX_Buff[5] = (Freq>>8)&0xFF;
-//	Uart0_TX_Buff[6] = (Freq>>16)&0xFF;
-//	Uart0_TX_Buff[7] = (Freq>>24)&0xFF;
-//	Uart0_TX_Buff[8] = pwr;
-//	PC_HOST_ASK_Pack(5);
-//}
-//void CMD_02_READ_MWS_STATUS(void)
-//{
-//	uint32_t Error_Code;
-//	uint8_t sta;
-//	Error_Code = Uart1_STM8_Read_MWS_Status(&sta);
-//	if(Error_Code)
-//	{
-//		Uart0_TX_Buff[4] = 0x80;
-//		PC_HOST_ASK_Pack(1);
-//		return;
-//	}
-//	Uart0_TX_Buff[4] = sta;
-//	PC_HOST_ASK_Pack(1);
-//
-//}
 void CMD_03_READ_PLL_FREQ_SETTING(void)
 {
 	uint32_t i;
@@ -702,7 +690,7 @@ void CMD_09_PLL_STATUS(void)
 
 void CMD_0A_READ_VERSION(void)
 {
-	Uart0_TX_Buff[4] = 1;
+	Uart0_TX_Buff[4] = CTRL_PROTOCOL_VERSION;
 	PC_HOST_ASK_Pack(1);
 }
 
@@ -879,6 +867,37 @@ void CMD_17_READ_FREQMETER_CNT(void)
 	PC_HOST_ASK_Pack(16);
 }
 
+void CMD_1C_READ_FREQMETER_FAST_REFERENCE(void)
+{
+	uint32_t status_before;
+	uint32_t status_after;
+	uint32_t data_l;
+	uint32_t data_m;
+	uint32_t data_h;
+	uint32_t result_interval;
+	uint32_t retry_count = 0;
+
+	do {
+		status_before = Xil_In32(Freq_Meter_Fast_Status_Addr);
+		data_l = Xil_In32(Freq_Meter_Fast_DataL_Output_Addr);
+		data_m = Xil_In32(Freq_Meter_Fast_DataM_Output_Addr);
+		data_h = Xil_In32(Freq_Meter_Fast_DataH_Output_Addr);
+		result_interval = Xil_In32(Freq_Meter_Fast_Result_Interval_Addr);
+		status_after = Xil_In32(Freq_Meter_Fast_Status_Addr);
+		retry_count++;
+	} while ((status_before != status_after) && (retry_count < 4U));
+
+	pc_put_u32(4, status_after);
+	pc_put_u32(8, data_l);
+	pc_put_u32(12, data_m);
+	Uart0_TX_Buff[16] = data_h & 0xFFU;
+	Uart0_TX_Buff[17] = (data_h >> 8) & 0xFFU;
+	pc_put_u32(18, result_interval);
+	pc_put_u32(22, Xil_In32(Freq_Meter_Fast_Interval_Addr));
+
+	PC_HOST_ASK_Pack(22);
+}
+
 void CMD_18_READ_DPLL_ID_STATUS(void)
 {
 	pc_put_u32(4, Xil_In32(DPLL_ABI_VERSION_Addr));
@@ -948,96 +967,6 @@ void CMD_1B_READ_VBIAS_ADC(void)
 }
 
 
-//void CMD_81_WRITE_MWS_FREQ_PWR(void)
-//{
-//	uint32_t Error_Code;
-//	uint32_t freq;
-//	uint8_t pwr = PC_HOST_CMD_data_Buff[8];
-//	freq = PC_HOST_CMD_data_Buff[4]|((uint8_t)PC_HOST_CMD_data_Buff[5]<<8)|((uint8_t)PC_HOST_CMD_data_Buff[6]<<16)|((uint8_t)PC_HOST_CMD_data_Buff[7]<<24);
-//	Error_Code = Uart1_STM8_Set_MWS_CFG(freq,pwr);
-//	PC_HOST_Send_ASK_Only(Error_Code);
-//}
-void CMD_82_WRITE_PLL_FREQ(void)
-{
-	uint32_t center_word_hi = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
-	if (dpll_write_center_filter_profile(center_word_hi) != DPLL_DRIVER_OK) {
-		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_VERIFY);
-		return;
-	}
-	pc_send_dpll_apply_result(dpll_apply_config());
-}
-void CMD_83_WRITE_PLL_MUL_DIV(void)
-{
-	//*((uint32_t*)&STM8_EEPROM_Data[4+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
-	Xil_Out32(VOC_Fre_Mul_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[4]));//MUL
-	Xil_Out32(VOC_Fre_Div_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[6]));//DIV
-	pc_send_dpll_apply_result(dpll_apply_config());
-}
-void CMD_84_WRITE_PLL_THRESHOLD(void)
-{
-	//*((uint32_t*)&STM8_EEPROM_Data[28+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
-    Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[4]));//14Bit
-    Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[6]));//32Bit
-	pc_send_dpll_apply_result(dpll_apply_config());
-}
-void CMD_85_WRITE_PLL_LIMIT(void)
-{
-	uint32_t data;
-	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
-	if(data > 0x7FFF) data = 0x7FFF;
-	//*((uint16_t*)&STM8_EEPROM_Data[24+8]) = data;
-    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
-
-	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
-	if(data < 0x8000) data = 0x8000;
-	//*((uint16_t*)&STM8_EEPROM_Data[26+8]) = data;
-    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
-	pc_send_dpll_apply_result(dpll_apply_config());
-}
-void CMD_86_WRITE_DPLL_LOOP_BASIC(void)
-{
-	//*((uint32_t*)&STM8_EEPROM_Data[8+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
-	//*((uint32_t*)&STM8_EEPROM_Data[12+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[8]);
-	//*((uint32_t*)&STM8_EEPROM_Data[16+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[12]);
-	//*((uint32_t*)&STM8_EEPROM_Data[20+8]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[16]);
-    Xil_Out32(DPLL_PLL_KP_TRACK_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));
-    Xil_Out32(DPLL_PLL_KI_TRACK_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[8]));
-    Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[12]));
-    Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[16]));
-	pc_send_dpll_apply_result(dpll_apply_config());
-}
-void CMD_87_WRITE_PLL_AMP(void)
-{
-	//*((uint16_t*)&STM8_EEPROM_Data[32+8]) = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
-	Xil_Out32(DAC0_VOC_Amplitude_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[4]));//amplitude 15bit;
-	pc_send_dpll_apply_result(dpll_apply_config());
-}
-//void CMD_88_WRITE_MWS_ON(void)
-//{
-//	uint32_t Error_Code;
-//	Error_Code = Uart1_STM8_Set_RF_ON();
-//	PC_HOST_Send_ASK_Only(Error_Code);
-//}
-//void CMD_89_WRITE_MWS_OFF(void)
-//{
-//	uint32_t Error_Code;
-//	Error_Code = Uart1_STM8_Set_RF_OFF();
-//	PC_HOST_Send_ASK_Only(Error_Code);
-//}
-//void CMD_8C_LOAD_EEPROM(void)
-//{
-//	uint32_t Error_Code;
-//	Error_Code = Uart1_STM8_Read_EEPROM();
-//	Write_PLL_Data_From_EEPROM();
-//	PC_HOST_Send_ASK_Only(Error_Code);
-//}
-//void CMD_8D_SAVE_EEPROM(void)
-//{
-//	uint32_t Error_Code;
-//	Error_Code = Uart1_STM8_Save_EEPROM();
-//	PC_HOST_Send_ASK_Only(Error_Code);
-//}
-
 void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 {
 	if (pc_payload_len() < DPLL_ADV_CONFIG_PAYLOAD_BYTES) {
@@ -1073,13 +1002,11 @@ void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 }
 void CMD_90_WRITE_FREQMETER_FREQ(void)
 {
-	//*((uint32_t*)&STM8_EEPROM_Data[0+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
 	Xil_Out32(Freq_Meter_Centre_Frequency_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//中心频率
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_91_WRITE_FREQMETER_THRESHOLD(void)
 {
-	//*((uint32_t*)&STM8_EEPROM_Data[4+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
     Xil_Out32(Freq_Meter_Freq_Residuals_Threshold_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[4]));//14Bit
     Xil_Out32(Freq_Meter_Phase_Residuals_Threshold_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[6]));//32Bit
 	PC_HOST_Send_ASK_Only(0);
@@ -1088,31 +1015,21 @@ void CMD_92_WRITE_FREQMETER_LIMIT(void)
 {
 	uint32_t data;
 
-	//*((uint16_t*)&STM8_EEPROM_Data[8+44]) = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
-	//*((uint16_t*)&STM8_EEPROM_Data[10+44]) = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
-    //data = *((uint16_t*)&STM8_EEPROM_Data[8+44]);
     //Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
-    //data = *((uint16_t*)&STM8_EEPROM_Data[10+44]);
     //Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
 	if(data > 0x7FFF) data = 0x3FFF;
-	//*((uint16_t*)&STM8_EEPROM_Data[8+44]) = data;
     Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
 	if(data < 0xA000) data = 0xA000;
-	//*((uint16_t*)&STM8_EEPROM_Data[10+44]) = data;
     Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
 
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_93_WRITE_FREQMETER_PID(void)
 {
-//	*((uint32_t*)&STM8_EEPROM_Data[12+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
-//	*((uint32_t*)&STM8_EEPROM_Data[16+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[8]);
-//	*((uint32_t*)&STM8_EEPROM_Data[20+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[12]);
-//	*((uint32_t*)&STM8_EEPROM_Data[24+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[16]);
     Xil_Out32(Freq_Meter_PID_GainP_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));
     Xil_Out32(Freq_Meter_PID_GainI_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[8]));
     Xil_Out32(Freq_Meter_PID_GainI2_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[12]));
@@ -1121,7 +1038,6 @@ void CMD_93_WRITE_FREQMETER_PID(void)
 }
 void CMD_94_WRITE_FREQMETER_TIMER(void)
 {
-	//*((uint32_t*)&STM8_EEPROM_Data[28+44]) = *((uint32_t*)&PC_HOST_CMD_data_Buff[4]);
 	Xil_Out32(Freq_Meter_Gate_Time_L_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//中心频率
 	Xil_Out32(Freq_Meter_Gate_Time_H_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[8]));//中心频率
 	PC_HOST_Send_ASK_Only(0);
@@ -1139,6 +1055,59 @@ void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 	Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR, pc_get_u16(14));
 	PC_HOST_Send_ASK_Only(0);
 }
+
+void CMD_98_WRITE_FREQMETER_FAST_INTERVAL(void)
+{
+	uint32_t interval_cycles;
+
+	if (pc_payload_len() < 4U) {
+		PC_HOST_Send_ASK_Only(0xF2);
+		return;
+	}
+	interval_cycles = pc_get_u32(4);
+	if (interval_cycles == 0U) {
+		PC_HOST_Send_ASK_Only(0xF2);
+		return;
+	}
+	Xil_Out32(Freq_Meter_Fast_Interval_Addr, interval_cycles);
+	PC_HOST_Send_ASK_Only(0);
+}
+
+void CMD_1D_READ_CONTROL_BANK(void)
+{
+	memcpy(&Uart0_TX_Buff[4], Control_Bank, CTRL_BANK_SIZE);
+	PC_HOST_ASK_Pack(CTRL_BANK_SIZE);
+}
+
+void CMD_81_WRITE_MWS_FREQ_PWR(void)
+{
+	if (pc_payload_len() < 5U) {
+		PC_HOST_Send_ASK_Only(0xF2);
+		return;
+	}
+	control_put_u32(CTRL_REG_MWS_FREQ_100KHZ, pc_get_u32(4));
+	Control_Bank[CTRL_REG_MWS_POWER] = PC_HOST_CMD_data_Buff[8] & 0x03U;
+	PC_HOST_Send_ASK_Only(control_uart_write(CTRL_REG_MWS_FREQ_100KHZ, 5U,
+	                                           &Control_Bank[CTRL_REG_MWS_FREQ_100KHZ]) ? 0U :
+	                                           CTRL_ERROR_PROTOCOL);
+}
+
+void CMD_99_APPLY_CONTROL_BANK(void)
+{
+	uint8_t status;
+	if (pc_payload_len() != (CTRL_PERSIST_END - CTRL_PERSIST_BEGIN)) {
+		PC_HOST_Send_ASK_Only(0xF2);
+		return;
+	}
+	status = Control_Apply_Persistent(&PC_HOST_CMD_data_Buff[4], 0U);
+	PC_HOST_Send_ASK_Only(status);
+}
+
+void CMD_9B_SAVE_CONTROL_BANK(void)
+{
+	PC_HOST_Send_ASK_Only(Control_Save_Active() ? 0U : CTRL_ERROR_PROTOCOL);
+}
+
 void CMD_9A_WRITE_VBIAS_DAC(void)
 {
 	PC_HOST_Send_ASK_Only(0);
@@ -1222,6 +1191,12 @@ void PC_HOST_CMD_Respond(void)
 			case PC_CMD_READ_FREQMETER_CNT:
 				CMD_17_READ_FREQMETER_CNT();
 				break;
+			case PC_CMD_READ_FREQMETER_FAST_REFERENCE:
+				CMD_1C_READ_FREQMETER_FAST_REFERENCE();
+				break;
+			case PC_CMD_READ_CONTROL_BANK:
+				CMD_1D_READ_CONTROL_BANK();
+				break;
 //			case PC_CMD_VBIAS_READ_DAC:
 //				CMD_1A_READ_VBIAS_DAC();
 //				break;
@@ -1230,43 +1205,28 @@ void PC_HOST_CMD_Respond(void)
 //				break;
 
 
-//			case PC_CMD_WRITE_MWS_FREQ_PWR:
-//				CMD_81_WRITE_MWS_FREQ_PWR();
-//				break;
+			case PC_CMD_WRITE_MWS_FREQ_PWR:
+				CMD_81_WRITE_MWS_FREQ_PWR();
+				break;
 			case PC_CMD_WRITE_PLL_FREQ:
-				CMD_82_WRITE_PLL_FREQ();
-				break;
 			case PC_CMD_WRITE_PLL_MUL_DIV:
-				CMD_83_WRITE_PLL_MUL_DIV();
-				break;
 			case PC_CMD_WRITE_PLL_THRESHOLD:
-				CMD_84_WRITE_PLL_THRESHOLD();
-				break;
 			case PC_CMD_WRITE_PLL_LIMIT:
-				CMD_85_WRITE_PLL_LIMIT();
-				break;
 			case PC_CMD_WRITE_DPLL_LOOP_BASIC:
-				CMD_86_WRITE_DPLL_LOOP_BASIC();
-				break;
 			case PC_CMD_WRITE_PLL_AMP:
-				CMD_87_WRITE_PLL_AMP();
+				PC_HOST_Send_ASK_Only(CTRL_ERROR_PROTOCOL);
 				break;
-//			case PC_CMD_WRITE_MWS_ON:
-//				CMD_88_WRITE_MWS_ON();
-//				break;
-//			case PC_CMD_WRITE_MWS_OFF:
-//				CMD_89_WRITE_MWS_OFF();
-//				break;
+			case PC_CMD_WRITE_MWS_ON:
+				PC_HOST_Send_ASK_Only(Control_Set_MWS_Enable(1U) ? 0U : CTRL_ERROR_PROTOCOL);
+				break;
+			case PC_CMD_WRITE_MWS_OFF:
+				PC_HOST_Send_ASK_Only(Control_Set_MWS_Enable(0U) ? 0U : CTRL_ERROR_PROTOCOL);
+				break;
 			case PC_CMD_WRITE_PLL_ON:
-				if (dpll_set_enable(1) != 0) {
-					PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
-				} else {
-					PC_HOST_Send_ASK_Only(0);
-				}
+				PC_HOST_Send_ASK_Only(Control_Set_DPLL_Enable(1U) ? 0U : CTRL_ERROR_APPLY);
 				break;
 			case PC_CMD_WRITE_PLL_OFF:
-				dpll_set_enable(0);
-				PC_HOST_Send_ASK_Only(0);
+				PC_HOST_Send_ASK_Only(Control_Set_DPLL_Enable(0U) ? 0U : CTRL_ERROR_APPLY);
 				break;
 //			case PC_CMD_LOAD_EEPROM:
 //				CMD_8C_LOAD_EEPROM();
@@ -1275,10 +1235,13 @@ void PC_HOST_CMD_Respond(void)
 //				CMD_8D_SAVE_EEPROM();
 //				break;
 			case PC_CMD_PLL_RESET:
-				Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);
+				Control_Reset_Both();
 				dpll_invalidate_abi();
-				dpll_initialize_abi();
-				PC_HOST_Send_ASK_Only(dpll_abi_ready ? 0 : PC_ERR_DPLL_ABI_MISMATCH);
+				if (dpll_initialize_abi() && control_apply_bank()) {
+					PC_HOST_Send_ASK_Only(0U);
+				} else {
+					PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
+				}
 				break;
 
 			case PC_CMD_WRITE_DPLL_ADV_CONFIG:
@@ -1316,6 +1279,15 @@ void PC_HOST_CMD_Respond(void)
 			case PC_CMD_WRITE_DPLL_DEBUG_CONFIG:
 				CMD_97_WRITE_DPLL_DEBUG_CONFIG();
 				break;
+			case PC_CMD_FREQMETER_FAST_INTERVAL:
+				CMD_98_WRITE_FREQMETER_FAST_INTERVAL();
+				break;
+			case PC_CMD_APPLY_CONTROL_BANK:
+				CMD_99_APPLY_CONTROL_BANK();
+				break;
+			case PC_CMD_SAVE_CONTROL_BANK:
+				CMD_9B_SAVE_CONTROL_BANK();
+				break;
 //			case PC_CMD_VBIAS_WRITE_DAC:
 //				CMD_9A_WRITE_VBIAS_DAC();
 //				break;
@@ -1333,323 +1305,549 @@ void PC_HOST_CMD_Respond(void)
 
 
 
-/*********************************UART1  STM8COM****************************/
+/*********************************UART1  STM8 CONTROL BANK****************************/
 
+#define CONTROL_UART_BUFFER_SIZE       128U
+#define CONTROL_UART_TIMEOUT_LOOPS     1000U
+#define CONTROL_SERVICE_PERIOD_LOOPS   50U
 
+static volatile uint8_t Control_Uart_RX[CONTROL_UART_BUFFER_SIZE];
+static volatile uint32_t Control_Uart_RX_Count;
+static volatile uint8_t Control_Uart_Frame_Ready;
+static uint8_t Control_Uart_TX[CONTROL_UART_BUFFER_SIZE];
+static uint8_t Control_Request_Seen;
+static uint8_t Control_DPLL_Enabled;
+static uint8_t Control_Last_Error;
+static uint32_t Control_Service_Divider;
 
-#define PACKAGE_SOH 0xA1
-#define PACKAGE_STX 0xA2
-#define PACKAGE_ETX 0xA3
-
-#define STATUS_NACK                     0x03
-#define STATUS_COMMAND_NUMBER_ERROR     0x04
-#define STATUS_PARAMETER_ERROR          0x05
-#define STATUS_ACK                      0x06
-#define STATUS_CHECKSUM_ERROR           0x07
-
-#define CMD_WRITE_CFG_DATA      0xC4
-#define CMD_READ_STATUS_DATA    0xC5
-#define CMD_PLL_ON              0xC7
-#define CMD_PLL_OFF             0xC8
-#define CMD_RESET               0xC9
-
-unsigned char Uart_TX_Buff[512];
-unsigned char Uart_RX_Buff[512];
-u32 STM_HOST_CMD_ASK = 0;
-u32 STM_HOST_CMD_GET = 0;
-unsigned char STM_HOST_CMD_data_Buff[64];
-u32 Uart_RX_Num=0;
-
-
-void STM_HOST_CMD_Get(void)
+static uint16_t control_get_u16(uint8_t offset)
 {
-	u32 i;
-	u32 CheckSm=0;
-	if(Uart_RX_Buff[0]!=PACKAGE_SOH)
-	{
-		STM_HOST_CMD_ASK = STATUS_COMMAND_NUMBER_ERROR;
-		return;
-	}
-	if((Uart_RX_Num<5)||(Uart_RX_Num>48))
-	{
-		STM_HOST_CMD_ASK = STATUS_COMMAND_NUMBER_ERROR;
-		return;
-	}
-	if(Uart_RX_Buff[1]!=(Uart_RX_Num-4))
-	{
-		STM_HOST_CMD_ASK = STATUS_PARAMETER_ERROR;
-		return;
-	}
-	if(Uart_RX_Buff[Uart_RX_Num-1]!=PACKAGE_ETX)
-	{
-		STM_HOST_CMD_ASK = STATUS_PARAMETER_ERROR;
-		return;
-	}
-	if((Uart_RX_Buff[2]<0xC4)||(Uart_RX_Buff[2]>0xC9))
-	{
-		STM_HOST_CMD_ASK = STATUS_NACK;
-		return;
-	}
-	for(i=1;i<(Uart_RX_Num-2);i++)
-	{
-		CheckSm -= Uart_RX_Buff[i];
-	}
-	if(Uart_RX_Buff[Uart_RX_Num-2]!=(CheckSm&0xFF))
-	{
-		STM_HOST_CMD_ASK = STATUS_CHECKSUM_ERROR;
-		return;
-	}
-	STM_HOST_CMD_GET = Uart_RX_Buff[2];
-	if(Uart_RX_Buff[1]>1)
-	for(i=0;i<Uart_RX_Buff[1]-1;i++)
-	{
-		STM_HOST_CMD_data_Buff[i] = Uart_RX_Buff[3+i];
-	}
-	STM_HOST_CMD_ASK = STATUS_ACK;
+	return (uint16_t)Control_Bank[offset] |
+	       ((uint16_t)Control_Bank[offset + 1U] << 8);
+}
+
+static uint32_t control_get_u32(uint8_t offset)
+{
+	return (uint32_t)Control_Bank[offset] |
+	       ((uint32_t)Control_Bank[offset + 1U] << 8) |
+	       ((uint32_t)Control_Bank[offset + 2U] << 16) |
+	       ((uint32_t)Control_Bank[offset + 3U] << 24);
+}
+
+static int32_t control_get_s32(uint8_t offset)
+{
+	return (int32_t)control_get_u32(offset);
+}
+
+static void control_put_u32(uint8_t offset, uint32_t value)
+{
+	Control_Bank[offset] = (uint8_t)value;
+	Control_Bank[offset + 1U] = (uint8_t)(value >> 8);
+	Control_Bank[offset + 2U] = (uint8_t)(value >> 16);
+	Control_Bank[offset + 3U] = (uint8_t)(value >> 24);
+}
+
+static uint8_t control_checksum(const uint8_t *data, uint32_t length)
+{
+	uint32_t index;
+	uint8_t sum = 0U;
+	for (index = 0U; index < length; ++index) sum = (uint8_t)(sum + data[index]);
+	return (uint8_t)(0U - sum);
 }
 
 void Uart1_Handler(void *CallBackRef)
 {
-	u32 IsrStatus;
-	u32 RX_Num;
+	u32 isr_status;
+	u32 received;
+	(void)CallBackRef;
 
-	IsrStatus =  XUartPs_ReadReg(XUartPs_uart1.Config.BaseAddress, XUARTPS_IMR_OFFSET);
-	IsrStatus &= XUartPs_ReadReg(XUartPs_uart1.Config.BaseAddress, XUARTPS_ISR_OFFSET);
+	isr_status = XUartPs_ReadReg(XUartPs_uart1.Config.BaseAddress, XUARTPS_IMR_OFFSET);
+	isr_status &= XUartPs_ReadReg(XUartPs_uart1.Config.BaseAddress, XUARTPS_ISR_OFFSET);
 
-	if((IsrStatus & (u32)XUARTPS_IXR_RXOVR)!=0)
-	{
-		XUartPs_WriteReg(XUartPs_uart1.Config.BaseAddress, XUARTPS_ISR_OFFSET, XUARTPS_IXR_RXOVR);
-		RX_Num=XUartPs_Recv(&XUartPs_uart1,&Uart_RX_Buff[Uart_RX_Num],512-Uart_RX_Num);
-		Uart_RX_Num+=RX_Num;
+	if ((isr_status & (u32)XUARTPS_IXR_RXOVR) != 0U) {
+		XUartPs_WriteReg(XUartPs_uart1.Config.BaseAddress, XUARTPS_ISR_OFFSET,
+		                 XUARTPS_IXR_RXOVR);
+		received = XUartPs_Recv(&XUartPs_uart1,
+		                        (uint8_t *)&Control_Uart_RX[Control_Uart_RX_Count],
+		                        CONTROL_UART_BUFFER_SIZE - Control_Uart_RX_Count);
+		Control_Uart_RX_Count += received;
 	}
-	if((IsrStatus & (u32)XUARTPS_IXR_TOUT)!=0)
-	{
-		XUartPs_WriteReg(XUartPs_uart1.Config.BaseAddress, XUARTPS_ISR_OFFSET, XUARTPS_IXR_TOUT);
-		RX_Num=XUartPs_Recv(&XUartPs_uart1,&Uart_RX_Buff[Uart_RX_Num],512-Uart_RX_Num);
-		Uart_RX_Num+=RX_Num;
-		//for(IsrStatus=0;IsrStatus<Uart_RX_Num;IsrStatus++)XUartPs_SendByte(XUartPs_uart0.Config.BaseAddress,Uart_RX_Buff[IsrStatus]);
-		STM_HOST_CMD_Get();
-		Uart_RX_Num=0;
+	if ((isr_status & (u32)XUARTPS_IXR_TOUT) != 0U) {
+		XUartPs_WriteReg(XUartPs_uart1.Config.BaseAddress, XUARTPS_ISR_OFFSET,
+		                 XUARTPS_IXR_TOUT);
+		received = XUartPs_Recv(&XUartPs_uart1,
+		                        (uint8_t *)&Control_Uart_RX[Control_Uart_RX_Count],
+		                        CONTROL_UART_BUFFER_SIZE - Control_Uart_RX_Count);
+		Control_Uart_RX_Count += received;
+		Control_Uart_Frame_Ready = 1U;
 	}
 }
 
 void Uart1PS_Init(void)
 {
-	XUartPs_Config *XUartPs_Config_uart1;
-	XUartPsFormat XUartPsFormat_uart1;
-
-	XScuGic_Config *XScuGic_Config_ps;
-
+	XUartPs_Config *config;
+	XUartPsFormat format;
 	int status;
 
-	XUartPs_Config_uart1 = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);//获得串口1配置信息
-	status = XUartPs_CfgInitialize(&XUartPs_uart1,XUartPs_Config_uart1,XUartPs_Config_uart1->BaseAddress);
-	if(status != XST_SUCCESS)
-	{
-		print("Initialize uart1 fail\n");
-	}
+	config = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);
+	status = XUartPs_CfgInitialize(&XUartPs_uart1, config, config->BaseAddress);
+	if (status != XST_SUCCESS) print("Initialize uart1 fail\n");
+
 	XUartPs_SetOperMode(&XUartPs_uart1, XUARTPS_OPER_MODE_NORMAL);
-	XUartPsFormat_uart1.BaudRate = 921600;//波特率921600
-	XUartPsFormat_uart1.DataBits = XUARTPS_FORMAT_8_BITS;
-	XUartPsFormat_uart1.Parity = XUARTPS_FORMAT_NO_PARITY;
-	XUartPsFormat_uart1.StopBits = XUARTPS_FORMAT_1_STOP_BIT;
-	status = XUartPs_SetDataFormat(&XUartPs_uart1,&XUartPsFormat_uart1);
-	if(status != XST_SUCCESS)
-	{
-		print("set Buad Rate fail\n");
+	format.BaudRate = 921600;
+	format.DataBits = XUARTPS_FORMAT_8_BITS;
+	format.Parity = XUARTPS_FORMAT_NO_PARITY;
+	format.StopBits = XUARTPS_FORMAT_1_STOP_BIT;
+	status = XUartPs_SetDataFormat(&XUartPs_uart1, &format);
+	if (status != XST_SUCCESS) print("set uart1 baud rate fail\n");
+
+	XUartPs_SetFifoThreshold(&XUartPs_uart1, 32);
+	XUartPs_SetRecvTimeout(&XUartPs_uart1, 4);
+	XUartPs_SetInterruptMask(&XUartPs_uart1, XUARTPS_IXR_RXOVR | XUARTPS_IXR_TOUT);
+	XScuGic_Disable(&XPS_XScuGic, XPS_UART1_INT_ID);
+	XScuGic_Connect(&XPS_XScuGic, XPS_UART1_INT_ID,
+	                (Xil_ExceptionHandler)Uart1_Handler, (void *)&XUartPs_uart1);
+	XScuGic_Enable(&XPS_XScuGic, XPS_UART1_INT_ID);
+	Control_Uart_RX_Count = 0U;
+	Control_Uart_Frame_Ready = 0U;
+}
+
+static uint8_t Control_Uart_Transaction(uint8_t command, uint8_t offset,
+		uint8_t length, const uint8_t *write_data, uint8_t *read_data)
+{
+	uint32_t index;
+	uint32_t tx_length;
+	uint32_t expected;
+	uint32_t wait_loop;
+	uint8_t response_length;
+	uint8_t checksum;
+
+	Control_Uart_TX[0] = CTRL_UART_REQ;
+	Control_Uart_TX[1] = command;
+	Control_Uart_TX[2] = offset;
+	Control_Uart_TX[3] = length;
+	tx_length = 4U;
+	if (command == CTRL_UART_CMD_WRITE) {
+		for (index = 0U; index < length; ++index) Control_Uart_TX[tx_length++] = write_data[index];
 	}
-	XUartPs_SetFifoThreshold(&XUartPs_uart1,32);
-	XUartPs_SetRecvTimeout(&XUartPs_uart1,4);//4*4=16 timeout IXR
-	XUartPs_SetInterruptMask(&XUartPs_uart1,XUARTPS_IXR_RXOVR|XUARTPS_IXR_TOUT);//开中断
+	Control_Uart_TX[tx_length] = control_checksum(&Control_Uart_TX[1], tx_length - 1U);
+	Control_Uart_TX[tx_length + 1U] = CTRL_UART_ETX;
+	tx_length += 2U;
 
-	//XScuGic_Config_ps = XScuGic_LookupConfig(XPAR_SCUGIC_SINGLE_DEVICE_ID);
-	//XScuGic_CfgInitialize(&XPS_XScuGic,XScuGic_Config_ps,XScuGic_Config_ps->CpuBaseAddress);
+	Control_Uart_RX_Count = 0U;
+	Control_Uart_Frame_Ready = 0U;
+	for (index = 0U; index < tx_length; ++index)
+		XUartPs_SendByte(XUartPs_uart1.Config.BaseAddress, Control_Uart_TX[index]);
 
-	//Xil_ExceptionInit();
-	//Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_IRQ_INT,(Xil_ExceptionHandler)XScuGic_InterruptHandler,(void *)&XPS_XScuGic);
-	//Xil_ExceptionEnable();
-
-	XScuGic_Disable(&XPS_XScuGic,XPS_UART1_INT_ID);
-	//XScuGic_SetPriorityTriggerType(&XPS_XScuGic,XPS_UART0_INT_ID,16,1);
-	XScuGic_Connect(&XPS_XScuGic,XPS_UART1_INT_ID,(Xil_ExceptionHandler)Uart1_Handler,(void *)&XUartPs_uart1);//入口
-	XScuGic_Enable(&XPS_XScuGic,XPS_UART1_INT_ID);
-
-	Uart_RX_Num=0;
-}
-
-//unsigned char PLL_Lock_Status = 0;
-
-void STM_HOST_ASK_Status(uint8_t ASK)
-{
-	u32 CheckSm=0,i;
-	Uart_TX_Buff[0] = PACKAGE_STX;
-	Uart_TX_Buff[1] = 1;
-	Uart_TX_Buff[2] = ASK;
-	CheckSm -= 1+ASK;
-	Uart_TX_Buff[3] = CheckSm&0xFF;
-	Uart_TX_Buff[4] = PACKAGE_ETX;
-	for(i=0;i<5;i++)XUartPs_SendByte(XUartPs_uart1.Config.BaseAddress,Uart_TX_Buff[i]);
-}
-void STM_HOST_Respond_Data(void)
-{
-	u32 CheckSm=0,i,data;
-	Uart_TX_Buff[0] = PACKAGE_STX;
-	Uart_TX_Buff[1] = 12;
-	Uart_TX_Buff[2] = STATUS_ACK;
-	i = Xil_In32(System_Statue);
-	//if((i&0x50)==0x10)data = i&0x3F;
-	//else data = i&0x2F;
-	data = i&0x3F;
-	Uart_TX_Buff[3] = PLL_Lock_Status|data;
-	i = Xil_In32(DDC0_inst_frequency);
-	Uart_TX_Buff[4] = (i>>0)&0xFF;
-	Uart_TX_Buff[5] = (i>>8)&0xFF;
-	i = Xil_In32(PLL0_phase_residuals);
-	Uart_TX_Buff[6] = i&0xFF;
-	Uart_TX_Buff[7] = (i>>8)&0xFF;
-	Uart_TX_Buff[8] = (i>>16)&0xFF;
-	Uart_TX_Buff[9] = (i>>24)&0xFF;
-	//i = Xil_In32(PLL0_Output_Limit);
-	i = Xil_In32(PLL0_Output_Limit_Average);
-	Uart_TX_Buff[10] = i&0xFF;
-	Uart_TX_Buff[11] = (i>>8)&0xFF;
-	Uart_TX_Buff[12] = (i>>16)&0xFF;
-	Uart_TX_Buff[13] = (i>>24)&0xFF;
-	for(i=1;i<14;i++)CheckSm -= Uart_TX_Buff[i];
-	Uart_TX_Buff[14] = CheckSm&0xFF;
-	Uart_TX_Buff[15] = PACKAGE_ETX;
-	for(i=0;i<16;i++)XUartPs_SendByte(XUartPs_uart1.Config.BaseAddress,Uart_TX_Buff[i]);
-}
-
-static uint8_t STM_HOST_Write_PLL_Data(void)
-{
-	u32 data;
-	if (dpll_write_center_filter_profile(*((uint32_t*)&STM_HOST_CMD_data_Buff[0])) !=
-	    DPLL_DRIVER_OK) return STATUS_NACK;
-	Xil_Out32(VOC_Fre_Mul_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[4]));//MUL
-	Xil_Out32(VOC_Fre_Div_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[6]));//DIV
-    Xil_Out32(DPLL_PLL_KP_TRACK_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[8]));
-    Xil_Out32(DPLL_PLL_KI_TRACK_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[12]));
-    Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[16]));
-    Xil_Out32(DPLL_FLL_KF_BLEND_Addr,*((uint32_t*)&STM_HOST_CMD_data_Buff[20]));
-    data = *((uint16_t*)&STM_HOST_CMD_data_Buff[24]);
-    Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
-    data = *((uint16_t*)&STM_HOST_CMD_data_Buff[26]);
-    Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
-    Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[28]));//14Bit
-    Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[30]));//32Bit
-    Xil_Out32(DAC0_VOC_Amplitude_Addr,*((uint16_t*)&STM_HOST_CMD_data_Buff[32]));//amplitude 15bit;
-    return (dpll_apply_config() == 0) ? STATUS_ACK : STATUS_NACK;
-}
-void STM_HOST_CMD_Respond(void)
-{
-	uint8_t action_status;
-
-	if(STM_HOST_CMD_ASK)
-	{
-		usleep(200);
-		if(STM_HOST_CMD_ASK == STATUS_ACK)
-		{
-			//printf("C:%X\n",(u32)STM_HOST_CMD_ASK);
-			action_status = STATUS_ACK;
-			switch(STM_HOST_CMD_GET)
-			{
-			case CMD_WRITE_CFG_DATA:
-				action_status = STM_HOST_Write_PLL_Data();
-				break;
-			case CMD_READ_STATUS_DATA:
-				usleep(100);
-				STM_HOST_Respond_Data();
-				action_status = 0;
-				break;
-			case CMD_PLL_ON:
-				action_status = (dpll_set_enable(1) == 0) ? STATUS_ACK : STATUS_NACK;
-				break;
-			case CMD_PLL_OFF:
-				action_status = (dpll_set_enable(0) == 0) ? STATUS_ACK : STATUS_NACK;
-				break;
-			case CMD_RESET:
-				Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);
-				dpll_invalidate_abi();
-				action_status = dpll_initialize_abi() ? STATUS_ACK : STATUS_NACK;
-				break;
-			}
-			if (action_status != 0) {
-				STM_HOST_ASK_Status(action_status);
-			}
-		}
-		else
-		{
-			STM_HOST_ASK_Status(STM_HOST_CMD_ASK);
-		}
-		STM_HOST_CMD_ASK = 0;
+	for (wait_loop = 0U; wait_loop < CONTROL_UART_TIMEOUT_LOOPS; ++wait_loop) {
+		if (Control_Uart_Frame_Ready != 0U) break;
+		usleep(100U);
 	}
+	if (Control_Uart_Frame_Ready == 0U || Control_Uart_RX_Count < 5U) return 0U;
+	if (Control_Uart_RX[0] != CTRL_UART_RESP) return 0U;
+	response_length = Control_Uart_RX[2];
+	expected = (uint32_t)response_length + 5U;
+	if (Control_Uart_RX_Count != expected || Control_Uart_RX[expected - 1U] != CTRL_UART_ETX)
+		return 0U;
+	checksum = control_checksum((const uint8_t *)&Control_Uart_RX[1],
+	                            (uint32_t)response_length + 2U);
+	if (Control_Uart_RX[3U + response_length] != checksum ||
+	    Control_Uart_RX[1] != CTRL_UART_STATUS_OK) return 0U;
+
+	if (command == CTRL_UART_CMD_READ) {
+		if (response_length != length || read_data == 0) return 0U;
+		for (index = 0U; index < length; ++index) read_data[index] = Control_Uart_RX[3U + index];
+	} else if (command == CTRL_UART_CMD_PING) {
+		if (response_length != 1U || read_data == 0) return 0U;
+		read_data[0] = Control_Uart_RX[3];
+	} else if (response_length != 0U) {
+		return 0U;
+	}
+	return 1U;
 }
+
+static uint8_t control_uart_read(uint8_t offset, uint8_t length, uint8_t *data)
+{
+	return Control_Uart_Transaction(CTRL_UART_CMD_READ, offset, length, 0, data);
+}
+
+static uint8_t control_uart_write(uint8_t offset, uint8_t length, const uint8_t *data)
+{
+	return Control_Uart_Transaction(CTRL_UART_CMD_WRITE, offset, length, data, 0);
+}
+
+static int32_t control_div_round_signed(int64_t numerator, int64_t denominator)
+{
+	if (numerator >= 0) return (int32_t)((numerator + denominator / 2) / denominator);
+	return (int32_t)(-((-numerator + denominator / 2) / denominator));
+}
+
+static uint32_t control_center_word(uint32_t frequency_dhz)
+{
+	return (uint32_t)(((uint64_t)frequency_dhz * 0x100000000ULL + 625000000ULL) /
+	                  1250000000ULL);
+}
+
+static int32_t control_limit_word(int32_t frequency_hz)
+{
+	return control_div_round_signed((int64_t)frequency_hz * 0x100000000LL,
+	                                125000000LL);
+}
+
+static uint32_t control_phase_raw(uint16_t centidegrees)
+{
+	return ((uint32_t)centidegrees * 262144UL + 18000UL) / 36000UL;
+}
+
+static uint32_t control_frequency_raw(uint16_t frequency_hz)
+{
+	return ((uint64_t)frequency_hz * 67108864ULL + 1562500ULL) / 3125000ULL;
+}
+
+static uint32_t control_amplitude_raw(uint16_t millivolts)
+{
+	return ((uint32_t)millivolts * 32767UL + 1000UL) / 2000UL;
+}
+
+static uint8_t control_validate_bank(void)
+{
+	uint32_t center = control_get_u32(CTRL_REG_CENTER_FREQ_DHZ);
+	int32_t positive_limit = control_get_s32(CTRL_REG_POS_LIMIT_HZ);
+	int32_t negative_limit = control_get_s32(CTRL_REG_NEG_LIMIT_HZ);
+	if (Control_Bank[CTRL_REG_ID] != 0xA5U ||
+	    Control_Bank[CTRL_REG_PROTOCOL_VERSION] != CTRL_PROTOCOL_VERSION) return 0U;
+	if (center < 40000UL || center > 1250000UL) return 0U;
+	if (control_get_u16(CTRL_REG_OUTPUT_MUL) == 0U ||
+	    control_get_u16(CTRL_REG_OUTPUT_DIV) == 0U) return 0U;
+	if (control_get_u32(CTRL_REG_KP_TRACK) > 0x007FFFFFUL ||
+	    control_get_u32(CTRL_REG_KI_TRACK) > 0x007FFFFFUL ||
+	    control_get_u32(CTRL_REG_KF_ACQUIRE) > 0x007FFFFFUL ||
+	    control_get_u32(CTRL_REG_KF_BLEND) > 0x007FFFFFUL) return 0U;
+	if (positive_limit < 0 || negative_limit > 0) return 0U;
+	if (control_get_u16(CTRL_REG_PHASE_THRESHOLD_CDEG) > 18000U ||
+	    control_get_u16(CTRL_REG_DAC_AMPLITUDE_MV) > 2000U ||
+	    control_get_u16(CTRL_REG_FAST_INTERVAL_MS) < 10U ||
+	    control_get_u16(CTRL_REG_FAST_INTERVAL_MS) > 60000U) return 0U;
+	return 1U;
+}
+
+static uint8_t control_apply_bank(void)
+{
+	uint32_t center_word;
+	uint32_t interval_cycles;
+	int apply_status;
+	if (!control_validate_bank()) {
+		Control_Last_Error = CTRL_ERROR_RANGE;
+		dpll_set_enable(0U);
+		Control_DPLL_Enabled = 0U;
+		return 0U;
+	}
+
+	center_word = control_center_word(control_get_u32(CTRL_REG_CENTER_FREQ_DHZ));
+	if (dpll_write_center_filter_profile(center_word) != DPLL_DRIVER_OK) {
+		Control_Last_Error = CTRL_ERROR_APPLY;
+		dpll_set_enable(0U);
+		Control_DPLL_Enabled = 0U;
+		return 0U;
+	}
+
+	Xil_Out32(VOC_Fre_Mul_Addr, control_get_u16(CTRL_REG_OUTPUT_MUL));
+	Xil_Out32(VOC_Fre_Div_Addr, control_get_u16(CTRL_REG_OUTPUT_DIV));
+	Xil_Out32(DPLL_PLL_KP_TRACK_Addr, control_get_u32(CTRL_REG_KP_TRACK));
+	Xil_Out32(DPLL_PLL_KI_TRACK_Addr, control_get_u32(CTRL_REG_KI_TRACK));
+	Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr, control_get_u32(CTRL_REG_KF_ACQUIRE));
+	Xil_Out32(DPLL_FLL_KF_BLEND_Addr, control_get_u32(CTRL_REG_KF_BLEND));
+	Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,
+	          (uint32_t)control_limit_word(control_get_s32(CTRL_REG_POS_LIMIT_HZ)));
+	Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,
+	          (uint32_t)control_limit_word(control_get_s32(CTRL_REG_NEG_LIMIT_HZ)));
+	Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,
+	          control_phase_raw(control_get_u16(CTRL_REG_PHASE_THRESHOLD_CDEG)));
+	Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,
+	          control_frequency_raw(control_get_u16(CTRL_REG_FREQ_THRESHOLD_HZ)));
+	Xil_Out32(DAC0_VOC_Amplitude_Addr,
+	          control_amplitude_raw(control_get_u16(CTRL_REG_DAC_AMPLITUDE_MV)));
+	interval_cycles = (uint32_t)control_get_u16(CTRL_REG_FAST_INTERVAL_MS) * 125000UL;
+	Xil_Out32(Freq_Meter_Fast_Interval_Addr, interval_cycles);
+
+	apply_status = dpll_apply_config();
+	if (apply_status != DPLL_DRIVER_OK) {
+		Control_Last_Error = (apply_status == DPLL_DRIVER_ERR_ABI) ?
+		                     CTRL_ERROR_ABI : CTRL_ERROR_APPLY;
+		dpll_set_enable(0U);
+		Control_DPLL_Enabled = 0U;
+		return 0U;
+	}
+
+	Control_DPLL_Enabled =
+		(Control_Bank[CTRL_REG_CONTROL_FLAGS] & CTRL_FLAG_DPLL_ENABLE) ? 1U : 0U;
+	if (dpll_set_enable(Control_DPLL_Enabled) != DPLL_DRIVER_OK) {
+		Control_Last_Error = CTRL_ERROR_ABI;
+		Control_DPLL_Enabled = 0U;
+		return 0U;
+	}
+	Control_Last_Error = CTRL_ERROR_NONE;
+	return 1U;
+}
+
+static uint64_t control_divide_u80_u32(uint16_t high, uint32_t middle,
+		uint32_t low, uint32_t divisor)
+{
+	int bit;
+	uint64_t quotient = 0U;
+	uint64_t remainder = 0U;
+	uint8_t quotient_bit;
+	uint8_t input_bit;
+	uint8_t overflow = 0U;
+
+	for (bit = 79; bit >= 0; --bit) {
+		if (bit >= 64) input_bit = (uint8_t)((high >> (bit - 64)) & 1U);
+		else if (bit >= 32) input_bit = (uint8_t)((middle >> (bit - 32)) & 1U);
+		else input_bit = (uint8_t)((low >> bit) & 1U);
+		remainder = (remainder << 1) | input_bit;
+		quotient_bit = 0U;
+		if (remainder >= divisor) {
+			remainder -= divisor;
+			quotient_bit = 1U;
+		}
+		if (bit >= 64) {
+			if (quotient_bit) overflow = 1U;
+		} else if (quotient_bit) {
+			quotient |= (uint64_t)1U << bit;
+		}
+	}
+	return overflow ? 0xFFFFFFFFFFFFFFFFULL : quotient;
+}
+
+static uint32_t control_fast_meter_hz(void)
+{
+	uint32_t status_before;
+	uint32_t status_after;
+	uint32_t interval;
+	uint32_t low;
+	uint32_t middle;
+	uint32_t high;
+	uint64_t quotient;
+	uint64_t frequency;
+	uint32_t retry;
+
+	for (retry = 0U; retry < 4U; ++retry) {
+		status_before = Xil_In32(Freq_Meter_Fast_Status_Addr);
+		low = Xil_In32(Freq_Meter_Fast_DataL_Output_Addr);
+		middle = Xil_In32(Freq_Meter_Fast_DataM_Output_Addr);
+		high = Xil_In32(Freq_Meter_Fast_DataH_Output_Addr) & 0xFFFFU;
+		interval = Xil_In32(Freq_Meter_Fast_Result_Interval_Addr);
+		status_after = Xil_In32(Freq_Meter_Fast_Status_Addr);
+		if (status_before == status_after) break;
+	}
+	control_put_u32(CTRL_REG_FAST_METER_SEQ, status_after >> 1);
+	if ((status_after & 1U) == 0U || interval == 0U || status_before != status_after) return 0U;
+	quotient = control_divide_u80_u32((uint16_t)high, middle, low, interval);
+	if (quotient > (0xFFFFFFFFFFFFFFFFULL - 0x80000000ULL) / 125000000ULL)
+		return 0xFFFFFFFFUL;
+	frequency = (quotient * 125000000ULL + 0x80000000ULL) >> 32;
+	return frequency > 0xFFFFFFFFULL ? 0xFFFFFFFFUL : (uint32_t)frequency;
+}
+
+static uint32_t control_dpll_output_hz(void)
+{
+	uint32_t high_before;
+	uint32_t high_after;
+	uint32_t low;
+	uint32_t word_hi32;
+	uint32_t retry;
+	for (retry = 0U; retry < 4U; ++retry) {
+		high_before = Xil_In32(DPLL_TRACKING_WORD_HI_Addr) & 0xFFFFU;
+		low = Xil_In32(PLL0_Output_Limit);
+		high_after = Xil_In32(DPLL_TRACKING_WORD_HI_Addr) & 0xFFFFU;
+		if (high_before == high_after) break;
+	}
+	if (high_before != high_after) return 0U;
+	word_hi32 = (high_after << 16) | (low >> 16);
+	return (uint32_t)(((uint64_t)word_hi32 * 125000000ULL + 0x80000000ULL) >> 32);
+}
+
+static void control_collect_runtime(void)
+{
+	uint32_t system_status = Xil_In32(System_Statue);
+	uint32_t core_flags = Xil_In32(DPLL_CORE_FLAGS_Addr);
+	int32_t frequency_raw = (int32_t)Xil_In32(DDC0_inst_frequency);
+	int32_t phase_raw = (int32_t)Xil_In32(PLL0_phase_residuals);
+	uint8_t dpll_status = CTRL_DPLL_STATUS_ARM_ONLINE;
+
+	if (Control_DPLL_Enabled) dpll_status |= CTRL_DPLL_STATUS_ENABLED;
+	if (system_status & 0x01U) dpll_status |= CTRL_DPLL_STATUS_LOCKED;
+	if (system_status & 0x20U) dpll_status |= CTRL_DPLL_STATUS_PHASE_OUT;
+	if (system_status & 0x40U) dpll_status |= CTRL_DPLL_STATUS_FREQ_OUT;
+	if (system_status & 0x08U) dpll_status |= CTRL_DPLL_STATUS_POS_RAIL;
+	if (system_status & 0x10U) dpll_status |= CTRL_DPLL_STATUS_NEG_RAIL;
+	if (Control_Last_Error != CTRL_ERROR_NONE) dpll_status |= CTRL_DPLL_STATUS_ERROR;
+	Control_Bank[CTRL_REG_DPLL_STATUS] = dpll_status;
+	Control_Bank[CTRL_REG_LAST_ERROR] = Control_Last_Error;
+	Control_Bank[CTRL_REG_LOOP_STATE] = (uint8_t)((core_flags >> 9) & 0x0FU);
+	Control_Bank[CTRL_REG_LOSS_REASON] = (uint8_t)((core_flags >> 5) & 0x0FU);
+	control_put_u32(CTRL_REG_FREQ_ERROR_HZ,
+	                (uint32_t)control_div_round_signed((int64_t)frequency_raw * 3125000LL,
+	                                                   67108864LL));
+	control_put_u32(CTRL_REG_PHASE_ERROR_CDEG,
+	                (uint32_t)control_div_round_signed((int64_t)phase_raw * 36000LL,
+	                                                   262144LL));
+	control_put_u32(CTRL_REG_OUTPUT_FREQ_HZ, control_dpll_output_hz());
+	control_put_u32(CTRL_REG_FAST_METER_HZ, control_fast_meter_hz());
+	control_put_u32(CTRL_REG_ACTIVE_CONFIG_CRC, Xil_In32(DPLL_ACTIVE_CONFIG_CRC_Addr));
+}
+
+static uint8_t control_publish_runtime(void)
+{
+	uint8_t ok = 1U;
+	uint8_t final_sequence = Control_Bank[CTRL_REG_RESPONSE_SEQ];
+	uint8_t update_sequence = final_sequence ^ 0x80U;
+	ok &= control_uart_write(CTRL_REG_RESPONSE_SEQ, 1U, &update_sequence);
+	ok &= control_uart_write(CTRL_REG_DPLL_STATUS, 1U,
+	                         &Control_Bank[CTRL_REG_DPLL_STATUS]);
+	ok &= control_uart_write(CTRL_REG_LAST_ERROR, 3U,
+	                         &Control_Bank[CTRL_REG_LAST_ERROR]);
+	ok &= control_uart_write(CTRL_REG_FREQ_ERROR_HZ, 24U,
+	                         &Control_Bank[CTRL_REG_FREQ_ERROR_HZ]);
+	ok &= control_uart_write(CTRL_REG_RESPONSE_SEQ, 1U,
+	                         &final_sequence);
+	return ok;
+}
+
+static void Control_Reset_Both(void)
+{
+	dpll_set_enable(0U);
+	Control_DPLL_Enabled = 0U;
+	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 0U);
+	Xil_Out32(Opal_Kelly_Reset_Trigger_Addr, 0U);
+	Xil_Out32(Freq_Meter_Reset_Trigger_Addr, 0U);
+	usleep(100U);
+	dpll_invalidate_abi();
+}
+
+static uint8_t Control_Link_Startup(void)
+{
+	uint8_t version = 0U;
+	uint32_t retry;
+	for (retry = 0U; retry < 200U; ++retry) {
+		if (Control_Uart_Transaction(CTRL_UART_CMD_PING, 0U, 0U, 0, &version) &&
+		    version == CTRL_PROTOCOL_VERSION &&
+		    control_uart_read(0U, CTRL_BANK_SIZE, Control_Bank)) break;
+		usleep(10000U);
+	}
+	if (retry == 200U) return 0U;
+
+	Control_Bank[CTRL_REG_CONTROL_FLAGS] = 0U;
+	control_uart_write(CTRL_REG_CONTROL_FLAGS, 1U,
+	                   &Control_Bank[CTRL_REG_CONTROL_FLAGS]);
+	Control_Reset_Both();
+	if (!dpll_initialize_abi()) {
+		Control_Last_Error = CTRL_ERROR_ABI;
+		return 0U;
+	}
+	if (!control_apply_bank()) return 0U;
+	Control_Request_Seen = Control_Bank[CTRL_REG_REQUEST_SEQ];
+	Control_Bank[CTRL_REG_RESPONSE_SEQ] = Control_Request_Seen;
+	control_collect_runtime();
+	return control_publish_runtime();
+}
+
+static void Control_Link_Service(void)
+{
+	uint8_t header[67];
+	if (++Control_Service_Divider < CONTROL_SERVICE_PERIOD_LOOPS) return;
+	Control_Service_Divider = 0U;
+	if (!control_uart_read(CTRL_REG_REQUEST_SEQ, sizeof(header), header)) {
+		Control_Last_Error = CTRL_ERROR_PROTOCOL;
+		return;
+	}
+	memcpy(&Control_Bank[CTRL_REG_REQUEST_SEQ], header, sizeof(header));
+	if (Control_Bank[CTRL_REG_REQUEST_SEQ] != Control_Request_Seen) {
+		Control_Request_Seen = Control_Bank[CTRL_REG_REQUEST_SEQ];
+		control_apply_bank();
+		Control_Bank[CTRL_REG_RESPONSE_SEQ] = Control_Request_Seen;
+	}
+	control_collect_runtime();
+	control_publish_runtime();
+}
+
+static uint8_t Control_Apply_Persistent(const uint8_t *data, uint8_t save)
+{
+	memcpy(&Control_Bank[CTRL_PERSIST_BEGIN], data,
+	       CTRL_PERSIST_END - CTRL_PERSIST_BEGIN);
+	if (!control_apply_bank()) return Control_Last_Error;
+	if (!control_uart_write(CTRL_PERSIST_BEGIN,
+	                        CTRL_PERSIST_END - CTRL_PERSIST_BEGIN,
+	                        &Control_Bank[CTRL_PERSIST_BEGIN])) return CTRL_ERROR_PROTOCOL;
+	if (save && !Control_Save_Active()) return CTRL_ERROR_PROTOCOL;
+	return CTRL_ERROR_NONE;
+}
+
+static uint8_t Control_Save_Active(void)
+{
+	return Control_Uart_Transaction(CTRL_UART_CMD_SAVE, 0U, 0U, 0, 0);
+}
+
+static uint8_t Control_Set_MWS_Enable(uint8_t enable)
+{
+	if (enable) Control_Bank[CTRL_REG_CONTROL_FLAGS] |= CTRL_FLAG_MWS_ENABLE;
+	else Control_Bank[CTRL_REG_CONTROL_FLAGS] &= (uint8_t)~CTRL_FLAG_MWS_ENABLE;
+	return control_uart_write(CTRL_REG_CONTROL_FLAGS, 1U,
+	                          &Control_Bank[CTRL_REG_CONTROL_FLAGS]);
+}
+
+static uint8_t Control_Set_DPLL_Enable(uint8_t enable)
+{
+	if (dpll_set_enable(enable ? 1U : 0U) != DPLL_DRIVER_OK) return 0U;
+	Control_DPLL_Enabled = enable ? 1U : 0U;
+	if (enable) Control_Bank[CTRL_REG_CONTROL_FLAGS] |= CTRL_FLAG_DPLL_ENABLE;
+	else Control_Bank[CTRL_REG_CONTROL_FLAGS] &= (uint8_t)~CTRL_FLAG_DPLL_ENABLE;
+	return control_uart_write(CTRL_REG_CONTROL_FLAGS, 1U,
+	                          &Control_Bank[CTRL_REG_CONTROL_FLAGS]);
+}
+
 int main()
 {
-init_platform();
+	init_platform();
 
     XPS_Core_init();
     Uart0PS_Init();
     Uart1PS_Init();
 
-    Xil_Out32(Opal_Kelly_Reset_Trigger_Addr,0);//rst;
-    if (!dpll_initialize_abi()) return -1;
-    dpll_set_enable(0);
-    Xil_Out32(DAC0_VCO_Offset_Addr,0);//offset 14bit;
-    Xil_Out32(DAC0_VOC_Amplitude_Addr,0x7fff);//amplitude 15bit;
-    //Xil_Out32(DAC0_VOC_Amplitude_Addr,0x0001);//amplitude 15bit;
-    if (dpll_write_center_filter_profile(0x000B88CAU) != DPLL_DRIVER_OK) return -1; // verified 22 kHz profile
+	while (!Control_Link_Startup()) {
+		print("control link startup failed, retrying\r\n");
+		usleep(100000U);
+	}
 
-    Xil_Out32(DAC0_DDC_Angle_Select_Addr,0);//wrapped_phase_cordic
+	Xil_Out32(DAC0_DDC_Angle_Select_Addr, 0U);
+	Xil_Out32(DAC0_VCO_Offset_Addr, 0U);
+	Xil_Out32(VCO_Freq_Manual_Offset_Addr, 0U);
 
-//    Xil_Out32(DPLL_DEBUG_DAC_OFFSET_ADDR,0);//offset 14bit;
-//    Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR,0x7fff);//amplitude 15bit;
-//    //Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR,0x03126E97);//Fre 31bit; 1.5Mhz
-//    //Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR,0x0020C49B);//Fre 31bit; 125KHz
-//    Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR,0x00418000);//Fre 31bit; 125KHz
-//    Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR,0x0);//Phase 32bit
-
-    Xil_Out32(VCO_Freq_Manual_Offset_Addr,0);//offset 10bit;
-    Xil_Out32(VOC_Fre_Mul_Addr,1);//mul 16bit;
-    Xil_Out32(VOC_Fre_Div_Addr,1);//div 16bit;
-
-    if (dpll_apply_config() != 0) return -1;
-
-    Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);//rst;
-    Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
-
-    Xil_Out32(Freq_Meter_Centre_Frequency_Addr,0x51EB851E); //40MHz
-    //Xil_Out32(Freq_Meter_Centre_Frequency_Addr,0x51F12345); //40MHz test
-
-    Xil_Out32(Freq_Meter_PID_GainP_Addr,0x00400000);
-    Xil_Out32(Freq_Meter_PID_GainI_Addr,0x00100000);
-    Xil_Out32(Freq_Meter_PID_GainI2_Addr,0x00000100);
-    Xil_Out32(Freq_Meter_PID_GainD_Addr,0);
-    Xil_Out32(Freq_Meter_Coefd_Filter_Addr,0x0FFFF);
-    Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,0x4Fffffff);
-    Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,0xB0000000);
-    Xil_Out32(Freq_Meter_Freq_Manual_Offset_Addr,0);
-    Xil_Out32(Freq_Meter_Gate_Time_H_Addr,0);
-
-    Xil_Out32(Freq_Meter_Phase_Residuals_Threshold_Addr,1000);
-    Xil_Out32(Freq_Meter_Phase_Residuals_Offset_Addr,0);
-    Xil_Out32(Freq_Meter_Freq_Residuals_Threshold_Addr,500);
-	usleep(50);
-
-    // Keep the legacy frequency-meter PLL disabled; the single DPLL lives at DPLL_BASE_ADDR.
-    Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
+	/* The original precision frequency-meter path remains independent. */
+	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 0U);
+	Xil_Out32(Freq_Meter_Centre_Frequency_Addr, 0x51EB851EU);
+	Xil_Out32(Freq_Meter_PID_GainP_Addr, 0x00400000U);
+	Xil_Out32(Freq_Meter_PID_GainI_Addr, 0x00100000U);
+	Xil_Out32(Freq_Meter_PID_GainI2_Addr, 0x00000100U);
+	Xil_Out32(Freq_Meter_PID_GainD_Addr, 0U);
+	Xil_Out32(Freq_Meter_Coefd_Filter_Addr, 0x0FFFFU);
+	Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr, 0x4FFFFFFFU);
+	Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr, 0xB0000000U);
+	Xil_Out32(Freq_Meter_Freq_Manual_Offset_Addr, 0U);
+	Xil_Out32(Freq_Meter_Gate_Time_H_Addr, 0U);
+	Xil_Out32(Freq_Meter_Phase_Residuals_Threshold_Addr, 1000U);
+	Xil_Out32(Freq_Meter_Phase_Residuals_Offset_Addr, 0U);
+	Xil_Out32(Freq_Meter_Freq_Residuals_Threshold_Addr, 500U);
+	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 0U);
 
     XUartPs_SendByte(XUartPs_uart0.Config.BaseAddress,'C');
 
 
     while(1)
     {
-    	STM_HOST_CMD_Respond();
-    	PC_HOST_CMD_Respond();
-        //STM_HOST_ASK_Status(0x06);
-    	//print("hello\n");
-    	//usleep(1000);
+		PC_HOST_CMD_Respond();
+		Control_Link_Service();
+		usleep(1000U);
     }
     cleanup_platform();
     return 0;

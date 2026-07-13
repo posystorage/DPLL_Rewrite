@@ -51,7 +51,7 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn("driver->io.delay_us", self.driver_c)
         self.assertIn("DPLL_DRIVER_ERR_ABI", self.driver_c)
         self.assertIn("dpll_invalidate_abi();", function_body(self.arm, "PC_HOST_CMD_Respond"))
-        self.assertIn("dpll_invalidate_abi();", function_body(self.arm, "STM_HOST_CMD_Respond"))
+        self.assertIn("dpll_invalidate_abi();", function_body(self.arm, "Control_Reset_Both"))
         self.assertIn("actual abi=0x%08lx", self.arm)
         self.assertIn("expected abi=0x%08lx", self.arm)
 
@@ -71,21 +71,16 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertNotIn("& 0xFFFFFFU) != requested_", self.driver_c)
         self.assertIn("dpll_read(driver, driver->regs.active_kp_track) != requested_kp_track", self.driver_c)
 
-    def test_every_shadow_command_commits_before_success(self):
-        commands = (
-            "CMD_82_WRITE_PLL_FREQ",
-            "CMD_83_WRITE_PLL_MUL_DIV",
-            "CMD_84_WRITE_PLL_THRESHOLD",
-            "CMD_85_WRITE_PLL_LIMIT",
-            "CMD_86_WRITE_DPLL_LOOP_BASIC",
-            "CMD_87_WRITE_PLL_AMP",
-            "CMD_8F_WRITE_DPLL_ADV_CONFIG",
-        )
-        for command in commands:
-            with self.subTest(command=command):
-                body = function_body(self.arm, command)
-                self.assertIn("pc_send_dpll_apply_result(dpll_apply_config())", body)
-                self.assertNotIn("PC_HOST_Send_ASK_Only(0);", body)
+    def test_control_bank_apply_and_advanced_apply_commit_before_success(self):
+        bank_apply = function_body(self.arm, "Control_Apply_Persistent")
+        self.assertIn("control_apply_bank()", bank_apply)
+        self.assertIn("control_uart_write", bank_apply)
+        command = function_body(self.arm, "CMD_99_APPLY_CONTROL_BANK")
+        self.assertIn("Control_Apply_Persistent", command)
+
+        advanced = function_body(self.arm, "CMD_8F_WRITE_DPLL_ADV_CONFIG")
+        self.assertIn("pc_send_dpll_apply_result(dpll_apply_config())", advanced)
+        self.assertNotIn("PC_HOST_Send_ASK_Only(0);", advanced)
 
     def test_debug_dac_command_is_live_only(self):
         body = function_body(self.arm, "CMD_97_WRITE_DPLL_DEBUG_CONFIG")

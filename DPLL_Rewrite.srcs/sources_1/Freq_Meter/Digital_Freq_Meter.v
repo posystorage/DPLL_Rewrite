@@ -510,6 +510,7 @@ not G3(pll0_locked_Stable,pll0_locked_Stable_neg);
 wire [16:0]  gate_time_clocks_h;
 wire [32:0]  gate_time_clocks_l;
 wire freq_meter_trig;
+wire [31:0] fast_meter_interval_cycles;
 
 
 parallel_bus_register_32bits_or_less # (
@@ -552,6 +553,20 @@ parallel_bus_register_freq_meter_trig (
      .bus_data(cmd_datain), 
      .register_output(), 
      .update_flag(freq_meter_trig)
+     );
+// Continuous reference display interval. 62,500,000 clocks = 0.5 s at 125 MHz.
+parallel_bus_register_32bits_or_less # (
+    .REGISTER_SIZE(32),
+    .REGISTER_DEFAULT_VALUE(62500000),
+    .ADDRESS(16'h0073)
+)
+parallel_bus_register_fast_meter_interval (
+     .clk(clk1),
+     .bus_strobe(cmd_trig),
+     .bus_address(cmd_addr),
+     .bus_data(cmd_datain),
+     .register_output(fast_meter_interval_cycles),
+     .update_flag()
      );
 
 reg [1:0]meter_state;  
@@ -608,6 +623,22 @@ always @(posedge clk1 or posedge rst0) begin
 end
 
 
+wire [79:0] fast_meter_result;
+wire [31:0] fast_meter_result_interval_cycles;
+wire [30:0] fast_meter_update_sequence;
+wire fast_meter_result_valid;
+
+fast_frequency_accumulator fast_frequency_accumulator_inst (
+    .clk(clk1),
+    .rst(rst0),
+    .phase_increment(Freq_Meter_Phase_Add),
+    .interval_cycles(fast_meter_interval_cycles),
+    .result(fast_meter_result),
+    .result_interval_cycles(fast_meter_result_interval_cycles),
+    .update_sequence(fast_meter_update_sequence),
+    .result_valid(fast_meter_result_valid)
+);
+
 ////////////////////////////////////////////////////////////////////////////////
 //读总线
 wire sys_en;
@@ -639,6 +670,7 @@ end else begin
         
         16'h0070 : begin sys_ack <= sys_en;          sys_rdata <= gate_time_clocks_l;                     end 
         16'h0071 : begin sys_ack <= sys_en;          sys_rdata <= gate_time_clocks_h;                     end 
+        16'h0073 : begin sys_ack <= sys_en;          sys_rdata <= fast_meter_interval_cycles;             end
         //纯读取
         //pll0_locked-瞬时锁定 LED_R0-长时不锁定 pll0_lock-PLL启动使能 LED_G0-长时锁定 
         //16'h0100 : begin sys_ack <= sys_en;          sys_rdata <= {{32-6{1'b0}}, pll0_locked,LED_R0,pll0_lock,LED_G0,dac0_railed_positive,dac0_railed_negative,residuals0_are_above_threshold_freq,residuals0_are_above_threshold_phase};     end//系统状态
@@ -658,15 +690,12 @@ end else begin
         16'h0111 : begin sys_ack <= sys_en;          sys_rdata <= phase_addr_out[31:0];                 end 
         16'h0112 : begin sys_ack <= sys_en;          sys_rdata <= phase_addr_out[63:32];                end 
         16'h0113 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, phase_addr_out[79:64]};end 
+        16'h0114 : begin sys_ack <= sys_en;          sys_rdata <= {fast_meter_update_sequence, fast_meter_result_valid}; end
+        16'h0115 : begin sys_ack <= sys_en;          sys_rdata <= fast_meter_result[31:0];                 end
+        16'h0116 : begin sys_ack <= sys_en;          sys_rdata <= fast_meter_result[63:32];                end
+        16'h0117 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, fast_meter_result[79:64]}; end
+        16'h0118 : begin sys_ack <= sys_en;          sys_rdata <= fast_meter_result_interval_cycles;      end
 
-//        16'h0115 : begin sys_ack <= sys_en;          sys_rdata <= phase_addr_o1[31:0];                 end 
-//        16'h0116 : begin sys_ack <= sys_en;          sys_rdata <= phase_addr_o1[63:32];                end 
-//        16'h0117 : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, phase_addr_o1[79:64]};end 
-        
-//        16'h0118 : begin sys_ack <= sys_en;          sys_rdata <= phase_addr_o2[31:0];                 end 
-//        16'h0119 : begin sys_ack <= sys_en;          sys_rdata <= phase_addr_o2[63:32];                end 
-//        16'h011A : begin sys_ack <= sys_en;          sys_rdata <= {{32-16{1'b0}}, phase_addr_o2[79:64]};end 
-        
 
         default  : begin sys_ack <= sys_en;          sys_rdata <=  32'h0;                               end
    endcase

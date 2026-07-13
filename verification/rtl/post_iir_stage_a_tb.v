@@ -18,6 +18,11 @@ module post_iir_stage_a_tb;
     integer n;
     integer hf_peak;
     integer step_final;
+    integer observed_i;
+    integer observed_q;
+    reg observed_valid;
+    integer observed_latency;
+    integer max_filtered_latency;
 
     always #4 clk_125m = ~clk_125m;
 
@@ -54,7 +59,7 @@ module post_iir_stage_a_tb;
         end
     endfunction
 
-    task push_sample;
+    task push_bypass_sample;
         input signed [19:0] sample_i;
         input signed [19:0] sample_q;
         begin
@@ -65,23 +70,76 @@ module post_iir_stage_a_tb;
             @(posedge clk_125m);
             #1;
             in_valid = 1'b0;
+            if (!out_valid || i_out !== sample_i || q_out !== sample_q ||
+                active_bypass !== 1'b1) begin
+                $display("FAIL: bypass path mismatch valid=%b i=%0d q=%0d bypass=%b",
+                         out_valid, i_out, q_out, active_bypass);
+                $finish;
+            end
+        end
+    endtask
+
+    task push_flush_sample;
+        input signed [19:0] sample_i;
+        input signed [19:0] sample_q;
+        begin
+            @(negedge clk_125m);
+            i_in = sample_i;
+            q_in = sample_q;
+            in_valid = 1'b1;
+            @(posedge clk_125m);
+            #1;
+            in_valid = 1'b0;
+            if (out_valid !== 1'b0) begin
+                $display("FAIL: flush/selection change produced stale output");
+                $finish;
+            end
+        end
+    endtask
+
+    task push_filtered_sample;
+        input signed [19:0] sample_i;
+        input signed [19:0] sample_q;
+        integer wait_cycles;
+        begin
+            observed_valid = 1'b0;
+            observed_latency = 0;
+            @(negedge clk_125m);
+            i_in = sample_i;
+            q_in = sample_q;
+            in_valid = 1'b1;
+            @(posedge clk_125m);
+            #1;
+            in_valid = 1'b0;
+            for (wait_cycles = 0; wait_cycles < 24; wait_cycles = wait_cycles + 1) begin
+                @(posedge clk_125m);
+                #1;
+                observed_latency = wait_cycles + 1;
+                if (out_valid) begin
+                    observed_valid = 1'b1;
+                    observed_i = i_out;
+                    observed_q = q_out;
+                    if (observed_latency > max_filtered_latency) begin
+                        max_filtered_latency = observed_latency;
+                    end
+                end
+            end
+            if (!observed_valid) begin
+                $display("FAIL: filtered transaction did not retire");
+                $finish;
+            end
         end
     endtask
 
     initial begin
+        max_filtered_latency = 0;
         repeat (4) @(posedge clk_125m);
         rst_125m = 1'b0;
 
-        push_sample(20'sd12345, -20'sd23456);
-        if (!out_valid || i_out !== 20'sd12345 || q_out !== -20'sd23456 ||
-            active_bypass !== 1'b1) begin
-            $display("FAIL: bypass path mismatch valid=%b i=%0d q=%0d bypass=%b",
-                     out_valid, i_out, q_out, active_bypass);
-            $finish;
-        end
+        push_bypass_sample(20'sd12345, -20'sd23456);
 
         mode = 2'd1;
-        push_sample(20'sd1000, -20'sd1000);
+        push_flush_sample(20'sd1000, -20'sd1000);
         if (out_valid !== 1'b0 || active_bypass !== 1'b0 || active_use_track !== 1'b0) begin
             $display("FAIL: acquire mode switch did not flush one cycle");
             $finish;
@@ -89,24 +147,24 @@ module post_iir_stage_a_tb;
 
         mode = 2'd3;
         state_use_track = 1'b1;
-        push_sample(20'sd1000, 20'sd1000);
+        push_flush_sample(20'sd1000, 20'sd1000);
         if (active_use_track !== 1'b1) begin
             $display("FAIL: auto mode did not select track coefficients");
             $finish;
         end
 
         clear = 1'b1;
-        push_sample(20'sd0, 20'sd0);
+        push_flush_sample(20'sd0, 20'sd0);
         clear = 1'b0;
 
         hf_peak = 0;
         for (n = 0; n < 96; n = n + 1) begin
-            push_sample(n[0] ? -20'sd100000 : 20'sd100000,
-                        n[0] ? 20'sd50000 : -20'sd50000);
-            if (out_valid && n > 24 && abs20(i_out) > hf_peak) begin
-                hf_peak = abs20(i_out);
+            push_filtered_sample(n[0] ? -20'sd100000 : 20'sd100000,
+                                 n[0] ? 20'sd50000 : -20'sd50000);
+            if (observed_valid && n > 24 && abs20(observed_i) > hf_peak) begin
+                hf_peak = abs20(observed_i);
             end
-            if (out_valid && (i_out === 20'sh7ffff || i_out === 20'sh80000)) begin
+            if (observed_valid && (observed_i === 20'sh7ffff || observed_i === 20'sh80000)) begin
                 $display("FAIL: high-frequency response saturated");
                 $finish;
             end
@@ -117,21 +175,25 @@ module post_iir_stage_a_tb;
         end
 
         clear = 1'b1;
-        push_sample(20'sd0, 20'sd0);
+        push_flush_sample(20'sd0, 20'sd0);
         clear = 1'b0;
         step_final = 0;
         for (n = 0; n < 160; n = n + 1) begin
-            push_sample(20'sd10000, -20'sd10000);
-            if (out_valid) begin
-                step_final = i_out;
+            push_filtered_sample(20'sd10000, -20'sd10000);
+            if (observed_valid) begin
+                step_final = observed_i;
             end
         end
         if (step_final < 20'sd8000 || step_final > 20'sd12000) begin
             $display("FAIL: step response final value out of range %0d", step_final);
             $finish;
         end
+        if (max_filtered_latency > 20) begin
+            $display("FAIL: filtered latency exceeded 20 clocks, max=%0d", max_filtered_latency);
+            $finish;
+        end
 
-        $display("PASS: post_iir_stage_a_tb");
+        $display("PASS: post_iir_stage_a_tb max_filtered_latency=%0d", max_filtered_latency);
         $finish;
     end
 endmodule

@@ -1,159 +1,244 @@
 #include "RedPitaya.h"
+#include "IIC.h"
+#include "EEPROM.h"
+#include "control_protocol.h"
+#include "MAX2871.h"
 
-#define PACKAGE_SOH 0xA1
-#define PACKAGE_STX 0xA2
-#define PACKAGE_ETX 0xA3
+#define CTRL_UART_RX_SIZE 72
+#define CTRL_UART_TX_SIZE 101
+#define CTRL_ARM_TIMEOUT_TICKS 1000
 
-#define STATUS_NACK                     0x03
-#define STATUS_COMMAND_NUMBER_ERROR     0x04
-#define STATUS_PARAMETER_ERROR          0x05
-#define STATUS_ACK                      0x06
-#define STATUS_CHECKSUM_ERROR           0x07
+static volatile uint8_t uart_rx_buff[CTRL_UART_RX_SIZE];
+static volatile uint8_t uart_rx_count;
+static volatile uint8_t uart_frame_ready;
+static volatile uint16_t arm_timeout_ticks;
+static uint8_t uart_tx_buff[CTRL_UART_TX_SIZE];
 
-#define CMD_WRITE_CFG_DATA      0xC4
-#define CMD_READ_STATUS_DATA    0xC5
-#define CMD_PLL_ON              0xC7
-#define CMD_PLL_OFF             0xC8
-#define CMD_RESET               0xC9
+static uint32_t bank_get_u32(uint8_t offset)
+{
+  uint32_t value = IIC_Reg_Buff[offset];
+  value |= (uint32_t)IIC_Reg_Buff[offset + 1] << 8;
+  value |= (uint32_t)IIC_Reg_Buff[offset + 2] << 16;
+  value |= (uint32_t)IIC_Reg_Buff[offset + 3] << 24;
+  return value;
+}
+
+static uint8_t ranges_overlap(uint8_t offset, uint8_t length,
+                              uint8_t field, uint8_t field_length)
+{
+  return (offset < (uint8_t)(field + field_length)) &&
+         (field < (uint8_t)(offset + length));
+}
+
+static void apply_microwave_write(uint8_t offset, uint8_t length)
+{
+  if(!ranges_overlap(offset, length, CTRL_REG_CONTROL_FLAGS, 1) &&
+     !ranges_overlap(offset, length, CTRL_REG_MWS_FREQ_100KHZ, 5)) return;
+
+  if(IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] & CTRL_FLAG_MWS_ENABLE)
+  {
+    max2871_Set_Freq_10M(bank_get_u32(CTRL_REG_MWS_FREQ_100KHZ),
+                         IIC_Reg_Buff[CTRL_REG_MWS_POWER] & 0x03);
+    MAX2871_RFOUT_ON();
+    IIC_Reg_Buff[CTRL_REG_MWS_STATUS] |= CTRL_MWS_STATUS_ENABLED;
+  }
+  else
+  {
+    MAX2871_RFOUT_OFF();
+    IIC_Reg_Buff[CTRL_REG_MWS_STATUS] &= (uint8_t)~CTRL_MWS_STATUS_ENABLED;
+  }
+}
+static uint8_t frame_checksum(const uint8_t *data, uint8_t length)
+{
+  uint8_t i;
+  uint8_t sum = 0;
+  for(i = 0; i < length; i++) sum = (uint8_t)(sum + data[i]);
+  return (uint8_t)(0U - sum);
+}
 
 void RedPitaya_Uart_Init(void)
 {
-  CLK->PCKENR1 |= CLK_PCKENR1_UART2;//头文件有bug
-  
+  CLK->PCKENR1 |= CLK_PCKENR1_UART2;
+
   GPIOD->ODR |= GPIO_PIN_5;
   GPIOD->DDR |= GPIO_PIN_5;
-  GPIOD->CR1 |= GPIO_PIN_5|GPIO_PIN_6;
+  GPIOD->CR1 |= GPIO_PIN_5 | GPIO_PIN_6;
   GPIOD->CR2 |= GPIO_PIN_5;
-  GPIOD->CR2 &=~GPIO_PIN_6;
-  GPIOD->DDR &=~GPIO_PIN_6;
-  
-    
-  UART1->CR1=0x00;  
-  UART1->CR2=0x00;  
-  UART1->CR3=0x00;  
-  // 必须先写BRR2  
-  // 例如对于波特率位115200时，分频系数=16000000/115200=139  
-  // 对应的十六进制数为008B，BBR1=08,BBR2=0B     
-  //UART1->BRR2=0x0B;  
-  //UART1->BRR1=0x08; 
-  //波特率为1Mb，分频系数为16
-  UART1->BRR2=0x00;  
-  UART1->BRR1=0x01;  
-  
-  ITC->ISPR5 &=~ 0x30;  
-  UART1->CR2=UART1_CR2_RIEN|UART1_CR2_TEN|UART1_CR2_REN;//允许接收，发送
+  GPIOD->CR2 &= (uint8_t)~GPIO_PIN_6;
+  GPIOD->DDR &= (uint8_t)~GPIO_PIN_6;
+
+  UART1->CR1 = 0x00;
+  UART1->CR2 = 0x00;
+  UART1->CR3 = 0x00;
+  UART1->BRR2 = 0x00;
+  UART1->BRR1 = 0x01;
+
+  ITC->ISPR5 &= (uint8_t)~0x30;
+  UART1->CR2 = UART1_CR2_RIEN | UART1_CR2_TEN | UART1_CR2_REN;
+
+  uart_rx_count = 0;
+  uart_frame_ready = 0;
+  arm_timeout_ticks = 0;
 }
 
-uint8_t RedPitaya_TX_Buff[48];
-uint8_t RedPitaya_RX_Buff[16];
-uint32_t RedPitaya_RX_Wait_Num = 0;
-uint8_t* RedPitaya_RX_Buff_Pointer;
-uint8_t RedPitaya_Cache;
-
-//0-ok
-//1=timeout
-uint8_t RedPitaya_Uart_TXRX_Frame(uint8_t* TX_Data,uint8_t* RX_Data,uint32_t TX_Nums,uint32_t RX_Nums)
+static void uart_send(const uint8_t *data, uint8_t length)
 {
-  uint16_t RX_TimeOut;
-  if(RX_Nums != 0)
+  while(length)
   {
-    RedPitaya_RX_Buff_Pointer = RX_Data;
-    RedPitaya_RX_Wait_Num = RX_Nums;
+    while((UART1->SR & UART1_SR_TXE) == 0);
+    UART1->DR = *data;
+    data++;
+    length--;
   }
-  while(TX_Nums)
-  {
-    while((UART1->SR&UART1_SR_TXE) == 0);
-    UART1->DR = *TX_Data;
-    TX_Nums--;
-    TX_Data++;
-  } 
-  while((UART1->SR&UART1_SR_TC) == 0);
-  if(RX_Nums == 0)return 0;
-  RX_TimeOut = 5000;//50ms
-  while(RX_TimeOut)
-  {
-    RX_TimeOut--;
-    if(RedPitaya_RX_Wait_Num==0) return 0;
-    delay_us(10);
-  } 
-  RedPitaya_RX_Wait_Num = 0;
-  return 1;  
+  while((UART1->SR & UART1_SR_TC) == 0);
+}
+
+static void send_response(uint8_t status, uint8_t offset, uint8_t length)
+{
+  uint8_t i;
+  uint8_t total;
+
+  uart_tx_buff[0] = CTRL_UART_RESP;
+  uart_tx_buff[1] = status;
+  uart_tx_buff[2] = length;
+  for(i = 0; i < length; i++) uart_tx_buff[3 + i] = IIC_Reg_Buff[offset + i];
+  uart_tx_buff[3 + length] = frame_checksum(&uart_tx_buff[1], (uint8_t)(2 + length));
+  uart_tx_buff[4 + length] = CTRL_UART_ETX;
+  total = (uint8_t)(5 + length);
+  uart_send(uart_tx_buff, total);
 }
 
 INTERRUPT_HANDLER(UART1_RX_IRQHandler, 18)
 {
-  uint8_t RX_Data = UART1->DR;
-  if(RedPitaya_RX_Wait_Num)
+  uint8_t data = UART1->DR;
+  uint8_t expected;
+
+  if(uart_frame_ready) return;
+
+  if(uart_rx_count == 0)
   {
-    *RedPitaya_RX_Buff_Pointer = RX_Data;
-    RedPitaya_RX_Buff_Pointer++;
-    RedPitaya_RX_Wait_Num--;    
+    if(data == CTRL_UART_REQ)
+    {
+      uart_rx_buff[0] = data;
+      uart_rx_count = 1;
+    }
+    return;
+  }
+
+  if(uart_rx_count >= CTRL_UART_RX_SIZE)
+  {
+    uart_rx_count = 0;
+    return;
+  }
+
+  uart_rx_buff[uart_rx_count++] = data;
+  if(uart_rx_count < 4) return;
+
+  expected = 6;
+  if(uart_rx_buff[1] == CTRL_UART_CMD_WRITE)
+  {
+    if(uart_rx_buff[3] > (CTRL_UART_RX_SIZE - 6))
+    {
+      uart_rx_count = 0;
+      return;
+    }
+    expected = (uint8_t)(6 + uart_rx_buff[3]);
+  }
+
+  if(uart_rx_count == expected)
+  {
+    uart_frame_ready = 1;
+  }
+  else if(uart_rx_count > expected)
+  {
+    uart_rx_count = 0;
   }
 }
 
-uint8_t RedPitaya_Send_CMD(uint8_t* CMD_Data_Buff,uint8_t CMD,uint32_t CMD_Data_Nums,uint32_t CMD_RX_Nums)
+void RedPitaya_2ms_Tick(void)
 {
-  uint8_t CheckSm = 0,i,Error_Code;
-  RedPitaya_TX_Buff[0] = PACKAGE_SOH;
-  RedPitaya_TX_Buff[1] = CMD_Data_Nums + 1;
-  CheckSm -= RedPitaya_TX_Buff[1];
-  RedPitaya_TX_Buff[2] = CMD;	
-  CheckSm -= RedPitaya_TX_Buff[2];
-  for(i=0;i<CMD_Data_Nums;i++)
+  if(arm_timeout_ticks)
   {
-    RedPitaya_TX_Buff[3+i] = CMD_Data_Buff[i];
-    CheckSm -= CMD_Data_Buff[i];
-  }	
-  RedPitaya_TX_Buff[3+CMD_Data_Nums] = CheckSm;
-  RedPitaya_TX_Buff[4+CMD_Data_Nums] = PACKAGE_ETX;			
-  Error_Code = RedPitaya_Uart_TXRX_Frame(RedPitaya_TX_Buff,RedPitaya_RX_Buff,CMD_Data_Nums+5,CMD_RX_Nums);
-  if(Error_Code){IIC_Reg_Buff[2]|=0x80;return Error_Code;}//offline
-  IIC_Reg_Buff[2]&=~0x80;
-  if(RedPitaya_RX_Buff[0] != PACKAGE_STX){IIC_Reg_Buff[2]|=0x40; return 3;}
-  if(RedPitaya_RX_Buff[1]>12){IIC_Reg_Buff[2]|=0x40; return 4;}
-  CheckSm = 0;
-  CheckSm -= RedPitaya_RX_Buff[1];
-  for(i=0;i<RedPitaya_RX_Buff[1];i++)
-  {
-    CheckSm -= RedPitaya_RX_Buff[2+i];
-  }		
-  if(RedPitaya_RX_Buff[2+i] != (uint8_t)CheckSm){IIC_Reg_Buff[2]|=0x40;return 5;}
-  if(RedPitaya_RX_Buff[2] != STATUS_ACK){IIC_Reg_Buff[2]|=0x40;return RedPitaya_RX_Buff[2]|0x80;}
-  IIC_Reg_Buff[2]&=~0x40;
-  return 0;	
-}
-
-uint8_t RedPitaya_CMD_WRITE_CFG_DATA(void)
-{
-  return RedPitaya_Send_CMD(&IIC_Reg_Buff[8],CMD_WRITE_CFG_DATA,34,5);
-}
-
-uint8_t RedPitaya_CMD_READ_STATUS_DATA(void)
-{
-  uint8_t Error_Code,i;
-  Error_Code = RedPitaya_Send_CMD(0,CMD_READ_STATUS_DATA,0,12);//7个有效载荷数据+5个包头包尾ASK
-  if(Error_Code)return Error_Code;
-  IIC_Reg_Buff[2] = (IIC_Reg_Buff[2]&0xC0)|(RedPitaya_RX_Buff[3]&0x3F);
-  for(i=0;i<6;i++)
-  {
-    IIC_Reg_Buff[0x2A+i] = RedPitaya_RX_Buff[4+i];
+    arm_timeout_ticks--;
+    if(arm_timeout_ticks == 0)
+    {
+      IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] &= (uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
+      IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] |= CTRL_DPLL_STATUS_ERROR;
+    }
   }
-  return 0;
 }
 
-
-uint8_t RedPitaya_CMD_PLL_ON(void)
+void RedPitaya_Service(void)
 {
-  return RedPitaya_Send_CMD(0,CMD_PLL_ON,0,5);
-}
+  uint8_t command;
+  uint8_t offset;
+  uint8_t length;
+  uint8_t checksum_index;
+  uint8_t status = CTRL_UART_STATUS_OK;
+  uint8_t i;
 
-uint8_t RedPitaya_CMD_PLL_OFF(void)
-{
-  return RedPitaya_Send_CMD(0,CMD_PLL_OFF,0,5);
-}
+  if(!uart_frame_ready) return;
 
-uint8_t RedPitaya_CMD_CMD_RESET(void)
-{
-  return RedPitaya_Send_CMD(0,CMD_RESET,0,5);
-}
+  command = uart_rx_buff[1];
+  offset = uart_rx_buff[2];
+  length = uart_rx_buff[3];
+  checksum_index = (command == CTRL_UART_CMD_WRITE) ? (uint8_t)(4 + length) : 4;
 
+  if((uart_rx_buff[checksum_index + 1] != CTRL_UART_ETX) ||
+     (uart_rx_buff[checksum_index] !=
+      frame_checksum((const uint8_t *)&uart_rx_buff[1], (uint8_t)(checksum_index - 1))))
+  {
+    status = CTRL_UART_STATUS_BAD_FRAME;
+  }
+  else if(((uint16_t)offset + length) > CTRL_BANK_SIZE)
+  {
+    status = CTRL_UART_STATUS_RANGE;
+  }
+  else
+  {
+    arm_timeout_ticks = CTRL_ARM_TIMEOUT_TICKS;
+  }
+
+  if(status == CTRL_UART_STATUS_OK)
+  {
+    switch(command)
+    {
+    case CTRL_UART_CMD_READ:
+      send_response(status, offset, length);
+      break;
+
+    case CTRL_UART_CMD_WRITE:
+      if(offset < CTRL_REG_REQUEST_SEQ)
+      {
+        send_response(CTRL_UART_STATUS_RANGE, 0, 0);
+      }
+      else
+      {
+        for(i = 0; i < length; i++) IIC_Reg_Buff[offset + i] = uart_rx_buff[4 + i];
+        apply_microwave_write(offset, length);
+        send_response(status, 0, 0);
+      }
+      break;
+
+    case CTRL_UART_CMD_SAVE:
+      EEPROM_Store_Data();
+      send_response(status, 0, 0);
+      break;
+
+    case CTRL_UART_CMD_PING:
+      send_response(status, CTRL_REG_PROTOCOL_VERSION, 1);
+      break;
+
+    default:
+      send_response(CTRL_UART_STATUS_COMMAND, 0, 0);
+      break;
+    }
+  }
+  else
+  {
+    send_response(status, 0, 0);
+  }
+
+  uart_rx_count = 0;
+  uart_frame_ready = 0;
+}

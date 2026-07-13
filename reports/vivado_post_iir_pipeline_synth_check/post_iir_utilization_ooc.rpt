@@ -1,0 +1,27 @@
+Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
+| Date         : Tue Jul 14 00:50:23 2026
+| Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
+| Command      : report_utilization -hierarchical -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_post_iir_pipeline_synth_check/post_iir_utilization_ooc.rpt
+| Design       : post_iir_stage_a
+| Device       : 7z010clg400-1
+| Design State : Synthesized
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++------------------+--------+------------+------------+---------+------+------+--------+--------+--------------+
+|     Instance     | Module | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP48 Blocks |
++------------------+--------+------------+------------+---------+------+------+--------+--------+--------------+
+| post_iir_stage_a |  (top) |        946 |        946 |       0 |    0 | 1150 |      0 |      0 |            4 |
++------------------+--------+------------+------------+---------+------+------+--------+--------+--------------+
+
+

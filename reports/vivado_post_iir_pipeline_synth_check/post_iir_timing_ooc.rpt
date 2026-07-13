@@ -1,13 +1,13 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
--------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jul 14 00:28:42 2026
+| Date         : Tue Jul 14 00:50:29 2026
 | Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
-| Command      : report_timing_summary -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_single_clock_core_stage_a_synth_check/timing_ooc.rpt
-| Design       : dpll_single_clock_core_stage_a
+| Command      : report_timing_summary -warn_on_violation -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_post_iir_pipeline_synth_check/post_iir_timing_ooc.rpt
+| Design       : post_iir_stage_a
 | Device       : 7z010-clg400
 | Speed File   : -1  PRODUCTION 1.11 2014-09-11
--------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Timing Summary Report
 
@@ -74,14 +74,14 @@ Table of Contents
 
 5. checking no_input_delay
 --------------------------
- There are 898 input ports with no input delay specified. (HIGH)
+ There are 366 input ports with no input delay specified. (HIGH)
 
  There are 0 input ports with no input delay but user has a false path constraint.
 
 
 6. checking no_output_delay
 ---------------------------
- There are 328 ports with no output delay specified. (HIGH)
+ There are 43 ports with no output delay specified. (HIGH)
 
  There are 0 ports with no output delay but user has a false path constraint
 
@@ -126,7 +126,7 @@ Table of Contents
 
     WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
     -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-      0.398        0.000                      0                20458        0.193        0.000                      0                20458        3.020        0.000                       0                  6967  
+      2.837        0.000                      0                 2952        0.272        0.000                      0                 2952        3.500        0.000                       0                  1154  
 
 
 All user specified timing constraints are met.
@@ -149,7 +149,7 @@ clk_125m  {0.000 4.000}        8.000           125.000
 
 Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
 -----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-clk_125m            0.398        0.000                      0                20458        0.193        0.000                      0                20458        3.020        0.000                       0                  6967  
+clk_125m            2.837        0.000                      0                 2952        0.272        0.000                      0                 2952        3.500        0.000                       0                  1154  
 
 
 ------------------------------------------------------------------------------------------------
@@ -180,24 +180,24 @@ Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing 
 From Clock:  clk_125m
   To Clock:  clk_125m
 
-Setup :            0  Failing Endpoints,  Worst Slack        0.398ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.193ns,  Total Violation        0.000ns
-PW    :            0  Failing Endpoints,  Worst Slack        3.020ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        2.837ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.272ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        3.500ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.398ns  (required time - arrival time)
-  Source:                 hybrid_loop_inst/kf_product_r_reg[4]/C
+Slack (MET) :             2.837ns  (required time - arrival time)
+  Source:                 mul_return_subtract_r_reg/C
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
-  Destination:            hybrid_loop_inst/fll_product_r_reg[28]__0/D
+  Destination:            i_accum_r_reg[63]/D
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
   Path Group:             clk_125m
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            8.000ns  (clk_125m rise@8.000ns - clk_125m rise@0.000ns)
-  Data Path Delay:        7.613ns  (logic 4.091ns (53.737%)  route 3.522ns (46.263%))
-  Logic Levels:           13  (CARRY4=9 LUT2=1 LUT3=1 LUT6=2)
+  Data Path Delay:        5.141ns  (logic 3.603ns (70.084%)  route 1.538ns (29.916%))
+  Logic Levels:           18  (CARRY4=16 LUT2=1 LUT6=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 8.924 - 8.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -213,62 +213,79 @@ Slack (MET) :             0.398ns  (required time - arrival time)
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=6970, unset)         0.973     0.973    hybrid_loop_inst/clk_125m
-                         FDRE                                         r  hybrid_loop_inst/kf_product_r_reg[4]/C
+                         net (fo=1153, unset)         0.973     0.973    clk_125m
+                         FDRE                                         r  mul_return_subtract_r_reg/C
   -------------------------------------------------------------------    -------------------
-                         FDRE (Prop_fdre_C_Q)         0.496     1.469 r  hybrid_loop_inst/kf_product_r_reg[4]/Q
-                         net (fo=10, unplaced)        1.008     2.477    hybrid_loop_inst/kf_product_r[4]
-                         LUT6 (Prop_lut6_I0_O)        0.295     2.772 r  hybrid_loop_inst/fll_product_r[11]__0_i_18/O
-                         net (fo=2, unplaced)         0.650     3.422    hybrid_loop_inst/fll_product_r[11]__0_i_18_n_0
-                         CARRY4 (Prop_carry4_DI[1]_CO[3])
-                                                      0.507     3.929 r  hybrid_loop_inst/fll_product_r_reg[11]__0_i_15/CO[3]
-                         net (fo=1, unplaced)         0.000     3.929    hybrid_loop_inst/fll_product_r_reg[11]__0_i_15_n_0
+                         FDRE (Prop_fdre_C_Q)         0.496     1.469 r  mul_return_subtract_r_reg/Q
+                         net (fo=130, unplaced)       0.576     2.045    mul_return_subtract_r
+                         LUT2 (Prop_lut2_I0_O)        0.295     2.340 r  i_final_sum_r[3]_i_2/O
+                         net (fo=1, unplaced)         0.333     2.673    i_final_sum_r[3]_i_2_n_0
+                         CARRY4 (Prop_carry4_CYINIT_CO[3])
+                                                      0.580     3.253 r  i_final_sum_r_reg[3]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     3.253    i_final_sum_r_reg[3]_i_1_n_0
                          CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     4.043 r  hybrid_loop_inst/fll_product_r_reg[15]__0_i_15/CO[3]
-                         net (fo=1, unplaced)         0.000     4.043    hybrid_loop_inst/fll_product_r_reg[15]__0_i_15_n_0
+                                                      0.114     3.367 r  i_final_sum_r_reg[7]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     3.367    i_final_sum_r_reg[7]_i_1_n_0
                          CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     4.157 r  hybrid_loop_inst/fll_product_r_reg[19]__0_i_15/CO[3]
-                         net (fo=1, unplaced)         0.000     4.157    hybrid_loop_inst/fll_product_r_reg[19]__0_i_15_n_0
+                                                      0.114     3.481 r  i_final_sum_r_reg[11]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     3.481    i_final_sum_r_reg[11]_i_1_n_0
                          CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     4.271 r  hybrid_loop_inst/fll_product_r_reg[23]__0_i_15/CO[3]
-                         net (fo=1, unplaced)         0.000     4.271    hybrid_loop_inst/fll_product_r_reg[23]__0_i_15_n_0
+                                                      0.114     3.595 r  i_final_sum_r_reg[15]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     3.595    i_final_sum_r_reg[15]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     3.709 r  i_final_sum_r_reg[19]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     3.709    i_final_sum_r_reg[19]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     3.823 r  i_final_sum_r_reg[23]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     3.823    i_final_sum_r_reg[23]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     3.937 r  i_final_sum_r_reg[27]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     3.937    i_final_sum_r_reg[27]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     4.051 r  i_final_sum_r_reg[31]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     4.051    i_final_sum_r_reg[31]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     4.165 r  i_final_sum_r_reg[35]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     4.165    i_final_sum_r_reg[35]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     4.279 r  i_final_sum_r_reg[39]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     4.279    i_final_sum_r_reg[39]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     4.393 r  i_final_sum_r_reg[43]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     4.393    i_final_sum_r_reg[43]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     4.507 r  i_final_sum_r_reg[47]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     4.507    i_final_sum_r_reg[47]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     4.621 r  i_final_sum_r_reg[51]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     4.621    i_final_sum_r_reg[51]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     4.735 r  i_final_sum_r_reg[55]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     4.735    i_final_sum_r_reg[55]_i_1_n_0
+                         CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.114     4.849 r  i_final_sum_r_reg[59]_i_1/CO[3]
+                         net (fo=1, unplaced)         0.000     4.849    i_final_sum_r_reg[59]_i_1_n_0
                          CARRY4 (Prop_carry4_CI_O[3])
-                                                      0.329     4.600 r  hybrid_loop_inst/fll_product_r_reg[27]__0_i_15/O[3]
-                         net (fo=6, unplaced)         0.650     5.250    hybrid_loop_inst/fll_product_r_reg[27]__0_i_15_n_4
-                         LUT3 (Prop_lut3_I2_O)        0.307     5.557 r  hybrid_loop_inst/fll_product_r[27]__0_i_17/O
-                         net (fo=1, unplaced)         0.902     6.459    hybrid_loop_inst/fll_product_r[27]__0_i_17_n_0
-                         LUT6 (Prop_lut6_I0_O)        0.124     6.583 r  hybrid_loop_inst/fll_product_r[27]__0_i_11/O
-                         net (fo=1, unplaced)         0.000     6.583    hybrid_loop_inst/fll_product_r[27]__0_i_11_n_0
-                         CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.984 r  hybrid_loop_inst/fll_product_r_reg[27]__0_i_6/CO[3]
-                         net (fo=1, unplaced)         0.000     6.984    hybrid_loop_inst/fll_product_r_reg[27]__0_i_6_n_0
-                         CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.348     7.332 r  hybrid_loop_inst/fll_product_r_reg[28]__0_i_3/O[1]
-                         net (fo=1, unplaced)         0.312     7.644    hybrid_loop_inst/fll_product_next__0[27]
-                         LUT2 (Prop_lut2_I1_O)        0.306     7.950 r  hybrid_loop_inst/fll_product_r[27]__0_i_2/O
-                         net (fo=1, unplaced)         0.000     7.950    hybrid_loop_inst/fll_product_r[27]__0_i_2_n_0
-                         CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     8.351 r  hybrid_loop_inst/fll_product_r_reg[27]__0_i_1/CO[3]
-                         net (fo=1, unplaced)         0.000     8.351    hybrid_loop_inst/fll_product_r_reg[27]__0_i_1_n_0
-                         CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.235     8.586 r  hybrid_loop_inst/fll_product_r_reg[28]__0_i_1/O[0]
-                         net (fo=1, unplaced)         0.000     8.586    hybrid_loop_inst/fll_product_next0_out[28]
-                         FDRE                                         r  hybrid_loop_inst/fll_product_r_reg[28]__0/D
+                                                      0.329     5.178 r  i_final_sum_r_reg[63]_i_2/O[3]
+                         net (fo=2, unplaced)         0.629     5.807    i_accum_with_product[63]
+                         LUT6 (Prop_lut6_I5_O)        0.307     6.114 r  i_accum_r[63]_i_2/O
+                         net (fo=1, unplaced)         0.000     6.114    i_accum_r[63]_i_2_n_0
+                         FDRE                                         r  i_accum_r_reg[63]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk_125m rise edge)
                                                       8.000     8.000 r  
                                                       0.000     8.000 r  clk_125m (IN)
-                         net (fo=6970, unset)         0.924     8.924    hybrid_loop_inst/clk_125m
-                         FDRE                                         r  hybrid_loop_inst/fll_product_r_reg[28]__0/C
+                         net (fo=1153, unset)         0.924     8.924    clk_125m
+                         FDRE                                         r  i_accum_r_reg[63]/C
                          clock pessimism              0.000     8.924    
                          clock uncertainty           -0.035     8.889    
-                         FDRE (Setup_fdre_C_D)        0.095     8.984    hybrid_loop_inst/fll_product_r_reg[28]__0
+                         FDRE (Setup_fdre_C_D)        0.062     8.951    i_accum_r_reg[63]
   -------------------------------------------------------------------
-                         required time                          8.984    
-                         arrival time                          -8.586    
+                         required time                          8.951    
+                         arrival time                          -6.114    
   -------------------------------------------------------------------
-                         slack                                  0.398    
+                         slack                                  2.837    
 
 
 
@@ -276,16 +293,16 @@ Slack (MET) :             0.398ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.193ns  (arrival time - required time)
-  Source:                 dc_blocker_inst/dc_accumulator_reg[0]/C
+Slack (MET) :             0.272ns  (arrival time - required time)
+  Source:                 round_sum_pending_r_reg/C
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
-  Destination:            dc_blocker_inst/dc_accumulator_reg[1]/D
+  Destination:            round_sum_pending_r_reg/D
                             (rising edge-triggered cell FDRE clocked by clk_125m  {rise@0.000ns fall@4.000ns period=8.000ns})
   Path Group:             clk_125m
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk_125m rise@0.000ns - clk_125m rise@0.000ns)
-  Data Path Delay:        0.341ns  (logic 0.252ns (74.005%)  route 0.089ns (25.995%))
-  Logic Levels:           1  (CARRY4=1)
+  Data Path Delay:        0.405ns  (logic 0.256ns (63.176%)  route 0.149ns (36.824%))
+  Logic Levels:           1  (LUT2=1)
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
     Source Clock Delay      (SCD):    0.410ns
@@ -296,29 +313,28 @@ Slack (MET) :             0.193ns  (arrival time - required time)
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=6970, unset)         0.410     0.410    dc_blocker_inst/clk_125m
-                         FDRE                                         r  dc_blocker_inst/dc_accumulator_reg[0]/C
+                         net (fo=1153, unset)         0.410     0.410    clk_125m
+                         FDRE                                         r  round_sum_pending_r_reg/C
   -------------------------------------------------------------------    -------------------
-                         FDRE (Prop_fdre_C_Q)         0.158     0.568 r  dc_blocker_inst/dc_accumulator_reg[0]/Q
-                         net (fo=3, unplaced)         0.089     0.657    dc_blocker_inst/dc_accumulator[0]
-                         CARRY4 (Prop_carry4_DI[0]_O[1])
-                                                      0.094     0.751 r  dc_blocker_inst/dc_accumulator_reg[3]_i_1/O[1]
-                         net (fo=1, unplaced)         0.000     0.751    dc_blocker_inst/dc_accumulator_reg[3]_i_1_n_6
-                         FDRE                                         r  dc_blocker_inst/dc_accumulator_reg[1]/D
+                         FDRE (Prop_fdre_C_Q)         0.158     0.568 f  round_sum_pending_r_reg/Q
+                         net (fo=10, unplaced)        0.149     0.717    round_sum_pending_r
+                         LUT2 (Prop_lut2_I1_O)        0.098     0.815 r  round_sum_pending_r_i_1/O
+                         net (fo=1, unplaced)         0.000     0.815    round_sum_pending_r_i_1_n_0
+                         FDRE                                         r  round_sum_pending_r_reg/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk_125m rise edge)
                                                       0.000     0.000 r  
                                                       0.000     0.000 r  clk_125m (IN)
-                         net (fo=6970, unset)         0.432     0.432    dc_blocker_inst/clk_125m
-                         FDRE                                         r  dc_blocker_inst/dc_accumulator_reg[1]/C
+                         net (fo=1153, unset)         0.432     0.432    clk_125m
+                         FDRE                                         r  round_sum_pending_r_reg/C
                          clock pessimism              0.000     0.432    
-                         FDRE (Hold_fdre_C_D)         0.126     0.558    dc_blocker_inst/dc_accumulator_reg[1]
+                         FDRE (Hold_fdre_C_D)         0.112     0.544    round_sum_pending_r_reg
   -------------------------------------------------------------------
-                         required time                         -0.558    
-                         arrival time                           0.751    
+                         required time                         -0.544    
+                         arrival time                           0.815    
   -------------------------------------------------------------------
-                         slack                                  0.193    
+                         slack                                  0.272    
 
 
 
@@ -332,9 +348,9 @@ Period(ns):         8.000
 Sources:            { clk_125m }
 
 Check Type        Corner  Lib Pin      Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location  Pin
-Min Period        n/a     DSP48E1/CLK  n/a            3.884         8.000       4.116                fll_cross_dot_inst/cross_mul_product_r_reg/CLK
-Low Pulse Width   Fast    SRL16E/CLK   n/a            0.980         4.000       3.020                fll_cross_dot_inst/i_delay_reg[5][0]_srl2___fll_cross_dot_inst_q_delay_reg_r_0/CLK
-High Pulse Width  Slow    SRL16E/CLK   n/a            0.980         4.000       3.020                fll_cross_dot_inst/i_delay_reg[5][0]_srl2___fll_cross_dot_inst_q_delay_reg_r_0/CLK
+Min Period        n/a     DSP48E1/CLK  n/a            3.884         8.000       4.116                i_mul_product_pipe_r_reg/CLK
+Low Pulse Width   Fast    FDSE/C       n/a            0.500         4.000       3.500                active_bypass_reg/C
+High Pulse Width  Slow    FDSE/C       n/a            0.500         4.000       3.500                active_bypass_reg/C
 
 
 

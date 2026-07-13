@@ -7,6 +7,7 @@ file mkdir $out_dir
 create_project -in_memory -part xc7z010clg400-1
 read_vhdl [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL DDC ip dpll_angle_CORDIC synth dpll_angle_CORDIC.vhd]
 read_vhdl [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL DDC ip dpll_input_multiplier synth dpll_input_multiplier.vhd]
+read_vhdl [file join $repo_root DPLL_Rewrite.srcs sources_1 Freq_Meter DDC ip LO_DDS_H synth LO_DDS_H.vhd]
 read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL frontend dc_blocker_valid_stage_a.v]
 read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL DDC iq_mixer_stage_a.v]
 read_verilog [file join $repo_root DPLL_Rewrite.srcs sources_1 DigitalPLL DDC post_iq_cic_stage_a.v]

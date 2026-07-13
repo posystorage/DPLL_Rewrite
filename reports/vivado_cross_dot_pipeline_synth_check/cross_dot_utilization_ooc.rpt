@@ -1,0 +1,27 @@
+Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
+| Date         : Tue Jul 14 00:26:40 2026
+| Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
+| Command      : report_utilization -hierarchical -file E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/reports/vivado_cross_dot_pipeline_synth_check/cross_dot_utilization_ooc.rpt
+| Design       : fll_cross_dot_stage_a
+| Device       : 7z010clg400-1
+| Design State : Synthesized
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-----------------------+--------+------------+------------+---------+------+------+--------+--------+--------------+
+|        Instance       | Module | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP48 Blocks |
++-----------------------+--------+------------+------------+---------+------+------+--------+--------+--------------+
+| fll_cross_dot_stage_a |  (top) |       1281 |       1241 |       0 |   40 | 1203 |      0 |      0 |            4 |
++-----------------------+--------+------------+------------+---------+------+------+--------+--------+--------------+
+
+

@@ -1,4 +1,5 @@
 #include "Timer4.h"
+#include "RedPitaya.h"
 uint16_t sys_delay;
 
 void TIM4_Init(void)//2ms一次中断
@@ -26,5 +27,5 @@ void EEPROM_Auto_Save_Timer(void);
 INTERRUPT_HANDLER(TIM4_UPD_OVF_IRQHandler, 23)
 {
   TIM4->SR1=0;//清中断
-  //EEPROM_Auto_Save_Timer();
+  RedPitaya_2ms_Tick();
 }

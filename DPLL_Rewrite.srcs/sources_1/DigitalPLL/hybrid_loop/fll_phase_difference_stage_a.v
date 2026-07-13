@@ -270,6 +270,12 @@ module fll_cross_dot_stage_a #(
     localparam integer DEN_WIDTH = 13;
     localparam integer DIVIDEND_WIDTH = ACC_WIDTH + SCALE_WIDTH;
 
+    localparam [1:0] MATH_IDLE  = 2'd0;
+    localparam [1:0] MATH_ISSUE = 2'd1;
+    localparam [1:0] MATH_DRAIN = 2'd2;
+    localparam [1:0] SCALE_IDLE = 2'd0;
+    localparam [1:0] SCALE_RUN  = 2'd1;
+
     // round(2^18 / (2*pi) * 256). This keeps freq_error scaling compatible
     // with fll_phase_difference_stage_a: about 21.4748 LSB/Hz.
     localparam [SCALE_WIDTH-1:0] ANGLE_FREQ_SCALE = 24'd10680836;
@@ -282,7 +288,39 @@ module fll_cross_dot_stage_a #(
     reg [5:0] block_count;
     reg signed [ACC_WIDTH-1:0] dot_acc;
     reg signed [ACC_WIDTH-1:0] cross_acc;
+    reg signed [ACC_WIDTH-1:0] block_dot_sum_r;
+    reg signed [ACC_WIDTH-1:0] block_cross_sum_r;
+    reg [DEN_WIDTH-1:0]        block_normalization_r;
+    reg                        block_result_pending_r;
     integer idx;
+
+    // A sample transaction captures the pre-shift delay history and the
+    // normalization setting. The arithmetic pipeline never reads live input
+    // or history registers after this point.
+    reg signed [IQ_WIDTH-1:0] sample_i_r;
+    reg signed [IQ_WIDTH-1:0] sample_q_r;
+    reg signed [IQ_WIDTH-1:0] delayed_i_r;
+    reg signed [IQ_WIDTH-1:0] delayed_q_r;
+    reg [DEN_WIDTH-1:0] sample_normalization_r;
+    reg sample_history_ready_r;
+    reg [1:0] sample_math_state;
+    reg       sample_term_r;
+    wire      sample_math_busy = (sample_math_state != MATH_IDLE);
+
+    // One independent multiplier pipeline serves dot and one serves cross.
+    // The two terms are issued on consecutive clocks.
+    reg signed [IQ_WIDTH-1:0] dot_mul_a_r;
+    reg signed [IQ_WIDTH-1:0] dot_mul_b_r;
+    reg signed [IQ_WIDTH-1:0] cross_mul_a_r;
+    reg signed [IQ_WIDTH-1:0] cross_mul_b_r;
+    (* use_dsp = "yes" *) reg signed [PRODUCT_WIDTH-1:0] dot_mul_product_r;
+    (* use_dsp = "yes" *) reg signed [PRODUCT_WIDTH-1:0] cross_mul_product_r;
+    reg       mul_issue_valid_r;
+    reg       mul_issue_term_r;
+    reg       mul_return_valid_r;
+    reg       mul_return_term_r;
+    reg signed [PRODUCT_WIDTH-1:0] dot_term0_r;
+    reg signed [PRODUCT_WIDTH-1:0] cross_term0_r;
 
     reg divide_busy;
     reg [7:0] divide_count;
@@ -295,14 +333,27 @@ module fll_cross_dot_stage_a #(
     reg signed [FERR_WIDTH-1:0] replay_freq_error;
     reg replay_ambiguous;
 
+    // The result pipeline starts only after the last product has retired.
+    // result_busy deliberately covers both the DSP-free shift-add and the
+    // existing serial divider.
+    reg [1:0] scale_state;
+    reg [4:0] serial_count;
+    reg [ACC_WIDTH-1:0] serial_cross_abs;
+    reg [ACC_WIDTH-1:0] serial_dot_abs;
+    reg [DEN_WIDTH-1:0] serial_normalization;
+    reg                  serial_negative;
+    reg [DIVIDEND_WIDTH-1:0] serial_numerator;
+    reg [ACC_WIDTH+DEN_WIDTH-1:0] serial_denominator;
+    wire result_busy = (scale_state != SCALE_IDLE) || divide_busy;
+
     wire [3:0] selected_delay;
     wire [DEN_WIDTH-1:0] normalization_denominator;
+    wire [DEN_WIDTH-1:0] rate_ext;
     wire signed [IQ_WIDTH-1:0] delayed_i;
     wire signed [IQ_WIDTH-1:0] delayed_q;
-    wire signed [PRODUCT_WIDTH-1:0] ii_product;
-    wire signed [PRODUCT_WIDTH-1:0] qq_product;
-    wire signed [PRODUCT_WIDTH-1:0] qi_product;
-    wire signed [PRODUCT_WIDTH-1:0] iq_product;
+    wire enough_history;
+    wire block_done_next;
+
     wire signed [DOT_WIDTH-1:0] dot_sample;
     wire signed [DOT_WIDTH-1:0] cross_sample;
     wire signed [ACC_WIDTH-1:0] dot_sample_ext;
@@ -312,12 +363,18 @@ module fll_cross_dot_stage_a #(
     wire [ACC_WIDTH-1:0] dot_sum_abs;
     wire [ACC_WIDTH-1:0] cross_sum_abs;
     wire dot_sum_positive;
-    wire enough_history;
-    wire block_done_next;
-    wire [DIVIDEND_WIDTH-1:0] division_dividend_next;
-    wire [ACC_WIDTH+DEN_WIDTH-1:0] division_divisor_raw;
-    wire [DIVIDEND_WIDTH:0] division_divisor_next;
+    wire [ACC_WIDTH-1:0] block_dot_abs;
+    wire [ACC_WIDTH-1:0] block_cross_abs;
+    wire block_dot_positive;
     wire division_ready;
+
+    wire [DIVIDEND_WIDTH-1:0] serial_cross_ext;
+    wire [ACC_WIDTH+DEN_WIDTH-1:0] serial_dot_ext;
+    wire [DIVIDEND_WIDTH-1:0] serial_numerator_add;
+    reg [ACC_WIDTH+DEN_WIDTH-1:0] serial_denominator_add;
+    wire [DIVIDEND_WIDTH-1:0] serial_numerator_next;
+    wire [ACC_WIDTH+DEN_WIDTH-1:0] serial_denominator_next;
+    wire [DIVIDEND_WIDTH:0] division_divisor_next;
 
     wire [DIVIDEND_WIDTH:0] divide_remainder_shift;
     wire divide_quotient_bit;
@@ -329,7 +386,14 @@ module fll_cross_dot_stage_a #(
         (delay_sel == 2'd1) ? 4'd2 :
         (delay_sel == 2'd2) ? 4'd4 : 4'd8;
 
-    assign normalization_denominator = rate_r * selected_delay;
+    // selected_delay is always a power of two. Keeping this as a shift avoids
+    // inferring an extra multiplier for the small normalization product.
+    assign rate_ext = {{(DEN_WIDTH-9){1'b0}}, rate_r};
+    assign normalization_denominator =
+        (selected_delay == 4'd1) ? rate_ext :
+        (selected_delay == 4'd2) ? (rate_ext << 1) :
+        (selected_delay == 4'd4) ? (rate_ext << 2) : (rate_ext << 3);
+
     assign delayed_i =
         (delay_sel == 2'd0) ? i_delay[0] :
         (delay_sel == 2'd1) ? i_delay[1] :
@@ -338,34 +402,47 @@ module fll_cross_dot_stage_a #(
         (delay_sel == 2'd0) ? q_delay[0] :
         (delay_sel == 2'd1) ? q_delay[1] :
         (delay_sel == 2'd2) ? q_delay[3] : q_delay[7];
-
-    assign ii_product = i_in * delayed_i;
-    assign qq_product = q_in * delayed_q;
-    assign qi_product = q_in * delayed_i;
-    assign iq_product = i_in * delayed_q;
-    assign dot_sample =
-        {{(DOT_WIDTH-PRODUCT_WIDTH){ii_product[PRODUCT_WIDTH-1]}}, ii_product} +
-        {{(DOT_WIDTH-PRODUCT_WIDTH){qq_product[PRODUCT_WIDTH-1]}}, qq_product};
-    assign cross_sample =
-        {{(DOT_WIDTH-PRODUCT_WIDTH){qi_product[PRODUCT_WIDTH-1]}}, qi_product} -
-        {{(DOT_WIDTH-PRODUCT_WIDTH){iq_product[PRODUCT_WIDTH-1]}}, iq_product};
-    assign dot_sample_ext = {{(ACC_WIDTH-DOT_WIDTH){dot_sample[DOT_WIDTH-1]}}, dot_sample};
-    assign cross_sample_ext = {{(ACC_WIDTH-DOT_WIDTH){cross_sample[DOT_WIDTH-1]}}, cross_sample};
-    assign dot_sum_next = dot_acc + dot_sample_ext;
-    assign cross_sum_next = cross_acc + cross_sample_ext;
-    assign dot_sum_abs = dot_sum_next[ACC_WIDTH-1] ? abs_acc(dot_sum_next) : dot_sum_next;
-    assign cross_sum_abs = abs_acc(cross_sum_next);
-    assign dot_sum_positive = !dot_sum_next[ACC_WIDTH-1] && (dot_sum_next != {ACC_WIDTH{1'b0}});
     assign enough_history = valid_count >= selected_delay;
     assign block_done_next = block_count >= (BLOCK_SAMPLES - 1);
-    assign division_dividend_next = cross_sum_abs * ANGLE_FREQ_SCALE;
-    assign division_divisor_raw = dot_sum_abs * normalization_denominator;
+
+    assign dot_sample =
+        $signed({{(DOT_WIDTH-PRODUCT_WIDTH){dot_term0_r[PRODUCT_WIDTH-1]}}, dot_term0_r}) +
+        $signed({{(DOT_WIDTH-PRODUCT_WIDTH){dot_mul_product_r[PRODUCT_WIDTH-1]}}, dot_mul_product_r});
+    assign cross_sample =
+        $signed({{(DOT_WIDTH-PRODUCT_WIDTH){cross_term0_r[PRODUCT_WIDTH-1]}}, cross_term0_r}) -
+        $signed({{(DOT_WIDTH-PRODUCT_WIDTH){cross_mul_product_r[PRODUCT_WIDTH-1]}}, cross_mul_product_r});
+    assign dot_sample_ext = {{(ACC_WIDTH-DOT_WIDTH){dot_sample[DOT_WIDTH-1]}}, dot_sample};
+    assign cross_sample_ext = {{(ACC_WIDTH-DOT_WIDTH){cross_sample[DOT_WIDTH-1]}}, cross_sample};
+    assign dot_sum_next = $signed(dot_acc) + $signed(dot_sample_ext);
+    assign cross_sum_next = $signed(cross_acc) + $signed(cross_sample_ext);
+    assign dot_sum_abs = dot_sum_next[ACC_WIDTH-1] ? abs_acc(dot_sum_next) : dot_sum_next;
+    assign cross_sum_abs = abs_acc(cross_sum_next);
+    assign dot_sum_positive = !dot_sum_next[ACC_WIDTH-1] &&
+                              (dot_sum_next != {ACC_WIDTH{1'b0}});
+    assign block_dot_abs = block_dot_sum_r[ACC_WIDTH-1] ?
+                           abs_acc(block_dot_sum_r) : block_dot_sum_r;
+    assign block_cross_abs = abs_acc(block_cross_sum_r);
+    assign block_dot_positive = !block_dot_sum_r[ACC_WIDTH-1] &&
+                                (block_dot_sum_r != {ACC_WIDTH{1'b0}});
+    assign division_ready = block_dot_positive &&
+                            (block_normalization_r != {DEN_WIDTH{1'b0}});
+
+    assign serial_cross_ext = {{(DIVIDEND_WIDTH-ACC_WIDTH){1'b0}}, serial_cross_abs};
+    assign serial_dot_ext = {{DEN_WIDTH{1'b0}}, serial_dot_abs};
+    assign serial_numerator_add = ANGLE_FREQ_SCALE[serial_count] ?
+                                  (serial_cross_ext << serial_count) :
+                                  {DIVIDEND_WIDTH{1'b0}};
+    assign serial_numerator_next = serial_numerator + serial_numerator_add;
+    assign serial_denominator_next = serial_denominator + serial_denominator_add;
     assign division_divisor_next =
-        {{(DIVIDEND_WIDTH+1-(ACC_WIDTH+DEN_WIDTH)){1'b0}}, division_divisor_raw};
-    assign division_ready =
-        dot_sum_positive &&
-        (normalization_denominator != {DEN_WIDTH{1'b0}}) &&
-        (division_divisor_raw != {(ACC_WIDTH+DEN_WIDTH){1'b0}});
+        {{(DIVIDEND_WIDTH+1-(ACC_WIDTH+DEN_WIDTH)){1'b0}}, serial_denominator_next};
+
+    always @* begin
+        serial_denominator_add = {(ACC_WIDTH+DEN_WIDTH){1'b0}};
+        if ((serial_count < DEN_WIDTH) && serial_normalization[serial_count]) begin
+            serial_denominator_add = serial_dot_ext << serial_count;
+        end
+    end
 
     assign divide_remainder_shift = {divide_remainder[DIVIDEND_WIDTH-1:0],
                                      divide_dividend[DIVIDEND_WIDTH-1]};
@@ -414,6 +491,38 @@ module fll_cross_dot_stage_a #(
             block_count <= 6'd0;
             dot_acc <= {ACC_WIDTH{1'b0}};
             cross_acc <= {ACC_WIDTH{1'b0}};
+            block_dot_sum_r <= {ACC_WIDTH{1'b0}};
+            block_cross_sum_r <= {ACC_WIDTH{1'b0}};
+            block_normalization_r <= {DEN_WIDTH{1'b0}};
+            block_result_pending_r <= 1'b0;
+            sample_i_r <= {IQ_WIDTH{1'b0}};
+            sample_q_r <= {IQ_WIDTH{1'b0}};
+            delayed_i_r <= {IQ_WIDTH{1'b0}};
+            delayed_q_r <= {IQ_WIDTH{1'b0}};
+            sample_normalization_r <= {DEN_WIDTH{1'b0}};
+            sample_history_ready_r <= 1'b0;
+            sample_math_state <= MATH_IDLE;
+            sample_term_r <= 1'b0;
+            dot_mul_a_r <= {IQ_WIDTH{1'b0}};
+            dot_mul_b_r <= {IQ_WIDTH{1'b0}};
+            cross_mul_a_r <= {IQ_WIDTH{1'b0}};
+            cross_mul_b_r <= {IQ_WIDTH{1'b0}};
+            dot_mul_product_r <= {PRODUCT_WIDTH{1'b0}};
+            cross_mul_product_r <= {PRODUCT_WIDTH{1'b0}};
+            mul_issue_valid_r <= 1'b0;
+            mul_issue_term_r <= 1'b0;
+            mul_return_valid_r <= 1'b0;
+            mul_return_term_r <= 1'b0;
+            dot_term0_r <= {PRODUCT_WIDTH{1'b0}};
+            cross_term0_r <= {PRODUCT_WIDTH{1'b0}};
+            scale_state <= SCALE_IDLE;
+            serial_count <= 5'd0;
+            serial_cross_abs <= {ACC_WIDTH{1'b0}};
+            serial_dot_abs <= {ACC_WIDTH{1'b0}};
+            serial_normalization <= {DEN_WIDTH{1'b0}};
+            serial_negative <= 1'b0;
+            serial_numerator <= {DIVIDEND_WIDTH{1'b0}};
+            serial_denominator <= {(ACC_WIDTH+DEN_WIDTH){1'b0}};
             freq_error_valid <= 1'b0;
             freq_error_block_valid <= 1'b0;
             freq_error <= {FERR_WIDTH{1'b0}};
@@ -432,6 +541,14 @@ module fll_cross_dot_stage_a #(
             freq_error_valid <= 1'b0;
             freq_error_block_valid <= 1'b0;
 
+            // The product and valid/tag pipelines advance independently of
+            // the sample and result schedulers.
+            dot_mul_product_r <= dot_mul_a_r * dot_mul_b_r;
+            cross_mul_product_r <= cross_mul_a_r * cross_mul_b_r;
+            mul_return_valid_r <= mul_issue_valid_r;
+            mul_return_term_r <= mul_issue_term_r;
+            mul_issue_valid_r <= 1'b0;
+
             if (divide_busy) begin
                 divide_dividend <= {divide_dividend[DIVIDEND_WIDTH-2:0], 1'b0};
                 divide_quotient <= divide_quotient_next;
@@ -445,7 +562,53 @@ module fll_cross_dot_stage_a #(
                 end
             end
 
-            if (sample_valid) begin
+            // Serial scaling is deliberately shift-add. The final additions
+            // are passed directly to the divider so no bit is lost at the
+            // handoff.
+            if (scale_state == SCALE_RUN) begin
+                serial_numerator <= serial_numerator_next;
+                serial_denominator <= serial_denominator_next;
+                if (serial_count == SCALE_WIDTH - 1) begin
+                    scale_state <= SCALE_IDLE;
+                    divide_busy <= 1'b1;
+                    divide_count <= DIVIDEND_WIDTH;
+                    divide_dividend <= serial_numerator_next;
+                    divide_quotient <= {DIVIDEND_WIDTH{1'b0}};
+                    divide_remainder <= {(DIVIDEND_WIDTH+1){1'b0}};
+                    divide_divisor <= division_divisor_next;
+                    divide_negative <= serial_negative;
+                end else begin
+                    serial_count <= serial_count + 1'b1;
+                end
+            end
+
+            // Block sums are consumed one clock after the final sample
+            // product retires. This register boundary keeps the 47-bit
+            // accumulator and the replay/result control out of one path.
+            if (block_result_pending_r) begin
+                block_result_pending_r <= 1'b0;
+                if (!result_busy) begin
+                    if (division_ready) begin
+                        scale_state <= SCALE_RUN;
+                        serial_count <= 5'd0;
+                        serial_cross_abs <= block_cross_abs;
+                        serial_dot_abs <= block_dot_abs;
+                        serial_normalization <= block_normalization_r;
+                        serial_negative <= block_cross_sum_r[ACC_WIDTH-1];
+                        serial_numerator <= {DIVIDEND_WIDTH{1'b0}};
+                        serial_denominator <= {(ACC_WIDTH+DEN_WIDTH){1'b0}};
+                    end else begin
+                        replay_freq_error <= {FERR_WIDTH{1'b0}};
+                        replay_ambiguous <= 1'b1;
+                        replay_count <= BLOCK_SAMPLES;
+                    end
+                end
+            end
+
+            // A valid sample is accepted only while the sample arithmetic
+            // engine is idle. Legal system cadences are much slower than the
+            // five-cycle transaction; the assertion below diagnoses misuse.
+            if (sample_valid && !sample_math_busy) begin
                 if (replay_count != 6'd0) begin
                     freq_error <= replay_freq_error;
                     ambiguous <= replay_ambiguous;
@@ -455,6 +618,13 @@ module fll_cross_dot_stage_a #(
                     end
                     replay_count <= replay_count - 1'b1;
                 end
+
+                sample_i_r <= i_in;
+                sample_q_r <= q_in;
+                delayed_i_r <= delayed_i;
+                delayed_q_r <= delayed_q;
+                sample_normalization_r <= normalization_denominator;
+                sample_history_ready_r <= enough_history;
 
                 i_delay[0] <= i_in;
                 q_delay[0] <= q_in;
@@ -468,25 +638,27 @@ module fll_cross_dot_stage_a #(
                 end
 
                 if (enough_history) begin
+                    sample_math_state <= MATH_ISSUE;
+                    sample_term_r <= 1'b0;
+                end
+            end
+
+            // Retire the two products only after both pipelines have returned.
+            // The term-1 product is explicitly included in dot_sum_next and
+            // cross_sum_next, avoiding a nonblocking-assignment off-by-one.
+            if (mul_return_valid_r) begin
+                if (!mul_return_term_r) begin
+                    dot_term0_r <= dot_mul_product_r;
+                    cross_term0_r <= cross_mul_product_r;
+                end else if (sample_history_ready_r) begin
                     if (block_done_next) begin
                         dot_acc <= {ACC_WIDTH{1'b0}};
                         cross_acc <= {ACC_WIDTH{1'b0}};
                         block_count <= 6'd0;
-                        if (!divide_busy) begin
-                            if (division_ready) begin
-                                divide_busy <= 1'b1;
-                                divide_count <= DIVIDEND_WIDTH;
-                                divide_dividend <= division_dividend_next;
-                                divide_quotient <= {DIVIDEND_WIDTH{1'b0}};
-                                divide_remainder <= {(DIVIDEND_WIDTH+1){1'b0}};
-                                divide_divisor <= division_divisor_next;
-                                divide_negative <= cross_sum_next[ACC_WIDTH-1];
-                            end else begin
-                                replay_freq_error <= {FERR_WIDTH{1'b0}};
-                                replay_ambiguous <= 1'b1;
-                                replay_count <= BLOCK_SAMPLES;
-                            end
-                        end
+                        block_dot_sum_r <= dot_sum_next;
+                        block_cross_sum_r <= cross_sum_next;
+                        block_normalization_r <= sample_normalization_r;
+                        block_result_pending_r <= 1'b1;
                     end else begin
                         dot_acc <= dot_sum_next;
                         cross_acc <= cross_sum_next;
@@ -494,8 +666,53 @@ module fll_cross_dot_stage_a #(
                     end
                 end
             end
+
+            case (sample_math_state)
+                MATH_ISSUE: begin
+                    if (!sample_term_r) begin
+                        dot_mul_a_r <= sample_i_r;
+                        dot_mul_b_r <= delayed_i_r;
+                        cross_mul_a_r <= sample_q_r;
+                        cross_mul_b_r <= delayed_i_r;
+                    end else begin
+                        dot_mul_a_r <= sample_q_r;
+                        dot_mul_b_r <= delayed_q_r;
+                        cross_mul_a_r <= sample_i_r;
+                        cross_mul_b_r <= delayed_q_r;
+                    end
+                    mul_issue_valid_r <= 1'b1;
+                    mul_issue_term_r <= sample_term_r;
+                    if (!sample_term_r) begin
+                        sample_term_r <= 1'b1;
+                    end else begin
+                        sample_math_state <= MATH_DRAIN;
+                    end
+                end
+
+                MATH_DRAIN: begin
+                    if (mul_return_valid_r && mul_return_term_r) begin
+                        sample_math_state <= MATH_IDLE;
+                    end
+                end
+
+                default: begin
+                    // MATH_IDLE accepts samples in the block above.
+                end
+            endcase
         end
     end
+
+`ifndef SYNTHESIS
+    always @(posedge clk_125m) begin
+        if (!rst_125m && !clear && sample_valid && sample_math_busy) begin
+            $fatal(1, "fll_cross_dot_stage_a sample arithmetic overrun");
+        end
+        if (!rst_125m && !clear && mul_return_valid_r && mul_return_term_r &&
+            sample_history_ready_r && block_done_next && result_busy) begin
+            $fatal(1, "fll_cross_dot_stage_a block result overrun");
+        end
+    end
+`endif
 
 endmodule
 

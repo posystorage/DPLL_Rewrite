@@ -24,8 +24,10 @@ void IIC_Slave_Init(void)
   I2C->ITR = I2C_ITR_ITBUFEN | I2C_ITR_ITEVTEN;
   ITC->ISPR5 |= 0xC0;
   IIC_Reg_Addr_Point = 0;
-  IIC_Reg_Buff[0] = 0xA5;//固定识别头
-  IIC_Reg_Buff[1] = 0x00;//状态位
+  IIC_Reg_Buff[CTRL_REG_ID] = 0xA5;
+  IIC_Reg_Buff[CTRL_REG_PROTOCOL_VERSION] = CTRL_PROTOCOL_VERSION;
+  IIC_Reg_Buff[CTRL_REG_REQUEST_SEQ] = 0;
+  IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] = 0;
   IIC_Reg_Addr_Get = 0;
   IIC_CMD = 0;
 }
@@ -39,7 +41,7 @@ void IIC_Slave_RX_Byte(uint8_t Last_Event_SR1)
     Cache = I2C->DR;
     if(IIC_Reg_Addr_Get)
     {
-      if((IIC_Reg_Addr_Point>0x02)&&(IIC_Reg_Addr_Point<0x2A))//0\1\2\2a\2b\2c\2d寄存器是只读
+      if((IIC_Reg_Addr_Point>=CTRL_PERSIST_BEGIN)&&(IIC_Reg_Addr_Point<CTRL_PERSIST_END))
       {
         IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
         IIC_Reg_Addr_Point++;
@@ -58,7 +60,7 @@ void IIC_Slave_RX_Byte(uint8_t Last_Event_SR1)
         {
           
           IIC_CMD = Cache;
-          IIC_Reg_Buff[1] |= 0x04;//busy
+          IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] |= CTRL_BRIDGE_STATUS_BUSY;//busy
           
         }
         IIC_Reg_Addr_Point = IIC_REG_SIZE;

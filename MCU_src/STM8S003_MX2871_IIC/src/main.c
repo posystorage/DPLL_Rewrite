@@ -1,93 +1,114 @@
 #include "max2891_pll_conf.h"
+#include "control_protocol.h"
 
-
-uint32_t Set_Freq;
+static uint32_t bank_get_u32(uint8_t offset)
+{
+  uint32_t value;
+  value = IIC_Reg_Buff[offset];
+  value |= (uint32_t)IIC_Reg_Buff[offset + 1] << 8;
+  value |= (uint32_t)IIC_Reg_Buff[offset + 2] << 16;
+  value |= (uint32_t)IIC_Reg_Buff[offset + 3] << 24;
+  return value;
+}
 
 void sys_init(void)
 {
-  CLK->ECKR=0;//关hse
-  CLK->CKDIVR=0;//不分频
-  CLK->PCKENR1=0;//吧外设都关掉，后面再只打开用的到的
-  CLK->PCKENR2=0;
-  
+  CLK->ECKR = 0;
+  CLK->CKDIVR = 0;
+  CLK->PCKENR1 = 0;
+  CLK->PCKENR2 = 0;
+
   IIC_Slave_Init();
   RedPitaya_Uart_Init();
   MAX2871_Init();
+  MAX2871_RFOUT_OFF();
   TIM4_Init();
-  asm("rim");    //开总中断
-}  
+  EEPROM_Read_Data();
 
-
+  IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] = 0;
+  IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] = 0;
+  IIC_Reg_Buff[CTRL_REG_MWS_STATUS] = 0;
+  IIC_Reg_Buff[CTRL_REG_LAST_ERROR] = CTRL_ERROR_NONE;
+  asm("rim");
+}
 
 void IIC_CMD_Service(void)
 {
-  if((IIC_CMD>=0xC0)&&(IIC_CMD<=0xC9))
+  uint32_t frequency;
+
+  if((IIC_CMD < 0xC0) || (IIC_CMD > 0xC9)) return;
+
+  switch(IIC_CMD)
   {
-    switch(IIC_CMD)
-    {
-    case 0xC0:
-      ((uint8_t*)&Set_Freq)[0]=IIC_Reg_Buff[7];
-      ((uint8_t*)&Set_Freq)[1]=IIC_Reg_Buff[6];
-      ((uint8_t*)&Set_Freq)[2]=IIC_Reg_Buff[5];
-      ((uint8_t*)&Set_Freq)[3]=IIC_Reg_Buff[4];       
-      max2871_Set_Freq_10M(Set_Freq,IIC_Reg_Buff[3]&0x03);
-      MAX2871_RFOUT_ON();
-      IIC_Reg_Buff[1] |= 0x01;
-      break;
-    case 0xC1:
-      MAX2871_RFOUT_OFF();
-      IIC_Reg_Buff[1] &=~ 0x01;      
-      break;    
-    case 0xC2:
-      EEPROM_Read_Data();
-      break;   
-    case 0xC3:
-      EEPROM_Store_Data();
-      break;
-    case 0xC4:
-      RedPitaya_CMD_WRITE_CFG_DATA();      
-      break;    
-    case 0xC5:
-      RedPitaya_CMD_READ_STATUS_DATA();
-      break;   
-    case 0xC7:
-      RedPitaya_CMD_PLL_ON();
-      break;
-    case 0xC8:
-      RedPitaya_CMD_PLL_OFF();
-      break;
-    case 0xC9:
-      RedPitaya_CMD_CMD_RESET();
-      break;
-    default:
-      break;
-    }
-    IIC_Reg_Buff[1] &= ~0x04;
-    IIC_CMD = 0;
+  case 0xC0:
+    frequency = bank_get_u32(CTRL_REG_MWS_FREQ_100KHZ);
+    max2871_Set_Freq_10M(frequency, IIC_Reg_Buff[CTRL_REG_MWS_POWER] & 0x03);
+    MAX2871_RFOUT_ON();
+    IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] |= CTRL_FLAG_MWS_ENABLE;
+    IIC_Reg_Buff[CTRL_REG_MWS_STATUS] |= CTRL_MWS_STATUS_ENABLED;
+    break;
+
+  case 0xC1:
+    MAX2871_RFOUT_OFF();
+    IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] &= (uint8_t)~CTRL_FLAG_MWS_ENABLE;
+    IIC_Reg_Buff[CTRL_REG_MWS_STATUS] &= (uint8_t)~CTRL_MWS_STATUS_ENABLED;
+    break;
+
+  case 0xC2:
+    EEPROM_Read_Data();
+    break;
+
+  case 0xC3:
+    EEPROM_Store_Data();
+    break;
+
+  case 0xC4:
+    IIC_Reg_Buff[CTRL_REG_REQUEST_SEQ]++;
+    break;
+
+  case 0xC5:
+    break;
+
+  case 0xC7:
+    IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] |= CTRL_FLAG_DPLL_ENABLE;
+    IIC_Reg_Buff[CTRL_REG_REQUEST_SEQ]++;
+    break;
+
+  case 0xC8:
+    IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] &= (uint8_t)~CTRL_FLAG_DPLL_ENABLE;
+    IIC_Reg_Buff[CTRL_REG_REQUEST_SEQ]++;
+    break;
+
+  case 0xC9:
+    break;
+
+  default:
+    break;
   }
+
+  IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] &= (uint8_t)(~CTRL_BRIDGE_STATUS_BUSY);
+  IIC_CMD = 0;
 }
 
 void PLL_Lock_Read(void)
 {
-  if((MAX2871_LD_PORT->IDR&MAX2871_LD_PIN)==MAX2871_LD_PIN)
+  if((MAX2871_LD_PORT->IDR & MAX2871_LD_PIN) == MAX2871_LD_PIN)
   {
-    IIC_Reg_Buff[1] |= 0x02;
+    IIC_Reg_Buff[CTRL_REG_MWS_STATUS] |= CTRL_MWS_STATUS_LOCKED;
   }
   else
   {
-    IIC_Reg_Buff[1] &=~ 0x02;
+    IIC_Reg_Buff[CTRL_REG_MWS_STATUS] &= (uint8_t)~CTRL_MWS_STATUS_LOCKED;
   }
 }
 
 void main(void)
 {
   sys_init();
-  delay_ms(50);
-  //EEPROM_Read_Data();
   while(1)
   {
     IIC_CMD_Service();
+    RedPitaya_Service();
     PLL_Lock_Read();
   }
 }
-

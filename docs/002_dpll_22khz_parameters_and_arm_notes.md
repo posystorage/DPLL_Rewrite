@@ -152,8 +152,10 @@ TRACK bank，单节约 2 kHz：
 
 AUTO 模式下：
 
-- state 0--4、7--9 使用 ACQUIRE bank；
-- state 5 和 6 使用 TRACK bank；
+- state 0--4、7--9 默认使用 ACQUIRE bank；
+- state 4/8 达到 acquire dwell 后，保持 FLL-only 并预热 TRACK bank；
+- 预热取得 4 个新的有效 cross-dot block 后才进入 state 5；
+- state 5 和 6 继续使用 TRACK bank；
 - bank 切换会清 detector 历史，因此状态边界附近出现短暂测量空窗是预期行为。
 
 ## 3. Ki 搜索实证
@@ -273,8 +275,9 @@ measurement_timeout = 2400*R + 512
 ### 6.4 overflow 与启动毛刺
 
 - post-CIC overflow 在 config apply/flush 时会清除。
-- CORDIC overrun/range/format sticky 只在 `rst_125m` 清除。
-- 因此状态 1 期间出现的 CORDIC sticky 可能一直保留到后续状态，不能仅凭一个 sticky 位断定 state 4/5 正在持续溢出。
+- CORDIC overrun/range/format sticky 在 `rst_125m` 或首次 `state 3 -> 4` 的独立 `status_clear` 脉冲清除。
+- `status_clear` 只清诊断位，不复用 CIC flush，也不清 CORDIC FIFO/IP 数据状态。
+- 状态 1 期间出现的启动 sticky 会在首次 FLL acquire 前清除；此后置位表示捕获/跟踪阶段出现了新事件。
 - 有效诊断应同时观察当前 I/Q 峰值、CORDIC input range、sticky 首次置位时间和 config/reset 时序。
 
 ### 6.5 `phase_locked` 不等于 `locked`
@@ -305,7 +308,7 @@ freq_error
 - state 4：FLL only。
 - state 5：FLL + PI 已经全部工作，是相位捕获状态。
 - state 6：track 参数生效，FLL 并未完全关闭。
-- state 4->5 的脉冲和 filter-bank reconfigure 可以单独研究，但本轮 Ki 搜索没有修改该逻辑。
+- 当前 filter-bank reconfigure 已提前到 state 4/8 内部的纯 FLL 预热阶段；state 5 只在 TRACK IIR 和检测历史恢复后接入 PI。
 
 ## 7. 后续验证建议
 

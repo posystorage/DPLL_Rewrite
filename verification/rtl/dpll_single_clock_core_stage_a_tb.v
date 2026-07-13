@@ -25,6 +25,9 @@ module dpll_single_clock_core_stage_a_tb;
     integer tracking_seen = 0;
     integer hybrid_seen_before;
     integer state_seen_before;
+    reg saw_track_iir_preheat = 1'b0;
+    reg saw_cordic_status_clear = 1'b0;
+    integer preheat_cycles = 0;
 
     always #4 clk = ~clk;
 
@@ -114,6 +117,28 @@ module dpll_single_clock_core_stage_a_tb;
         if (iq_valid) iq_seen = iq_seen + 1;
         if (freq_error_valid) freq_seen = freq_seen + 1;
         if (tracking_valid) tracking_seen = tracking_seen + 1;
+        if (dut.track_iir_preheat) saw_track_iir_preheat = 1'b1;
+        if (dut.cordic_status_clear) saw_cordic_status_clear = 1'b1;
+        if (!rst && dut.loop_state == 4'd4 && dut.track_iir_preheat) begin
+            preheat_cycles = preheat_cycles + 1;
+            if (dut.loop_enable_pll_i !== 1'b0 ||
+                dut.loop_enable_pll_p !== 1'b0 ||
+                dut.active_enable_pll_i_r !== 1'b0 ||
+                dut.active_enable_pll_p_r !== 1'b0 ||
+                dut.hybrid_enable_pll_i_r !== 1'b0 ||
+                dut.hybrid_enable_pll_p_r !== 1'b0 ||
+                dut.hybrid_loop_inst.enable_pll_i_mul_r !== 1'b0 ||
+                dut.hybrid_loop_inst.enable_pll_p_mul_r !== 1'b0 ||
+                dut.hybrid_loop_inst.enable_pll_i_operand_r !== 1'b0 ||
+                dut.hybrid_loop_inst.enable_pll_p_operand_r !== 1'b0 ||
+                dut.hybrid_loop_inst.enable_pll_i_product_r !== 1'b0 ||
+                dut.hybrid_loop_inst.enable_pll_p_product_r !== 1'b0 ||
+                dut.hybrid_loop_inst.i_term_r !== 56'sd0 ||
+                dut.hybrid_loop_inst.p_term_r !== 56'sd0) begin
+                $display("FAIL: PI activity reached hybrid pipeline during state-4 TRACK IIR preheat");
+                $finish;
+            end
+        end
     end
 
     initial begin
@@ -164,6 +189,18 @@ module dpll_single_clock_core_stage_a_tb;
         end
         if (tracking_word === 48'd0) begin
             $display("FAIL: tracking_word remained zero");
+            $finish;
+        end
+        if (!saw_track_iir_preheat) begin
+            $display("FAIL: core never entered TRACK IIR preheat");
+            $finish;
+        end
+        if (preheat_cycles == 0) begin
+            $display("FAIL: core did not exercise the state-4 preheat PI assertions");
+            $finish;
+        end
+        if (!saw_cordic_status_clear) begin
+            $display("FAIL: core never cleared CORDIC sticky status at state 3->4");
             $finish;
         end
 

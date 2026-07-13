@@ -31,6 +31,7 @@ module loop_state_manager_stage_a_tb;
     wire signed [23:0] active_kf;
     wire signed [23:0] active_ki;
     wire signed [23:0] active_kp;
+    wire track_iir_preheat;
     wire [3:0] loop_state;
     wire [3:0] loss_reason;
     wire signal_present;
@@ -80,6 +81,7 @@ module loop_state_manager_stage_a_tb;
         .active_kf(active_kf),
         .active_ki(active_ki),
         .active_kp(active_kp),
+        .track_iir_preheat(track_iir_preheat),
         .loop_state(loop_state),
         .loss_reason(loss_reason),
         .signal_present(signal_present),
@@ -164,7 +166,22 @@ module loop_state_manager_stage_a_tb;
 
         push_measurement(18'd20, 22'd30, 16'd20);
         push_measurement(18'd20, 22'd30, 16'd20);
+        expect_state(ST_FLL_ACQUIRE);
+        if (track_iir_preheat !== 1'b1 || enable_pll_i !== 1'b0 ||
+            enable_pll_p !== 1'b0) begin
+            $display("FAIL: TRACK IIR preheat did not start in FLL-only state");
+            $finish;
+        end
+        push_measurement(18'd20, 22'd30, 16'd20);
+        push_measurement(18'd20, 22'd30, 16'd20);
+        push_measurement(18'd20, 22'd30, 16'd20);
+        expect_state(ST_FLL_ACQUIRE);
+        push_measurement(18'd20, 22'd30, 16'd20);
         expect_state(ST_FLL_PLL_BLEND);
+        if (track_iir_preheat !== 1'b0) begin
+            $display("FAIL: TRACK IIR preheat remained active in BLEND");
+            $finish;
+        end
         if (enable_fll !== 1'b1 || enable_pll_i !== 1'b1 || active_kf !== 24'sd7 ||
             active_kp !== 24'sd5 || active_ki !== 24'sd6) begin
             $display("FAIL: blend enables/coefficients incorrect");
@@ -202,6 +219,15 @@ module loop_state_manager_stage_a_tb;
         repeat (1) @(posedge clk);
         expect_state(ST_REACQUIRE);
 
+        push_measurement(18'd20, 22'd30, 16'd20);
+        push_measurement(18'd20, 22'd30, 16'd20);
+        expect_state(ST_REACQUIRE);
+        if (track_iir_preheat !== 1'b1) begin
+            $display("FAIL: TRACK IIR preheat did not restart during reacquire");
+            $finish;
+        end
+        push_measurement(18'd20, 22'd30, 16'd20);
+        push_measurement(18'd20, 22'd30, 16'd20);
         push_measurement(18'd20, 22'd30, 16'd20);
         push_measurement(18'd20, 22'd30, 16'd20);
         expect_state(ST_FLL_PLL_BLEND);

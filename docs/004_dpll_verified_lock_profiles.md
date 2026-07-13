@@ -85,9 +85,11 @@
 
 ### 低频 timeout 注意事项
 
-AUTO post-IIR 在状态 `4 -> 5` 时从 ACQUIRE 切换为 TRACK，并清空 IIR/CORDIC 状态。0.8 kHz TRACK 滤波器恢复到 magnitude enter 门限约需 0.374 ms，随后还需要重建 `L=8` 历史和 16 点 cross-dot 块。
+旧实现的 AUTO post-IIR 在状态 `4 -> 5` 时从 ACQUIRE 切换为 TRACK，并清空 IIR/CORDIC 状态。0.8 kHz TRACK 滤波器恢复到 magnitude enter 门限约需 0.374 ms，随后还需要重建 `L=8` 历史和 16 点 cross-dot 块。
 
-`measurement_timeout=0` 对 `R=16` 生成的自动值只有 `2400*16+512=38912` 个 125 MHz 周期，即约 0.311 ms。该时间短于低频检测链恢复时间，会先触发 `LOSS_TIMEOUT=6`，造成 `4 -> 5 -> 7 -> 8` 循环。因此 4--8 kHz profile 必须显式使用至少 1 ms；当前验证值为 `125000`。
+`measurement_timeout=0` 对 `R=16` 生成的自动值只有 `2400*16+512=38912` 个 125 MHz 周期，即约 0.311 ms。该时间短于低频检测链恢复时间，会先触发 `LOSS_TIMEOUT=6`。因此 4--8 kHz profile 必须显式使用至少 1 ms；当前验证值为 `125000`。
+
+当前 RTL 将 TRACK IIR 切换提前到 state 4/8 内部的 FLL-only 预热阶段，并等待 4 个恢复后的 block-valid 测量再进入 state 5。1 ms timeout 仍然保留，用于覆盖低频 TRACK IIR、CORDIC 和 FLL history 的主动重建窗口。
 
 50 ms 仿真中，20 ms 时为状态 5、`loss_reason=0`、signal/frequency 有效；50 ms 时进入状态 6，phase/frequency/locked 全部为 1，并通过 TB 最终检查。
 

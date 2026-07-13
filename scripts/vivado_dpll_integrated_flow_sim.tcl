@@ -93,6 +93,11 @@ if {[llength [get_objects -quiet /dpll_integrated_flow_tb/clk1]] > 0} {
     add_wave /dpll_integrated_flow_tb/dut/dpll_frequency_locked
     add_wave /dpll_integrated_flow_tb/dut/dpll_locked
 
+    add_wave /dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/track_iir_preheat
+    add_wave /dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/post_iir_selection_changed
+    add_wave /dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/detector_reconfigure
+    add_wave /dpll_integrated_flow_tb/dut/dpll_single_clock_core_stage_a_inst/cordic_status_clear
+
     add_wave /dpll_integrated_flow_tb/dac0_out
     add_wave /dpll_integrated_flow_tb/dac1_debug_out
     add_wave /dpll_integrated_flow_tb/led

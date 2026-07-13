@@ -7,7 +7,8 @@ module loop_state_manager_stage_a #(
     parameter integer MAG_WIDTH = 16,
     parameter integer COEFF_WIDTH = 24,
     parameter integer DWELL_WIDTH = 16,
-    parameter integer TIMEOUT_WIDTH = 24
+    parameter integer TIMEOUT_WIDTH = 24,
+    parameter integer PREHEAT_BLOCKS = 4
 ) (
     input  wire                                  clk_125m,
     input  wire                                  rst_125m,
@@ -46,6 +47,7 @@ module loop_state_manager_stage_a #(
     output reg signed [COEFF_WIDTH-1:0]          active_kf,
     output reg signed [COEFF_WIDTH-1:0]          active_ki,
     output reg signed [COEFF_WIDTH-1:0]          active_kp,
+    output reg                                   track_iir_preheat,
     output reg [3:0]                             loop_state,
     output reg [3:0]                             loss_reason,
     output wire                                  signal_present,
@@ -78,6 +80,9 @@ module loop_state_manager_stage_a #(
     reg [DWELL_WIDTH-1:0] warmup_count;
     reg [TIMEOUT_WIDTH-1:0] holdover_count;
     reg [TIMEOUT_WIDTH-1:0] measurement_gap_count;
+
+    localparam [DWELL_WIDTH-1:0] PREHEAT_TARGET =
+        (PREHEAT_BLOCKS < 1) ? {DWELL_WIDTH{1'b0}} : PREHEAT_BLOCKS - 1;
 
     reg [PHASE_WIDTH-1:0] phase_lock_threshold_r;
     reg [FERR_WIDTH-1:0] freq_lock_threshold_r;
@@ -166,6 +171,7 @@ module loop_state_manager_stage_a #(
             warmup_count <= {DWELL_WIDTH{1'b0}};
             holdover_count <= {TIMEOUT_WIDTH{1'b0}};
             measurement_gap_count <= {TIMEOUT_WIDTH{1'b0}};
+            track_iir_preheat <= 1'b0;
             phase_lock_threshold_r <= {PHASE_WIDTH{1'b0}};
             freq_lock_threshold_r <= {FERR_WIDTH{1'b0}};
             mag_enter_threshold_r <= {MAG_WIDTH{1'b0}};
@@ -216,6 +222,7 @@ module loop_state_manager_stage_a #(
                 warmup_count <= {DWELL_WIDTH{1'b0}};
                 holdover_count <= {TIMEOUT_WIDTH{1'b0}};
                 measurement_gap_count <= {TIMEOUT_WIDTH{1'b0}};
+                track_iir_preheat <= 1'b0;
             end else if (config_apply) begin
                 loop_state <= ST_CONFIGURE;
                 loss_reason <= LOSS_NONE;
@@ -224,11 +231,13 @@ module loop_state_manager_stage_a #(
                 warmup_count <= {DWELL_WIDTH{1'b0}};
                 holdover_count <= {TIMEOUT_WIDTH{1'b0}};
                 measurement_gap_count <= {TIMEOUT_WIDTH{1'b0}};
+                track_iir_preheat <= 1'b0;
             end else if (cic_fault) begin
                 loop_state <= ST_FAULT;
                 loss_reason <= LOSS_CIC;
                 good_count <= {DWELL_WIDTH{1'b0}};
                 bad_count <= {DWELL_WIDTH{1'b0}};
+                track_iir_preheat <= 1'b0;
             end else if ((loop_state == ST_FLL_ACQUIRE ||
                           loop_state == ST_FLL_PLL_BLEND ||
                           loop_state == ST_PLL_TRACK ||
@@ -239,16 +248,19 @@ module loop_state_manager_stage_a #(
                 good_count <= {DWELL_WIDTH{1'b0}};
                 bad_count <= {DWELL_WIDTH{1'b0}};
                 holdover_count <= {TIMEOUT_WIDTH{1'b0}};
+                track_iir_preheat <= 1'b0;
             end else begin
                 case (loop_state)
                     ST_RESET, ST_DISABLED: begin
                         loop_state <= ST_CONFIGURE;
                         loss_reason <= LOSS_NONE;
+                        track_iir_preheat <= 1'b0;
                     end
 
                     ST_CONFIGURE: begin
                         loop_state <= ST_WARMUP;
                         warmup_count <= {DWELL_WIDTH{1'b0}};
+                        track_iir_preheat <= 1'b0;
                     end
 
                     ST_WARMUP: begin
@@ -256,6 +268,7 @@ module loop_state_manager_stage_a #(
                             if (warmup_count >= warmup_target_r) begin
                                 loop_state <= ST_FLL_ACQUIRE;
                                 warmup_count <= {DWELL_WIDTH{1'b0}};
+                                track_iir_preheat <= 1'b0;
                             end else begin
                                 warmup_count <= warmup_count + 1'b1;
                             end
@@ -266,8 +279,20 @@ module loop_state_manager_stage_a #(
                         if (measurement_valid) begin
                             if (signal_present && freq_ok && !correction_saturated) begin
                                 bad_count <= {DWELL_WIDTH{1'b0}};
-                                if (good_count >= acquire_target_r) begin
-                                    loop_state <= ST_FLL_PLL_BLEND;
+                                loss_reason <= LOSS_NONE;
+                                if (track_iir_preheat) begin
+                                    if (good_count >= PREHEAT_TARGET) begin
+                                        loop_state <= ST_FLL_PLL_BLEND;
+                                        track_iir_preheat <= 1'b0;
+                                        good_count <= {DWELL_WIDTH{1'b0}};
+                                    end else begin
+                                        good_count <= good_count + 1'b1;
+                                    end
+                                end else if (good_count >= acquire_target_r) begin
+                                    // Switch to the TRACK IIR while control remains
+                                    // FLL-only. Fresh detector blocks must arrive
+                                    // before PI is allowed to enter state 5.
+                                    track_iir_preheat <= 1'b1;
                                     good_count <= {DWELL_WIDTH{1'b0}};
                                 end else begin
                                     good_count <= good_count + 1'b1;
@@ -287,6 +312,7 @@ module loop_state_manager_stage_a #(
                     end
 
                     ST_FLL_PLL_BLEND: begin
+                        track_iir_preheat <= 1'b0;
                         if (measurement_valid) begin
                             if (signal_present && freq_ok && !correction_saturated) begin
                                 bad_count <= {DWELL_WIDTH{1'b0}};
@@ -320,6 +346,7 @@ module loop_state_manager_stage_a #(
                     end
 
                     ST_PLL_TRACK: begin
+                        track_iir_preheat <= 1'b0;
                         if (measurement_valid) begin
                             if (loss_sample) begin
                                 good_count <= {DWELL_WIDTH{1'b0}};
@@ -349,6 +376,7 @@ module loop_state_manager_stage_a #(
                     end
 
                     ST_HOLDOVER: begin
+                        track_iir_preheat <= 1'b0;
                         if (measurement_valid && signal_present) begin
                             loop_state <= ST_REACQUIRE;
                             holdover_count <= {TIMEOUT_WIDTH{1'b0}};
@@ -361,6 +389,7 @@ module loop_state_manager_stage_a #(
                     end
 
                     ST_FAULT: begin
+                        track_iir_preheat <= 1'b0;
                         if (config_apply) begin
                             loop_state <= ST_CONFIGURE;
                             loss_reason <= LOSS_NONE;
@@ -370,6 +399,7 @@ module loop_state_manager_stage_a #(
                     default: begin
                         loop_state <= ST_FAULT;
                         loss_reason <= LOSS_TIMEOUT;
+                        track_iir_preheat <= 1'b0;
                     end
                 endcase
             end

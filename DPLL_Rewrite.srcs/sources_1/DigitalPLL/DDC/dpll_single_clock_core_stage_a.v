@@ -119,6 +119,7 @@ module dpll_single_clock_core_stage_a #(
     wire signed [CIC_WIDTH-1:0] cic_i_baseband;
     wire signed [CIC_WIDTH-1:0] cic_q_baseband;
     wire post_iir_state_use_track;
+    wire track_iir_preheat;
     wire cordic_valid;
     wire signed [PHASE_WIDTH-1:0] cordic_phase_word;
     wire [MAG_WIDTH-1:0] cordic_magnitude;
@@ -167,6 +168,7 @@ module dpll_single_clock_core_stage_a #(
     reg signed [COEFF_WIDTH-1:0] hybrid_kf_r;
     reg signed [COEFF_WIDTH-1:0] hybrid_ki_r;
     reg signed [COEFF_WIDTH-1:0] hybrid_kp_r;
+    reg [3:0] loop_state_d;
     wire saturated_high;
     wire saturated_low;
     (* keep = "true", dont_touch = "true" *) reg rst_nco_r;
@@ -183,7 +185,8 @@ module dpll_single_clock_core_stage_a #(
     assign tracking_word = config_apply ? center_word : tracking_word_hold;
     assign tracking_valid = correction_valid | config_apply;
     assign magnitude = cordic_magnitude_hold;
-    assign post_iir_state_use_track = (loop_state == 4'd5) || (loop_state == 4'd6);
+    assign post_iir_state_use_track = track_iir_preheat ||
+                                      (loop_state == 4'd5) || (loop_state == 4'd6);
     assign post_iir_requested_bypass = (post_iir_mode == 2'd0);
     assign post_iir_requested_track = (post_iir_mode == 2'd2) ||
                                       ((post_iir_mode == 2'd3) && post_iir_state_use_track);
@@ -191,6 +194,7 @@ module dpll_single_clock_core_stage_a #(
         (post_iir_active_bypass != post_iir_requested_bypass) ||
         (post_iir_active_use_track != post_iir_requested_track);
     assign detector_reconfigure = config_apply | cic_flush | post_iir_selection_changed;
+    wire cordic_status_clear = (loop_state == 4'd4) && (loop_state_d == 4'd3);
 
     always @(posedge clk_125m) begin
         rst_nco_r <= rst_125m;
@@ -201,6 +205,14 @@ module dpll_single_clock_core_stage_a #(
         rst_state_r <= rst_125m;
         rst_measure_r <= rst_125m;
         rst_hybrid_r <= rst_125m;
+    end
+
+    always @(posedge clk_125m) begin
+        if (rst_state_r) begin
+            loop_state_d <= 4'd0;
+        end else begin
+            loop_state_d <= loop_state;
+        end
     end
 
     always @(posedge clk_125m) begin
@@ -419,6 +431,7 @@ module dpll_single_clock_core_stage_a #(
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
         .clear(detector_reconfigure),
+        .status_clear(cordic_status_clear),
         .in_valid(iq_valid),
         .i_in(i_baseband),
         .q_in(q_baseband),
@@ -527,6 +540,7 @@ module dpll_single_clock_core_stage_a #(
         .active_kf(active_kf),
         .active_ki(active_ki),
         .active_kp(active_kp),
+        .track_iir_preheat(track_iir_preheat),
         .loop_state(loop_state),
         .loss_reason(loss_reason),
         .signal_present(signal_present),

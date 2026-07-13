@@ -9,6 +9,7 @@ module cordic_word_serial_adapter #(
     input  wire                         clk_125m,
     input  wire                         rst_125m,
     input  wire                         clear,
+    input  wire                         status_clear,
 
     input  wire                         in_valid,
     input  wire signed [IQ_WIDTH-1:0]   i_in,
@@ -134,7 +135,7 @@ module cordic_word_serial_adapter #(
     end
 
     always @(posedge clk_125m) begin
-        if (rst_125m) begin
+        if (rst_125m || status_clear) begin
             input_overrun_seen <= 1'b0;
             input_out_of_range_seen <= 1'b0;
             output_format_error_seen <= 1'b0;

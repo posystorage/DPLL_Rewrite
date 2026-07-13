@@ -158,9 +158,9 @@ y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2]
 | 0 | bypass |
 | 1 | 强制 ACQUIRE 系数 |
 | 2 | 强制 TRACK 系数 |
-| 3 | AUTO：state 5/6 用 TRACK，其余用 ACQUIRE |
+| 3 | AUTO：state 4/8 后期先预热 TRACK，state 5/6 继续使用 TRACK，其余使用 ACQUIRE |
 
-IIR 系数选择发生变化时，当前实现会清 IIR、CORDIC 和 FLL detector 历史。
+IIR 系数选择发生变化时，当前实现会清 IIR、CORDIC 和 FLL detector 历史。状态机不会在同一边沿立即接入 PI：频率满足 acquire dwell 后，state 4/8 内部先置位 `track_iir_preheat`，保持 FLL-only，并等待 4 个恢复后的 block-valid 测量，再进入 state 5。
 
 ### 2.6 CORDIC
 
@@ -195,7 +195,7 @@ CORDIC 输入合法检查范围：
 -262144 <= I,Q <= +262144
 ```
 
-注意：CORDIC 三个 sticky 错误当前只在 `rst_125m` 时清零，adapter 的 `clear/config_apply` 不清 sticky。
+注意：CORDIC 三个 sticky 错误由 `rst_125m` 或独立 `status_clear` 清零。当前核心只在首次 `state 3 -> state 4` 边沿产生该状态清零脉冲；adapter 的数据通路 `clear/config_apply` 不清 sticky，也不会借状态清零去复位 FIFO 或 CORDIC IP。
 
 ### 2.7 phase detector
 
@@ -272,7 +272,7 @@ tracking_word   = clamp(center_word + freq_correction,
 | 1 | DISABLED | 全部关闭 |
 | 2 | CONFIGURE | 配置提交后的过渡 |
 | 3 | WARMUP | 等待 detector/IIR/CORDIC/FLL 历史稳定，全部控制关闭 |
-| 4 | FLL_ACQUIRE | 仅 FLL，使用 `Kf_acquire` |
+| 4 | FLL_ACQUIRE | 仅 FLL；满足 acquire dwell 后在本状态内预热 TRACK IIR |
 | 5 | FLL_PLL_BLEND | FLL + PI，使用 blend 参数 |
 | 6 | PLL_TRACK | FLL + PI，使用 track 参数 |
 | 7 | HOLDOVER | 冻结控制，等待测量恢复 |
@@ -284,11 +284,13 @@ tracking_word   = clamp(center_word + freq_correction,
 重要语义：
 
 - state 3 不做 FLL/P/I 控制，只完成 warmup。
-- state 4 只有 FLL。
+- state 4 只有 FLL；TRACK IIR 预热期间仍不启用 P/I。
 - state 5 已经启用 FLL、P、I。
 - state 6 仍启用 FLL，只是使用较小的 `Kf_track`。
 - `phase_locked` 和 `frequency_locked` 是当前阈值判断，可在 state 5 为 1。
 - 总 `locked` 只有在 `state==6` 且 signal、phase、frequency、saturation 全部正常时才为 1。
+
+从 state 4/8 进入 state 5：先完成原 acquire dwell，再切 TRACK IIR，并取得 4 个新的 signal/frequency 有效 block。这样 IIR/CORDIC/FLL 重建发生在纯 FLL 阶段。
 
 从 state 5 进入 state 6：频率、信号、饱和条件必须正常，并且 phase 连续满足阈值 `blend_dwell` 个 block-valid 测量。
 

@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<project>
+  <fileVersion>2</fileVersion>
+  <fileChecksum>1195442187</fileChecksum>
+  <configuration>
+    <name>Debug</name>
+    <outputs>
+      <file>$TOOLKIT_DIR$\lib\dlstm8smn.a</file>
+      <file>$PROJ_DIR$\Debug\Obj\Timer4.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\delay.o</file>
+      <file>$PROJ_DIR$\Debug\List\EEPROM.s</file>
+      <file>$PROJ_DIR$\Debug\Obj\IIC.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\List\delay.s</file>
+      <file>$PROJ_DIR$\src\max2891_pll_conf.h</file>
+      <file>$PROJ_DIR$\src\EEPROM.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\delay.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Exe\STM8S003_MAX2871_LCD13232.hex</file>
+      <file>$PROJ_DIR$\Debug\Obj\MAX2871.o</file>
+      <file>$PROJ_DIR$\src\IIC.c</file>
+      <file>$PROJ_DIR$\src\delay.h</file>
+      <file>$PROJ_DIR$\src\delay.c</file>
+      <file>$PROJ_DIR$\src\MAX2871.c</file>
+      <file>$PROJ_DIR$\src\EEPROM.c</file>
+      <file>$PROJ_DIR$\src\RedPitaya.c</file>
+      <file>$PROJ_DIR$\src\RedPitaya.h</file>
+      <file>$PROJ_DIR$\src\control_protocol.h</file>
+      <file>$PROJ_DIR$\Debug\Exe\STM8S903_LCD13232_TM7707_Meters.out</file>
+      <file>$PROJ_DIR$\src\IIC.h</file>
+      <file>$PROJ_DIR$\src\Timer4.c</file>
+      <file>$PROJ_DIR$\Debug\Obj\MAX2871.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\List\main.s</file>
+      <file>$PROJ_DIR$\src\stm8s.h</file>
+      <file>$PROJ_DIR$\src\MAX2871.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\RedPitaya.o</file>
+      <file>$PROJ_DIR$\src\Timer4.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\Timer4.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\main.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\main.o</file>
+      <file>$PROJ_DIR$\src\main.c</file>
+      <file>$TOOLKIT_DIR$\lib\dbgstm8smd.a</file>
+      <file>$PROJ_DIR$\Debug\Obj\EEPROM.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\List\IIC.s</file>
+      <file>$PROJ_DIR$\Debug\Obj\delay.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\MAX2871.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\RedPitaya.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\List\MAX2871.s</file>
+      <file>$PROJ_DIR$\Debug\Obj\RedPitaya.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\Timer4.pbi</file>
+      <file>$TOOLKIT_DIR$\config\lnkstm8s103f3.icf</file>
+      <file>$TOOLKIT_DIR$\inc\c\intrinsics.h</file>
+      <file>$PROJ_DIR$\Debug\List\Timer4.s</file>
+      <file>$PROJ_DIR$\Debug\List\RedPitaya.s</file>
+      <file>$PROJ_DIR$\Debug\Obj\EEPROM.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\IIC.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\IIC.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\main.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\STM8S003_MAX2871_LCD13232.pbd</file>
+      <file>$PROJ_DIR$\Debug\List\STM8S903_LCD13232_TM7707_Meters.map</file>
+      <file>$PROJ_DIR$\Debug\Obj\EEPROM.pbi</file>
+    </outputs>
+    <file>
+      <name>[ROOT_NODE]</name>
+      <outputs>
+        <tool>
+          <name>ILINK</name>
+          <file> 50 19</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\src\IIC.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 47</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 34 46</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 4</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 20 24 6 27 17 18 12 7 25 42</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 20 6 24 42 12 27 7 25 17 18</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\src\delay.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 35</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 5 2</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 8</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 6 42 7 18 24 12 27 20 25 17</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 12 24 42 6 27 7 20 18 25 17</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\src\MAX2871.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 36</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 38 10</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 22</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 6 27 17 24 20 18 12 7 25 42</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 25 6 24 42 12 27 7 20 18 17</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\src\EEPROM.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 51</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 3 45</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 33</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 7 6 12 25 20 24 27 17 18 42</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 7 6 24 42 12 27 20 18 25 17</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\src\RedPitaya.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 39</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 44 26</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 37</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 24 25 20 7 27 17 42 18 6 12</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 17 6 24 42 12 27 7 20 18 25</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\Debug\Exe\STM8S903_LCD13232_TM7707_Meters.out</name>
+      <outputs>
+        <tool>
+          <name>OBJCOPY</name>
+          <file> 9</file>
+        </tool>
+        <tool>
+          <name>ILINK</name>
+          <file> 50</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>ILINK</name>
+          <file> 41 2 45 46 30 10 26 1 0 32</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\src\Timer4.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 40</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 43 1</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 28</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 27 24 20 6 12 7 25 17 42 18</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 27 6 24 42 12 7 20 18 25 17</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\src\main.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 48</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 23 30</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 29</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 6 12 7 24 27 20 25 42 18 17</file>
+        </tool>
+        <tool>
+          <name>ICCSTM8</name>
+          <file> 6 24 42 12 27 7 20 18 25 17</file>
+        </tool>
+      </inputs>
+    </file>
+  </configuration>
+  <configuration>
+    <name>Release</name>
+    <outputs/>
+    <forcedrebuild>
+      <name>[MULTI_TOOL]</name>
+      <tool>ILINK</tool>
+    </forcedrebuild>
+  </configuration>
+</project>
+
+

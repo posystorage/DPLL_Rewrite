@@ -22,6 +22,7 @@ void Display_UI_PLL_Refresh_Status(void);
 void Display_UI_Show_PLL_Gain(uint8_t row, uint32_t blink_bit);
 void Display_UI_Show_PLL_Limit(uint8_t row, uint32_t blink_bit);
 void Display_UI_Show_Phase_Threshold(uint32_t blink_bit);
+void Display_UI_Show_Debug_DAC_Preset(uint32_t blink);
 void Display_UI_Show_Amplitude_Freq_Threshold(uint32_t amplitude_blink,
                                               uint32_t frequency_blink);
 

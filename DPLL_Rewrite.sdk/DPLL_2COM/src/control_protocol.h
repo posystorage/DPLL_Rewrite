@@ -40,6 +40,7 @@
 #define CTRL_REG_LOOP_STATE                68U
 #define CTRL_REG_LOSS_REASON               69U
 #define CTRL_REG_BRIDGE_STATUS             70U
+#define CTRL_REG_DEBUG_DAC_PRESET           71U
 #define CTRL_REG_FREQ_ERROR_HZ             72U
 #define CTRL_REG_PHASE_ERROR_CDEG          76U
 #define CTRL_REG_OUTPUT_FREQ_HZ            80U
@@ -63,6 +64,11 @@
 #define CTRL_MWS_STATUS_LOCKED             0x02U
 
 #define CTRL_BRIDGE_STATUS_BUSY            0x01U
+
+#define CTRL_DEBUG_DAC_PRESET_MIN          0U
+#define CTRL_DEBUG_DAC_PRESET_MAX          8U
+#define CTRL_DEBUG_DAC_PRESET_DEFAULT      1U
+#define CTRL_DEBUG_DAC_PRESET_MANUAL       0xFFU
 
 #define CTRL_ERROR_NONE                    0U
 #define CTRL_ERROR_PROTOCOL                1U

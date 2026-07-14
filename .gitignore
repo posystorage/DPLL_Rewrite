@@ -67,6 +67,7 @@ DPLL_Rewrite.sdk/**/Release/**
 *.obj
 *.d
 *.a
+!DPLL_Rewrite.sdk/DPLL_fsbl_bsp/ps7_cortexa9_0/libsrc/xilrsa_v1_5/src/librsa.a
 *.pdom
 *.index
 __pycache__/

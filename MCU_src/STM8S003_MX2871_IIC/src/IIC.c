@@ -41,7 +41,9 @@ void IIC_Slave_RX_Byte(uint8_t Last_Event_SR1)
     Cache = I2C->DR;
     if(IIC_Reg_Addr_Get)
     {
-      if((IIC_Reg_Addr_Point>=CTRL_PERSIST_BEGIN)&&(IIC_Reg_Addr_Point<CTRL_PERSIST_END))
+      if(((IIC_Reg_Addr_Point>=CTRL_PERSIST_BEGIN)&&
+          (IIC_Reg_Addr_Point<CTRL_PERSIST_END))||
+         (IIC_Reg_Addr_Point==CTRL_REG_DEBUG_DAC_PRESET))
       {
         IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
         IIC_Reg_Addr_Point++;

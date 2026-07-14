@@ -1,8 +1,8 @@
 //Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 //--------------------------------------------------------------------------------
 //Tool Version: Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-//Date        : Mon Sep  7 15:36:56 2020
-//Host        : LeakyShip running 64-bit major release  (build 9200)
+//Date        : Tue Jul 14 16:42:43 2026
+//Host        : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 //Command     : generate_target system.bd
 //Design      : system
 //Purpose     : IP block netlist
@@ -107,7 +107,7 @@ module system
   (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 CLK.FCLK_CLK0 CLK" *) (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME CLK.FCLK_CLK0, CLK_DOMAIN system_processing_system7_0_0_FCLK_CLK0, FREQ_HZ 125000000, INSERT_VIP 0, PHASE 0.000" *) output FCLK_CLK0;
   (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 CLK.FCLK_CLK1 CLK" *) (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME CLK.FCLK_CLK1, CLK_DOMAIN system_processing_system7_0_0_FCLK_CLK1, FREQ_HZ 250000000, INSERT_VIP 0, PHASE 0.000" *) output FCLK_CLK1;
   (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 CLK.FCLK_CLK2 CLK" *) (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME CLK.FCLK_CLK2, CLK_DOMAIN system_processing_system7_0_0_FCLK_CLK2, FREQ_HZ 50000000, INSERT_VIP 0, PHASE 0.000" *) output FCLK_CLK2;
-  (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 CLK.FCLK_CLK3 CLK" *) (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME CLK.FCLK_CLK3, CLK_DOMAIN system_processing_system7_0_0_FCLK_CLK3, FREQ_HZ 200000000, INSERT_VIP 0, PHASE 0.000" *) output FCLK_CLK3;
+  (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 CLK.FCLK_CLK3 CLK" *) (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME CLK.FCLK_CLK3, CLK_DOMAIN system_processing_system7_0_0_FCLK_CLK3, FREQ_HZ 100000000, INSERT_VIP 0, PHASE 0.000" *) output FCLK_CLK3;
   (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 RST.FCLK_RESET0_N RST" *) (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME RST.FCLK_RESET0_N, INSERT_VIP 0, POLARITY ACTIVE_LOW" *) output FCLK_RESET0_N;
   (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 RST.FCLK_RESET1_N RST" *) (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME RST.FCLK_RESET1_N, INSERT_VIP 0, POLARITY ACTIVE_LOW" *) output FCLK_RESET1_N;
   (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 RST.FCLK_RESET2_N RST" *) (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME RST.FCLK_RESET2_N, INSERT_VIP 0, POLARITY ACTIVE_LOW" *) output FCLK_RESET2_N;

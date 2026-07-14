@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jul 14 03:27:39 2026
+| Date         : Tue Jul 14 16:45:24 2026
 | Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 | Command      : report_utilization -file red_pitaya_top_utilization_synth.rpt -pb red_pitaya_top_utilization_synth.pb
 | Design       : red_pitaya_top
@@ -30,15 +30,15 @@ Table of Contents
 +----------------------------+-------+-------+-----------+-------+
 |          Site Type         |  Used | Fixed | Available | Util% |
 +----------------------------+-------+-------+-----------+-------+
-| Slice LUTs*                | 10026 |     0 |     17600 | 56.97 |
-|   LUT as Logic             |  9920 |     0 |     17600 | 56.36 |
+| Slice LUTs*                | 10008 |     0 |     17600 | 56.86 |
+|   LUT as Logic             |  9902 |     0 |     17600 | 56.26 |
 |   LUT as Memory            |   106 |     0 |      6000 |  1.77 |
 |     LUT as Distributed RAM |     0 |     0 |           |       |
 |     LUT as Shift Register  |   106 |     0 |           |       |
 | Slice Registers            | 13917 |     0 |     35200 | 39.54 |
 |   Register as Flip Flop    | 13917 |     0 |     35200 | 39.54 |
 |   Register as Latch        |     0 |     0 |     35200 |  0.00 |
-| F7 Muxes                   |    50 |     0 |      8800 |  0.57 |
+| F7 Muxes                   |    51 |     0 |      8800 |  0.58 |
 | F8 Muxes                   |    15 |     0 |      4400 |  0.34 |
 +----------------------------+-------+-------+-----------+-------+
 * Warning! The Final LUT count, after physical optimizations and full implementation, is typically lower. Run opt_design after synthesis, if not already completed, for a more realistic count.
@@ -152,12 +152,12 @@ Table of Contents
 |  Ref Name |  Used |  Functional Category |
 +-----------+-------+----------------------+
 | FDRE      | 11732 |         Flop & Latch |
-| LUT2      |  3088 |                  LUT |
-| LUT6      |  3051 |                  LUT |
-| LUT3      |  2287 |                  LUT |
+| LUT2      |  3084 |                  LUT |
+| LUT6      |  3058 |                  LUT |
+| LUT3      |  2286 |                  LUT |
 | FDCE      |  1626 |         Flop & Latch |
-| LUT4      |  1569 |                  LUT |
-| LUT5      |  1355 |                  LUT |
+| LUT4      |  1562 |                  LUT |
+| LUT5      |  1354 |                  LUT |
 | CARRY4    |  1176 |           CarryLogic |
 | LUT1      |   839 |                  LUT |
 | FDPE      |   418 |         Flop & Latch |
@@ -165,7 +165,7 @@ Table of Contents
 | BIBUF     |   130 |                   IO |
 | SRL16E    |    59 |   Distributed Memory |
 | IBUF      |    54 |                   IO |
-| MUXF7     |    50 |                MuxFx |
+| MUXF7     |    51 |                MuxFx |
 | SRLC32E   |    47 |   Distributed Memory |
 | OBUF      |    35 |                   IO |
 | DSP48E1   |    27 |     Block Arithmetic |

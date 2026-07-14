@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"H:\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "C:\Users\J\Desktop\STM32F030_LCD\STM8S003_MX2871_IIC\settings\STM8S003_MAX2871_LCD13232.Debug.general.xcl" --backend -f "C:\Users\J\Desktop\STM32F030_LCD\STM8S003_MX2871_IIC\settings\STM8S003_MAX2871_LCD13232.Debug.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\MCU_src\STM8S003_MX2871_IIC\settings\STM8S003_MAX2871_LCD13232.Debug.general.xcl" --backend -f "E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\MCU_src\STM8S003_MX2871_IIC\settings\STM8S003_MAX2871_LCD13232.Debug.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"H:\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "C:\Users\J\Desktop\STM32F030_LCD\STM8S003_MX2871_IIC\settings\STM8S003_MAX2871_LCD13232.Debug.general.xcl" "--debug_file=%~1" --backend -f "C:\Users\J\Desktop\STM32F030_LCD\STM8S003_MX2871_IIC\settings\STM8S003_MAX2871_LCD13232.Debug.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\MCU_src\STM8S003_MX2871_IIC\settings\STM8S003_MAX2871_LCD13232.Debug.general.xcl" "--debug_file=%~1" --backend -f "E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\MCU_src\STM8S003_MX2871_IIC\settings\STM8S003_MAX2871_LCD13232.Debug.driver.xcl" 
 
 @echo off 
 :end

@@ -70,6 +70,7 @@ XScuGic XPS_XScuGic;
 uint8_t PLL_Lock_Status;
 
 static uint8_t Control_Bank[CTRL_BANK_SIZE];
+static uint8_t Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_MANUAL;
 
 static uint8_t Control_Link_Startup(void);
 static void Control_Link_Service(void);
@@ -83,6 +84,8 @@ static void Control_Reset_Both(void);
 static void control_put_u32(uint8_t offset, uint32_t value);
 static uint8_t control_uart_write(uint8_t offset, uint8_t length, const uint8_t *data);
 static uint8_t control_apply_bank(void);
+static uint8_t Control_Apply_Debug_DAC_Preset(uint8_t preset);
+static uint8_t Control_Set_Debug_DAC_Preset(uint8_t preset);
 
 void XPS_Core_init(void)
 {
@@ -123,6 +126,7 @@ void XPS_Core_init(void)
 #define PC_CMD_READ_FREQMETER_CNT					0x17
 #define PC_CMD_READ_FREQMETER_FAST_REFERENCE		0x1C
 #define PC_CMD_READ_CONTROL_BANK			0x1D
+#define PC_CMD_READ_DPLL_DEBUG_CONFIG		0x1E
 
 
 #define PC_CMD_VBIAS_READ_DAC	 			0x1A
@@ -181,6 +185,27 @@ uint64_t Freq_meter_gate_time_cache = 0;
 #define PC_HOST_MAX_FRAME_BYTES           128U
 #define DPLL_ADV_CONFIG_PAYLOAD_BYTES     90U
 #define DPLL_DEBUG_CONFIG_PAYLOAD_BYTES   12U
+#define DPLL_DEBUG_PRESET_PAYLOAD_BYTES   1U
+
+typedef struct {
+	uint32_t source;
+	uint32_t format;
+	uint16_t offset;
+	uint16_t gain;
+} debug_dac_preset_t;
+
+static const debug_dac_preset_t
+Debug_DAC_Presets[CTRL_DEBUG_DAC_PRESET_MAX + 1U] = {
+	{0U, 0x0100U, 0U, 0x5000U},
+	{1U, 0x0004U, 0U, 0x7FFFU},
+	{2U, 0x0100U, 0U, 0x5000U},
+	{3U, 0x0000U, 0U, 0x7FFFU},
+	{4U, 0x0000U, 0U, 0x7FFFU},
+	{5U, 0x0006U, 0U, 0x7FFFU},
+	{6U, 0x0006U, 0U, 0x7FFFU},
+	{7U, 0x0004U, 0U, 0x7FFFU},
+	{8U, 0x0207U, 0U, 0x7FFFU}
+};
 
 static uint8_t dpll_abi_ready = 0;
 static uint8_t dpll_driver_initialized = 0;
@@ -1045,17 +1070,65 @@ void CMD_94_WRITE_FREQMETER_TIMER(void)
 	PC_HOST_Send_ASK_Only(0);
 }
 
+static uint8_t Control_Apply_Debug_DAC_Preset(uint8_t preset)
+{
+	const debug_dac_preset_t *config;
+	if (preset > CTRL_DEBUG_DAC_PRESET_MAX) return 0U;
+	config = &Debug_DAC_Presets[preset];
+	Xil_Out32(DPLL_DEBUG_DAC_OFFSET_ADDR, config->offset);
+	Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR, config->gain);
+	Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR, config->format);
+	Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR, config->source);
+	return 1U;
+}
+
+static uint8_t Control_Set_Debug_DAC_Preset(uint8_t preset)
+{
+	uint8_t previous = Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
+	if (preset > CTRL_DEBUG_DAC_PRESET_MAX) return 0U;
+	Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = preset;
+	if (!control_uart_write(CTRL_REG_DEBUG_DAC_PRESET, 1U,
+	                        &Control_Bank[CTRL_REG_DEBUG_DAC_PRESET])) {
+		Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = previous;
+		return 0U;
+	}
+	Control_Apply_Debug_DAC_Preset(preset);
+	Control_Debug_Preset_Seen = preset;
+	return 1U;
+}
+
 void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 {
-	if (pc_payload_len() < DPLL_DEBUG_CONFIG_PAYLOAD_BYTES) {
+	uint8_t length = pc_payload_len();
+	uint8_t previous_preset;
+	if (length == DPLL_DEBUG_PRESET_PAYLOAD_BYTES) {
+		if (!Control_Set_Debug_DAC_Preset(PC_HOST_CMD_data_Buff[4])) {
+			PC_HOST_Send_ASK_Only(
+				PC_HOST_CMD_data_Buff[4] > CTRL_DEBUG_DAC_PRESET_MAX ?
+				CTRL_ERROR_RANGE : CTRL_ERROR_PROTOCOL);
+			return;
+		}
+		PC_HOST_Send_ASK_Only(0U);
+		return;
+	}
+	if (length != DPLL_DEBUG_CONFIG_PAYLOAD_BYTES) {
 		PC_HOST_Send_ASK_Only(0xF2);
 		return;
 	}
-	Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR, pc_get_u32(4));
-	Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR, pc_get_u32(8));
+	previous_preset = Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
+	Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = CTRL_DEBUG_DAC_PRESET_MANUAL;
+	if (!control_uart_write(CTRL_REG_DEBUG_DAC_PRESET, 1U,
+	                        &Control_Bank[CTRL_REG_DEBUG_DAC_PRESET])) {
+		Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = previous_preset;
+		PC_HOST_Send_ASK_Only(CTRL_ERROR_PROTOCOL);
+		return;
+	}
 	Xil_Out32(DPLL_DEBUG_DAC_OFFSET_ADDR, pc_get_u16(12));
 	Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR, pc_get_u16(14));
-	PC_HOST_Send_ASK_Only(0);
+	Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR, pc_get_u32(8));
+	Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR, pc_get_u32(4));
+	Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_MANUAL;
+	PC_HOST_Send_ASK_Only(0U);
 }
 
 void CMD_98_WRITE_FREQMETER_FAST_INTERVAL(void)
@@ -1086,6 +1159,20 @@ void CMD_1D_READ_CONTROL_BANK(void)
 {
 	memcpy(&Uart0_TX_Buff[4], Control_Bank, CTRL_BANK_SIZE);
 	PC_HOST_ASK_Pack(CTRL_BANK_SIZE);
+}
+
+void CMD_1E_READ_DPLL_DEBUG_CONFIG(void)
+{
+	uint32_t offset = Xil_In32(DPLL_DEBUG_DAC_OFFSET_ADDR);
+	uint32_t gain = Xil_In32(DPLL_DEBUG_DAC_GAIN_ADDR);
+	Uart0_TX_Buff[4] = Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
+	pc_put_u32(5U, Xil_In32(DPLL_DEBUG_DAC_SOURCE_ADDR));
+	pc_put_u32(9U, Xil_In32(DPLL_DEBUG_DAC_FORMAT_ADDR));
+	Uart0_TX_Buff[13] = (uint8_t)offset;
+	Uart0_TX_Buff[14] = (uint8_t)(offset >> 8);
+	Uart0_TX_Buff[15] = (uint8_t)gain;
+	Uart0_TX_Buff[16] = (uint8_t)(gain >> 8);
+	PC_HOST_ASK_Pack(13U);
 }
 
 void CMD_81_WRITE_MWS_FREQ_PWR(void)
@@ -1213,6 +1300,9 @@ void PC_HOST_CMD_Respond(void)
 			case PC_CMD_READ_CONTROL_BANK:
 				CMD_1D_READ_CONTROL_BANK();
 				break;
+			case PC_CMD_READ_DPLL_DEBUG_CONFIG:
+				CMD_1E_READ_DPLL_DEBUG_CONFIG();
+				break;
 //			case PC_CMD_VBIAS_READ_DAC:
 //				CMD_1A_READ_VBIAS_DAC();
 //				break;
@@ -1253,7 +1343,8 @@ void PC_HOST_CMD_Respond(void)
 			case PC_CMD_PLL_RESET:
 				Control_Reset_Both();
 				dpll_invalidate_abi();
-				if (dpll_initialize_abi() && control_apply_bank()) {
+				if (dpll_initialize_abi() && control_apply_bank() &&
+				    Control_Set_Debug_DAC_Preset(CTRL_DEBUG_DAC_PRESET_DEFAULT)) {
 					PC_HOST_Send_ASK_Only(0U);
 				} else {
 					PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
@@ -1769,11 +1860,17 @@ static uint8_t Control_Link_Startup(void)
 	Control_Bank[CTRL_REG_CONTROL_FLAGS] = 0U;
 	if (!control_uart_write(CTRL_REG_CONTROL_FLAGS, 1U,
 	                        &Control_Bank[CTRL_REG_CONTROL_FLAGS])) return 0U;
+	Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = CTRL_DEBUG_DAC_PRESET_DEFAULT;
+	if (!control_uart_write(CTRL_REG_DEBUG_DAC_PRESET, 1U,
+	                        &Control_Bank[CTRL_REG_DEBUG_DAC_PRESET])) return 0U;
+	Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_MANUAL;
 	Control_Reset_Both();
 	if (!dpll_initialize_abi()) {
 		Control_Last_Error = CTRL_ERROR_ABI;
 	} else {
 		control_apply_bank();
+		Control_Apply_Debug_DAC_Preset(CTRL_DEBUG_DAC_PRESET_DEFAULT);
+		Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_DEFAULT;
 	}
 	Control_Request_Seen = Control_Bank[CTRL_REG_REQUEST_SEQ];
 	Control_Bank[CTRL_REG_RESPONSE_SEQ] = Control_Request_Seen;
@@ -1783,24 +1880,43 @@ static uint8_t Control_Link_Startup(void)
 
 static void Control_Link_Service(void)
 {
-	uint8_t header[67];
+	uint8_t header[CTRL_REG_DEBUG_DAC_PRESET - CTRL_REG_REQUEST_SEQ + 1U];
 	uint8_t previous[CTRL_PERSIST_END - CTRL_PERSIST_BEGIN];
+	uint8_t request_sequence;
+	uint8_t debug_preset;
 	uint8_t apply_error;
 	if (++Control_Service_Divider < CONTROL_SERVICE_PERIOD_LOOPS) return;
 	Control_Service_Divider = 0U;
-	memcpy(previous, &Control_Bank[CTRL_PERSIST_BEGIN], sizeof(previous));
 	if (!control_uart_read(CTRL_REG_REQUEST_SEQ, sizeof(header), header)) {
 		Control_Last_Error = CTRL_ERROR_PROTOCOL;
 		return;
 	}
-	memcpy(&Control_Bank[CTRL_REG_REQUEST_SEQ], header, sizeof(header));
-	if (Control_Bank[CTRL_REG_REQUEST_SEQ] != Control_Request_Seen) {
-		Control_Request_Seen = Control_Bank[CTRL_REG_REQUEST_SEQ];
+	request_sequence = header[0];
+	debug_preset = header[CTRL_REG_DEBUG_DAC_PRESET - CTRL_REG_REQUEST_SEQ];
+	Control_Bank[CTRL_REG_CONTROL_FLAGS] =
+		header[CTRL_REG_CONTROL_FLAGS - CTRL_REG_REQUEST_SEQ];
+	Control_Bank[CTRL_REG_MWS_STATUS] =
+		header[CTRL_REG_MWS_STATUS - CTRL_REG_REQUEST_SEQ];
+	if (request_sequence != Control_Request_Seen) {
+		memcpy(previous, &Control_Bank[CTRL_PERSIST_BEGIN], sizeof(previous));
+		memcpy(&Control_Bank[CTRL_REG_REQUEST_SEQ], header,
+		       CTRL_PERSIST_END - CTRL_REG_REQUEST_SEQ);
+		Control_Request_Seen = request_sequence;
 		if (!control_apply_bank()) {
 			apply_error = Control_Last_Error;
 			control_restore_persistent(previous, apply_error, 1U);
 		}
 		Control_Bank[CTRL_REG_RESPONSE_SEQ] = Control_Request_Seen;
+	}
+	if (debug_preset != Control_Debug_Preset_Seen) {
+		if (debug_preset <= CTRL_DEBUG_DAC_PRESET_MAX) {
+			Control_Apply_Debug_DAC_Preset(debug_preset);
+			Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = debug_preset;
+			Control_Debug_Preset_Seen = debug_preset;
+		} else {
+			control_uart_write(CTRL_REG_DEBUG_DAC_PRESET, 1U,
+			                   &Control_Bank[CTRL_REG_DEBUG_DAC_PRESET]);
+		}
 	}
 	control_collect_runtime();
 	control_publish_runtime();

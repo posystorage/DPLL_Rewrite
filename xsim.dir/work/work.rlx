@@ -1,0 +1,8 @@
+0.6
+2018.3
+Dec  7 2018
+00:33:28
+E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/DigitalPLL/hybrid_loop/fll_phase_difference_stage_a.v,1783968407,verilog,,E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/DigitalPLL/hybrid_loop/hybrid_fll_pll_filter_stage_a.v,,fll_cross_dot_stage_a;fll_phase_difference_stage_a,,,,,,,,
+E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/DPLL_Rewrite.srcs/sources_1/DigitalPLL/hybrid_loop/hybrid_fll_pll_filter_stage_a.v,1783968462,verilog,,E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/verification/rtl/fll_cross_dot_stage_a_tb.v,,hybrid_fll_pll_filter_stage_a,,,,,,,,
+E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/verification/rtl/fll_cross_dot_stage_a_tb.v,1783959546,verilog,,E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/verification/rtl/hybrid_fll_pll_filter_stage_a_tb.v,,fll_cross_dot_stage_a_tb,,,,,,,,
+E:/JiangSiyi/FPGA/DPLL_Low_Freq_Track/verification/rtl/hybrid_fll_pll_filter_stage_a_tb.v,1783669137,verilog,,,,hybrid_fll_pll_filter_stage_a_tb,,,,,,,,

@@ -1,10 +1,10 @@
-"H:\IAR Systems\Embedded Workbench 7.3\stm8\bin\stm8proc.dll" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\stm8\bin\stm8proc.dll" 
 
-"H:\IAR Systems\Embedded Workbench 7.3\stm8\bin\stm8stlink.dll" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\stm8\bin\stm8stlink.dll" 
 
-"C:\Users\J\Desktop\STM32F030_LCD\STM8S003_MX2871_IIC\Debug\Exe\STM8S903_LCD13232_TM7707_Meters.out" 
+"E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\MCU_src\STM8S003_MX2871_IIC\Debug\Exe\STM8S903_LCD13232_TM7707_Meters.out" 
 
---plugin "H:\IAR Systems\Embedded Workbench 7.3\stm8\bin\stm8bat.dll" 
+--plugin "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\stm8\bin\stm8bat.dll" 
 
 
 

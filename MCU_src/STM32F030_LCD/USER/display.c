@@ -368,6 +368,26 @@ static void display_fast_meter(void)
 		                       (uint8_t)('0' + U32_Dec_Buff[power - 1U]), INDIANRED);
 }
 
+static void display_loop_state(uint8_t status)
+{
+	uint8_t state = STM8_Control_Bank[CTRL_REG_LOOP_STATE];
+	uint8_t glyph = state <= 9U ? state : 11U;
+	uint16_t color = GRAY;
+	if ((status & CTRL_DPLL_STATUS_ARM_ONLINE) == 0U) {
+		glyph = 11U;
+	} else if (state == 6U) {
+		color = DARKGREEN;
+	} else if (state == 7U || state == 9U) {
+		color = RED;
+	} else if (state == 4U || state == 5U) {
+		color = DARKBLUE;
+	} else if (state == 8U) {
+		color = BRRED;
+	}
+	BACK_COLOR = WHITE;
+	LCD_SHOW_ASCII_0806(154U, 37U, glyph, color);
+}
+
 void Display_UI_PLL_Refresh_Status(void)
 {
 	uint8_t status = STM8_Control_Bank[CTRL_REG_DPLL_STATUS];
@@ -379,6 +399,7 @@ void Display_UI_PLL_Refresh_Status(void)
 	display_unsigned(54U, 97U, STM8_Bank_Get_U32(CTRL_REG_OUTPUT_FREQ_HZ),
 	                 7U, 0U, INDIANRED);
 	display_fast_meter();
+	display_loop_state(status);
 	if ((status & CTRL_DPLL_STATUS_ARM_ONLINE) == 0U) {
 		LCD_SHOW_Icon_1612(142U, 33U, 15U, RED);
 		return;
@@ -444,6 +465,21 @@ void Display_UI_Show_Phase_Threshold(uint32_t blink_bit)
 	              0U, blink_bit ? 1U : 0U, DARKBLUE);
 }
 
+void Display_UI_Show_Debug_DAC_Preset(uint32_t blink)
+{
+	uint8_t text[2];
+	uint8_t preset = STM8_Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
+	uint8_t glyph = preset <= CTRL_DEBUG_DAC_PRESET_MAX ?
+	                (uint8_t)('0' + preset) : (uint8_t)'-';
+	BACK_COLOR = WHITE;
+	LCD_SHOW_ASCII_1608(88U, 96U, glyph, DARKBLUE);
+	if (blink) {
+		text[0] = glyph;
+		text[1] = '\0';
+		Display_UI_Blink_Show_Register(88U, 96U, text, DARKBLUE);
+	}
+}
+
 void Display_UI_Show_Amplitude_Freq_Threshold(uint32_t amplitude_blink,
 		uint32_t frequency_blink)
 {
@@ -478,6 +514,9 @@ void Display_UI_PLL_Vice_Page_Init(void)
 	LCD_16ShowString_hanzi(14U, 64U, "输出上限", BLACK);
 	LCD_16ShowString_hanzi(14U, 80U, "输出下限", BLACK);
 	LCD_16ShowString_hanzi(14U, 96U, "相残限", BLACK);
+	LCD_SHOW_ASCII_1608(64U, 96U, 'D', BLACK);
+	LCD_SHOW_ASCII_1608(72U, 96U, '1', BLACK);
+	LCD_SHOW_ASCII_1608(80U, 96U, ':', BLACK);
 	LCD_16ShowString_hanzi(14U, 112U, "幅度", BLACK);
 	LCD_16ShowString_hanzi(88U, 112U, "频残", BLACK);
 	Display_UI_Show_PLL_Gain(0U, 0U);
@@ -487,6 +526,7 @@ void Display_UI_PLL_Vice_Page_Init(void)
 	Display_UI_Show_PLL_Limit(0U, 0U);
 	Display_UI_Show_PLL_Limit(1U, 0U);
 	Display_UI_Show_Phase_Threshold(0U);
+	Display_UI_Show_Debug_DAC_Preset(0U);
 	Display_UI_Show_Amplitude_Freq_Threshold(0U, 0U);
 }
 

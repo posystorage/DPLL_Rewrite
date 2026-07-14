@@ -72,7 +72,8 @@ response status：`00` 成功、`01` 坏帧/校验、`02` 越界、`03` 未知�
 - STM32 时序寄存器当前配置约 381 kHz。
 - 读操作先写一个 8 bit 寄存器偏移，再 repeated START 连续读取。
 - 普通写操作格式为寄存器偏移后跟连续数据；STM8 只接受 `[4,64)` 持久区写入，
-  运行状态、ID、版本和序号不能由普通 I2C 数据写覆盖。
+  以及偏移 71 的单字节 DAC1 快捷预设写入。运行状态、ID、版本和序号不能由
+  普通 I2C 数据写覆盖。
 
 ### 3.2 I2C 命令
 
@@ -100,12 +101,17 @@ STM32 在命令前后轮询 BUSY，最多 5000 次，每次间隔 200 us。命�
 ### 4.1 屏幕发起
 
 1. STM32 修改本地 96 字节缓存中的物理参数。
-2. STM32 把 `[4,64)` 写入 STM8 RAM。
-3. STM32 发送 `C4`；STM8 将 request sequence 加一。
-4. ARM 发现新序号，读取候选参数、校验、换算并原子 APPLY FPGA。
-5. 成功时 ARM 保留候选参数；失败时恢复提交前持久区和 FPGA active 配置，并把
+2. STM32 把 `[4,64)` 写入 STM8 RAM，随后立即回读并逐字节比较全部 60 字节；
+   不一致时最多重试 3 次。
+3. 只有回读完全一致时 STM32 才发送一次 `C4`；校验失败则放弃本次提交，request
+   sequence 不变。STM32 还会读取 `C4` 前后的 request sequence，确认它恰好加一；
+   回读失败时不盲目重发 `C4`，防止同一请求被重复计数。
+4. `C4` 是持久区事务的提交标记。STM8 收到后将 request sequence 加一；ARM 在序号
+   不变时忽略 STM8 RAM 中尚未提交的 `[4,64)`，避免轮询污染回滚基线。
+5. ARM 发现新序号后才复制候选参数、校验、换算并原子 APPLY FPGA。
+6. 成功时 ARM 保留候选参数；失败时恢复提交前持久区和 FPGA active 配置，并把
    旧持久区写回 STM8 RAM。
-6. ARM 写入 last error 和运行状态，最后令 response sequence 等于 request
+7. ARM 写入 last error 和运行状态，最后令 response sequence 等于 request
    sequence。STM32 只有读到一致快照后才认为本次请求完成。
 
 `C7/C8` 使用相同序号握手。APPLY 失败不会触发 EEPROM 保存；DPLL 在回滚完成后
@@ -125,9 +131,17 @@ ARM 发布状态时先把 response sequence 写成 `final_sequence XOR 0x80`，�
 STM32 最多重试 60 次，每次回退 2 ms。读到外部修改后的持久区时取消尚未执行的
 延迟 EEPROM 保存，避免旧屏幕定时器覆盖 ARM 或上位机的新配置。
 
+### 4.3 DAC1 live 快捷设置
+
+STM32 修改 `D1:0..8` 时只把偏移 71 写入 STM8 RAM 并立即回读校验，不发送 `C4`，
+也不启动 EEPROM 延迟保存。ARM 的约 50 ms 轮询覆盖到偏移 71；检测到预设变化后
+只写 FPGA debug DAC 的 offset、gain、format、source 四个 live 寄存器。完整 PC
+手动配置把偏移 71 写为 `FF`，供屏幕显示 `D1:-`，且 ARM 不再用快捷表覆盖它。
+
 ## 5. EEPROM
 
 - EEPROM 持久数据固定为控制区 `[4,64)`，共 60 字节。
+- 偏移 71 的 DAC1 预设不进入 EEPROM；保存、加载和 CRC 均不覆盖它。
 - 元数据为 magic `A5`、协议版本 `03`、CRC16 低字节、CRC16 高字节。
 - CRC 使用多项式 `0x1021`、初值 `0xFFFF`，覆盖全部 60 字节。
 - ID、版本、request/response sequence、enable 和运行状态均不持久化。
@@ -144,7 +158,9 @@ STM32 通常先于 ARM 启动。STM32 初始化 I2C 后持续检查 ID `A5`、�
 
 ARM 启动后循环 PING STM8 并读取完整控制区，强制清除两个 enable，随后同时复位
 DPLL 与精密频率计、重检 FPGA ABI、把 EEPROM 物理参数换算并 APPLY，最后发布
-一致状态。STM8 UART 链路断开时 ARM 重试启动；FPGA ABI/APPLY 失败时 ARM 仍发布
+一致状态。ARM 还会把非持久 DAC1 预设强制初始化为 `D1:1`，保持老固件的校正量
+输出观察方式；PC `0x8E` 复位后执行相同初始化。STM8 UART 链路断开时 ARM 重试
+启动；FPGA ABI/APPLY 失败时 ARM 仍发布
 在线状态和错误码，但保持 DPLL 关闭。
 
 ## 7. 扩展约束

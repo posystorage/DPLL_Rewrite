@@ -1,7 +1,7 @@
 {
   "design": {
     "design_info": {
-      "boundary_crc": "0x341FFBD8709F45C9",
+      "boundary_crc": "0x341FFBD8C9E763A9",
       "device": "xc7z010clg400-1",
       "name": "system",
       "synth_flow_mode": "None",
@@ -322,7 +322,7 @@
             "value_src": "default_prop"
           },
           "FREQ_HZ": {
-            "value": "200000000"
+            "value": "100000000"
           },
           "INSERT_VIP": {
             "value": "0",
@@ -421,7 +421,7 @@
             "value": "50.000000"
           },
           "PCW_ACT_FPGA3_PERIPHERAL_FREQMHZ": {
-            "value": "200.000000"
+            "value": "100.000000"
           },
           "PCW_ACT_PCAP_PERIPHERAL_FREQMHZ": {
             "value": "200.000000"
@@ -475,7 +475,7 @@
             "value": "50000000"
           },
           "PCW_CLK3_FREQ": {
-            "value": "200000000"
+            "value": "100000000"
           },
           "PCW_DDR_RAM_HIGHADDR": {
             "value": "0x1FFFFFFF"
@@ -598,7 +598,7 @@
             "value": "250"
           },
           "PCW_FPGA3_PERIPHERAL_FREQMHZ": {
-            "value": "200"
+            "value": "100"
           },
           "PCW_FPGA_FCLK0_ENABLE": {
             "value": "1"
@@ -1326,16 +1326,16 @@
       }
     },
     "interface_nets": {
-      "Vaux1_1": {
-        "interface_ports": [
-          "Vaux1",
-          "xadc_wiz_0/Vaux1"
-        ]
-      },
       "Vaux8_1": {
         "interface_ports": [
           "Vaux8",
           "xadc_wiz_0/Vaux8"
+        ]
+      },
+      "Vaux1_1": {
+        "interface_ports": [
+          "Vaux1",
+          "xadc_wiz_0/Vaux1"
         ]
       },
       "processing_system7_0_M_AXI_GP0": {

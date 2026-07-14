@@ -35,6 +35,9 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         self.assertEqual(macros["CTRL_REG_MWS_FREQ_KHZ"], "4U")
         self.assertEqual(macros["CTRL_DPLL_OUTPUT_MAX_DHZ"], "625000000UL")
         self.assertEqual(macros["CTRL_FAST_INTERVAL_MAX_MS"], "34359U")
+        self.assertEqual(macros["CTRL_REG_DEBUG_DAC_PRESET"], "71U")
+        self.assertEqual(macros["CTRL_DEBUG_DAC_PRESET_DEFAULT"], "1U")
+        self.assertEqual(macros["CTRL_DEBUG_DAC_PRESET_MANUAL"], "0xFFU")
 
     def test_old_microwave_unit_name_is_gone(self):
         roots = (
@@ -115,6 +118,59 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         self.assertIsNotNone(save_service)
         self.assertIn("STM8_Slave_Read_Status()", save_service.group(1))
 
+    def test_stm32_verifies_persistent_write_before_apply_command(self):
+        source = (
+            ROOT / "MCU_src/STM32F030_LCD/HARDWARE/STM8Slave/STM8Slave.c"
+        ).read_text(encoding="ascii")
+        helper = re.search(
+            r"static uint8_t STM8Slave_Write_Verified\(.*?\n\}", source, re.S
+        )
+        self.assertIsNotNone(helper)
+        self.assertIn("STM8_WRITE_VERIFY_RETRY_LIMIT   3U", source)
+        self.assertIn("IIC_Write(STM8_SLAVE_ADDR, offset, length, data)", helper.group(0))
+        self.assertIn("IIC_Read(STM8_SLAVE_ADDR, offset, length", helper.group(0))
+        self.assertIn("data[index] != STM8_Control_Snapshot[offset + index]", helper.group(0))
+
+        send = re.search(
+            r"uint8_t STM8_Slave_Send_PLL_Cfg\(void\)\s*\{(.*?)\n\}", source, re.S
+        )
+        self.assertIsNotNone(send)
+        body = send.group(1)
+        self.assertLess(body.index("STM8Slave_Write_Verified"), body.index("0xC4U"))
+        self.assertIn(")) return 0U;", body)
+        self.assertIn("sequence_before", body)
+        self.assertIn("sequence_after", body)
+        self.assertIn("sequence_before + 1U", body)
+
+    def test_debug_dac_preset_is_verified_live_only_and_screen_visible(self):
+        driver = (
+            ROOT / "MCU_src/STM32F030_LCD/HARDWARE/STM8Slave/STM8Slave.c"
+        ).read_text(encoding="ascii")
+        setter = re.search(
+            r"uint8_t STM8_Slave_Set_Debug_DAC_Preset\(.*?\n\}", driver, re.S
+        )
+        self.assertIsNotNone(setter)
+        self.assertIn("STM8Slave_Write_Verified", setter.group(0))
+        self.assertNotIn("0xC4", setter.group(0))
+        self.assertNotIn("EEPROM", setter.group(0))
+
+        control = (ROOT / "MCU_src/STM32F030_LCD/USER/control.c").read_text(
+            encoding="ascii"
+        )
+        display = (ROOT / "MCU_src/STM32F030_LCD/USER/display.c").read_text(
+            encoding="gbk"
+        )
+        bridge = (ROOT / "MCU_src/STM8S003_MX2871_IIC/src/IIC.c").read_text(
+            encoding="gbk"
+        )
+        self.assertIn("#define PAGE1_MAX_ADJ_INDEX 9U", control)
+        self.assertIn("CtrlP1I7_Debug_DAC", control)
+        self.assertIn("CtrlP1I8_Amplitude_Frequency", control)
+        self.assertIn("Display_UI_Show_Debug_DAC_Preset", display)
+        self.assertIn("LCD_SHOW_ASCII_1608(64U, 96U, 'D'", display)
+        self.assertIn("LCD_SHOW_ASCII_0806(154U, 37U, glyph", display)
+        self.assertIn("IIC_Reg_Addr_Point==CTRL_REG_DEBUG_DAC_PRESET", bridge)
+
     def test_arm_owns_center_frequency_mul_div_output_limit(self):
         arm = (ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/src/helloworld.c").read_text(
             encoding="utf-8"
@@ -142,7 +198,7 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         control_doc = CONTROL_DOC.read_text(encoding="utf-8")
         transport_doc = TRANSPORT_DOC.read_text(encoding="utf-8")
         self.assertIn("已实现并冻结，协议版本 `3`", control_doc)
-        for command in ("`0x1D`", "`0x98`", "`0x99`", "`0x9B`"):
+        for command in ("`0x1D`", "`0x1E`", "`0x97`", "`0x98`", "`0x99`", "`0x9B`"):
             self.assertIn(command, control_doc)
         self.assertIn("`uint16 interval_ms`", control_doc)
         self.assertIn("失败时恢复提交前配置", control_doc)
@@ -152,6 +208,7 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         self.assertIn("READ/PING/SAVE: B1", transport_doc)
         self.assertIn("`C4`", transport_doc)
         self.assertIn("CRC 使用多项式 `0x1021`", transport_doc)
+        self.assertIn("偏移 71", transport_doc)
 
 
 if __name__ == "__main__":

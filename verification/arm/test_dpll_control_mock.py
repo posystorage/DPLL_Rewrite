@@ -8,6 +8,7 @@ ARM = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "helloworld.c"
 DRIVER_C = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "dpll_driver.c"
 DRIVER_H = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "dpll_driver.h"
 PERIPH = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h"
+PROTOCOL = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "control_protocol.h"
 HOST_TEST = ROOT / "verification" / "arm" / "dpll_driver_host_test.c"
 
 
@@ -36,6 +37,7 @@ class DpllArmControlContractTest(unittest.TestCase):
         cls.driver_c = DRIVER_C.read_text(encoding="utf-8")
         cls.driver_h = DRIVER_H.read_text(encoding="utf-8")
         cls.periph = read_source(PERIPH)
+        cls.protocol = read_source(PROTOCOL)
         cls.host_test = HOST_TEST.read_text(encoding="utf-8")
 
     def test_firmware_uses_the_host_compiled_driver(self):
@@ -98,6 +100,19 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn("memcpy(previous", lcd_apply)
         self.assertIn("control_restore_persistent(previous, apply_error, 1U)", lcd_apply)
 
+    def test_lcd_persistent_bank_is_committed_only_after_request_sequence_changes(self):
+        service = function_body(self.arm, "Control_Link_Service")
+        sequence_test = "if (request_sequence != Control_Request_Seen)"
+        self.assertIn(sequence_test, service)
+        commit = service.index("memcpy(&Control_Bank[CTRL_REG_REQUEST_SEQ]")
+        self.assertGreater(commit, service.index(sequence_test))
+        self.assertNotIn(
+            "memcpy(&Control_Bank[CTRL_REG_REQUEST_SEQ], header, sizeof(header))",
+            service,
+        )
+        self.assertIn("Control_Bank[CTRL_REG_CONTROL_FLAGS] =", service)
+        self.assertIn("Control_Bank[CTRL_REG_MWS_STATUS] =", service)
+
     def test_fast_interval_api_uses_ms_and_transactional_control_bank(self):
         body = function_body(self.arm, "CMD_98_WRITE_FREQMETER_FAST_INTERVAL")
         self.assertIn("pc_get_u16(4)", body)
@@ -115,8 +130,63 @@ class DpllArmControlContractTest(unittest.TestCase):
             "DPLL_DEBUG_DAC_GAIN_ADDR",
         ):
             self.assertIn(name, body)
-        self.assertIn("PC_HOST_Send_ASK_Only(0);", body)
+        self.assertIn("PC_HOST_Send_ASK_Only(0U);", body)
         self.assertNotIn("dpll_apply_config", body)
+
+        preset = function_body(self.arm, "Control_Apply_Debug_DAC_Preset")
+        self.assertNotIn("dpll_apply_config", preset)
+        self.assertNotIn("control_apply_bank", preset)
+        self.assertLess(
+            preset.index("DPLL_DEBUG_DAC_OFFSET_ADDR"),
+            preset.index("DPLL_DEBUG_DAC_SOURCE_ADDR"),
+        )
+
+    def test_debug_dac_quick_presets_and_manual_api_coexist(self):
+        self.assertIn("PC_CMD_READ_DPLL_DEBUG_CONFIG", self.arm)
+        self.assertIn("DPLL_DEBUG_PRESET_PAYLOAD_BYTES   1U", self.arm)
+        write = function_body(self.arm, "CMD_97_WRITE_DPLL_DEBUG_CONFIG")
+        self.assertIn("Control_Set_Debug_DAC_Preset", write)
+        self.assertIn("DPLL_DEBUG_CONFIG_PAYLOAD_BYTES", write)
+        self.assertIn("CTRL_DEBUG_DAC_PRESET_MANUAL", write)
+        read = function_body(self.arm, "CMD_1E_READ_DPLL_DEBUG_CONFIG")
+        self.assertIn("PC_HOST_ASK_Pack(13U)", read)
+        for address in (
+            "DPLL_DEBUG_DAC_SOURCE_ADDR",
+            "DPLL_DEBUG_DAC_FORMAT_ADDR",
+            "DPLL_DEBUG_DAC_OFFSET_ADDR",
+            "DPLL_DEBUG_DAC_GAIN_ADDR",
+        ):
+            self.assertIn(address, read)
+
+    def test_debug_dac_presets_match_frozen_table_and_old_default(self):
+        for row in (
+            "{0U, 0x0100U, 0U, 0x5000U}",
+            "{1U, 0x0004U, 0U, 0x7FFFU}",
+            "{2U, 0x0100U, 0U, 0x5000U}",
+            "{3U, 0x0000U, 0U, 0x7FFFU}",
+            "{4U, 0x0000U, 0U, 0x7FFFU}",
+            "{5U, 0x0006U, 0U, 0x7FFFU}",
+            "{6U, 0x0006U, 0U, 0x7FFFU}",
+            "{7U, 0x0004U, 0U, 0x7FFFU}",
+            "{8U, 0x0207U, 0U, 0x7FFFU}",
+        ):
+            self.assertIn(row, self.arm)
+        self.assertIn("CTRL_DEBUG_DAC_PRESET_DEFAULT      1U", self.protocol)
+        startup = function_body(self.arm, "Control_Link_Startup")
+        self.assertIn("CTRL_DEBUG_DAC_PRESET_DEFAULT", startup)
+        reset = function_body(self.arm, "PC_HOST_CMD_Respond")
+        self.assertIn(
+            "Control_Set_Debug_DAC_Preset(CTRL_DEBUG_DAC_PRESET_DEFAULT)", reset
+        )
+
+    def test_lcd_debug_preset_poll_is_outside_persistent_apply(self):
+        service = function_body(self.arm, "Control_Link_Service")
+        self.assertIn("CTRL_REG_DEBUG_DAC_PRESET - CTRL_REG_REQUEST_SEQ + 1U", service)
+        self.assertIn("debug_preset != Control_Debug_Preset_Seen", service)
+        self.assertIn("Control_Apply_Debug_DAC_Preset(debug_preset)", service)
+        self.assertNotIn(
+            "CTRL_REG_DEBUG_DAC_PRESET", function_body(self.arm, "control_apply_bank")
+        )
 
     def test_advanced_payload_includes_separate_measurement_timeout(self):
         self.assertRegex(self.arm, r"#define\s+DPLL_ADV_CONFIG_PAYLOAD_BYTES\s+90U")

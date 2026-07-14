@@ -50,6 +50,7 @@
 | 68 | 1 | loop state | FPGA 环路状态 |
 | 69 | 1 | loss reason | FPGA 失锁原因 |
 | 70 | 1 | bridge status | bit0 为 STM8 I2C 命令 BUSY |
+| 71 | 1 | debug DAC preset | 非持久快捷预设 `0..8`；`FF` 表示 PC 完整手动配置 |
 | 72 | 4 | actual frequency error | 有符号整数 Hz |
 | 76 | 4 | actual phase error | 有符号 `0.01 degree/LSB` |
 | 80 | 4 | DPLL output frequency | 无符号整数 Hz |
@@ -68,6 +69,10 @@ center frequency * MUL / DIV <= 62.5 MHz
 
 `62.5 MHz` 对应 `125 MSPS` DAC 的奈奎斯特上限。STM32 只编辑和提交参数，
 不重复该限制；FPGA HDL 只保留原有 MUL/DIV 非零和 48 bit 相位字范围保护。
+
+偏移 71 不属于 `[4,64)`，不进入 EEPROM，也不推进 request sequence。STM32
+只把它作为 `D1:0..8` 的快捷选择；ARM 收到变化后直接写 FPGA live debug
+寄存器，不执行 CONFIG_APPLY、不改变 active CRC、不触发环路重捕获。
 
 ## 3. ARM 与 STM8 UART 帧
 
@@ -107,11 +112,17 @@ ARM UART1 与 STM8 之间固定使用 `1 Mbps, 8N1`。STM8 保留原始实机验
 | `C0` | 使用寄存器参数配置并打开 MAX2871 |
 | `C1` | 关闭 MAX2871 |
 | `C3` | 保存持久区到 EEPROM |
-| `C4` | DPLL 参数已更新，推进请求序号并请求 ARM APPLY |
+| `C4` | 60 字节持久区已通过 STM32 写后回读校验，推进请求序号并请求 ARM APPLY |
 | `C7` | 请求 DPLL 打开，推进请求序号 |
 | `C8` | 请求 DPLL 关闭，推进请求序号 |
 
 STM32 启动时不再发送旧 `C2 -> C9 -> C4` 序列，也不会因自身复位而复位 FPGA。
+普通 I2C 数据写除 `[4,64)` 外只额外允许单字节偏移 71，用于非持久 DAC1
+快捷预设；该写入不触发 `C4` 或 EEPROM 保存。
+屏幕提交配置时先写 STM8 RAM，再回读逐字节校验 `[4,64)`；最多重试 3 次，只有
+60 字节完全一致才发送一次 `C4`，并校验命令前后的 request sequence 恰好加一。
+`C4` 是事务提交标记；序号未变化时 ARM 不复制 STM8 持久区，因此不完整写入和
+未提交候选都不会覆盖 ARM 的 active 配置或回滚基线。
 读取运行状态时，ARM 先把 response sequence 写成临时值，完成全部状态字段后再写回
 request sequence。STM32 在两次独立读取 response sequence 之间读取完整 96 字节，
 仅当三项同时成立才更新本地缓存：前后 response sequence 相等、快照内 response
@@ -128,7 +139,8 @@ sequence 等于该值、快照内 request sequence 也等于该值。实现采�
 5. 等待复位完成并重新检查 DPLL ABI。
 6. 把中心频率、限幅、相位、频差和幅度等物理定点量换算成 FPGA 格式。
 7. 生成完整频点 profile，覆盖四个屏幕增益和物理设置，一次性 APPLY。
-8. 回写状态与换算后的显示值，DPLL 与 MAX2871 继续保持关闭。
+8. 把 DAC1 恢复为默认快捷预设 `D1:1`，即老固件的校正量输出位窗。
+9. 回写状态与换算后的显示值，DPLL 与 MAX2871 继续保持关闭。
 
 STM32 通常先启动；在 ARM 完成上述步骤前直接显示通信失败，不增加临时启动状态。
 若 STM8 UART 链路不通，ARM 才重试整个启动握手；若 FPGA ABI 或配置 APPLY 失败，
@@ -159,11 +171,13 @@ FPGA 复位、`04` FPGA APPLY、`05` FPGA ABI。
 |---:|---:|---:|---|
 | `0x0A` | 0 | 1 | 协议版本；版本 3 返回 `03` |
 | `0x1D` | 0 | 96 | 读取完整控制区，包含物理参数、状态和快速频率 Hz |
+| `0x1E` | 0 | 13 | 读取 DAC1 预设状态及完整 source/format/offset/gain live 配置 |
 | `0x88` | 0 | `00` | 打开 MAX2871；不持久化 |
 | `0x89` | 0 | `00` | 关闭 MAX2871；不持久化 |
 | `0x8A` | 0 | `00` | 打开 DPLL；不持久化，APPLY/ABI 失败返回错误 |
 | `0x8B` | 0 | `00` | 关闭 DPLL；不持久化 |
 | `0x8E` | 0 | `00` | 同时复位 DPLL 和精密频率计，重检 ABI 并恢复当前配置 |
+| `0x97` | 1 或 12 | `00` | 1 字节选择快捷预设；12 字节完整设置 DAC1 live 配置 |
 | `0x98` | 2 | `00` | `uint16 interval_ms`，范围 `10--34359`，事务式临时 APPLY |
 | `0x99` | 60 | `00` | 发送控制区 `[4,64)`，事务式临时 APPLY，不写 EEPROM |
 | `0x9B` | 0 | `00` | 显式保存当前 STM8 持久区到 EEPROM |
@@ -173,7 +187,42 @@ FPGA 复位、`04` FPGA APPLY、`05` FPGA ABI。
 active 配置和 STM8 RAM 一致；失败时恢复提交前配置并返回原始错误。`0x99` 与
 `0x98` 都不写 EEPROM，只有随后显式调用 `0x9B` 才持久化。
 
-### 6.3 精密频率计 API
+### 6.3 DAC1 快捷预设与完整 API
+
+屏幕只使用快捷预设，不接触底层格式参数。PC 使用同一个 `0x97` 命令的两种严格
+载荷长度：
+
+```text
+payload length 1:  uint8 preset
+payload length 12: uint32 source, uint32 format, int16 offset, int16 gain
+```
+
+完整载荷保持原 `0x97` 字节布局和小端顺序。完整设置成功后偏移 71 置为 `FF`，
+屏幕显示 `D1:-`；用户随后转动该项会重新进入 `0..8` 快捷循环。`0x1E` 的 13 字节
+读回依次为 `preset u8, source u32, format u32, offset i16, gain i16`。
+
+| D1 | source 内容 | format | gain | offset | 观察含义 |
+|---:|---|---:|---:|---:|---|
+| 0 | `freq_correction[55:24]` | `0100` | `5000` | 0 | 最终校正量，算术缩放观察 |
+| 1 | `(tracking-center)[47:16]` | `0004` | `7FFF` | 0 | 老 DAC1 等效校正位窗，默认 |
+| 2 | `freq_state[55:24]` | `0100` | `5000` | 0 | 积分状态 |
+| 3 | phase error | `0000` | `7FFF` | 0 | 相位残差低位 |
+| 4 | frequency error | `0000` | `7FFF` | 0 | 频率残差低位 |
+| 5 | post-IIR I | `0006` | `7FFF` | 0 | 有符号 I `[19:6]` |
+| 6 | post-IIR Q | `0006` | `7FFF` | 0 | 有符号 Q `[19:6]` |
+| 7 | raw CORDIC phase | `0004` | `7FFF` | 0 | 全相位 `[17:4]` |
+| 8 | raw magnitude | `0207` | `7FFF` | 0 | 无符号幅度 |
+
+`format[9:8]` 分别表示 raw window、signed shift/gain/saturate、unsigned
+shift/saturate；`format[5:0]` 在 raw 模式是窗口最低位，在移位模式是右移位数。
+raw 模式不使用 gain/offset，表中仍写固定值以保证完整寄存器状态确定。当前顶层
+物理 DAC B 使用 formatter 输出低 14 bit，因此 `D1:1` 最终对应 tracking delta
+`[33:20]`，与老代码 `PID_OUT_With_Limit` 的实际 DAC1 校正观察窗口等效。
+
+所有快捷和完整写入都是非固化 live 设置；整机上电或 `0x8E` 复位后统一回到
+`D1:1`。这两种写法都不调用 DPLL APPLY，也不写 STM8 EEPROM。
+
+### 6.4 精密频率计 API
 
 原精密测量通道保持原始寄存器单位和触发流程，上位机真实测量继续使用这一组命令：
 
@@ -195,14 +244,14 @@ active 配置和 STM8 RAM 一致；失败时恢复提交前配置并返回原始
 | `0x95` | write | request 0 | 触发一次正式测量 |
 | `0x96` | write | request 0 | 复位精密频率计 |
 
-### 6.4 快速参考与诊断
+### 6.5 快速参考与诊断
 
 日常快速频率显示应读取 `0x1D`：偏移 84 是 ARM 换算后的整数 Hz，偏移 88 是结果
 序号。`0x1C` 仅用于底层诊断，返回 22 字节：status `u32`、累加值低 `u32`、中
 `u32`、高 `u16`、实际结果间隔 `u32`、配置间隔周期数 `u32`。上位机不得把
 `0x1C` 作为正式测量结果，也不得自行假设结果间隔等于配置间隔。
 
-### 6.5 兼容和禁用接口
+### 6.6 兼容和禁用接口
 
 `0x0A` 版本读取在新 ARM 上返回 `3`，上位机以此选择新旧驱动路径。
 

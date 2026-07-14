@@ -1,0 +1,19 @@
+--cpu Cortex-M0
+".\objects\main.o"
+".\objects\display.o"
+".\objects\control.o"
+".\objects\delay.o"
+".\objects\lcd.o"
+".\objects\tim16.o"
+".\objects\encoder.o"
+".\objects\iic.o"
+".\objects\stm8slave.o"
+".\objects\adc.o"
+".\objects\adc_1.o"
+".\objects\startup_stm32f0xx.o"
+".\objects\stm32f0xx_it.o"
+".\objects\system_stm32f0xx.o"
+--strict --scatter ".\Objects\TFT288.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Listings\TFT288.map" -o .\Objects\TFT288.axf

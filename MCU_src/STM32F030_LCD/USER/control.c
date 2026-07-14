@@ -4,7 +4,7 @@
 #include "ENCODER.h"
 
 #define PAGE0_MAX_ADJ_INDEX 7U
-#define PAGE1_MAX_ADJ_INDEX 8U
+#define PAGE1_MAX_ADJ_INDEX 9U
 
 typedef enum
 {
@@ -225,7 +225,23 @@ static void CtrlP1I6_Phase_Threshold(Ctrl_Cursor_Enum option)
 	Display_UI_Show_Phase_Threshold(Cursor_Phase);
 }
 
-static void CtrlP1I7_Amplitude_Frequency(Ctrl_Cursor_Enum option)
+static void CtrlP1I7_Debug_DAC(Ctrl_Cursor_Enum option)
+{
+	uint8_t preset = STM8_Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
+	if (is_add(option)) {
+		preset = preset >= CTRL_DEBUG_DAC_PRESET_MAX ?
+		         CTRL_DEBUG_DAC_PRESET_MIN : (uint8_t)(preset + 1U);
+	} else if (is_sub(option)) {
+		preset = preset > CTRL_DEBUG_DAC_PRESET_MAX ||
+		         preset == CTRL_DEBUG_DAC_PRESET_MIN ?
+		         CTRL_DEBUG_DAC_PRESET_MAX : (uint8_t)(preset - 1U);
+	}
+	if (is_add(option) || is_sub(option))
+		STM8_Slave_Set_Debug_DAC_Preset(preset);
+	Display_UI_Show_Debug_DAC_Preset(1U);
+}
+
+static void CtrlP1I8_Amplitude_Frequency(Ctrl_Cursor_Enum option)
 {
 	uint8_t frequency_selected = Cursor_Amplitude_Frequency > 3U;
 	uint8_t digit = frequency_selected ? Cursor_Amplitude_Frequency - 3U :
@@ -267,7 +283,8 @@ static void (*CtrlP0_Fun[PAGE0_MAX_ADJ_INDEX])(Ctrl_Cursor_Enum) = {
 static void (*CtrlP1_Fun[PAGE1_MAX_ADJ_INDEX])(Ctrl_Cursor_Enum) = {
 	CtrlP1I0_Gain, CtrlP1I1_Gain, CtrlP1I2_Gain, CtrlP1I3_Gain,
 	CtrlP1I4_Positive_Limit, CtrlP1I5_Negative_Limit,
-	CtrlP1I6_Phase_Threshold, CtrlP1I7_Amplitude_Frequency
+	CtrlP1I6_Phase_Threshold, CtrlP1I7_Debug_DAC,
+	CtrlP1I8_Amplitude_Frequency
 };
 
 void Ctrl_KEY_Response_Service(void)
@@ -379,5 +396,7 @@ void Ctrl_Dispaly_Refresh_Show_Status(void)
 		STM8_Slave_Read_Status();
 		Display_UI_Microwave_Source_Refresh_Status();
 		if (Page_Num == 0U) Display_UI_PLL_Refresh_Status();
+		else if (Display_UI_Get_Status() == 0U)
+			Display_UI_Show_Debug_DAC_Preset(0U);
 	}
 }

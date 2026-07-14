@@ -7,6 +7,7 @@
 #define STM8_BUSY_POLL_LIMIT            5000U
 #define STM8_EEPROM_WRITE_TIME          10000U
 #define STM8_STATUS_RETRY_LIMIT         60U
+#define STM8_WRITE_VERIFY_RETRY_LIMIT   3U
 
 uint8_t STM8_Control_Bank[CTRL_BANK_SIZE];
 static uint8_t STM8_Control_Snapshot[CTRL_BANK_SIZE];
@@ -65,6 +66,27 @@ static uint8_t STM8Slave_Command(uint8_t command, uint16_t delay_ms_after)
 	return STM8Slave_Wait_Busy();
 }
 
+static uint8_t STM8Slave_Write_Verified(uint8_t offset, uint8_t length,
+		uint8_t *data)
+{
+	uint8_t index;
+	uint8_t retry;
+	for (retry = 0U; retry < STM8_WRITE_VERIFY_RETRY_LIMIT; ++retry) {
+		if (!STM8Slave_Wait_Busy()) goto retry_write;
+		IIC_Write(STM8_SLAVE_ADDR, offset, length, data);
+		if (IIC_Read(STM8_SLAVE_ADDR, offset, length,
+		             &STM8_Control_Snapshot[offset]) != length) goto retry_write;
+		for (index = 0U; index < length; ++index) {
+			if (data[index] != STM8_Control_Snapshot[offset + index])
+				goto retry_write;
+		}
+		return 1U;
+	retry_write:
+		delay_ms(2U);
+	}
+	return 0U;
+}
+
 void STM8Slave_MAX2871_ON_CMD(void)
 {
 	STM8Slave_Command(0xC0U, 1U);
@@ -114,12 +136,32 @@ void STM8_Slave_Set_MAX2871_Freq_Power(void)
 		STM8Slave_MAX2871_OFF_CMD();
 }
 
+uint8_t STM8_Slave_Set_Debug_DAC_Preset(uint8_t preset)
+{
+	uint8_t previous = STM8_Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
+	if (preset > CTRL_DEBUG_DAC_PRESET_MAX) return 0U;
+	STM8_Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = preset;
+	if (!STM8Slave_Write_Verified(CTRL_REG_DEBUG_DAC_PRESET, 1U,
+	                            &STM8_Control_Bank[CTRL_REG_DEBUG_DAC_PRESET])) {
+		STM8_Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = previous;
+		return 0U;
+	}
+	return 1U;
+}
+
 uint8_t STM8_Slave_Send_PLL_Cfg(void)
 {
-	IIC_Write(STM8_SLAVE_ADDR, CTRL_PERSIST_BEGIN,
-	          CTRL_PERSIST_END - CTRL_PERSIST_BEGIN,
-	          &STM8_Control_Bank[CTRL_PERSIST_BEGIN]);
-	return STM8Slave_Command(0xC4U, 2U);
+	uint8_t sequence_before;
+	uint8_t sequence_after;
+	if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_REQUEST_SEQ, 1U,
+	             &sequence_before) != 1U) return 0U;
+	if (!STM8Slave_Write_Verified(CTRL_PERSIST_BEGIN,
+			CTRL_PERSIST_END - CTRL_PERSIST_BEGIN,
+			&STM8_Control_Bank[CTRL_PERSIST_BEGIN])) return 0U;
+	if (!STM8Slave_Command(0xC4U, 2U)) return 0U;
+	if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_REQUEST_SEQ, 1U,
+	             &sequence_after) != 1U) return 0U;
+	return sequence_after == (uint8_t)(sequence_before + 1U);
 }
 
 uint8_t STM8_Slave_Read_Status(void)

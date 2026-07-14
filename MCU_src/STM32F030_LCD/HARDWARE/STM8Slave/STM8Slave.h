@@ -13,6 +13,7 @@ void STM8Slave_PLL_ON_CMD(void);
 void STM8Slave_PLL_OFF_CMD(void);
 
 void STM8_Slave_Set_MAX2871_Freq_Power(void);
+uint8_t STM8_Slave_Set_Debug_DAC_Preset(uint8_t preset);
 uint8_t STM8_Slave_Send_PLL_Cfg(void);
 uint8_t STM8_Slave_Read_Status(void);
 void STM8_Slave_EEPROM_Write_Trigger(void);

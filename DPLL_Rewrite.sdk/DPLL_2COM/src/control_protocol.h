@@ -64,6 +64,7 @@
 #define CTRL_MWS_STATUS_LOCKED             0x02U
 
 #define CTRL_BRIDGE_STATUS_BUSY            0x01U
+#define CTRL_BRIDGE_STATUS_EEPROM_CRC_ERROR 0x02U
 
 #define CTRL_DEBUG_DAC_PRESET_MIN          0U
 #define CTRL_DEBUG_DAC_PRESET_MAX          8U

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// IAR C/C++ Compiler V2.20.3.189 for STM8                14/Jul/2026  16:44:57
+// IAR C/C++ Compiler V2.20.3.189 for STM8                15/Jul/2026  17:47:26
 // Copyright 2010-2017 IAR Systems AB.
 // Standalone license - IAR Embedded Workbench for STMicroelectronics STM8
 //
@@ -159,7 +159,7 @@ bank_put_u32:
           CFI Block cfiBlock2 Using cfiCommon0
           CFI Function eeprom_crc16
         CODE
-//   21 static uint16_t eeprom_crc16(const uint8_t *data, uint8_t length)
+//   21 static uint16_t eeprom_crc16(const volatile uint8_t *data, uint8_t length)
 //   22 {
 eeprom_crc16:
         LDW       S:?w3, X
@@ -517,18 +517,28 @@ EEPROM_Read_Data:
         LDW       S:?w0, X
         LDW       X, S:?w4
         CPW       X, S:?w0
-        JREQ      L:??EEPROM_Read_Data_3
+        JRNE      L:??EEPROM_Read_Data_2
 //  119   {
-//  120     return;
-//  121   }
-//  122 
-//  123   EEPROM_Load_Defaults();
+//  120     IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] &=
+//  121         (uint8_t)~CTRL_BRIDGE_STATUS_EEPROM_CRC_ERROR;
+        LD        A, #0xfd
+        AND       A, L:IIC_Reg_Buff + 70
+        LD        L:IIC_Reg_Buff + 70, A
+//  122     return;
+        JP        L:?epilogue_w4
+//  123   }
+//  124 
+//  125   IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] |=
+//  126       CTRL_BRIDGE_STATUS_EEPROM_CRC_ERROR;
 ??EEPROM_Read_Data_2:
+        LD        A, #0x2
+        OR        A, L:IIC_Reg_Buff + 70
+        LD        L:IIC_Reg_Buff + 70, A
+//  127   EEPROM_Load_Defaults();
         CALL      L:EEPROM_Load_Defaults
-//  124   EEPROM_Store_Data();
+//  128   EEPROM_Store_Data();
         CALL      L:EEPROM_Store_Data
-//  125 }
-??EEPROM_Read_Data_3:
+//  129 }
         JP        L:?epilogue_w4
           CFI EndBlock cfiBlock6
 
@@ -536,10 +546,10 @@ EEPROM_Read_Data:
 
         END
 // 
-// 439 bytes in section .near_func.text
+// 458 bytes in section .near_func.text
 //  75 bytes in section .near_func.textrw
 // 
-// 514 bytes of CODE memory
+// 533 bytes of CODE memory
 //
 //Errors: none
-//Warnings: none
+//Warnings: 1

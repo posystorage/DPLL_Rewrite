@@ -3,8 +3,16 @@
 
 #define FLAG_TIMEOUT         ((uint32_t)0x1000)
 #define LONG_TIMEOUT         ((uint32_t)(10 * FLAG_TIMEOUT))
+#define IIC_CLEAR_FLAGS      (I2C_ICR_TIMOUTCF | I2C_ICR_PECCF | \
+		I2C_ICR_ARLOCF | I2C_ICR_BERRCF | I2C_ICR_NACKCF | I2C_ICR_STOPCF)
 
 #define CR1_CLEAR_MASK          ((uint32_t)0x00CFE0FF)  /*<! I2C CR1 clear register Mask */
+
+static void IIC_Clear_Status(void)
+{
+	I2C1->ICR = IIC_CLEAR_FLAGS;
+}
+
 void IIC1_Init(void)
 {	
 	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
@@ -15,7 +23,7 @@ void IIC1_Init(void)
 	GPIOB->OSPEEDR|=GPIO_OSPEEDR_OSPEEDR6|GPIO_OSPEEDR_OSPEEDR7;//50M
 	GPIOB->MODER&=~(GPIO_MODER_MODER6|GPIO_MODER_MODER7);
 	GPIOB->PUPDR&=~(GPIO_PUPDR_PUPDR6|GPIO_PUPDR_PUPDR7);
-	GPIOB->MODER|=GPIO_MODER_MODER6_1|GPIO_MODER_MODER7_1;//¸´ÓÃ
+	GPIOB->MODER|=GPIO_MODER_MODER6_1|GPIO_MODER_MODER7_1;//å¤ç”¨
 	GPIOB->PUPDR|=GPIO_PUPDR_PUPDR6_0|GPIO_PUPDR_PUPDR7_0;//pull-up
 	GPIOB->AFR[0]&=~(GPIO_AFRL_AFR6|GPIO_AFRL_AFR7);
 	GPIOB->AFR[0]|=(1<<6*4)|(1<<7*4);//PB6/7 AF2 IIC
@@ -66,7 +74,7 @@ void IIC1_Init(void)
 	#define  I2C_FLAG_BUSY                  I2C_ISR_BUSY
 #endif
 
-//·µ»Ø1ÎªÊ§°Ü 0ÎªÕý³£
+//è¿”å›ž1ä¸ºå¤±è´¥ 0ä¸ºæ­£å¸¸
 uint8_t IIC_Wait(uint32_t I2C_FLAG)
 {
 	uint32_t Timeout;
@@ -82,41 +90,52 @@ uint8_t IIC_Wait(uint32_t I2C_FLAG)
 	if(I2C1->ISR&I2C_ISR_NACKF)
 	{
 		I2C1->ICR = I2C_ICR_NACKCF;
-		return 1;//ÊÕµ½nak
+		return 1;//æ”¶åˆ°nak
 	}		
 	return 0;
 }
 
-//¼ì²éÖÆ¶¨µØÖ·µÄ´Ó»úÉè±¸ÊÇ·ñ´æÔÚ 0´æÔÚ 1Ã»ÓÐ
+static uint8_t IIC_Wait_Stop(void)
+{
+	uint8_t Result = IIC_Wait(I2C_FLAG_STOPF);
+	IIC_Clear_Status();
+	return Result;
+}
+
+//æ£€æŸ¥åˆ¶å®šåœ°å€çš„ä»Žæœºè®¾å¤‡æ˜¯å¦å­˜åœ¨ 0å­˜åœ¨ 1æ²¡æœ‰
 uint8_t IIC_Check_Slave(uint8_t Addr)
 {
 	uint32_t tmpreg;
-	//if(IIC_Wait(I2C_ISR_BUSY))return 1;//×ÜÏßÃ¦
+	IIC_Clear_Status();
+	//if(IIC_Wait(I2C_ISR_BUSY))return 1;//æ€»çº¿å¿™
 	tmpreg=I2C1->CR2;
 	tmpreg&= (uint32_t)~((uint32_t)(I2C_CR2_SADD | I2C_CR2_NBYTES | I2C_CR2_RELOAD | I2C_CR2_AUTOEND | I2C_CR2_RD_WRN | I2C_CR2_START | I2C_CR2_STOP));
 	tmpreg|=Addr|I2C_CR2_START|I2C_CR2_STOP;
 	I2C1->CR2 = tmpreg;  
-	return IIC_Wait(I2C_FLAG_STOPF);
+	return IIC_Wait_Stop();
 }
 
-//·µ»ØÊµ¼Ê¶ÁÈ¡ÊýÁ¿
+//è¿”å›žå®žé™…è¯»å–æ•°é‡
 uint8_t IIC_Read(uint8_t Addr,uint8_t Reg,uint8_t Num,uint8_t* Data_Buff)
 {
 	uint32_t tmpreg,Pointer=0;
 	if(Num==0)return 0;
-	if(I2C1->ISR & (I2C_ISR_TIMEOUT|I2C_ISR_PECERR|I2C_ISR_ARLO|I2C_ISR_BERR|I2C_ISR_NACKF))
-	{
-		I2C1->ICR = I2C_ICR_TIMOUTCF|I2C_ICR_PECCF|I2C_ICR_ARLOCF|I2C_ICR_BERRCF|I2C_ICR_NACKCF;
-	}
+	IIC_Clear_Status();
 
 	tmpreg=I2C1->CR2;
 	tmpreg&= (uint32_t)~((uint32_t)(I2C_CR2_SADD | I2C_CR2_NBYTES | I2C_CR2_RELOAD | I2C_CR2_AUTOEND | I2C_CR2_RD_WRN | I2C_CR2_START | I2C_CR2_STOP));
-	tmpreg|=Addr|I2C_CR2_START|(1<<16);//ÊýÁ¿	
+	tmpreg|=Addr|I2C_CR2_START|(1<<16);//æ•°é‡
 	I2C1->CR2 = tmpreg;  
-	if(IIC_Wait(I2C_ISR_TXIS))return 0;
+	if(IIC_Wait(I2C_ISR_TXIS)) {
+		IIC_Clear_Status();
+		return 0;
+	}
 	//Send memory address
 	I2C1->TXDR=Reg;
-	if(IIC_Wait(I2C_ISR_TC))return 0;
+	if(IIC_Wait(I2C_ISR_TC)) {
+		IIC_Clear_Status();
+		return 0;
+	}
 	
 	tmpreg=I2C1->CR2;
 	tmpreg&= (uint32_t)~((uint32_t)(I2C_CR2_SADD | I2C_CR2_NBYTES | I2C_CR2_RELOAD | I2C_CR2_AUTOEND | I2C_CR2_RD_WRN | I2C_CR2_START | I2C_CR2_STOP));
@@ -124,11 +143,15 @@ uint8_t IIC_Read(uint8_t Addr,uint8_t Reg,uint8_t Num,uint8_t* Data_Buff)
 	I2C1->CR2 = tmpreg;
 	while(Num)
 	{
-		if(IIC_Wait(I2C_FLAG_RXNE))return Pointer;
+		if(IIC_Wait(I2C_FLAG_RXNE)) {
+			IIC_Clear_Status();
+			return Pointer;
+		}
 		Data_Buff[Pointer]=I2C1->RXDR;
 		Pointer++;
 		Num--;
 	}
+	if(IIC_Wait_Stop()) return 0;
 	return Pointer;
 }
 
@@ -137,36 +160,39 @@ void IIC_Write(uint8_t Addr,uint8_t Reg,uint8_t Num,uint8_t* Data_Buff)
 {
 	uint32_t tmpreg,Pointer=0;
 	//if(Num==0)return;
-	if(I2C1->ISR & (I2C_ISR_TIMEOUT|I2C_ISR_PECERR|I2C_ISR_ARLO|I2C_ISR_BERR|I2C_ISR_NACKF))
-	{
-		I2C1->ICR = I2C_ICR_TIMOUTCF|I2C_ICR_PECCF|I2C_ICR_ARLOCF|I2C_ICR_BERRCF|I2C_ICR_NACKCF;
-	}	
+	IIC_Clear_Status();
 	tmpreg=I2C1->CR2;
 	tmpreg&= (uint32_t)~((uint32_t)(I2C_CR2_SADD | I2C_CR2_NBYTES | I2C_CR2_RELOAD | I2C_CR2_AUTOEND | I2C_CR2_RD_WRN | I2C_CR2_START | I2C_CR2_STOP));
-	tmpreg|=Addr|I2C_CR2_START|I2C_CR2_AUTOEND|((Num+1)<<16);//ÊýÁ¿	
+	tmpreg|=Addr|I2C_CR2_START|I2C_CR2_AUTOEND|((Num+1)<<16);//æ•°é‡
 	I2C1->CR2 = tmpreg;  
-	if(IIC_Wait(I2C_ISR_TXE))return;
+	if(IIC_Wait(I2C_ISR_TXE)) {
+		IIC_Clear_Status();
+		return;
+	}
 	//Send memory address
 	I2C1->TXDR=Reg;	
 	while(Num)
 	{
-		if(IIC_Wait(I2C_ISR_TXE))return;
+		if(IIC_Wait(I2C_ISR_TXE)) {
+			IIC_Clear_Status();
+			return;
+		}
 		I2C1->TXDR=Data_Buff[Pointer];
 		Pointer++;
 		Num--;
 	}
-	IIC_Wait(I2C_ISR_TXE);
+	IIC_Wait_Stop();
 	return;
 }
 
-//Ìî³äÊ½Ð´Èë Ë¢ÆÁÓÃ
+//å¡«å……å¼å†™å…¥ åˆ·å±ç”¨
 //void IIC_Fill_Write(uint8_t Addr,uint8_t Reg,uint8_t Num,uint8_t Data)
 //{
 //	uint32_t tmpreg;
 //	if(Num==0)return;
 //	tmpreg=I2C1->CR2;
 //	tmpreg&= (uint32_t)~((uint32_t)(I2C_CR2_SADD | I2C_CR2_NBYTES | I2C_CR2_RELOAD | I2C_CR2_AUTOEND | I2C_CR2_RD_WRN | I2C_CR2_START | I2C_CR2_STOP));
-//	tmpreg|=Addr|I2C_CR2_START|I2C_CR2_AUTOEND|((Num+1)<<16);//ÊýÁ¿	
+//	tmpreg|=Addr|I2C_CR2_START|I2C_CR2_AUTOEND|((Num+1)<<16);//æ•°é‡
 //	I2C1->CR2 = tmpreg;  
 //	if(IIC_Wait(I2C_ISR_TXE))return;
 //	//Send memory address

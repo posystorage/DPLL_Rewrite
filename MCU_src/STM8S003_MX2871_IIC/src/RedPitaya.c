@@ -48,7 +48,7 @@ static void apply_microwave_write(uint8_t offset, uint8_t length)
     IIC_Reg_Buff[CTRL_REG_MWS_STATUS] &= (uint8_t)~CTRL_MWS_STATUS_ENABLED;
   }
 }
-static uint8_t frame_checksum(const uint8_t *data, uint8_t length)
+static uint8_t frame_checksum(const volatile uint8_t *data, uint8_t length)
 {
   uint8_t i;
   uint8_t sum = 0;
@@ -74,7 +74,8 @@ void RedPitaya_Uart_Init(void)
   UART1->BRR2 = 0x00;
   UART1->BRR1 = 0x01;
 
-  ITC->ISPR5 &= (uint8_t)~0x30;
+  /* Keep 1 Mbps UART RX above the level-2 I2C interrupt. */
+  ITC->ISPR5 |= 0x30;
   UART1->CR2 = UART1_CR2_RIEN | UART1_CR2_TEN | UART1_CR2_REN;
 
   uart_rx_count = 0;
@@ -187,7 +188,7 @@ void RedPitaya_Service(void)
 
   if((uart_rx_buff[checksum_index + 1] != CTRL_UART_ETX) ||
      (uart_rx_buff[checksum_index] !=
-      frame_checksum((const uint8_t *)&uart_rx_buff[1], (uint8_t)(checksum_index - 1))))
+      frame_checksum(&uart_rx_buff[1], (uint8_t)(checksum_index - 1))))
   {
     status = CTRL_UART_STATUS_BAD_FRAME;
   }

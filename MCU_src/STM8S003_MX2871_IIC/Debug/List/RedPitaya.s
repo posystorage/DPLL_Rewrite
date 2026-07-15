@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// IAR C/C++ Compiler V2.20.3.189 for STM8                14/Jul/2026  16:44:57
+// IAR C/C++ Compiler V2.20.3.189 for STM8                15/Jul/2026  17:47:27
 // Copyright 2010-2017 IAR Systems AB.
 // Standalone license - IAR Embedded Workbench for STMicroelectronics STM8
 //
@@ -40,10 +40,8 @@
         EXTERN ?b9
         EXTERN ?epilogue_l2
         EXTERN ?epilogue_w4
-        EXTERN ?mov_l0_l1
+        EXTERN ?mov_l0_l2
         EXTERN ?mov_l1_l0
-        EXTERN ?mov_l1_l2
-        EXTERN ?mov_l2_l0
         EXTERN ?or32_l0_l0_l1
         EXTERN ?pop_w0
         EXTERN ?push_l2
@@ -53,6 +51,8 @@
         EXTERN ?w0
         EXTERN ?w1
         EXTERN ?w3
+        EXTERN ?w4
+        EXTERN ?w5
         EXTERN EEPROM_Store_Data
         EXTERN IIC_Reg_Buff
         EXTERN MAX2871_RFOUT_OFF
@@ -193,14 +193,18 @@ bank_get_u32:
           CFI ?b8 Frame(CFA, -5)
           CFI CFA SP+6
 //   19   uint32_t value = IIC_Reg_Buff[offset];
-//   20   value |= (uint32_t)IIC_Reg_Buff[offset + 1] << 8;
-//   21   value |= (uint32_t)IIC_Reg_Buff[offset + 2] << 16;
-//   22   value |= (uint32_t)IIC_Reg_Buff[offset + 3] << 24;
-//   23   return value;
         CLRW      X
         LD        XL, A
         ADDW      X, #IIC_Reg_Buff
         LDW       Y, X
+        LD        A, (X)
+        CLRW      X
+        LD        XL, A
+        LDW       S:?w5, X
+        CLRW      X
+        LDW       S:?w4, X
+//   20   value |= (uint32_t)IIC_Reg_Buff[offset + 1] << 8;
+        LDW       X, Y
         INCW      X
         LD        A, (X)
         CLRW      X
@@ -211,12 +215,10 @@ bank_get_u32:
         LD        A, #0x8
         CALL      L:?sll32_l0_l0_a
         CALL      L:?mov_l1_l0
-        LD        A, (Y)
-        CLRW      X
-        LD        XL, A
-        LDW       S:?w1, X
+        CALL      L:?mov_l0_l2
         CALL      L:?or32_l0_l0_l1
         CALL      L:?mov_l1_l0
+//   21   value |= (uint32_t)IIC_Reg_Buff[offset + 2] << 16;
         LDW       X, Y
         ADDW      X, #0x2
         LD        A, (X)
@@ -225,11 +227,9 @@ bank_get_u32:
         LDW       S:?w1, X
         LD        A, #0x10
         CALL      L:?sll32_l0_l0_a
-        CALL      L:?mov_l2_l0
-        CALL      L:?mov_l0_l1
-        CALL      L:?mov_l1_l2
         CALL      L:?or32_l0_l0_l1
         CALL      L:?mov_l1_l0
+//   22   value |= (uint32_t)IIC_Reg_Buff[offset + 3] << 24;
         LDW       X, Y
         ADDW      X, #0x3
         LD        A, (X)
@@ -241,6 +241,7 @@ bank_get_u32:
         LD        A, #0x18
         CALL      L:?sll32_l0_l0_a
         CALL      L:?or32_l0_l0_l1
+//   23   return value;
         JP        L:?epilogue_l2
 //   24 }
           CFI EndBlock cfiBlock0
@@ -285,6 +286,9 @@ ranges_overlap:
 //   33 static void apply_microwave_write(uint8_t offset, uint8_t length)
 //   34 {
 apply_microwave_write:
+        PUSH      S:?b8
+          CFI ?b8 Frame(CFA, -2)
+          CFI CFA SP+3
         LD        S:?b4, A
         MOV       S:?b5, S:?b0
 //   35   if(!ranges_overlap(offset, length, CTRL_REG_CONTROL_FLAGS, 1) &&
@@ -308,10 +312,11 @@ apply_microwave_write:
 //   39   {
 //   40     max2871_Set_Freq_10M(bank_get_u32(CTRL_REG_MWS_FREQ_KHZ),
 //   41                          IIC_Reg_Buff[CTRL_REG_MWS_POWER] & 0x03);
+        MOV       S:?b8, L:IIC_Reg_Buff + 8
         LD        A, #0x4
         CALL      L:bank_get_u32
-        LD        A, #0x3
-        AND       A, L:IIC_Reg_Buff + 8
+        LD        A, S:?b8
+        AND       A, #0x3
         CALL      L:max2871_Set_Freq_10M
 //   42     MAX2871_RFOUT_ON();
         CALL      L:MAX2871_RFOUT_ON
@@ -319,7 +324,7 @@ apply_microwave_write:
         LD        A, #0x1
         OR        A, L:IIC_Reg_Buff + 66
         LD        L:IIC_Reg_Buff + 66, A
-        RET
+        JRA       L:??apply_microwave_write_1
 //   44   }
 //   45   else
 //   46   {
@@ -333,6 +338,9 @@ apply_microwave_write:
 //   49   }
 //   50 }
 ??apply_microwave_write_1:
+        POP       S:?b8
+          CFI ?b8 SameValue
+          CFI CFA SP+2
         RET
           CFI EndBlock cfiBlock2
 
@@ -340,7 +348,7 @@ apply_microwave_write:
           CFI Block cfiBlock3 Using cfiCommon0
           CFI Function frame_checksum
         CODE
-//   51 static uint8_t frame_checksum(const uint8_t *data, uint8_t length)
+//   51 static uint8_t frame_checksum(const volatile uint8_t *data, uint8_t length)
 //   52 {
 frame_checksum:
         LD        S:?b4, A
@@ -410,79 +418,80 @@ RedPitaya_Uart_Init:
 //   75   UART1->BRR1 = 0x01;
         MOV       L:0x5232, #0x1
 //   76 
-//   77   ITC->ISPR5 &= (uint8_t)~0x30;
-        LD        A, #0xcf
-        AND       A, L:0x7f74
+//   77   /* Keep 1 Mbps UART RX above the level-2 I2C interrupt. */
+//   78   ITC->ISPR5 |= 0x30;
+        LD        A, #0x30
+        OR        A, L:0x7f74
         LD        L:0x7f74, A
-//   78   UART1->CR2 = UART1_CR2_RIEN | UART1_CR2_TEN | UART1_CR2_REN;
+//   79   UART1->CR2 = UART1_CR2_RIEN | UART1_CR2_TEN | UART1_CR2_REN;
         MOV       L:0x5235, #0x2c
-//   79 
-//   80   uart_rx_count = 0;
+//   80 
+//   81   uart_rx_count = 0;
         CLR       L:uart_rx_count
-//   81   uart_frame_ready = 0;
+//   82   uart_frame_ready = 0;
         CLR       L:uart_frame_ready
-//   82   arm_timeout_ticks = 0;
+//   83   arm_timeout_ticks = 0;
         CLRW      X
         LDW       L:arm_timeout_ticks, X
-//   83 }
+//   84 }
         RET
           CFI EndBlock cfiBlock4
-//   84 
+//   85 
 
         SECTION `.near_func.text`:CODE:NOROOT(0)
           CFI Block cfiBlock5 Using cfiCommon0
           CFI Function uart_send
         CODE
-//   85 static void uart_send(const uint8_t *data, uint8_t length)
-//   86 {
+//   86 static void uart_send(const uint8_t *data, uint8_t length)
+//   87 {
 uart_send:
         LD        S:?b0, A
         JRA       L:??uart_send_0
-//   87   while(length)
-//   88   {
-//   89     while((UART1->SR & UART1_SR_TXE) == 0);
+//   88   while(length)
+//   89   {
+//   90     while((UART1->SR & UART1_SR_TXE) == 0);
 ??uart_send_1:
         BTJF      L:0x5230, #0x7, L:??uart_send_1
-//   90     UART1->DR = *data;
+//   91     UART1->DR = *data;
         LD        A, (X)
         LD        L:0x5231, A
-//   91     data++;
+//   92     data++;
         INCW      X
-//   92     length--;
+//   93     length--;
         LD        A, S:?b0
         DEC       A
         LD        S:?b0, A
-//   93   }
+//   94   }
 ??uart_send_0:
         TNZ       S:?b0
         JRNE      L:??uart_send_1
-//   94   while((UART1->SR & UART1_SR_TC) == 0);
+//   95   while((UART1->SR & UART1_SR_TC) == 0);
 ??uart_send_2:
         BTJF      L:0x5230, #0x6, L:??uart_send_2
-//   95 }
+//   96 }
         RET
           CFI EndBlock cfiBlock5
-//   96 
+//   97 
 
         SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
           CFI Block cfiBlock6 Using cfiCommon0
           CFI Function send_response
         CODE
-//   97 static void send_response(uint8_t status, uint8_t offset, uint8_t length)
-//   98 {
+//   98 static void send_response(uint8_t status, uint8_t offset, uint8_t length)
+//   99 {
 send_response:
         MOV       S:?b5, S:?b1
-//   99   uint8_t i;
-//  100   uint8_t total;
-//  101 
-//  102   uart_tx_buff[0] = CTRL_UART_RESP;
+//  100   uint8_t i;
+//  101   uint8_t total;
+//  102 
+//  103   uart_tx_buff[0] = CTRL_UART_RESP;
         MOV       L:uart_tx_buff, #0xb2
-//  103   uart_tx_buff[1] = status;
+//  104   uart_tx_buff[1] = status;
         LD        L:uart_tx_buff + 1, A
-//  104   uart_tx_buff[2] = length;
+//  105   uart_tx_buff[2] = length;
         LD        A, S:?b5
         LD        L:uart_tx_buff + 2, A
-//  105   for(i = 0; i < length; i++) uart_tx_buff[3 + i] = IIC_Reg_Buff[offset + i];
+//  106   for(i = 0; i < length; i++) uart_tx_buff[3 + i] = IIC_Reg_Buff[offset + i];
         CLR       S:?b1
         JRA       L:??send_response_0
 ??send_response_1:
@@ -503,7 +512,7 @@ send_response:
         LD        A, S:?b1
         CP        A, S:?b5
         JRC       L:??send_response_1
-//  106   uart_tx_buff[3 + length] = frame_checksum(&uart_tx_buff[1], (uint8_t)(2 + length));
+//  107   uart_tx_buff[3 + length] = frame_checksum(&uart_tx_buff[1], (uint8_t)(2 + length));
         CLRW      X
         LD        A, S:?b5
         LD        XL, A
@@ -515,71 +524,71 @@ send_response:
         LDW       X, S:?w3
         ADDW      X, #0x3
         LD        (X), A
-//  107   uart_tx_buff[4 + length] = CTRL_UART_ETX;
+//  108   uart_tx_buff[4 + length] = CTRL_UART_ETX;
         LD        A, #0xb3
         LDW       X, S:?w3
         ADDW      X, #0x4
         LD        (X), A
-//  108   total = (uint8_t)(5 + length);
-//  109   uart_send(uart_tx_buff, total);
+//  109   total = (uint8_t)(5 + length);
+//  110   uart_send(uart_tx_buff, total);
         LD        A, S:?b5
         ADD       A, #0x5
         LDW       X, #uart_tx_buff
         JP        L:uart_send
-//  110 }
+//  111 }
           CFI EndBlock cfiBlock6
-//  111 
+//  112 
 
         SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
           CFI Block cfiBlock7 Using cfiCommon1
           CFI Function UART1_RX_IRQHandler
         CODE
-//  112 INTERRUPT_HANDLER(UART1_RX_IRQHandler, 18)
-//  113 {
+//  113 INTERRUPT_HANDLER(UART1_RX_IRQHandler, 18)
+//  114 {
 UART1_RX_IRQHandler:
 _interrupt_20:
         CALL      L:?push_w0
           CFI ?b1 Frame(CFA, -9)
           CFI ?b0 Frame(CFA, -10)
           CFI CFA SP+11
-//  114   uint8_t data = UART1->DR;
+//  115   uint8_t data = UART1->DR;
         MOV       S:?b1, L:0x5231
-//  115   uint8_t expected;
-//  116 
-//  117   if(uart_frame_ready) return;
+//  116   uint8_t expected;
+//  117 
+//  118   if(uart_frame_ready) return;
         LD        A, L:uart_frame_ready
         JRNE      L:??UART1_RX_IRQHandler_0
-//  118 
-//  119   if(uart_rx_count == 0)
+//  119 
+//  120   if(uart_rx_count == 0)
         LD        A, L:uart_rx_count
         JRNE      L:??UART1_RX_IRQHandler_1
-//  120   {
-//  121     if(data == CTRL_UART_REQ)
+//  121   {
+//  122     if(data == CTRL_UART_REQ)
         LD        A, S:?b1
         CP        A, #0xb1
         JRNE      L:??UART1_RX_IRQHandler_0
-//  122     {
-//  123       uart_rx_buff[0] = data;
+//  123     {
+//  124       uart_rx_buff[0] = data;
         MOV       L:uart_rx_buff, #0xb1
-//  124       uart_rx_count = 1;
+//  125       uart_rx_count = 1;
         MOV       L:uart_rx_count, #0x1
-//  125     }
-//  126     return;
+//  126     }
+//  127     return;
         JRA       L:??UART1_RX_IRQHandler_0
-//  127   }
-//  128 
-//  129   if(uart_rx_count >= CTRL_UART_RX_SIZE)
+//  128   }
+//  129 
+//  130   if(uart_rx_count >= CTRL_UART_RX_SIZE)
 ??UART1_RX_IRQHandler_1:
         LDW       X, #uart_rx_count
         LD        A, (X)
         CP        A, #0x48
         JRNC      L:??UART1_RX_IRQHandler_2
-//  130   {
-//  131     uart_rx_count = 0;
-//  132     return;
-//  133   }
-//  134 
-//  135   uart_rx_buff[uart_rx_count++] = data;
+//  131   {
+//  132     uart_rx_count = 0;
+//  133     return;
+//  134   }
+//  135 
+//  136   uart_rx_buff[uart_rx_count++] = data;
         MOV       S:?b0, L:uart_rx_count
         LD        A, S:?b0
         INC       A
@@ -589,57 +598,57 @@ _interrupt_20:
         LD        XL, A
         LD        A, S:?b1
         LD        (L:uart_rx_buff,X), A
-//  136   if(uart_rx_count < 4) return;
+//  137   if(uart_rx_count < 4) return;
         LDW       X, #uart_rx_count
         LD        A, (X)
         CP        A, #0x4
         JRC       L:??UART1_RX_IRQHandler_0
-//  137 
-//  138   expected = 6;
+//  138 
+//  139   expected = 6;
         MOV       S:?b0, #0x6
-//  139   if(uart_rx_buff[1] == CTRL_UART_CMD_WRITE)
+//  140   if(uart_rx_buff[1] == CTRL_UART_CMD_WRITE)
         LD        A, #0x2
         CP        A, L:uart_rx_buff + 1
         JRNE      L:??UART1_RX_IRQHandler_3
-//  140   {
-//  141     if(uart_rx_buff[3] > (CTRL_UART_RX_SIZE - 6))
+//  141   {
+//  142     if(uart_rx_buff[3] > (CTRL_UART_RX_SIZE - 6))
         LDW       X, #uart_rx_buff + 3
         LD        A, (X)
         CP        A, #0x43
         JRC       L:??UART1_RX_IRQHandler_4
-//  142     {
-//  143       uart_rx_count = 0;
+//  143     {
+//  144       uart_rx_count = 0;
 ??UART1_RX_IRQHandler_2:
         CLR       L:uart_rx_count
-//  144       return;
+//  145       return;
         JRA       L:??UART1_RX_IRQHandler_0
-//  145     }
-//  146     expected = (uint8_t)(6 + uart_rx_buff[3]);
+//  146     }
+//  147     expected = (uint8_t)(6 + uart_rx_buff[3]);
 ??UART1_RX_IRQHandler_4:
         LD        A, #0x6
         ADD       A, L:uart_rx_buff + 3
         LD        S:?b0, A
-//  147   }
-//  148 
-//  149   if(uart_rx_count == expected)
+//  148   }
+//  149 
+//  150   if(uart_rx_count == expected)
 ??UART1_RX_IRQHandler_3:
         LD        A, S:?b0
         CP        A, L:uart_rx_count
         JRNE      L:??UART1_RX_IRQHandler_5
-//  150   {
-//  151     uart_frame_ready = 1;
+//  151   {
+//  152     uart_frame_ready = 1;
         MOV       L:uart_frame_ready, #0x1
         JRA       L:??UART1_RX_IRQHandler_0
-//  152   }
-//  153   else if(uart_rx_count > expected)
+//  153   }
+//  154   else if(uart_rx_count > expected)
 ??UART1_RX_IRQHandler_5:
         CP        A, L:uart_rx_count
         JRNC      L:??UART1_RX_IRQHandler_0
-//  154   {
-//  155     uart_rx_count = 0;
+//  155   {
+//  156     uart_rx_count = 0;
         CLR       L:uart_rx_count
-//  156   }
-//  157 }
+//  157   }
+//  158 }
 ??UART1_RX_IRQHandler_0:
         CALL      L:?pop_w0
           CFI ?b0 SameValue
@@ -647,75 +656,75 @@ _interrupt_20:
           CFI CFA SP+9
         IRET
           CFI EndBlock cfiBlock7
-//  158 
+//  159 
 
         SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
           CFI Block cfiBlock8 Using cfiCommon0
           CFI Function RedPitaya_2ms_Tick
         CODE
-//  159 void RedPitaya_2ms_Tick(void)
-//  160 {
-//  161   if(arm_timeout_ticks)
+//  160 void RedPitaya_2ms_Tick(void)
+//  161 {
+//  162   if(arm_timeout_ticks)
 RedPitaya_2ms_Tick:
         LDW       X, L:arm_timeout_ticks
         JREQ      L:??RedPitaya_2ms_Tick_0
-//  162   {
-//  163     arm_timeout_ticks--;
+//  163   {
+//  164     arm_timeout_ticks--;
         LDW       X, L:arm_timeout_ticks
         DECW      X
         LDW       L:arm_timeout_ticks, X
-//  164     if(arm_timeout_ticks == 0)
+//  165     if(arm_timeout_ticks == 0)
         LDW       X, L:arm_timeout_ticks
         JRNE      L:??RedPitaya_2ms_Tick_0
-//  165     {
-//  166       IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] &= (uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
-//  167       IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] |= CTRL_DPLL_STATUS_ERROR;
+//  166     {
+//  167       IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] &= (uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
         LD        A, #0x7f
         AND       A, L:IIC_Reg_Buff + 65
         LD        L:IIC_Reg_Buff + 65, A
+//  168       IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] |= CTRL_DPLL_STATUS_ERROR;
         LD        A, #0x40
         OR        A, L:IIC_Reg_Buff + 65
         LD        L:IIC_Reg_Buff + 65, A
-//  168     }
-//  169   }
-//  170 }
+//  169     }
+//  170   }
+//  171 }
 ??RedPitaya_2ms_Tick_0:
         RET
           CFI EndBlock cfiBlock8
-//  171 
+//  172 
 
         SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
           CFI Block cfiBlock9 Using cfiCommon0
           CFI Function RedPitaya_Service
         CODE
-//  172 void RedPitaya_Service(void)
-//  173 {
+//  173 void RedPitaya_Service(void)
+//  174 {
 RedPitaya_Service:
         CALL      L:?push_w4
           CFI ?b9 Frame(CFA, -2)
           CFI ?b8 Frame(CFA, -3)
           CFI CFA SP+4
-//  174   uint8_t command;
-//  175   uint8_t offset;
-//  176   uint8_t length;
-//  177   uint8_t checksum_index;
-//  178   uint8_t status = CTRL_UART_STATUS_OK;
+//  175   uint8_t command;
+//  176   uint8_t offset;
+//  177   uint8_t length;
+//  178   uint8_t checksum_index;
+//  179   uint8_t status = CTRL_UART_STATUS_OK;
         CLR       S:?b6
-//  179   uint8_t i;
-//  180 
-//  181   if(!uart_frame_ready) return;
+//  180   uint8_t i;
+//  181 
+//  182   if(!uart_frame_ready) return;
         LD        A, L:uart_frame_ready
         JRNE      ??lb_0
         JP        L:??RedPitaya_Service_0
-//  182 
-//  183   command = uart_rx_buff[1];
+//  183 
+//  184   command = uart_rx_buff[1];
 ??lb_0:
         MOV       S:?b8, L:uart_rx_buff + 1
-//  184   offset = uart_rx_buff[2];
+//  185   offset = uart_rx_buff[2];
         MOV       S:?b5, L:uart_rx_buff + 2
-//  185   length = uart_rx_buff[3];
+//  186   length = uart_rx_buff[3];
         MOV       S:?b7, L:uart_rx_buff + 3
-//  186   checksum_index = (command == CTRL_UART_CMD_WRITE) ? (uint8_t)(4 + length) : 4;
+//  187   checksum_index = (command == CTRL_UART_CMD_WRITE) ? (uint8_t)(4 + length) : 4;
         LD        A, S:?b8
         CP        A, #0x2
         JRNE      L:??RedPitaya_Service_1
@@ -725,10 +734,10 @@ RedPitaya_Service:
         JRA       L:??RedPitaya_Service_2
 ??RedPitaya_Service_1:
         MOV       S:?b0, #0x4
-//  187 
-//  188   if((uart_rx_buff[checksum_index + 1] != CTRL_UART_ETX) ||
-//  189      (uart_rx_buff[checksum_index] !=
-//  190       frame_checksum((const uint8_t *)&uart_rx_buff[1], (uint8_t)(checksum_index - 1))))
+//  188 
+//  189   if((uart_rx_buff[checksum_index + 1] != CTRL_UART_ETX) ||
+//  190      (uart_rx_buff[checksum_index] !=
+//  191       frame_checksum(&uart_rx_buff[1], (uint8_t)(checksum_index - 1))))
 ??RedPitaya_Service_2:
         CLRW      Y
         LD        A, S:?b0
@@ -747,13 +756,13 @@ RedPitaya_Service:
         CALL      L:frame_checksum
         CP        A, S:?b9
         JREQ      L:??RedPitaya_Service_4
-//  191   {
-//  192     status = CTRL_UART_STATUS_BAD_FRAME;
+//  192   {
+//  193     status = CTRL_UART_STATUS_BAD_FRAME;
 ??RedPitaya_Service_3:
         MOV       S:?b6, #0x1
         JRA       L:??RedPitaya_Service_5
-//  193   }
-//  194   else if(((uint16_t)offset + length) > CTRL_BANK_SIZE)
+//  194   }
+//  195   else if(((uint16_t)offset + length) > CTRL_BANK_SIZE)
 ??RedPitaya_Service_4:
         CLR       S:?b0
         MOV       S:?b1, S:?b7
@@ -763,26 +772,26 @@ RedPitaya_Service:
         ADDW      X, S:?w0
         CPW       X, #0x61
         JRC       L:??RedPitaya_Service_6
-//  195   {
-//  196     status = CTRL_UART_STATUS_RANGE;
+//  196   {
+//  197     status = CTRL_UART_STATUS_RANGE;
         MOV       S:?b6, #0x2
         JRA       L:??RedPitaya_Service_5
-//  197   }
-//  198   else
-//  199   {
-//  200     arm_timeout_ticks = CTRL_ARM_TIMEOUT_TICKS;
+//  198   }
+//  199   else
+//  200   {
+//  201     arm_timeout_ticks = CTRL_ARM_TIMEOUT_TICKS;
 ??RedPitaya_Service_6:
         LDW       X, #0x3e8
         LDW       L:arm_timeout_ticks, X
-//  201   }
-//  202 
-//  203   if(status == CTRL_UART_STATUS_OK)
+//  202   }
+//  203 
+//  204   if(status == CTRL_UART_STATUS_OK)
 ??RedPitaya_Service_5:
         TNZ       S:?b6
         JREQ      ??lb_1
         JP        L:??RedPitaya_Service_7
-//  204   {
-//  205     switch(command)
+//  205   {
+//  206     switch(command)
 ??lb_1:
         LD        A, S:?b8
         DEC       A
@@ -794,34 +803,34 @@ RedPitaya_Service:
         DEC       A
         JREQ      L:??RedPitaya_Service_11
         JRA       L:??RedPitaya_Service_12
-//  206     {
-//  207     case CTRL_UART_CMD_READ:
-//  208       send_response(status, offset, length);
+//  207     {
+//  208     case CTRL_UART_CMD_READ:
+//  209       send_response(status, offset, length);
 ??RedPitaya_Service_8:
         MOV       S:?b1, S:?b7
         MOV       S:?b0, S:?b5
         CLR       A
         CALL      L:send_response
-//  209       break;
+//  210       break;
         JRA       L:??RedPitaya_Service_13
-//  210 
-//  211     case CTRL_UART_CMD_WRITE:
-//  212       if(offset < CTRL_REG_REQUEST_SEQ)
+//  211 
+//  212     case CTRL_UART_CMD_WRITE:
+//  213       if(offset < CTRL_REG_REQUEST_SEQ)
 ??RedPitaya_Service_9:
         LD        A, S:?b5
         CP        A, #0x2
         JRNC      L:??RedPitaya_Service_14
-//  213       {
-//  214         send_response(CTRL_UART_STATUS_RANGE, 0, 0);
+//  214       {
+//  215         send_response(CTRL_UART_STATUS_RANGE, 0, 0);
         CLR       S:?b1
         CLR       S:?b0
         LD        A, #0x2
         CALL      L:send_response
         JRA       L:??RedPitaya_Service_13
-//  215       }
-//  216       else
-//  217       {
-//  218         for(i = 0; i < length; i++) IIC_Reg_Buff[offset + i] = uart_rx_buff[4 + i];
+//  216       }
+//  217       else
+//  218       {
+//  219         for(i = 0; i < length; i++) IIC_Reg_Buff[offset + i] = uart_rx_buff[4 + i];
 ??RedPitaya_Service_14:
         CLR       S:?b1
         JRA       L:??RedPitaya_Service_15
@@ -842,68 +851,68 @@ RedPitaya_Service:
         LD        A, S:?b1
         CP        A, S:?b7
         JRC       L:??RedPitaya_Service_16
-//  219         apply_microwave_write(offset, length);
+//  220         apply_microwave_write(offset, length);
         MOV       S:?b0, S:?b7
         LD        A, S:?b5
         CALL      L:apply_microwave_write
-//  220         send_response(status, 0, 0);
+//  221         send_response(status, 0, 0);
         CLR       S:?b1
         CLR       S:?b0
         CLR       A
         CALL      L:send_response
         JRA       L:??RedPitaya_Service_13
-//  221       }
-//  222       break;
-//  223 
-//  224     case CTRL_UART_CMD_SAVE:
-//  225       EEPROM_Store_Data();
+//  222       }
+//  223       break;
+//  224 
+//  225     case CTRL_UART_CMD_SAVE:
+//  226       EEPROM_Store_Data();
 ??RedPitaya_Service_10:
         CALL      L:EEPROM_Store_Data
-//  226       send_response(status, 0, 0);
+//  227       send_response(status, 0, 0);
         CLR       S:?b1
         CLR       S:?b0
         CLR       A
         CALL      L:send_response
-//  227       break;
+//  228       break;
         JRA       L:??RedPitaya_Service_13
-//  228 
-//  229     case CTRL_UART_CMD_PING:
-//  230       send_response(status, CTRL_REG_PROTOCOL_VERSION, 1);
+//  229 
+//  230     case CTRL_UART_CMD_PING:
+//  231       send_response(status, CTRL_REG_PROTOCOL_VERSION, 1);
 ??RedPitaya_Service_11:
         MOV       S:?b1, #0x1
         MOV       S:?b0, #0x1
         CLR       A
         CALL      L:send_response
-//  231       break;
+//  232       break;
         JRA       L:??RedPitaya_Service_13
-//  232 
-//  233     default:
-//  234       send_response(CTRL_UART_STATUS_COMMAND, 0, 0);
+//  233 
+//  234     default:
+//  235       send_response(CTRL_UART_STATUS_COMMAND, 0, 0);
 ??RedPitaya_Service_12:
         CLR       S:?b1
         CLR       S:?b0
         LD        A, #0x3
         CALL      L:send_response
-//  235       break;
+//  236       break;
         JRA       L:??RedPitaya_Service_13
-//  236     }
-//  237   }
-//  238   else
-//  239   {
-//  240     send_response(status, 0, 0);
+//  237     }
+//  238   }
+//  239   else
+//  240   {
+//  241     send_response(status, 0, 0);
 ??RedPitaya_Service_7:
         CLR       S:?b1
         CLR       S:?b0
         LD        A, S:?b6
         CALL      L:send_response
-//  241   }
-//  242 
-//  243   uart_rx_count = 0;
+//  242   }
+//  243 
+//  244   uart_rx_count = 0;
 ??RedPitaya_Service_13:
         CLR       L:uart_rx_count
-//  244   uart_frame_ready = 0;
+//  245   uart_frame_ready = 0;
         CLR       L:uart_frame_ready
-//  245 }
+//  246 }
 ??RedPitaya_Service_0:
         JP        L:?epilogue_w4
           CFI EndBlock cfiBlock9
@@ -913,10 +922,10 @@ RedPitaya_Service:
         END
 // 
 // 177 bytes in section .near.bss
-// 886 bytes in section .near_func.text
+// 894 bytes in section .near_func.text
 // 
-// 886 bytes of CODE memory
+// 894 bytes of CODE memory
 // 177 bytes of DATA memory
 //
 //Errors: none
-//Warnings: none
+//Warnings: 1

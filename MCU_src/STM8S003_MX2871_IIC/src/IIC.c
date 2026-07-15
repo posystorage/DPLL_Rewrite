@@ -2,10 +2,24 @@
 
 
 
-uint8_t IIC_Reg_Addr_Point;
-uint8_t IIC_Reg_Buff[IIC_REG_SIZE];
-uint8_t IIC_Reg_Addr_Get;//±ê¼Ç»ñµÃÁËµØÖ·Î»
-uint8_t IIC_CMD;
+static volatile uint8_t IIC_Reg_Addr_Point;
+volatile uint8_t IIC_Reg_Buff[IIC_REG_SIZE];
+static volatile uint8_t IIC_Reg_Addr_Get;//æ ‡è®°è·å¾—äº†åœ°å€ä½
+volatile uint8_t IIC_CMD;
+
+static void IIC_Slave_TX_Byte(void)
+{
+  if(IIC_Reg_Addr_Point >= IIC_REG_SIZE)
+  {
+    I2C->DR = 0xA5;
+  }
+  else
+  {
+    I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+    IIC_Reg_Addr_Point++;
+    if(IIC_Reg_Addr_Point >= IIC_REG_SIZE) IIC_Reg_Addr_Point = 0;
+  }
+}
 
 void IIC_Slave_Init(void)
 {
@@ -21,8 +35,10 @@ void IIC_Slave_Init(void)
   I2C->OARL = 0x4A;//Address
   I2C->OARH = I2C_OARH_ADDCONF;
   
-  I2C->ITR = I2C_ITR_ITBUFEN | I2C_ITR_ITEVTEN;
-  ITC->ISPR5 |= 0xC0;
+  /* ADDR events arm byte interrupts; terminal events disarm them. */
+  I2C->ITR = I2C_ITR_ITEVTEN | I2C_ITR_ITERREN;
+  /* STM8 priority 00 is level 2; UART uses level 3. */
+  ITC->ISPR5 &= (uint8_t)~0xC0;
   IIC_Reg_Addr_Point = 0;
   IIC_Reg_Buff[CTRL_REG_ID] = 0xA5;
   IIC_Reg_Buff[CTRL_REG_PROTOCOL_VERSION] = CTRL_PROTOCOL_VERSION;
@@ -75,52 +91,58 @@ INTERRUPT_HANDLER(I2C_IRQHandler, 19)
 {
   uint8_t Last_Event_SR1 = I2C->SR1;
   uint8_t Last_Event_SR3 = I2C->SR3;
-  if((Last_Event_SR3 & I2C_SR3_BUSY) == I2C_SR3_BUSY)
+  uint8_t Last_Event_SR2 = I2C->SR2;
+  uint8_t RX_Handled = 0;
+  uint8_t Transfer_End = 0;
+
+  if((Last_Event_SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE)
   {
-    if((Last_Event_SR1 & I2C_SR1_ADDR) == I2C_SR1_ADDR)
-    {
-      if((Last_Event_SR3 & I2C_SR3_TRA) == I2C_SR3_TRA)
-      {
-        if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)I2C->DR = 0xA5;
-        else
-        {
-          I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
-          IIC_Reg_Addr_Point++;
-          if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;         
-        }
-      }
-      else
-      {
-        IIC_Reg_Addr_Get = 0;
-      }
-    }  
-    if(((Last_Event_SR3 & I2C_SR3_TRA) == I2C_SR3_TRA) && ((Last_Event_SR1 & I2C_SR1_TXE) == I2C_SR1_TXE))
-    {
-      if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)I2C->DR = 0xA5;
-      else
-      {
-        I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
-        IIC_Reg_Addr_Point++;
-        if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;  
-      }
-    }
-    IIC_Slave_RX_Byte(Last_Event_SR1); 
+    IIC_Slave_RX_Byte(Last_Event_SR1);
+    RX_Handled = 1;
   }
 
-  if((I2C->SR1&I2C_SR1_STOPF) == I2C_SR1_STOPF)
+  if(Last_Event_SR2 & (I2C_SR2_AF | I2C_SR2_BERR |
+                       I2C_SR2_OVR | I2C_SR2_ARLO))
   {
-    I2C->CR2 = I2C_CR2_ACK;  
-    IIC_Slave_RX_Byte(I2C->SR1);
+    I2C->SR2 &= (uint8_t)~(I2C_SR2_AF | I2C_SR2_BERR |
+                            I2C_SR2_OVR | I2C_SR2_ARLO);
+    Transfer_End = 1;
   }
-  
-  if((I2C->SR2&I2C_SR2_AF) == I2C_SR2_AF)
+
+  if((Last_Event_SR1 & I2C_SR1_STOPF) == I2C_SR1_STOPF)
   {
-    I2C->SR2 &=~ I2C_SR2_AF;
+    I2C->CR2 |= I2C_CR2_ACK;
+    Transfer_End = 1;
   }
-  if((I2C->SR2&I2C_SR2_BERR) == I2C_SR2_BERR)
+
+  if(Transfer_End)
   {
-    I2C->SR2 &=~ I2C_SR2_BERR;
-  } 
+    I2C->ITR &= (uint8_t)~I2C_ITR_ITBUFEN;
+    IIC_Reg_Addr_Get = 0;
+    if((Last_Event_SR1 & I2C_SR1_ADDR) == 0) return;
+  }
+
+  if((Last_Event_SR1 & I2C_SR1_ADDR) == I2C_SR1_ADDR)
+  {
+    I2C->ITR |= I2C_ITR_ITBUFEN;
+    if((Last_Event_SR3 & I2C_SR3_TRA) == I2C_SR3_TRA)
+    {
+      IIC_Slave_TX_Byte();
+    }
+    else
+    {
+      IIC_Reg_Addr_Get = 0;
+    }
+    return;
+  }
+
+  if(RX_Handled) return;
+
+  if(((Last_Event_SR3 & I2C_SR3_TRA) == I2C_SR3_TRA) &&
+     ((Last_Event_SR1 & I2C_SR1_TXE) == I2C_SR1_TXE))
+  {
+    IIC_Slave_TX_Byte();
+  }
 }
 
 
@@ -168,7 +190,7 @@ INTERRUPT_HANDLER(I2C_IRQHandler, 19)
 //    Cache = I2C->DR;
 //    if(IIC_Reg_Addr_Get)
 //    {
-//      if(IIC_Reg_Addr_Point!=0)//0¼Ä´æÆ÷ÊÇÖ»¶Á
+//      if(IIC_Reg_Addr_Point!=0)//0å¯„å­˜å™¨æ˜¯åªè¯»
 //      {
 //        IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
 //      }
@@ -245,7 +267,7 @@ INTERRUPT_HANDLER(I2C_IRQHandler, 19)
 //    Cache = I2C->DR;
 //    if(IIC_Reg_Addr_Get)
 //    {
-//      if(IIC_Reg_Addr_Point!=0)//0¼Ä´æÆ÷ÊÇÖ»¶Á
+//      if(IIC_Reg_Addr_Point!=0)//0å¯„å­˜å™¨æ˜¯åªè¯»
 //      {
 //        IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
 //      }

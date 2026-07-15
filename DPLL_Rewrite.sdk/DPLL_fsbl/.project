@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>DPLL_fsbl</name>
-	<comment>Created by SDK v2018.3. DPLL_fsbl_bsp - ps7_cortexa9_0</comment>
+	<name>DPLL_FSBL</name>
+	<comment>Created by SDK v2018.3. DPLL_FSBL_bsp - ps7_cortexa9_0</comment>
 	<projects>
-		<project>DPLL_fsbl_bsp</project>
+		<project>DPLL_FSBL_bsp</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
@@ -27,7 +27,7 @@
 		<link>
 			<name>src/ps7_init.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/red_pitaya_top_hw_platform_1/ps7_init.c</locationURI>
+			<locationURI>WORKSPACE_LOC/red_pitaya_top_hw_platform_0/ps7_init.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

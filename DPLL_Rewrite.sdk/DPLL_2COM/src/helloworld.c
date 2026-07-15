@@ -1495,19 +1495,29 @@ void Uart1PS_Init(void)
 	XUartPs_Config *config;
 	XUartPsFormat format;
 	int status;
+	u32 base_address;
 
 	config = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);
 	status = XUartPs_CfgInitialize(&XUartPs_uart1, config, config->BaseAddress);
 	if (status != XST_SUCCESS) print("Initialize uart1 fail\n");
 
 	XUartPs_SetOperMode(&XUartPs_uart1, XUARTPS_OPER_MODE_NORMAL);
-	/* STM8 uses the verified original 16 MHz / 1 Mbps UART configuration. */
-	format.BaudRate = 1000000;
+	/* The 2018.3 driver limits this API to 921600; set exact 1 Mbps below. */
+	format.BaudRate = 921600;
 	format.DataBits = XUARTPS_FORMAT_8_BITS;
 	format.Parity = XUARTPS_FORMAT_NO_PARITY;
 	format.StopBits = XUARTPS_FORMAT_1_STOP_BIT;
 	status = XUartPs_SetDataFormat(&XUartPs_uart1, &format);
 	if (status != XST_SUCCESS) print("set uart1 baud rate fail\n");
+
+	base_address = XUartPs_uart1.Config.BaseAddress;
+	XUartPs_DisableUart(&XUartPs_uart1);
+	XUartPs_WriteReg(base_address, XUARTPS_BAUDGEN_OFFSET, 20U);
+	XUartPs_WriteReg(base_address, XUARTPS_BAUDDIV_OFFSET, 4U);
+	XUartPs_WriteReg(base_address, XUARTPS_CR_OFFSET,
+	                 XUARTPS_CR_TXRST | XUARTPS_CR_RXRST);
+	XUartPs_EnableUart(&XUartPs_uart1);
+	XUartPs_uart1.BaudRate = 1000000U;
 
 	XUartPs_SetFifoThreshold(&XUartPs_uart1, 32);
 	XUartPs_SetRecvTimeout(&XUartPs_uart1, 4);

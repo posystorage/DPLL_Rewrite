@@ -49,7 +49,7 @@
 | 67 | 1 | last error | 协议、范围、复位、APPLY、ABI |
 | 68 | 1 | loop state | FPGA 环路状态 |
 | 69 | 1 | loss reason | FPGA 失锁原因 |
-| 70 | 1 | bridge status | bit0 为 STM8 I2C 命令 BUSY |
+| 70 | 1 | bridge status | bit0 为 STM8 I2C 命令 BUSY；bit1 为本次启动 EEPROM 校验异常锁存 |
 | 71 | 1 | debug DAC preset | 非持久快捷预设 `0..8`；`FF` 表示 PC 完整手动配置 |
 | 72 | 4 | actual frequency error | 有符号整数 Hz |
 | 76 | 4 | actual phase error | 有符号 `0.01 degree/LSB` |
@@ -101,7 +101,7 @@ B2 status length [data...] checksum B3
 最大请求为 60 字节持久区写入，最大响应为 96 字节全区读取。STM8 不解释 DPLL
 字段，只有写入微波源字段或使能位时才执行 MAX2871 动作。
 
-ARM UART1 与 STM8 之间固定使用 `1 Mbps, 8N1`。STM8 保留原始实机验证过的
+ARM UART1 与 STM8 固定使用 `1 Mbps, 8N1`。STM8 保留原始实机验证过的
 `CLK_PCKENR1_UART2` 时钟位和 `UART1 BRR2=0, BRR1=1`；当前 STM8 固件库中该
 时钟位宏名称与芯片实际映射不一致，不得仅按宏名改成 `UART1`。
 
@@ -142,7 +142,9 @@ sequence 等于该值、快照内 request sequence 也等于该值。实现采�
 8. 把 DAC1 恢复为默认快捷预设 `D1:1`，即老固件的校正量输出位窗。
 9. 回写状态与换算后的显示值，DPLL 与 MAX2871 继续保持关闭。
 
-STM32 通常先启动；在 ARM 完成上述步骤前直接显示通信失败，不增加临时启动状态。
+STM32 通常先启动；Logo 结束后直接进入第一页并在后台轮询，不使用独立的通信失败
+页面。第一页用 timeout 图标区分 STM8 离线（红色）和 ARM 离线（棕红色），用 error
+图标区分协议版本异常（品红色）和 EEPROM 校验异常（印度红）；第二页不显示这些图标。
 若 STM8 UART 链路不通，ARM 才重试整个启动握手；若 FPGA ABI 或配置 APPLY 失败，
 ARM 仍发布在线状态和明确错误码并保持 DPLL 关闭，避免屏幕永远停留在启动等待。
 

@@ -18,7 +18,7 @@ static void bank_put_u32(uint8_t offset, uint32_t value)
   IIC_Reg_Buff[offset + 3] = (uint8_t)(value >> 24);
 }
 
-static uint16_t eeprom_crc16(const uint8_t *data, uint8_t length)
+static uint16_t eeprom_crc16(const volatile uint8_t *data, uint8_t length)
 {
   uint8_t i;
   uint8_t bit;
@@ -117,9 +117,13 @@ void EEPROM_Read_Data(void)
      (*((unsigned char *)EEPROM_Write_Addr + 1) == CTRL_PROTOCOL_VERSION) &&
      (stored_crc == calculated_crc))
   {
+    IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] &=
+        (uint8_t)~CTRL_BRIDGE_STATUS_EEPROM_CRC_ERROR;
     return;
   }
 
+  IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] |=
+      CTRL_BRIDGE_STATUS_EEPROM_CRC_ERROR;
   EEPROM_Load_Defaults();
   EEPROM_Store_Data();
 }

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// IAR C/C++ Compiler V2.20.3.189 for STM8                14/Jul/2026  17:35:29
+// IAR C/C++ Compiler V2.20.3.189 for STM8                15/Jul/2026  17:47:27
 // Copyright 2010-2017 IAR Systems AB.
 // Standalone license - IAR Embedded Workbench for STMicroelectronics STM8
 //
@@ -28,17 +28,16 @@
         RTMODEL "__data_model", "medium"
         RTMODEL "__rt_version", "4"
 
-        EXTERN ?b0
         EXTERN ?epilogue_l2
-        EXTERN ?mov_l0_l1
+        EXTERN ?mov_l0_l2
         EXTERN ?mov_l1_l0
-        EXTERN ?mov_l1_l2
-        EXTERN ?mov_l2_l0
         EXTERN ?or32_l0_l0_l1
         EXTERN ?push_l2
         EXTERN ?sll32_l0_l0_a
         EXTERN ?w0
         EXTERN ?w1
+        EXTERN ?w4
+        EXTERN ?w5
         EXTERN EEPROM_Read_Data
         EXTERN EEPROM_Store_Data
         EXTERN IIC_CMD
@@ -119,14 +118,18 @@ bank_get_u32:
           CFI CFA SP+6
 //    6   uint32_t value;
 //    7   value = IIC_Reg_Buff[offset];
-//    8   value |= (uint32_t)IIC_Reg_Buff[offset + 1] << 8;
-//    9   value |= (uint32_t)IIC_Reg_Buff[offset + 2] << 16;
-//   10   value |= (uint32_t)IIC_Reg_Buff[offset + 3] << 24;
-//   11   return value;
         CLRW      X
         LD        XL, A
         ADDW      X, #IIC_Reg_Buff
         LDW       Y, X
+        LD        A, (X)
+        CLRW      X
+        LD        XL, A
+        LDW       S:?w5, X
+        CLRW      X
+        LDW       S:?w4, X
+//    8   value |= (uint32_t)IIC_Reg_Buff[offset + 1] << 8;
+        LDW       X, Y
         INCW      X
         LD        A, (X)
         CLRW      X
@@ -137,12 +140,10 @@ bank_get_u32:
         LD        A, #0x8
         CALL      L:?sll32_l0_l0_a
         CALL      L:?mov_l1_l0
-        LD        A, (Y)
-        CLRW      X
-        LD        XL, A
-        LDW       S:?w1, X
+        CALL      L:?mov_l0_l2
         CALL      L:?or32_l0_l0_l1
         CALL      L:?mov_l1_l0
+//    9   value |= (uint32_t)IIC_Reg_Buff[offset + 2] << 16;
         LDW       X, Y
         ADDW      X, #0x2
         LD        A, (X)
@@ -151,11 +152,9 @@ bank_get_u32:
         LDW       S:?w1, X
         LD        A, #0x10
         CALL      L:?sll32_l0_l0_a
-        CALL      L:?mov_l2_l0
-        CALL      L:?mov_l0_l1
-        CALL      L:?mov_l1_l2
         CALL      L:?or32_l0_l0_l1
         CALL      L:?mov_l1_l0
+//   10   value |= (uint32_t)IIC_Reg_Buff[offset + 3] << 24;
         LDW       X, Y
         ADDW      X, #0x3
         LD        A, (X)
@@ -167,6 +166,7 @@ bank_get_u32:
         LD        A, #0x18
         CALL      L:?sll32_l0_l0_a
         CALL      L:?or32_l0_l0_l1
+//   11   return value;
         JP        L:?epilogue_l2
 //   12 }
           CFI EndBlock cfiBlock0
@@ -226,19 +226,20 @@ sys_init:
 //   38 
 //   39   if((IIC_CMD < 0xC0) || (IIC_CMD > 0xC9)) return;
 IIC_CMD_Service:
-        LD        A, #0x40
-        ADD       A, L:IIC_CMD
-        CP        A, #0xa
-        JRC       ??lb_0
-        JP        L:??IIC_CMD_Service_0
-//   40 
-//   41   switch(IIC_CMD)
-??lb_0:
         LDW       X, #IIC_CMD
         LD        A, (X)
+        CP        A, #0xc0
+        JRC       L:??IIC_CMD_Service_0
+        LD        A, (X)
+        CP        A, #0xca
+        JRC       L:??IIC_CMD_Service_1
+??IIC_CMD_Service_0:
+        RET
+//   40 
+//   41   switch(IIC_CMD)
+??IIC_CMD_Service_1:
+        LD        A, (X)
         SUB       A, #0xc0
-        JREQ      L:??IIC_CMD_Service_1
-        DEC       A
         JREQ      L:??IIC_CMD_Service_2
         DEC       A
         JREQ      L:??IIC_CMD_Service_3
@@ -246,15 +247,17 @@ IIC_CMD_Service:
         JREQ      L:??IIC_CMD_Service_4
         DEC       A
         JREQ      L:??IIC_CMD_Service_5
-        SUB       A, #0x3
-        JREQ      L:??IIC_CMD_Service_6
         DEC       A
+        JREQ      L:??IIC_CMD_Service_6
+        SUB       A, #0x3
         JREQ      L:??IIC_CMD_Service_7
-        JRA       L:??IIC_CMD_Service_8
+        DEC       A
+        JREQ      L:??IIC_CMD_Service_8
+        JRA       L:??IIC_CMD_Service_9
 //   42   {
 //   43   case 0xC0:
 //   44     frequency = bank_get_u32(CTRL_REG_MWS_FREQ_KHZ);
-??IIC_CMD_Service_1:
+??IIC_CMD_Service_2:
         LD        A, #0x4
         CALL      L:bank_get_u32
 //   45     max2871_Set_Freq_10M(frequency, IIC_Reg_Buff[CTRL_REG_MWS_POWER] & 0x03);
@@ -272,11 +275,11 @@ IIC_CMD_Service:
         OR        A, L:IIC_Reg_Buff + 66
         LD        L:IIC_Reg_Buff + 66, A
 //   49     break;
-        JRA       L:??IIC_CMD_Service_8
+        JRA       L:??IIC_CMD_Service_9
 //   50 
 //   51   case 0xC1:
 //   52     MAX2871_RFOUT_OFF();
-??IIC_CMD_Service_2:
+??IIC_CMD_Service_3:
         CALL      L:MAX2871_RFOUT_OFF
 //   53     IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] &= (uint8_t)~CTRL_FLAG_MWS_ENABLE;
         LD        A, #0xfd
@@ -287,37 +290,37 @@ IIC_CMD_Service:
         AND       A, L:IIC_Reg_Buff + 66
         LD        L:IIC_Reg_Buff + 66, A
 //   55     break;
-        JRA       L:??IIC_CMD_Service_8
+        JRA       L:??IIC_CMD_Service_9
 //   56 
 //   57   case 0xC2:
 //   58     EEPROM_Read_Data();
-??IIC_CMD_Service_3:
+??IIC_CMD_Service_4:
         CALL      L:EEPROM_Read_Data
 //   59     break;
-        JRA       L:??IIC_CMD_Service_8
+        JRA       L:??IIC_CMD_Service_9
 //   60 
 //   61   case 0xC3:
 //   62     EEPROM_Store_Data();
-??IIC_CMD_Service_4:
+??IIC_CMD_Service_5:
         CALL      L:EEPROM_Store_Data
 //   63     break;
-        JRA       L:??IIC_CMD_Service_8
+        JRA       L:??IIC_CMD_Service_9
 //   64 
 //   65   case 0xC4:
 //   66     IIC_Reg_Buff[CTRL_REG_REQUEST_SEQ]++;
-??IIC_CMD_Service_5:
+??IIC_CMD_Service_6:
         LD        A, #0x1
         ADD       A, L:IIC_Reg_Buff + 2
         LD        L:IIC_Reg_Buff + 2, A
 //   67     break;
-        JRA       L:??IIC_CMD_Service_8
+        JRA       L:??IIC_CMD_Service_9
 //   68 
 //   69   case 0xC5:
 //   70     break;
 //   71 
 //   72   case 0xC7:
 //   73     IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] |= CTRL_FLAG_DPLL_ENABLE;
-??IIC_CMD_Service_6:
+??IIC_CMD_Service_7:
         LD        A, #0x1
         OR        A, L:IIC_Reg_Buff + 3
         LD        L:IIC_Reg_Buff + 3, A
@@ -326,11 +329,11 @@ IIC_CMD_Service:
         ADD       A, L:IIC_Reg_Buff + 2
         LD        L:IIC_Reg_Buff + 2, A
 //   75     break;
-        JRA       L:??IIC_CMD_Service_8
+        JRA       L:??IIC_CMD_Service_9
 //   76 
 //   77   case 0xC8:
 //   78     IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] &= (uint8_t)~CTRL_FLAG_DPLL_ENABLE;
-??IIC_CMD_Service_7:
+??IIC_CMD_Service_8:
         LD        A, #0xfe
         AND       A, L:IIC_Reg_Buff + 3
         LD        L:IIC_Reg_Buff + 3, A
@@ -348,14 +351,13 @@ IIC_CMD_Service:
 //   87   }
 //   88 
 //   89   IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] &= (uint8_t)(~CTRL_BRIDGE_STATUS_BUSY);
-??IIC_CMD_Service_8:
+??IIC_CMD_Service_9:
         LD        A, #0xfe
         AND       A, L:IIC_Reg_Buff + 70
         LD        L:IIC_Reg_Buff + 70, A
 //   90   IIC_CMD = 0;
         CLR       L:IIC_CMD
 //   91 }
-??IIC_CMD_Service_0:
         RET
           CFI EndBlock cfiBlock2
 //   92 
@@ -368,12 +370,11 @@ IIC_CMD_Service:
 //   94 {
 //   95   if((MAX2871_LD_PORT->IDR & MAX2871_LD_PIN) == MAX2871_LD_PIN)
 PLL_Lock_Read:
-        MOV       S:?b0, L:IIC_Reg_Buff + 66
         BTJF      L:0x5001, #0x3, L:??PLL_Lock_Read_0
 //   96   {
 //   97     IIC_Reg_Buff[CTRL_REG_MWS_STATUS] |= CTRL_MWS_STATUS_LOCKED;
-        LD        A, S:?b0
-        OR        A, #0x2
+        LD        A, #0x2
+        OR        A, L:IIC_Reg_Buff + 66
         LD        L:IIC_Reg_Buff + 66, A
         RET
 //   98   }
@@ -381,8 +382,8 @@ PLL_Lock_Read:
 //  100   {
 //  101     IIC_Reg_Buff[CTRL_REG_MWS_STATUS] &= (uint8_t)~CTRL_MWS_STATUS_LOCKED;
 ??PLL_Lock_Read_0:
-        LD        A, S:?b0
-        AND       A, #0xfd
+        LD        A, #0xfd
+        AND       A, L:IIC_Reg_Buff + 66
         LD        L:IIC_Reg_Buff + 66, A
 //  102   }
 //  103 }
@@ -417,9 +418,9 @@ main:
 
         END
 // 
-// 346 bytes in section .near_func.text
+// 339 bytes in section .near_func.text
 // 
-// 346 bytes of CODE memory
+// 339 bytes of CODE memory
 //
 //Errors: none
-//Warnings: none
+//Warnings: 1

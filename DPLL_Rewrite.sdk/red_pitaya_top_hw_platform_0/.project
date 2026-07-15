@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>red_pitaya_top_hw_platform_1</name>
+	<name>red_pitaya_top_hw_platform_0</name>
 	<comment>Created by SDK v2018.3</comment>
 	<projects>
 	</projects>
@@ -11,7 +11,7 @@
 	</natures>
 	<filteredResources>
 		<filter>
-			<id>1784021638748</id>
+			<id>1784032120883</id>
 			<name></name>
 			<type>6</type>
 			<matcher>
@@ -20,7 +20,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1784021638751</id>
+			<id>1784032120885</id>
 			<name></name>
 			<type>6</type>
 			<matcher>
@@ -29,7 +29,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1784021638756</id>
+			<id>1784032120887</id>
 			<name></name>
 			<type>6</type>
 			<matcher>

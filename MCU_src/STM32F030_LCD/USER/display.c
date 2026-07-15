@@ -368,12 +368,13 @@ static void display_fast_meter(void)
 		                       (uint8_t)('0' + U32_Dec_Buff[power - 1U]), INDIANRED);
 }
 
-static void display_loop_state(uint8_t status)
+static void display_loop_state(uint8_t status, uint8_t link_state)
 {
 	uint8_t state = STM8_Control_Bank[CTRL_REG_LOOP_STATE];
 	uint8_t glyph = state <= 9U ? state : 11U;
 	uint16_t color = GRAY;
-	if ((status & CTRL_DPLL_STATUS_ARM_ONLINE) == 0U) {
+	if (link_state != STM8_LINK_ONLINE ||
+	    (status & CTRL_DPLL_STATUS_ARM_ONLINE) == 0U) {
 		glyph = 11U;
 	} else if (state == 6U) {
 		color = DARKGREEN;
@@ -391,6 +392,7 @@ static void display_loop_state(uint8_t status)
 void Display_UI_PLL_Refresh_Status(void)
 {
 	uint8_t status = STM8_Control_Bank[CTRL_REG_DPLL_STATUS];
+	uint8_t link_state = STM8_Slave_Get_Link_State();
 	Display_UI_PLL_Enable(0U);
 	display_signed_integer(30U, 81U, STM8_Bank_Get_S32(CTRL_REG_FREQ_ERROR_HZ),
 	                       5U, INDIANRED);
@@ -399,11 +401,20 @@ void Display_UI_PLL_Refresh_Status(void)
 	display_unsigned(54U, 97U, STM8_Bank_Get_U32(CTRL_REG_OUTPUT_FREQ_HZ),
 	                 7U, 0U, INDIANRED);
 	display_fast_meter();
-	display_loop_state(status);
-	if ((status & CTRL_DPLL_STATUS_ARM_ONLINE) == 0U) {
-		LCD_SHOW_Icon_1612(142U, 33U, 15U, RED);
+	display_loop_state(status, link_state);
+	if (link_state != STM8_LINK_ONLINE) {
+		LCD_Show_Square(82U, 33U, 72U, 16U, WHITE);
+		if (link_state == STM8_LINK_ARM_OFFLINE)
+			LCD_SHOW_Icon_1612(82U, 33U, 14U, BRRED);
+		else if (link_state == STM8_LINK_STM8_OFFLINE)
+			LCD_SHOW_Icon_1612(82U, 33U, 14U, RED);
+		else if (link_state == STM8_LINK_PROTOCOL_ERROR)
+			LCD_SHOW_Icon_1612(82U, 33U, 15U, MAGENTA);
+		else
+			LCD_SHOW_Icon_1612(82U, 33U, 15U, INDIANRED);
 		return;
 	}
+	LCD_Show_Square(82U, 33U, 72U, 16U, WHITE);
 	LCD_SHOW_Icon_1612(82U, 33U,
 	                   (status & CTRL_DPLL_STATUS_LOCKED) ? 0U : 1U,
 	                   (status & CTRL_DPLL_STATUS_LOCKED) ? DARKGREEN : BRRED);
@@ -415,8 +426,10 @@ void Display_UI_PLL_Refresh_Status(void)
 	else LCD_Show_Square(118U, 33U, 12U, 16U, WHITE);
 	if (status & CTRL_DPLL_STATUS_NEG_RAIL) LCD_SHOW_Icon_1612(130U, 33U, 9U, RED);
 	else LCD_Show_Square(130U, 33U, 12U, 16U, WHITE);
-	if (status & CTRL_DPLL_STATUS_ERROR) LCD_SHOW_Icon_1612(142U, 33U, 15U, RED);
-	else LCD_Show_Square(142U, 33U, 12U, 16U, WHITE);
+	if (status & CTRL_DPLL_STATUS_ERROR) 
+		LCD_SHOW_Icon_1612(142U, 33U, 15U, RED);
+	else 
+		LCD_Show_Square(142U, 33U, 12U, 16U, WHITE);
 }
 
 void Display_UI_PLL_Main_Page_Init(void)

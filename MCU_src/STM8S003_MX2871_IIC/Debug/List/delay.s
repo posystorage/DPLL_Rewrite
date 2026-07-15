@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// IAR C/C++ Compiler V2.20.3.189 for STM8                14/Jul/2026  16:44:57
+// IAR C/C++ Compiler V2.20.3.189 for STM8                15/Jul/2026  17:47:26
 // Copyright 2010-2017 IAR Systems AB.
 // Standalone license - IAR Embedded Workbench for STMicroelectronics STM8
 //
@@ -225,4 +225,4 @@ delay_ms:
 //  1 byte  of DATA memory
 //
 //Errors: none
-//Warnings: none
+//Warnings: 1

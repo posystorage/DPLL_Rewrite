@@ -1,5 +1,4 @@
 #include "STM8Slave.h"
-#include "LCD.h"
 #include "iic.h"
 #include "delay.h"
 
@@ -12,6 +11,7 @@
 uint8_t STM8_Control_Bank[CTRL_BANK_SIZE];
 static uint8_t STM8_Control_Snapshot[CTRL_BANK_SIZE];
 static uint16_t STM8_EEPROM_Write_Cnt;
+static uint8_t STM8_Link_State = STM8_LINK_STM8_OFFLINE;
 
 uint16_t STM8_Bank_Get_U16(uint8_t offset)
 {
@@ -109,21 +109,8 @@ void STM8Slave_PLL_OFF_CMD(void)
 
 void STM8Slave_Init(void)
 {
-	uint8_t identity[2];
 	IIC1_Init();
-	while (1) {
-		if (IIC_Check_Slave(STM8_SLAVE_ADDR) == 0U &&
-		    IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_ID, 2U, identity) == 2U &&
-		    identity[0] == 0xA5U && identity[1] == CTRL_PROTOCOL_VERSION &&
-		    STM8_Slave_Read_Status() &&
-		    (STM8_Control_Bank[CTRL_REG_DPLL_STATUS] &
-		     CTRL_DPLL_STATUS_ARM_ONLINE) != 0U) {
-			break;
-		}
-		LCD_Clear(WHITE);
-		LCD_ShowString(0U, 0U, "COMMUNICATION ERROR", RED);
-		delay_ms(500U);
-	}
+	STM8_Slave_Read_Status();
 }
 
 void STM8_Slave_Set_MAX2871_Freq_Power(void)
@@ -166,39 +153,85 @@ uint8_t STM8_Slave_Send_PLL_Cfg(void)
 
 uint8_t STM8_Slave_Read_Status(void)
 {
+	uint8_t identity[2];
 	uint8_t sequence_before;
 	uint8_t sequence_after;
 	uint8_t persistent_changed;
 	uint8_t index;
+	uint8_t applied;
+
+	if (IIC_Check_Slave(STM8_SLAVE_ADDR) != 0U ||
+	    IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_ID, 2U, identity) != 2U) {
+		STM8_Link_State = STM8_LINK_STM8_OFFLINE;
+		STM8_Control_Bank[CTRL_REG_DPLL_STATUS] &=
+			(uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
+		return 0U;
+	}
+	if (identity[0] != 0xA5U || identity[1] != CTRL_PROTOCOL_VERSION) {
+		STM8_Link_State = STM8_LINK_PROTOCOL_ERROR;
+		return 0U;
+	}
+	if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_RESPONSE_SEQ, 1U,
+	             &sequence_before) != 1U ||
+	    IIC_Read(STM8_SLAVE_ADDR, 0U, CTRL_BANK_SIZE,
+	             STM8_Control_Snapshot) != CTRL_BANK_SIZE ||
+	    IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_RESPONSE_SEQ, 1U,
+	             &sequence_after) != 1U) {
+		STM8_Link_State = STM8_LINK_STM8_OFFLINE;
+		STM8_Control_Bank[CTRL_REG_DPLL_STATUS] &=
+			(uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
+		return 0U;
+	}
+	if (sequence_before != sequence_after ||
+	    STM8_Control_Snapshot[CTRL_REG_RESPONSE_SEQ] != sequence_after)
+		return 0U;
+	if (STM8_Control_Snapshot[CTRL_REG_ID] != 0xA5U ||
+	    STM8_Control_Snapshot[CTRL_REG_PROTOCOL_VERSION] != CTRL_PROTOCOL_VERSION) {
+		STM8_Link_State = STM8_LINK_PROTOCOL_ERROR;
+		return 0U;
+	}
+
+	applied = STM8_Control_Snapshot[CTRL_REG_REQUEST_SEQ] == sequence_after;
+	if (applied) {
+		persistent_changed = 0U;
+		for (index = CTRL_PERSIST_BEGIN; index < CTRL_PERSIST_END; ++index) {
+			if (STM8_Control_Bank[index] != STM8_Control_Snapshot[index]) {
+				persistent_changed = 1U;
+				break;
+			}
+		}
+		if (persistent_changed) STM8_EEPROM_Write_Cnt = 0U;
+		for (index = 0U; index < CTRL_BANK_SIZE; ++index)
+			STM8_Control_Bank[index] = STM8_Control_Snapshot[index];
+	} else {
+		for (index = CTRL_REG_RESPONSE_SEQ; index < CTRL_BANK_SIZE; ++index)
+			STM8_Control_Bank[index] = STM8_Control_Snapshot[index];
+	}
+
+	if (STM8_Control_Snapshot[CTRL_REG_BRIDGE_STATUS] &
+	    CTRL_BRIDGE_STATUS_EEPROM_CRC_ERROR)
+		STM8_Link_State = STM8_LINK_CRC_ERROR;
+	else if ((STM8_Control_Snapshot[CTRL_REG_DPLL_STATUS] &
+	          CTRL_DPLL_STATUS_ARM_ONLINE) == 0U)
+		STM8_Link_State = STM8_LINK_ARM_OFFLINE;
+	else
+		STM8_Link_State = STM8_LINK_ONLINE;
+	return applied && STM8_Link_State == STM8_LINK_ONLINE;
+}
+
+uint8_t STM8_Slave_Wait_Status(void)
+{
 	uint8_t retry;
 	for (retry = 0U; retry < STM8_STATUS_RETRY_LIMIT; ++retry) {
-		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_RESPONSE_SEQ, 1U, &sequence_before) != 1U)
-			goto retry_status;
-		if (IIC_Read(STM8_SLAVE_ADDR, 0U, CTRL_BANK_SIZE, STM8_Control_Snapshot) !=
-		    CTRL_BANK_SIZE) goto retry_status;
-		if (IIC_Read(STM8_SLAVE_ADDR, CTRL_REG_RESPONSE_SEQ, 1U, &sequence_after) != 1U)
-			goto retry_status;
-		if (sequence_before == sequence_after &&
-		    STM8_Control_Snapshot[CTRL_REG_RESPONSE_SEQ] == sequence_after &&
-		    STM8_Control_Snapshot[CTRL_REG_REQUEST_SEQ] == sequence_after) {
-			persistent_changed = 0U;
-			for (index = CTRL_PERSIST_BEGIN; index < CTRL_PERSIST_END; ++index) {
-				if (STM8_Control_Bank[index] != STM8_Control_Snapshot[index]) {
-					persistent_changed = 1U;
-					break;
-				}
-			}
-			if (persistent_changed) STM8_EEPROM_Write_Cnt = 0U;
-			for (index = 0U; index < CTRL_BANK_SIZE; ++index)
-				STM8_Control_Bank[index] = STM8_Control_Snapshot[index];
-			return 1U;
-		}
-	retry_status:
+		if (STM8_Slave_Read_Status()) return 1U;
 		delay_ms(2U);
 	}
-	STM8_Control_Bank[CTRL_REG_DPLL_STATUS] &= (uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
-	STM8_Control_Bank[CTRL_REG_DPLL_STATUS] |= CTRL_DPLL_STATUS_ERROR;
 	return 0U;
+}
+
+uint8_t STM8_Slave_Get_Link_State(void)
+{
+	return STM8_Link_State;
 }
 
 void STM8_Slave_EEPROM_Write_Trigger(void)

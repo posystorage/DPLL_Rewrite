@@ -10,8 +10,8 @@ void IIC_Slave_Init(void);
 
 
 #define IIC_REG_SIZE CTRL_BANK_SIZE
-extern uint8_t IIC_CMD;
-extern uint8_t IIC_Reg_Buff[IIC_REG_SIZE];
+extern volatile uint8_t IIC_CMD;
+extern volatile uint8_t IIC_Reg_Buff[IIC_REG_SIZE];
 
 
 

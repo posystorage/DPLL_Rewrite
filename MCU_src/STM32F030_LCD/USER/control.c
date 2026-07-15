@@ -45,7 +45,7 @@ static uint8_t is_sub(Ctrl_Cursor_Enum option)
 
 static void apply_pll_change(void)
 {
-	if (STM8_Slave_Send_PLL_Cfg() && STM8_Slave_Read_Status() &&
+	if (STM8_Slave_Send_PLL_Cfg() && STM8_Slave_Wait_Status() &&
 	    STM8_Control_Bank[CTRL_REG_LAST_ERROR] == CTRL_ERROR_NONE)
 		STM8_Slave_EEPROM_Write_Trigger();
 }
@@ -103,7 +103,7 @@ static void CtrlP0I3_PLL_Enable(Ctrl_Cursor_Enum option)
 		if (STM8_Control_Bank[CTRL_REG_DPLL_STATUS] & CTRL_DPLL_STATUS_ENABLED)
 			STM8Slave_PLL_OFF_CMD();
 		else {
-			if (STM8_Slave_Send_PLL_Cfg() && STM8_Slave_Read_Status() &&
+			if (STM8_Slave_Send_PLL_Cfg() && STM8_Slave_Wait_Status() &&
 			    STM8_Control_Bank[CTRL_REG_LAST_ERROR] == CTRL_ERROR_NONE)
 				STM8Slave_PLL_ON_CMD();
 		}

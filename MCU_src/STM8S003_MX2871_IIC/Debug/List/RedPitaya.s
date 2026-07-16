@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// IAR C/C++ Compiler V2.20.3.189 for STM8                15/Jul/2026  17:47:27
+// IAR C/C++ Compiler V2.20.3.189 for STM8                16/Jul/2026  17:41:37
 // Copyright 2010-2017 IAR Systems AB.
 // Standalone license - IAR Embedded Workbench for STMicroelectronics STM8
 //
@@ -418,7 +418,7 @@ RedPitaya_Uart_Init:
 //   75   UART1->BRR1 = 0x01;
         MOV       L:0x5232, #0x1
 //   76 
-//   77   /* Keep 1 Mbps UART RX above the level-2 I2C interrupt. */
+//   77   /* Keep UART and I2C at level 3 so neither ISR can preempt the other. */
 //   78   ITC->ISPR5 |= 0x30;
         LD        A, #0x30
         OR        A, L:0x7f74
@@ -551,44 +551,60 @@ _interrupt_20:
           CFI ?b1 Frame(CFA, -9)
           CFI ?b0 Frame(CFA, -10)
           CFI CFA SP+11
-//  115   uint8_t data = UART1->DR;
+//  115   uint8_t status = UART1->SR;
+        MOV       S:?b0, L:0x5230
+//  116   uint8_t data = UART1->DR;
         MOV       S:?b1, L:0x5231
-//  116   uint8_t expected;
-//  117 
-//  118   if(uart_frame_ready) return;
+//  117   uint8_t expected;
+//  118 
+//  119   if(status & (UART1_SR_OR | UART1_SR_NF | UART1_SR_FE | UART1_SR_PE))
+        LD        A, S:?b0
+        BCP       A, #0xf
+        JREQ      L:??UART1_RX_IRQHandler_0
+//  120   {
+//  121     if(!uart_frame_ready) uart_rx_count = 0;
         LD        A, L:uart_frame_ready
-        JRNE      L:??UART1_RX_IRQHandler_0
-//  119 
-//  120   if(uart_rx_count == 0)
-        LD        A, L:uart_rx_count
         JRNE      L:??UART1_RX_IRQHandler_1
-//  121   {
-//  122     if(data == CTRL_UART_REQ)
+        CLR       L:uart_rx_count
+//  122     return;
+        JRA       L:??UART1_RX_IRQHandler_1
+//  123   }
+//  124 
+//  125   if(uart_frame_ready) return;
+??UART1_RX_IRQHandler_0:
+        LD        A, L:uart_frame_ready
+        JRNE      L:??UART1_RX_IRQHandler_1
+//  126 
+//  127   if(uart_rx_count == 0)
+        LD        A, L:uart_rx_count
+        JRNE      L:??UART1_RX_IRQHandler_2
+//  128   {
+//  129     if(data == CTRL_UART_REQ)
         LD        A, S:?b1
         CP        A, #0xb1
-        JRNE      L:??UART1_RX_IRQHandler_0
-//  123     {
-//  124       uart_rx_buff[0] = data;
+        JRNE      L:??UART1_RX_IRQHandler_1
+//  130     {
+//  131       uart_rx_buff[0] = data;
         MOV       L:uart_rx_buff, #0xb1
-//  125       uart_rx_count = 1;
+//  132       uart_rx_count = 1;
         MOV       L:uart_rx_count, #0x1
-//  126     }
-//  127     return;
-        JRA       L:??UART1_RX_IRQHandler_0
-//  128   }
-//  129 
-//  130   if(uart_rx_count >= CTRL_UART_RX_SIZE)
-??UART1_RX_IRQHandler_1:
+//  133     }
+//  134     return;
+        JRA       L:??UART1_RX_IRQHandler_1
+//  135   }
+//  136 
+//  137   if(uart_rx_count >= CTRL_UART_RX_SIZE)
+??UART1_RX_IRQHandler_2:
         LDW       X, #uart_rx_count
         LD        A, (X)
         CP        A, #0x48
-        JRNC      L:??UART1_RX_IRQHandler_2
-//  131   {
-//  132     uart_rx_count = 0;
-//  133     return;
-//  134   }
-//  135 
-//  136   uart_rx_buff[uart_rx_count++] = data;
+        JRNC      L:??UART1_RX_IRQHandler_3
+//  138   {
+//  139     uart_rx_count = 0;
+//  140     return;
+//  141   }
+//  142 
+//  143   uart_rx_buff[uart_rx_count++] = data;
         MOV       S:?b0, L:uart_rx_count
         LD        A, S:?b0
         INC       A
@@ -598,133 +614,133 @@ _interrupt_20:
         LD        XL, A
         LD        A, S:?b1
         LD        (L:uart_rx_buff,X), A
-//  137   if(uart_rx_count < 4) return;
+//  144   if(uart_rx_count < 4) return;
         LDW       X, #uart_rx_count
         LD        A, (X)
         CP        A, #0x4
-        JRC       L:??UART1_RX_IRQHandler_0
-//  138 
-//  139   expected = 6;
+        JRC       L:??UART1_RX_IRQHandler_1
+//  145 
+//  146   expected = 6;
         MOV       S:?b0, #0x6
-//  140   if(uart_rx_buff[1] == CTRL_UART_CMD_WRITE)
+//  147   if(uart_rx_buff[1] == CTRL_UART_CMD_WRITE)
         LD        A, #0x2
         CP        A, L:uart_rx_buff + 1
-        JRNE      L:??UART1_RX_IRQHandler_3
-//  141   {
-//  142     if(uart_rx_buff[3] > (CTRL_UART_RX_SIZE - 6))
+        JRNE      L:??UART1_RX_IRQHandler_4
+//  148   {
+//  149     if(uart_rx_buff[3] > (CTRL_UART_RX_SIZE - 6))
         LDW       X, #uart_rx_buff + 3
         LD        A, (X)
         CP        A, #0x43
-        JRC       L:??UART1_RX_IRQHandler_4
-//  143     {
-//  144       uart_rx_count = 0;
-??UART1_RX_IRQHandler_2:
+        JRC       L:??UART1_RX_IRQHandler_5
+//  150     {
+//  151       uart_rx_count = 0;
+??UART1_RX_IRQHandler_3:
         CLR       L:uart_rx_count
-//  145       return;
-        JRA       L:??UART1_RX_IRQHandler_0
-//  146     }
-//  147     expected = (uint8_t)(6 + uart_rx_buff[3]);
-??UART1_RX_IRQHandler_4:
+//  152       return;
+        JRA       L:??UART1_RX_IRQHandler_1
+//  153     }
+//  154     expected = (uint8_t)(6 + uart_rx_buff[3]);
+??UART1_RX_IRQHandler_5:
         LD        A, #0x6
         ADD       A, L:uart_rx_buff + 3
         LD        S:?b0, A
-//  148   }
-//  149 
-//  150   if(uart_rx_count == expected)
-??UART1_RX_IRQHandler_3:
+//  155   }
+//  156 
+//  157   if(uart_rx_count == expected)
+??UART1_RX_IRQHandler_4:
         LD        A, S:?b0
         CP        A, L:uart_rx_count
-        JRNE      L:??UART1_RX_IRQHandler_5
-//  151   {
-//  152     uart_frame_ready = 1;
+        JRNE      L:??UART1_RX_IRQHandler_6
+//  158   {
+//  159     uart_frame_ready = 1;
         MOV       L:uart_frame_ready, #0x1
-        JRA       L:??UART1_RX_IRQHandler_0
-//  153   }
-//  154   else if(uart_rx_count > expected)
-??UART1_RX_IRQHandler_5:
+        JRA       L:??UART1_RX_IRQHandler_1
+//  160   }
+//  161   else if(uart_rx_count > expected)
+??UART1_RX_IRQHandler_6:
         CP        A, L:uart_rx_count
-        JRNC      L:??UART1_RX_IRQHandler_0
-//  155   {
-//  156     uart_rx_count = 0;
+        JRNC      L:??UART1_RX_IRQHandler_1
+//  162   {
+//  163     uart_rx_count = 0;
         CLR       L:uart_rx_count
-//  157   }
-//  158 }
-??UART1_RX_IRQHandler_0:
+//  164   }
+//  165 }
+??UART1_RX_IRQHandler_1:
         CALL      L:?pop_w0
           CFI ?b0 SameValue
           CFI ?b1 SameValue
           CFI CFA SP+9
         IRET
           CFI EndBlock cfiBlock7
-//  159 
+//  166 
 
         SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
           CFI Block cfiBlock8 Using cfiCommon0
           CFI Function RedPitaya_2ms_Tick
         CODE
-//  160 void RedPitaya_2ms_Tick(void)
-//  161 {
-//  162   if(arm_timeout_ticks)
+//  167 void RedPitaya_2ms_Tick(void)
+//  168 {
+//  169   if(arm_timeout_ticks)
 RedPitaya_2ms_Tick:
         LDW       X, L:arm_timeout_ticks
         JREQ      L:??RedPitaya_2ms_Tick_0
-//  163   {
-//  164     arm_timeout_ticks--;
+//  170   {
+//  171     arm_timeout_ticks--;
         LDW       X, L:arm_timeout_ticks
         DECW      X
         LDW       L:arm_timeout_ticks, X
-//  165     if(arm_timeout_ticks == 0)
+//  172     if(arm_timeout_ticks == 0)
         LDW       X, L:arm_timeout_ticks
         JRNE      L:??RedPitaya_2ms_Tick_0
-//  166     {
-//  167       IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] &= (uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
+//  173     {
+//  174       IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] &= (uint8_t)~CTRL_DPLL_STATUS_ARM_ONLINE;
         LD        A, #0x7f
         AND       A, L:IIC_Reg_Buff + 65
         LD        L:IIC_Reg_Buff + 65, A
-//  168       IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] |= CTRL_DPLL_STATUS_ERROR;
+//  175       IIC_Reg_Buff[CTRL_REG_DPLL_STATUS] |= CTRL_DPLL_STATUS_ERROR;
         LD        A, #0x40
         OR        A, L:IIC_Reg_Buff + 65
         LD        L:IIC_Reg_Buff + 65, A
-//  169     }
-//  170   }
-//  171 }
+//  176     }
+//  177   }
+//  178 }
 ??RedPitaya_2ms_Tick_0:
         RET
           CFI EndBlock cfiBlock8
-//  172 
+//  179 
 
         SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
           CFI Block cfiBlock9 Using cfiCommon0
           CFI Function RedPitaya_Service
         CODE
-//  173 void RedPitaya_Service(void)
-//  174 {
+//  180 void RedPitaya_Service(void)
+//  181 {
 RedPitaya_Service:
         CALL      L:?push_w4
           CFI ?b9 Frame(CFA, -2)
           CFI ?b8 Frame(CFA, -3)
           CFI CFA SP+4
-//  175   uint8_t command;
-//  176   uint8_t offset;
-//  177   uint8_t length;
-//  178   uint8_t checksum_index;
-//  179   uint8_t status = CTRL_UART_STATUS_OK;
+//  182   uint8_t command;
+//  183   uint8_t offset;
+//  184   uint8_t length;
+//  185   uint8_t checksum_index;
+//  186   uint8_t status = CTRL_UART_STATUS_OK;
         CLR       S:?b6
-//  180   uint8_t i;
-//  181 
-//  182   if(!uart_frame_ready) return;
+//  187   uint8_t i;
+//  188 
+//  189   if(!uart_frame_ready) return;
         LD        A, L:uart_frame_ready
         JRNE      ??lb_0
         JP        L:??RedPitaya_Service_0
-//  183 
-//  184   command = uart_rx_buff[1];
+//  190 
+//  191   command = uart_rx_buff[1];
 ??lb_0:
         MOV       S:?b8, L:uart_rx_buff + 1
-//  185   offset = uart_rx_buff[2];
+//  192   offset = uart_rx_buff[2];
         MOV       S:?b5, L:uart_rx_buff + 2
-//  186   length = uart_rx_buff[3];
+//  193   length = uart_rx_buff[3];
         MOV       S:?b7, L:uart_rx_buff + 3
-//  187   checksum_index = (command == CTRL_UART_CMD_WRITE) ? (uint8_t)(4 + length) : 4;
+//  194   checksum_index = (command == CTRL_UART_CMD_WRITE) ? (uint8_t)(4 + length) : 4;
         LD        A, S:?b8
         CP        A, #0x2
         JRNE      L:??RedPitaya_Service_1
@@ -734,10 +750,10 @@ RedPitaya_Service:
         JRA       L:??RedPitaya_Service_2
 ??RedPitaya_Service_1:
         MOV       S:?b0, #0x4
-//  188 
-//  189   if((uart_rx_buff[checksum_index + 1] != CTRL_UART_ETX) ||
-//  190      (uart_rx_buff[checksum_index] !=
-//  191       frame_checksum(&uart_rx_buff[1], (uint8_t)(checksum_index - 1))))
+//  195 
+//  196   if((uart_rx_buff[checksum_index + 1] != CTRL_UART_ETX) ||
+//  197      (uart_rx_buff[checksum_index] !=
+//  198       frame_checksum(&uart_rx_buff[1], (uint8_t)(checksum_index - 1))))
 ??RedPitaya_Service_2:
         CLRW      Y
         LD        A, S:?b0
@@ -756,13 +772,13 @@ RedPitaya_Service:
         CALL      L:frame_checksum
         CP        A, S:?b9
         JREQ      L:??RedPitaya_Service_4
-//  192   {
-//  193     status = CTRL_UART_STATUS_BAD_FRAME;
+//  199   {
+//  200     status = CTRL_UART_STATUS_BAD_FRAME;
 ??RedPitaya_Service_3:
         MOV       S:?b6, #0x1
         JRA       L:??RedPitaya_Service_5
-//  194   }
-//  195   else if(((uint16_t)offset + length) > CTRL_BANK_SIZE)
+//  201   }
+//  202   else if(((uint16_t)offset + length) > CTRL_BANK_SIZE)
 ??RedPitaya_Service_4:
         CLR       S:?b0
         MOV       S:?b1, S:?b7
@@ -772,26 +788,26 @@ RedPitaya_Service:
         ADDW      X, S:?w0
         CPW       X, #0x61
         JRC       L:??RedPitaya_Service_6
-//  196   {
-//  197     status = CTRL_UART_STATUS_RANGE;
+//  203   {
+//  204     status = CTRL_UART_STATUS_RANGE;
         MOV       S:?b6, #0x2
         JRA       L:??RedPitaya_Service_5
-//  198   }
-//  199   else
-//  200   {
-//  201     arm_timeout_ticks = CTRL_ARM_TIMEOUT_TICKS;
+//  205   }
+//  206   else
+//  207   {
+//  208     arm_timeout_ticks = CTRL_ARM_TIMEOUT_TICKS;
 ??RedPitaya_Service_6:
         LDW       X, #0x3e8
         LDW       L:arm_timeout_ticks, X
-//  202   }
-//  203 
-//  204   if(status == CTRL_UART_STATUS_OK)
+//  209   }
+//  210 
+//  211   if(status == CTRL_UART_STATUS_OK)
 ??RedPitaya_Service_5:
         TNZ       S:?b6
         JREQ      ??lb_1
         JP        L:??RedPitaya_Service_7
-//  205   {
-//  206     switch(command)
+//  212   {
+//  213     switch(command)
 ??lb_1:
         LD        A, S:?b8
         DEC       A
@@ -803,34 +819,34 @@ RedPitaya_Service:
         DEC       A
         JREQ      L:??RedPitaya_Service_11
         JRA       L:??RedPitaya_Service_12
-//  207     {
-//  208     case CTRL_UART_CMD_READ:
-//  209       send_response(status, offset, length);
+//  214     {
+//  215     case CTRL_UART_CMD_READ:
+//  216       send_response(status, offset, length);
 ??RedPitaya_Service_8:
         MOV       S:?b1, S:?b7
         MOV       S:?b0, S:?b5
         CLR       A
         CALL      L:send_response
-//  210       break;
+//  217       break;
         JRA       L:??RedPitaya_Service_13
-//  211 
-//  212     case CTRL_UART_CMD_WRITE:
-//  213       if(offset < CTRL_REG_REQUEST_SEQ)
+//  218 
+//  219     case CTRL_UART_CMD_WRITE:
+//  220       if(offset < CTRL_REG_REQUEST_SEQ)
 ??RedPitaya_Service_9:
         LD        A, S:?b5
         CP        A, #0x2
         JRNC      L:??RedPitaya_Service_14
-//  214       {
-//  215         send_response(CTRL_UART_STATUS_RANGE, 0, 0);
+//  221       {
+//  222         send_response(CTRL_UART_STATUS_RANGE, 0, 0);
         CLR       S:?b1
         CLR       S:?b0
         LD        A, #0x2
         CALL      L:send_response
         JRA       L:??RedPitaya_Service_13
-//  216       }
-//  217       else
-//  218       {
-//  219         for(i = 0; i < length; i++) IIC_Reg_Buff[offset + i] = uart_rx_buff[4 + i];
+//  223       }
+//  224       else
+//  225       {
+//  226         for(i = 0; i < length; i++) IIC_Reg_Buff[offset + i] = uart_rx_buff[4 + i];
 ??RedPitaya_Service_14:
         CLR       S:?b1
         JRA       L:??RedPitaya_Service_15
@@ -851,68 +867,68 @@ RedPitaya_Service:
         LD        A, S:?b1
         CP        A, S:?b7
         JRC       L:??RedPitaya_Service_16
-//  220         apply_microwave_write(offset, length);
+//  227         apply_microwave_write(offset, length);
         MOV       S:?b0, S:?b7
         LD        A, S:?b5
         CALL      L:apply_microwave_write
-//  221         send_response(status, 0, 0);
+//  228         send_response(status, 0, 0);
         CLR       S:?b1
         CLR       S:?b0
         CLR       A
         CALL      L:send_response
         JRA       L:??RedPitaya_Service_13
-//  222       }
-//  223       break;
-//  224 
-//  225     case CTRL_UART_CMD_SAVE:
-//  226       EEPROM_Store_Data();
+//  229       }
+//  230       break;
+//  231 
+//  232     case CTRL_UART_CMD_SAVE:
+//  233       EEPROM_Store_Data();
 ??RedPitaya_Service_10:
         CALL      L:EEPROM_Store_Data
-//  227       send_response(status, 0, 0);
+//  234       send_response(status, 0, 0);
         CLR       S:?b1
         CLR       S:?b0
         CLR       A
         CALL      L:send_response
-//  228       break;
+//  235       break;
         JRA       L:??RedPitaya_Service_13
-//  229 
-//  230     case CTRL_UART_CMD_PING:
-//  231       send_response(status, CTRL_REG_PROTOCOL_VERSION, 1);
+//  236 
+//  237     case CTRL_UART_CMD_PING:
+//  238       send_response(status, CTRL_REG_PROTOCOL_VERSION, 1);
 ??RedPitaya_Service_11:
         MOV       S:?b1, #0x1
         MOV       S:?b0, #0x1
         CLR       A
         CALL      L:send_response
-//  232       break;
+//  239       break;
         JRA       L:??RedPitaya_Service_13
-//  233 
-//  234     default:
-//  235       send_response(CTRL_UART_STATUS_COMMAND, 0, 0);
+//  240 
+//  241     default:
+//  242       send_response(CTRL_UART_STATUS_COMMAND, 0, 0);
 ??RedPitaya_Service_12:
         CLR       S:?b1
         CLR       S:?b0
         LD        A, #0x3
         CALL      L:send_response
-//  236       break;
+//  243       break;
         JRA       L:??RedPitaya_Service_13
-//  237     }
-//  238   }
-//  239   else
-//  240   {
-//  241     send_response(status, 0, 0);
+//  244     }
+//  245   }
+//  246   else
+//  247   {
+//  248     send_response(status, 0, 0);
 ??RedPitaya_Service_7:
         CLR       S:?b1
         CLR       S:?b0
         LD        A, S:?b6
         CALL      L:send_response
-//  242   }
-//  243 
-//  244   uart_rx_count = 0;
+//  249   }
+//  250 
+//  251   uart_rx_count = 0;
 ??RedPitaya_Service_13:
         CLR       L:uart_rx_count
-//  245   uart_frame_ready = 0;
+//  252   uart_frame_ready = 0;
         CLR       L:uart_frame_ready
-//  246 }
+//  253 }
 ??RedPitaya_Service_0:
         JP        L:?epilogue_w4
           CFI EndBlock cfiBlock9
@@ -922,9 +938,9 @@ RedPitaya_Service:
         END
 // 
 // 177 bytes in section .near.bss
-// 894 bytes in section .near_func.text
+// 916 bytes in section .near_func.text
 // 
-// 894 bytes of CODE memory
+// 916 bytes of CODE memory
 // 177 bytes of DATA memory
 //
 //Errors: none

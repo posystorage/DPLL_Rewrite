@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// IAR C/C++ Compiler V2.20.3.189 for STM8                15/Jul/2026  17:47:26
+// IAR C/C++ Compiler V2.20.3.189 for STM8                16/Jul/2026  17:41:37
 // Copyright 2010-2017 IAR Systems AB.
 // Standalone license - IAR Embedded Workbench for STMicroelectronics STM8
 //
@@ -223,10 +223,10 @@ IIC_Slave_Init:
 //   38   /* ADDR events arm byte interrupts; terminal events disarm them. */
 //   39   I2C->ITR = I2C_ITR_ITEVTEN | I2C_ITR_ITERREN;
         MOV       L:0x521a, #0x3
-//   40   /* STM8 priority 00 is level 2; UART uses level 3. */
-//   41   ITC->ISPR5 &= (uint8_t)~0xC0;
-        LD        A, #0x3f
-        AND       A, L:0x7f74
+//   40   /* Keep I2C and UART at level 3 so neither ISR can preempt the other. */
+//   41   ITC->ISPR5 |= 0xC0;
+        LD        A, #0xc0
+        OR        A, L:0x7f74
         LD        L:0x7f74, A
 //   42   IIC_Reg_Addr_Point = 0;
         CLR       L:IIC_Reg_Addr_Point

@@ -37,8 +37,8 @@ void IIC_Slave_Init(void)
   
   /* ADDR events arm byte interrupts; terminal events disarm them. */
   I2C->ITR = I2C_ITR_ITEVTEN | I2C_ITR_ITERREN;
-  /* STM8 priority 00 is level 2; UART uses level 3. */
-  ITC->ISPR5 &= (uint8_t)~0xC0;
+  /* Keep I2C and UART at level 3 so neither ISR can preempt the other. */
+  ITC->ISPR5 |= 0xC0;
   IIC_Reg_Addr_Point = 0;
   IIC_Reg_Buff[CTRL_REG_ID] = 0xA5;
   IIC_Reg_Buff[CTRL_REG_PROTOCOL_VERSION] = CTRL_PROTOCOL_VERSION;

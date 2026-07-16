@@ -4,7 +4,12 @@
 #define FLAG_TIMEOUT         ((uint32_t)0x1000)
 #define LONG_TIMEOUT         ((uint32_t)(10 * FLAG_TIMEOUT))
 #define IIC_CLEAR_FLAGS      (I2C_ICR_TIMOUTCF | I2C_ICR_PECCF | \
-		I2C_ICR_ARLOCF | I2C_ICR_BERRCF | I2C_ICR_NACKCF | I2C_ICR_STOPCF)
+		I2C_ICR_OVRCF | I2C_ICR_ARLOCF | I2C_ICR_BERRCF | \
+		I2C_ICR_NACKCF | I2C_ICR_STOPCF)
+#define IIC_ERROR_FLAGS      (I2C_ISR_TIMEOUT | I2C_ISR_OVR | \
+		I2C_ISR_ARLO | I2C_ISR_BERR)
+#define IIC_SCL_PIN          ((uint32_t)1U << 6)
+#define IIC_SDA_PIN          ((uint32_t)1U << 7)
 
 #define CR1_CLEAR_MASK          ((uint32_t)0x00CFE0FF)  /*<! I2C CR1 clear register Mask */
 
@@ -12,6 +17,8 @@ static void IIC_Clear_Status(void)
 {
 	I2C1->ICR = IIC_CLEAR_FLAGS;
 }
+
+static void IIC_Bus_Recover(void);
 
 void IIC1_Init(void)
 {	
@@ -37,6 +44,40 @@ void IIC1_Init(void)
 	//I2C1->TIMINGR = 0x00322026;//100K
   //Enable I2Cx Peripheral
   I2C1->CR1 |= I2C_CR1_PE;		
+}
+
+static void IIC_Bus_Recover(void)
+{
+	uint8_t pulse;
+
+	I2C1->CR2 |= I2C_CR2_STOP;
+	I2C1->CR1 &= (uint32_t)~I2C_CR1_PE;
+	IIC_Clear_Status();
+
+	GPIOB->OTYPER |= GPIO_OTYPER_OT_6 | GPIO_OTYPER_OT_7;
+	GPIOB->MODER &= ~(GPIO_MODER_MODER6 | GPIO_MODER_MODER7);
+	GPIOB->MODER |= GPIO_MODER_MODER6_0 | GPIO_MODER_MODER7_0;
+	GPIOB->BSRR = IIC_SCL_PIN | IIC_SDA_PIN;
+	delay_us(5);
+
+	for (pulse = 0U; pulse < 9U && (GPIOB->IDR & IIC_SDA_PIN) == 0U; ++pulse) {
+		GPIOB->BSRR = IIC_SCL_PIN << 16;
+		delay_us(5);
+		GPIOB->BSRR = IIC_SCL_PIN;
+		delay_us(5);
+	}
+
+	GPIOB->BSRR = IIC_SDA_PIN << 16;
+	delay_us(5);
+	GPIOB->BSRR = IIC_SCL_PIN;
+	delay_us(5);
+	GPIOB->BSRR = IIC_SDA_PIN;
+	delay_us(5);
+
+	RCC->APB1RSTR |= RCC_APB1RSTR_I2C1RST;
+	RCC->APB1RSTR &= (uint32_t)~RCC_APB1RSTR_I2C1RST;
+	IIC1_Init();
+	IIC_Clear_Status();
 }
 
 /**
@@ -78,15 +119,29 @@ void IIC1_Init(void)
 uint8_t IIC_Wait(uint32_t I2C_FLAG)
 {
 	uint32_t Timeout;
+	uint32_t status;
 	Timeout = LONG_TIMEOUT;  
   //while(I2C_GetFlagStatus(I2C1, I2C_ISR_TXIS) == RESET)
 	while((I2C1->ISR&I2C_FLAG)==0)
   {
-    if((Timeout--) == 0) 
+		status = I2C1->ISR;
+		if(status & IIC_ERROR_FLAGS) {
+			IIC_Bus_Recover();
 			return 1;
-		if(I2C1->ISR&I2C_ISR_TIMEOUT)
+		}
+		if(status & I2C_ISR_NACKF) {
+			IIC_Clear_Status();
 			return 1;
+		}
+    if((Timeout--) == 0) {
+			IIC_Bus_Recover();
+			return 1;
+		}
   }
+	if(I2C1->ISR & IIC_ERROR_FLAGS) {
+		IIC_Bus_Recover();
+		return 1;
+	}
 	if(I2C1->ISR&I2C_ISR_NACKF)
 	{
 		I2C1->ICR = I2C_ICR_NACKCF;

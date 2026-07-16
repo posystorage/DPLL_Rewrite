@@ -20,6 +20,7 @@ typedef struct
 
 static Display_UI_Blink_TypeDef Display_UI_Blink_Data;
 static uint8_t U32_Dec_Buff[10];
+static uint8_t Display_UI_Page;
 
 void Display_U32toDec(uint32_t data);
 
@@ -80,7 +81,7 @@ void Display_UI_Show_Service(void)
 		Display_UI_Blink_Show(Display_UI_Blink_Data.Blink_Cnt & 0x01U);
 		Display_UI_Blink_Data.Blink_Cnt--;
 	}
-	if (ADC_Value_Valid) {
+	if (ADC_Value_Valid && Display_UI_Page == 0U) {
 		int16_t vbias = ADC_VBIAS_Voltage;
 		BACK_COLOR = WHITE;
 		if (vbias < 0) {
@@ -93,6 +94,7 @@ void Display_UI_Show_Service(void)
 		LCD_SHOW_ASCII_0806(148U, 9U, U32_Dec_Buff[2], INDIANRED);
 		ADC_Value_Valid = 0U;
 	}
+	else if (ADC_Value_Valid) ADC_Value_Valid = 0U;
 }
 
 uint32_t Display_UI_Get_Status(void)
@@ -434,6 +436,8 @@ void Display_UI_PLL_Refresh_Status(void)
 
 void Display_UI_PLL_Main_Page_Init(void)
 {
+	Display_UI_Page = 0U;
+	LCD_Show_Square(14U, 0U, 146U, 32U, WHITE);
 	Display_UI_Microwave_Source_Init();
 	LCD_Show_Square(14U, 33U, 146U, 95U, WHITE);
 	BACK_COLOR = LIGHTCYAN;
@@ -518,6 +522,7 @@ void Display_UI_Show_Amplitude_Freq_Threshold(uint32_t amplitude_blink,
 
 void Display_UI_PLL_Vice_Page_Init(void)
 {
+	Display_UI_Page = 1U;
 	LCD_Show_Square(14U, 0U, 146U, 128U, WHITE);
 	BACK_COLOR = WHITE;
 	LCD_16ShowString_hanzi(14U, 0U, "×·×ÙP", BLACK);

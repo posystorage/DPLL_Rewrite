@@ -504,14 +504,14 @@ void Uart0PS_Init(void)
 
 	int status;
 
-	XUartPs_Config_uart0 = XUartPs_LookupConfig(XPAR_PS7_UART_0_DEVICE_ID);//获得串口1配置信息
+	XUartPs_Config_uart0 = XUartPs_LookupConfig(XPAR_PS7_UART_0_DEVICE_ID);//鑾峰緱涓插彛1閰嶇疆淇℃伅
 	status = XUartPs_CfgInitialize(&XUartPs_uart0,XUartPs_Config_uart0,XUartPs_Config_uart0->BaseAddress);
 	if(status != XST_SUCCESS)
 	{
 		print("Initialize uart1 fail\n");
 	}
 	XUartPs_SetOperMode(&XUartPs_uart0, XUARTPS_OPER_MODE_NORMAL);
-	XUartPsFormat_uart0.BaudRate = 921600;//波特率921600
+	XUartPsFormat_uart0.BaudRate = 921600;//娉㈢壒鐜�921600
 	XUartPsFormat_uart0.DataBits = XUARTPS_FORMAT_8_BITS;
 	XUartPsFormat_uart0.Parity = XUARTPS_FORMAT_NO_PARITY;
 	XUartPsFormat_uart0.StopBits = XUARTPS_FORMAT_1_STOP_BIT;
@@ -522,11 +522,11 @@ void Uart0PS_Init(void)
 	}
 	XUartPs_SetFifoThreshold(&XUartPs_uart0,32);
 	XUartPs_SetRecvTimeout(&XUartPs_uart0,4);//4*4=16 timeout IXR
-	XUartPs_SetInterruptMask(&XUartPs_uart0,XUARTPS_IXR_RXOVR|XUARTPS_IXR_TOUT);//开中断
+	XUartPs_SetInterruptMask(&XUartPs_uart0,XUARTPS_IXR_RXOVR|XUARTPS_IXR_TOUT);//寮�涓柇
 
 	XScuGic_Disable(&XPS_XScuGic,XPS_UART0_INT_ID);
 	//XScuGic_SetPriorityTriggerType(&XPS_XScuGic,XPS_UART0_INT_ID,16,1);
-	XScuGic_Connect(&XPS_XScuGic,XPS_UART0_INT_ID,(Xil_ExceptionHandler)Uart0_Handler,(void *)&XUartPs_uart0);//入口
+	XScuGic_Connect(&XPS_XScuGic,XPS_UART0_INT_ID,(Xil_ExceptionHandler)Uart0_Handler,(void *)&XUartPs_uart0);//鍏ュ彛
 	XScuGic_Enable(&XPS_XScuGic,XPS_UART0_INT_ID);
 
 	Uart0_RX_Num=0;
@@ -1029,7 +1029,7 @@ void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 }
 void CMD_90_WRITE_FREQMETER_FREQ(void)
 {
-	Xil_Out32(Freq_Meter_Centre_Frequency_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//中心频率
+	Xil_Out32(Freq_Meter_Centre_Frequency_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//涓績棰戠巼
 	PC_HOST_Send_ASK_Only(0);
 }
 void CMD_91_WRITE_FREQMETER_THRESHOLD(void)
@@ -1042,16 +1042,16 @@ void CMD_92_WRITE_FREQMETER_LIMIT(void)
 {
 	uint32_t data;
 
-    //Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
-    //Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    //Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//涓婁綅鏈哄偍瀛樺拰浼犲叆鍙傛暟涓洪珮16bit鍐欏叆鍒癋PGA鍐呴儴涓�32Bit
+    //Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//涓婁綅鏈哄偍瀛樺拰浼犲叆鍙傛暟涓洪珮16bit鍐欏叆鍒癋PGA鍐呴儴涓�32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
 	if(data > 0x7FFF) data = 0x3FFF;
-    Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//涓婁綅鏈哄偍瀛樺拰浼犲叆鍙傛暟涓洪珮16bit鍐欏叆鍒癋PGA鍐呴儴涓�32Bit
 
 	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
 	if(data < 0xA000) data = 0xA000;
-    Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//上位机储存和传入参数为高16bit写入到FPGA内部为32Bit
+    Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//涓婁綅鏈哄偍瀛樺拰浼犲叆鍙傛暟涓洪珮16bit鍐欏叆鍒癋PGA鍐呴儴涓�32Bit
 
 	PC_HOST_Send_ASK_Only(0);
 }
@@ -1065,8 +1065,8 @@ void CMD_93_WRITE_FREQMETER_PID(void)
 }
 void CMD_94_WRITE_FREQMETER_TIMER(void)
 {
-	Xil_Out32(Freq_Meter_Gate_Time_L_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//中心频率
-	Xil_Out32(Freq_Meter_Gate_Time_H_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[8]));//中心频率
+	Xil_Out32(Freq_Meter_Gate_Time_L_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//涓績棰戠巼
+	Xil_Out32(Freq_Meter_Gate_Time_H_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[8]));//涓績棰戠巼
 	PC_HOST_Send_ASK_Only(0);
 }
 
@@ -1416,7 +1416,9 @@ void PC_HOST_CMD_Respond(void)
 
 #define CONTROL_UART_BUFFER_SIZE       128U
 #define CONTROL_UART_TIMEOUT_LOOPS     1000U
+#define CONTROL_UART_RETRY_COUNT       3U
 #define CONTROL_SERVICE_PERIOD_LOOPS   50U
+#define CONTROL_ERROR_HOLD_LOOPS       3000U
 
 static volatile uint8_t Control_Uart_RX[CONTROL_UART_BUFFER_SIZE];
 static volatile uint32_t Control_Uart_RX_Count;
@@ -1426,6 +1428,20 @@ static uint8_t Control_Request_Seen;
 static uint8_t Control_DPLL_Enabled;
 static uint8_t Control_Last_Error;
 static uint32_t Control_Service_Divider;
+static uint32_t Control_Error_Hold_Loops;
+
+static void control_report_error(uint8_t error)
+{
+	Control_Last_Error = error;
+	Control_Error_Hold_Loops = CONTROL_ERROR_HOLD_LOOPS;
+}
+
+static void control_error_hold_service(void)
+{
+	if (Control_Error_Hold_Loops == 0U) return;
+	Control_Error_Hold_Loops--;
+	if (Control_Error_Hold_Loops == 0U) Control_Last_Error = CTRL_ERROR_NONE;
+}
 
 static uint16_t control_get_u16(uint8_t offset)
 {
@@ -1462,6 +1478,19 @@ static uint8_t control_checksum(const uint8_t *data, uint32_t length)
 	return (uint8_t)(0U - sum);
 }
 
+static void control_uart_update_frame_ready(void)
+{
+	uint32_t expected;
+	if (Control_Uart_RX_Count < 3U) return;
+	if (Control_Uart_RX[0] != CTRL_UART_RESP) {
+		if (Control_Uart_RX_Count >= 5U) Control_Uart_Frame_Ready = 1U;
+		return;
+	}
+	expected = (uint32_t)Control_Uart_RX[2] + 5U;
+	if (expected > CONTROL_UART_BUFFER_SIZE || Control_Uart_RX_Count >= expected)
+		Control_Uart_Frame_Ready = 1U;
+}
+
 void Uart1_Handler(void *CallBackRef)
 {
 	u32 isr_status;
@@ -1486,8 +1515,9 @@ void Uart1_Handler(void *CallBackRef)
 		                        (uint8_t *)&Control_Uart_RX[Control_Uart_RX_Count],
 		                        CONTROL_UART_BUFFER_SIZE - Control_Uart_RX_Count);
 		Control_Uart_RX_Count += received;
-		Control_Uart_Frame_Ready = 1U;
 	}
+	/* An RX timeout may be only an inter-byte gap while STM8 services I2C. */
+	control_uart_update_frame_ready();
 }
 
 void Uart1PS_Init(void)
@@ -1530,7 +1560,7 @@ void Uart1PS_Init(void)
 	Control_Uart_Frame_Ready = 0U;
 }
 
-static uint8_t Control_Uart_Transaction(uint8_t command, uint8_t offset,
+static uint8_t Control_Uart_Transaction_Once(uint8_t command, uint8_t offset,
 		uint8_t length, const uint8_t *write_data, uint8_t *read_data)
 {
 	uint32_t index;
@@ -1582,6 +1612,19 @@ static uint8_t Control_Uart_Transaction(uint8_t command, uint8_t offset,
 		return 0U;
 	}
 	return 1U;
+}
+
+static uint8_t Control_Uart_Transaction(uint8_t command, uint8_t offset,
+		uint8_t length, const uint8_t *write_data, uint8_t *read_data)
+{
+	uint32_t retry;
+	for (retry = 0U; retry <= CONTROL_UART_RETRY_COUNT; ++retry) {
+		if (Control_Uart_Transaction_Once(command, offset, length,
+		                                  write_data, read_data)) return 1U;
+		if (retry < CONTROL_UART_RETRY_COUNT) usleep(2000U);
+	}
+	control_report_error(CTRL_ERROR_PROTOCOL);
+	return 0U;
 }
 
 static uint8_t control_uart_read(uint8_t offset, uint8_t length, uint8_t *data)
@@ -1667,7 +1710,7 @@ static uint8_t control_apply_bank(void)
 	uint32_t interval_cycles;
 	int apply_status;
 	if (!control_validate_bank()) {
-		Control_Last_Error = CTRL_ERROR_RANGE;
+		control_report_error(CTRL_ERROR_RANGE);
 		dpll_set_enable(0U);
 		Control_DPLL_Enabled = 0U;
 		return 0U;
@@ -1675,7 +1718,7 @@ static uint8_t control_apply_bank(void)
 
 	center_word = control_center_word(control_get_u32(CTRL_REG_CENTER_FREQ_DHZ));
 	if (dpll_write_center_filter_profile(center_word) != DPLL_DRIVER_OK) {
-		Control_Last_Error = CTRL_ERROR_APPLY;
+		control_report_error(CTRL_ERROR_APPLY);
 		dpll_set_enable(0U);
 		Control_DPLL_Enabled = 0U;
 		return 0U;
@@ -1702,8 +1745,8 @@ static uint8_t control_apply_bank(void)
 
 	apply_status = dpll_apply_config();
 	if (apply_status != DPLL_DRIVER_OK) {
-		Control_Last_Error = (apply_status == DPLL_DRIVER_ERR_ABI) ?
-		                     CTRL_ERROR_ABI : CTRL_ERROR_APPLY;
+		control_report_error((apply_status == DPLL_DRIVER_ERR_ABI) ?
+		                     CTRL_ERROR_ABI : CTRL_ERROR_APPLY);
 		dpll_set_enable(0U);
 		Control_DPLL_Enabled = 0U;
 		return 0U;
@@ -1712,11 +1755,10 @@ static uint8_t control_apply_bank(void)
 	Control_DPLL_Enabled =
 		(Control_Bank[CTRL_REG_CONTROL_FLAGS] & CTRL_FLAG_DPLL_ENABLE) ? 1U : 0U;
 	if (dpll_set_enable(Control_DPLL_Enabled) != DPLL_DRIVER_OK) {
-		Control_Last_Error = CTRL_ERROR_ABI;
+		control_report_error(CTRL_ERROR_ABI);
 		Control_DPLL_Enabled = 0U;
 		return 0U;
 	}
-	Control_Last_Error = CTRL_ERROR_NONE;
 	return 1U;
 }
 
@@ -1876,7 +1918,7 @@ static uint8_t Control_Link_Startup(void)
 	Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_MANUAL;
 	Control_Reset_Both();
 	if (!dpll_initialize_abi()) {
-		Control_Last_Error = CTRL_ERROR_ABI;
+		control_report_error(CTRL_ERROR_ABI);
 	} else {
 		control_apply_bank();
 		Control_Apply_Debug_DAC_Preset(CTRL_DEBUG_DAC_PRESET_DEFAULT);
@@ -1898,7 +1940,6 @@ static void Control_Link_Service(void)
 	if (++Control_Service_Divider < CONTROL_SERVICE_PERIOD_LOOPS) return;
 	Control_Service_Divider = 0U;
 	if (!control_uart_read(CTRL_REG_REQUEST_SEQ, sizeof(header), header)) {
-		Control_Last_Error = CTRL_ERROR_PROTOCOL;
 		return;
 	}
 	request_sequence = header[0];
@@ -1942,10 +1983,9 @@ static uint8_t control_restore_persistent(const uint8_t *previous,
 	    !control_uart_write(CTRL_PERSIST_BEGIN,
 	                        CTRL_PERSIST_END - CTRL_PERSIST_BEGIN,
 	                        &Control_Bank[CTRL_PERSIST_BEGIN])) {
-		Control_Last_Error = CTRL_ERROR_PROTOCOL;
 		return 0U;
 	}
-	Control_Last_Error = original_error;
+	control_report_error(original_error);
 	return 1U;
 }
 
@@ -2032,9 +2072,10 @@ int main()
     XUartPs_SendByte(XUartPs_uart0.Config.BaseAddress,'C');
 
 
-    while(1)
-    {
+	while(1)
+	{
 		PC_HOST_CMD_Respond();
+		control_error_hold_service();
 		Control_Link_Service();
 		usleep(1000U);
     }

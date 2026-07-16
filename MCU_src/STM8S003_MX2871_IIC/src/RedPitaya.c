@@ -74,7 +74,7 @@ void RedPitaya_Uart_Init(void)
   UART1->BRR2 = 0x00;
   UART1->BRR1 = 0x01;
 
-  /* Keep 1 Mbps UART RX above the level-2 I2C interrupt. */
+  /* Keep UART and I2C at level 3 so neither ISR can preempt the other. */
   ITC->ISPR5 |= 0x30;
   UART1->CR2 = UART1_CR2_RIEN | UART1_CR2_TEN | UART1_CR2_REN;
 
@@ -112,8 +112,15 @@ static void send_response(uint8_t status, uint8_t offset, uint8_t length)
 
 INTERRUPT_HANDLER(UART1_RX_IRQHandler, 18)
 {
+  uint8_t status = UART1->SR;
   uint8_t data = UART1->DR;
   uint8_t expected;
+
+  if(status & (UART1_SR_OR | UART1_SR_NF | UART1_SR_FE | UART1_SR_PE))
+  {
+    if(!uart_frame_ready) uart_rx_count = 0;
+    return;
+  }
 
   if(uart_frame_ready) return;
 

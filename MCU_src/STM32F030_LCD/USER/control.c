@@ -394,8 +394,10 @@ void Ctrl_Dispaly_Refresh_Show_Status(void)
 	if (Refresh_Timer_Cnt > 300U) {
 		Refresh_Timer_Cnt = 0U;
 		STM8_Slave_Read_Status();
-		Display_UI_Microwave_Source_Refresh_Status();
-		if (Page_Num == 0U) Display_UI_PLL_Refresh_Status();
+		if (Page_Num == 0U) {
+			Display_UI_Microwave_Source_Refresh_Status();
+			Display_UI_PLL_Refresh_Status();
+		}
 		else if (Display_UI_Get_Status() == 0U)
 			Display_UI_Show_Debug_DAC_Preset(0U);
 	}

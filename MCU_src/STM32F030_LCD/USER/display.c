@@ -68,6 +68,21 @@ static void Display_UI_Blink_Show_Register(uint16_t x, uint16_t y,
 	Display_UI_Blink_Show(1U);
 }
 
+/* Keep an active PLL-enable blink synchronized with the latest confirmed state. */
+static void Display_UI_Blink_Show_Update(uint16_t x, uint16_t y,
+		uint8_t *text, uint16_t color)
+{
+	uint32_t index;
+	if (Display_UI_Blink_Data.Blink_Cnt == 0U ||
+	    Display_UI_Blink_Data.X != x || Display_UI_Blink_Data.Y != y) return;
+	Display_UI_Blink_Data.Show_Color = color;
+	for (index = 0U; index < 7U; ++index) {
+		Display_UI_Blink_Data.Str[index] = text[index];
+		if (text[index] == '\0') break;
+	}
+	Display_UI_Blink_Data.Str[7U] = '\0';
+}
+
 void Display_UI_Timer_Service(void)
 {
 	if (Display_UI_Blink_Data.Blink_Cnt && Display_UI_Blink_Data.Blink_Timer)
@@ -303,6 +318,7 @@ void Display_UI_PLL_Enable(uint32_t blink)
 	}
 	LCD_16ShowString_hanzi(64U, 33U, text, color);
 	if (blink) Display_UI_Blink_Show_Register(64U, 33U, text, color);
+	else Display_UI_Blink_Show_Update(64U, 33U, text, color);
 }
 
 void Display_UI_Show_PLL_Set_Freq(uint32_t blink_bit)

@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date             : Tue Jul 14 16:48:13 2026
+| Date             : Fri Jul 17 18:05:16 2026
 | Host             : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 | Command          : report_power -file red_pitaya_top_power_routed.rpt -pb red_pitaya_top_power_summary_routed.pb -rpx red_pitaya_top_power_routed.rpx
 | Design           : red_pitaya_top
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 2.201        |
+| Total On-Chip Power (W)  | 2.202        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 2.059        |
+| Dynamic (W)              | 2.061        |
 | Device Static (W)        | 0.141        |
 | Effective TJA (C/W)      | 11.5         |
 | Max Ambient (C)          | 59.6         |
@@ -52,25 +52,25 @@ Table of Contents
 +-------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                 | Power (W) | Used     | Available | Utilization (%) |
 +-------------------------+-----------+----------+-----------+-----------------+
-| Clocks                  |     0.059 |       17 |       --- |             --- |
-| Slice Logic             |     0.066 |    37219 |       --- |             --- |
-|   LUT as Logic          |     0.052 |    12039 |     17600 |           68.40 |
-|   CARRY4                |     0.008 |     1575 |      4400 |           35.80 |
-|   Register              |     0.006 |    18913 |     35200 |           53.73 |
+| Clocks                  |     0.060 |       17 |       --- |             --- |
+| Slice Logic             |     0.066 |    37329 |       --- |             --- |
+|   LUT as Logic          |     0.052 |    12103 |     17600 |           68.77 |
+|   CARRY4                |     0.008 |     1583 |      4400 |           35.98 |
+|   Register              |     0.006 |    18940 |     35200 |           53.81 |
 |   LUT as Shift Register |     0.001 |      298 |      6000 |            4.97 |
-|   F7/F8 Muxes           |    <0.001 |       74 |     17600 |            0.42 |
+|   F7/F8 Muxes           |    <0.001 |       63 |     17600 |            0.36 |
 |   BUFG                  |    <0.001 |        2 |        32 |            6.25 |
 |   Others                |     0.000 |     1428 |       --- |             --- |
-| Signals                 |     0.091 |    29037 |       --- |             --- |
+| Signals                 |     0.091 |    29169 |       --- |             --- |
 | Block RAM               |     0.102 |     38.5 |        60 |           64.17 |
 | MMCM                    |     0.106 |        1 |         2 |           50.00 |
 | PLL                     |     0.096 |        1 |         2 |           50.00 |
 | DSPs                    |     0.053 |       57 |        80 |           71.25 |
-| I/O                     |     0.204 |       91 |       100 |           91.00 |
+| I/O                     |     0.205 |       91 |       100 |           91.00 |
 | XADC                    |     0.002 |        1 |       --- |             --- |
 | PS7                     |     1.279 |        1 |       --- |             --- |
 | Static Power            |     0.141 |          |           |                 |
-| Total                   |     2.201 |          |           |                 |
+| Total                   |     2.202 |          |           |                 |
 +-------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -146,8 +146,8 @@ Table of Contents
 | adc_clk                 | adc_clk_p_i                                                             |             8.0 |
 | clk_fb                  | pll/clk_fb                                                              |             8.0 |
 | clk_fpga_3              | i_ps/system_i/system_i/processing_system7_0/inst/FCLK_CLK_unbuffered[3] |            10.0 |
-| clk_out1_clk_10MHz_sync | nolabel_line669/inst/clk_out1_clk_10MHz_sync                            |           100.0 |
-| clkfbout_clk_10MHz_sync | nolabel_line669/inst/clkfbout_clk_10MHz_sync                            |             8.0 |
+| clk_out1_clk_10MHz_sync | nolabel_line672/inst/clk_out1_clk_10MHz_sync                            |           100.0 |
+| clkfbout_clk_10MHz_sync | nolabel_line672/inst/clkfbout_clk_10MHz_sync                            |             8.0 |
 | dna_clk                 | i_hk/dna_clk                                                            |            64.0 |
 | pll_adc_clk             | pll/pll_adc_clk                                                         |             8.0 |
 | pll_clk_adc_2x          | pll/pll_clk_adc_2x                                                      |             4.0 |
@@ -166,24 +166,23 @@ Table of Contents
 +--------------------------------------------+-----------+
 | Name                                       | Power (W) |
 +--------------------------------------------+-----------+
-| red_pitaya_top                             |     2.059 |
+| red_pitaya_top                             |     2.061 |
 |   Digital_Freq_Meter_inst                  |     0.176 |
-|     DDC1_inst                              |     0.130 |
+|     DDC1_inst                              |     0.132 |
 |       CORDIC_inst                          |     0.033 |
 |       LO_DDS_inst                          |     0.042 |
-|       ddc_frontend_lowpass_filter_inst_I   |     0.023 |
-|       ddc_frontend_lowpass_filter_inst_Q   |     0.024 |
+|       ddc_frontend_lowpass_filter_inst_I   |     0.024 |
+|       ddc_frontend_lowpass_filter_inst_Q   |     0.026 |
 |       first_order_IIR_highpass_filter_inst |     0.003 |
 |       input_multiplier_I                   |     0.002 |
 |       input_multiplier_Q                   |     0.002 |
-|     PLL0_loop_filters                      |     0.036 |
-|       IIR_LPF_inst                         |     0.003 |
+|     PLL0_loop_filters                      |     0.033 |
+|       IIR_LPF_inst                         |     0.002 |
 |       d_saturation_inst                    |     0.003 |
 |       i_saturation_inst                    |     0.001 |
 |       integrator_with_saturation_inst2     |     0.001 |
-|       out_saturation_inst                  |     0.001 |
 |       pll_32x32_mult_i_inst                |     0.006 |
-|       pll_32x32_mult_ii_inst               |     0.008 |
+|       pll_32x32_mult_ii_inst               |     0.006 |
 |       pll_wide_mult_d                      |     0.006 |
 |       pll_wide_mult_p                      |     0.002 |
 |     fast_frequency_accumulator_inst        |     0.002 |
@@ -195,13 +194,13 @@ Table of Contents
 |       VCO0_Multiplier                      |     0.003 |
 |     VCO_inst0                              |     0.017 |
 |       DAC_DDS0_inst                        |     0.015 |
-|     debug_dac_formatter_inst               |     0.005 |
-|     dpll_single_clock_core_stage_a_inst    |     0.063 |
+|     debug_dac_formatter_inst               |     0.006 |
+|     dpll_single_clock_core_stage_a_inst    |     0.062 |
 |       fll_cross_dot_inst                   |     0.007 |
 |       hybrid_loop_inst                     |     0.009 |
 |       loop_state_manager_inst              |     0.003 |
 |       phase_cordic_adapter_inst            |     0.004 |
-|       post_iir_inst                        |     0.007 |
+|       post_iir_inst                        |     0.006 |
 |       post_iq_cic_inst                     |     0.006 |
 |       tracking_lo_dds_inst                 |     0.021 |
 |     pre_iq_cic_40_inst                     |     0.006 |
@@ -210,12 +209,13 @@ Table of Contents
 |     axi_slave_gp0                          |     0.005 |
 |     system_i                               |     1.290 |
 |       system_i                             |     1.290 |
-|   nolabel_line669                          |     0.106 |
+|   nolabel_line672                          |     0.106 |
 |     inst                                   |     0.106 |
 |   pll                                      |     0.097 |
 |   pwm[0]                                   |     0.001 |
 |   pwm[1]                                   |     0.001 |
 |   pwm[2]                                   |     0.001 |
+|   pwm[3]                                   |     0.001 |
 |   ram_data_logger_i                        |     0.037 |
 |     ram_inst                               |     0.036 |
 +--------------------------------------------+-----------+

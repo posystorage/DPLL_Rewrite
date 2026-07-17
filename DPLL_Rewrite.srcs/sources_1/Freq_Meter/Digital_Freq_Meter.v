@@ -20,7 +20,8 @@ module Digital_Freq_Meter(
     input  wire               sys_ren    ,  // bus read enable
     output reg [ 32-1:0]     sys_rdata  ,  // bus read data
     output reg               sys_err    ,  // bus error indicator
-    output reg               sys_ack       // bus acknowledge signal
+    output reg               sys_ack     ,  // bus acknowledge signal
+    output wire              freq_meter_locked
 );
 
 // Parameters
@@ -502,6 +503,7 @@ Status_Delay_Show #
     );
     
 not G3(pll0_locked_Stable,pll0_locked_Stable_neg);
+assign freq_meter_locked = pll0_locked_Stable;
     
 //////////////////////////////////////////////////////////////////////
 //频率计部分

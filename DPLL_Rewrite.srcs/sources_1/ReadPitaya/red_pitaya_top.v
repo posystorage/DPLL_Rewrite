@@ -455,6 +455,7 @@ wire debug_out_4;
 reg [26-1:0] led_counter;
 
 wire [7-1:0] DPLL_Led;
+wire freq_meter_locked;
 
 assign ADCraw0 = {adc_a, 2'b0};
 assign ADCraw1 = {adc_b, 2'b0};
@@ -508,7 +509,8 @@ Digital_Freq_Meter Digital_Freq_Meter_inst (
   .sys_ren                ( sys_ren[2]                ),
   .sys_rdata              ( sys_rdata[ 2*32+31: 2*32] ),
   .sys_err                ( sys_err[2]                ),
-  .sys_ack                ( sys_ack[2]                )
+  .sys_ack                ( sys_ack[2]                ),
+  .freq_meter_locked      ( freq_meter_locked        )
 );
 
 
@@ -525,7 +527,8 @@ always @(posedge adc_clk) begin
 end
 
 //assign led_o = {fifo_empty, fifo_full, led_counter[25], 4'b0};
-assign led_o = {led_counter[25], DPLL_Led};
+// LED0..LED5 come from the DPLL, LED6 is the slow heartbeat, LED7 is the frequency-meter lock.
+assign led_o = {freq_meter_locked, led_counter[25], DPLL_Led[5:0]};
 
 //---------------------------------------------------------------------------------
 // BRAM-based data logger, replaces the Red Pitaya oscilloscope application, but has much simpler behavior:

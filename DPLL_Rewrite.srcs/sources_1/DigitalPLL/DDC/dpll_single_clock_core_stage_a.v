@@ -451,8 +451,10 @@ module dpll_single_clock_core_stage_a #(
     assign freq_abs = freq_error[FERR_WIDTH-1] ?
                       (~freq_error + {{(FERR_WIDTH-1){1'b0}}, 1'b1}) :
                       freq_error;
-    assign cordic_signal_usable = signal_present_r;
-    assign fll_iq_valid = iq_valid && cordic_signal_usable;
+    // Keep the FLL/PI path active for weak inputs.  Magnitude remains a
+    // diagnostic signal, but must not gate phase/frequency acquisition.
+    assign cordic_signal_usable = 1'b1;
+    assign fll_iq_valid = iq_valid;
     assign freq_error_usable = freq_error_valid && !fll_ambiguous;
     assign freq_error_block_usable = freq_error_block_valid && !fll_ambiguous;
 
@@ -508,7 +510,7 @@ module dpll_single_clock_core_stage_a #(
         .loop_enable(loop_enable),
         .config_apply(config_apply),
         .magnitude_valid(cordic_valid),
-        .phase_valid(cordic_valid && signal_present_r),
+        .phase_valid(cordic_valid),
         .frequency_valid(state_measurement_valid_r),
         .signal_present_in(signal_present_r),
         .measurement_valid(state_measurement_valid_r),
@@ -556,7 +558,9 @@ module dpll_single_clock_core_stage_a #(
     ) fll_cross_dot_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
-        .clear(detector_reconfigure | (iq_valid && !signal_present_r)),
+        // Magnitude is diagnostic only; do not clear the FLL accumulator for
+        // weak inputs that have not crossed the display/diagnostic threshold.
+        .clear(detector_reconfigure),
         .sample_valid(fll_iq_valid),
         .i_in(i_baseband),
         .q_in(q_baseband),

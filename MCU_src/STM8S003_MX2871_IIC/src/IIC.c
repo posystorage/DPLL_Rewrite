@@ -7,20 +7,6 @@ volatile uint8_t IIC_Reg_Buff[IIC_REG_SIZE];
 static volatile uint8_t IIC_Reg_Addr_Get;//标记获得了地址位
 volatile uint8_t IIC_CMD;
 
-static void IIC_Slave_TX_Byte(void)
-{
-  if(IIC_Reg_Addr_Point >= IIC_REG_SIZE)
-  {
-    I2C->DR = 0xA5;
-  }
-  else
-  {
-    I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
-    IIC_Reg_Addr_Point++;
-    if(IIC_Reg_Addr_Point >= IIC_REG_SIZE) IIC_Reg_Addr_Point = 0;
-  }
-}
-
 void IIC_Slave_Init(void)
 {
   CLK->PCKENR1 |= CLK_PCKENR1_I2C;
@@ -49,16 +35,38 @@ void IIC_Slave_Init(void)
 }
 
 
-void IIC_Slave_RX_Byte(uint8_t Last_Event_SR1)
+INTERRUPT_HANDLER(I2C_IRQHandler, 19)
 {
+  uint8_t Last_Event_SR1 = I2C->SR1;
   uint8_t Cache;
+
+  if((Last_Event_SR1 & (I2C_SR1_ADDR | I2C_SR1_RXNE |
+                        I2C_SR1_STOPF | I2C_SR1_TXE)) == I2C_SR1_TXE)
+  {
+    if((I2C->SR2 & (I2C_SR2_AF | I2C_SR2_BERR |
+                    I2C_SR2_OVR | I2C_SR2_ARLO)) == 0)
+    {
+      if(IIC_Reg_Addr_Point >= IIC_REG_SIZE)
+      {
+        I2C->DR = 0xA5;
+      }
+      else
+      {
+        I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+        IIC_Reg_Addr_Point++;
+        if(IIC_Reg_Addr_Point >= IIC_REG_SIZE) IIC_Reg_Addr_Point = 0;
+      }
+      return;
+    }
+  }
+
   if((Last_Event_SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE)
   {
     Cache = I2C->DR;
     if(IIC_Reg_Addr_Get)
     {
-      if(((IIC_Reg_Addr_Point>=CTRL_PERSIST_BEGIN)&&
-          (IIC_Reg_Addr_Point<CTRL_PERSIST_END))||
+      if(((IIC_Reg_Addr_Point >= CTRL_PERSIST_BEGIN) &&
+          (IIC_Reg_Addr_Point < CTRL_PERSIST_END)) ||
          (IIC_Reg_Addr_Point==CTRL_REG_DEBUG_DAC_PRESET))
       {
         IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
@@ -68,80 +76,62 @@ void IIC_Slave_RX_Byte(uint8_t Last_Event_SR1)
     else
     {
       IIC_Reg_Addr_Get = 1;
-      if(Cache < IIC_REG_SIZE)//Data
+      if(Cache < IIC_REG_SIZE)
       {
         IIC_Reg_Addr_Point = Cache;
       }
-      else//CMD
+      else
       {
-        if((Cache>=0xC0)&&(Cache<=0xC9))
+        if((Cache >= 0xC0) && (Cache <= 0xC9))
         {
-          
           IIC_CMD = Cache;
-          IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] |= CTRL_BRIDGE_STATUS_BUSY;//busy
-          
+          IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] |= CTRL_BRIDGE_STATUS_BUSY;
         }
         IIC_Reg_Addr_Point = IIC_REG_SIZE;
       }
-    }   
-  }  
-}
-
-INTERRUPT_HANDLER(I2C_IRQHandler, 19)
-{
-  uint8_t Last_Event_SR1 = I2C->SR1;
-  uint8_t Last_Event_SR3 = I2C->SR3;
-  uint8_t Last_Event_SR2 = I2C->SR2;
-  uint8_t RX_Handled = 0;
-  uint8_t Transfer_End = 0;
-
-  if((Last_Event_SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE)
-  {
-    IIC_Slave_RX_Byte(Last_Event_SR1);
-    RX_Handled = 1;
+    }
+    return;
   }
 
-  if(Last_Event_SR2 & (I2C_SR2_AF | I2C_SR2_BERR |
-                       I2C_SR2_OVR | I2C_SR2_ARLO))
+  if(I2C->SR2 & (I2C_SR2_AF | I2C_SR2_BERR |
+                 I2C_SR2_OVR | I2C_SR2_ARLO))
   {
     I2C->SR2 &= (uint8_t)~(I2C_SR2_AF | I2C_SR2_BERR |
                             I2C_SR2_OVR | I2C_SR2_ARLO);
-    Transfer_End = 1;
+    I2C->ITR &= (uint8_t)~I2C_ITR_ITBUFEN;
+    IIC_Reg_Addr_Get = 0;
+    return;
   }
 
   if((Last_Event_SR1 & I2C_SR1_STOPF) == I2C_SR1_STOPF)
   {
     I2C->CR2 |= I2C_CR2_ACK;
-    Transfer_End = 1;
-  }
-
-  if(Transfer_End)
-  {
     I2C->ITR &= (uint8_t)~I2C_ITR_ITBUFEN;
     IIC_Reg_Addr_Get = 0;
-    if((Last_Event_SR1 & I2C_SR1_ADDR) == 0) return;
+    return;
   }
 
   if((Last_Event_SR1 & I2C_SR1_ADDR) == I2C_SR1_ADDR)
   {
+    Cache = I2C->SR3;
     I2C->ITR |= I2C_ITR_ITBUFEN;
-    if((Last_Event_SR3 & I2C_SR3_TRA) == I2C_SR3_TRA)
+    if((Cache & I2C_SR3_TRA) == I2C_SR3_TRA)
     {
-      IIC_Slave_TX_Byte();
+      if(IIC_Reg_Addr_Point >= IIC_REG_SIZE)
+      {
+        I2C->DR = 0xA5;
+      }
+      else
+      {
+        I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+        IIC_Reg_Addr_Point++;
+        if(IIC_Reg_Addr_Point >= IIC_REG_SIZE) IIC_Reg_Addr_Point = 0;
+      }
     }
     else
     {
       IIC_Reg_Addr_Get = 0;
     }
-    return;
-  }
-
-  if(RX_Handled) return;
-
-  if(((Last_Event_SR3 & I2C_SR3_TRA) == I2C_SR3_TRA) &&
-     ((Last_Event_SR1 & I2C_SR1_TXE) == I2C_SR1_TXE))
-  {
-    IIC_Slave_TX_Byte();
   }
 }
 

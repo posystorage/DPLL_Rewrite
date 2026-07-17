@@ -1103,38 +1103,80 @@ debug_dac_formatter_stage_a debug_dac_formatter_inst (
 
 wire [31:0] phase_abs = abs18_extend(dpll_phase_error);
 wire [31:0] freq_abs = abs22_extend(dpll_freq_error);
-wire residuals0_are_above_threshold_phase = ~dpll_phase_locked;
-wire residuals0_are_above_threshold_freq = ~dpll_frequency_locked;
+wire phase_residual_bad = ~dpll_phase_locked;
+wire freq_residual_bad = ~dpll_frequency_locked;
 wire dac0_railed_positive = dpll_freq_correction >= correction_limit_pos;
 wire dac0_railed_negative = dpll_freq_correction <= correction_limit_neg;
-wire pll0_locked_instant = dpll_locked;
+wire pll0_locked_instant;
+localparam [25:0] RESIDUAL_WINDOW_CYCLES = 26'd33554432; // 2^25 at 125 MHz
+reg [25:0] phase_residual_window_count;
+reg [25:0] freq_residual_window_count;
+reg phase_residual_window_bad;
+reg freq_residual_window_bad;
+wire residuals0_are_above_threshold_phase = phase_residual_window_bad;
+wire residuals0_are_above_threshold_freq = freq_residual_window_bad;
 reg residuals0_are_above_threshold;
 reg LED_G0;
 reg LED_R0;
 reg pre_cic_backpressure_seen;
 reg [23:0] status_counter;
+wire output_saturation = dac0_railed_positive | dac0_railed_negative;
+wire datapath_fault = dpll_cic_illegal | dpll_cic_overflow |
+                      dpll_cordic_input_overrun |
+                      dpll_cordic_input_out_of_range |
+                      dpll_cordic_output_format_error |
+                      pre_cic_backpressure_seen;
+wire lock_qualification_bad = phase_residual_bad | freq_residual_bad |
+                               output_saturation | datapath_fault;
+assign pll0_locked_instant = dpll_locked && !lock_qualification_bad;
 
 always @(posedge clk1) begin
     if (rst_status_r) begin
         residuals0_are_above_threshold <= 1'b0;
+        phase_residual_window_count <= 26'd0;
+        freq_residual_window_count <= 26'd0;
+        phase_residual_window_bad <= 1'b0;
+        freq_residual_window_bad <= 1'b0;
         LED_G0 <= 1'b0;
         LED_R0 <= 1'b1;
         pre_cic_backpressure_seen <= 1'b0;
         status_counter <= 24'h0;
     end else begin
-        residuals0_are_above_threshold <= residuals0_are_above_threshold_phase |
-                                           residuals0_are_above_threshold_freq;
+        if (phase_residual_bad) begin
+            phase_residual_window_count <= 26'd0;
+            phase_residual_window_bad <= 1'b1;
+        end else if (phase_residual_window_bad) begin
+            if (phase_residual_window_count < RESIDUAL_WINDOW_CYCLES)
+                phase_residual_window_count <= phase_residual_window_count + 1'b1;
+            else
+                phase_residual_window_bad <= 1'b0;
+        end
+        if (freq_residual_bad) begin
+            freq_residual_window_count <= 26'd0;
+            freq_residual_window_bad <= 1'b1;
+        end else if (freq_residual_window_bad) begin
+            if (freq_residual_window_count < RESIDUAL_WINDOW_CYCLES)
+                freq_residual_window_count <= freq_residual_window_count + 1'b1;
+            else
+                freq_residual_window_bad <= 1'b0;
+        end
+        residuals0_are_above_threshold <= phase_residual_window_bad |
+                                           freq_residual_window_bad;
         if (~rst_125m_stage_a && !pre_cic_ready) begin
             pre_cic_backpressure_seen <= 1'b1;
         end
         status_counter <= status_counter + 24'h1;
-        LED_G0 <= dpll_locked;
-        LED_R0 <= ~dpll_locked;
+        LED_G0 <= dpll_locked && !lock_qualification_bad &&
+                  !phase_residual_window_bad && !freq_residual_window_bad;
+        LED_R0 <= !(dpll_locked && !lock_qualification_bad &&
+                    !phase_residual_window_bad && !freq_residual_window_bad);
     end
 end
 
-assign led = {status_counter[23], dpll_cic_illegal, dpll_cic_overflow, dpll_signal_present,
-              dpll_locked, LED_R0, LED_G0};
+// led[0..5] are mapped to physical LED0..LED5 by red_pitaya_top.
+assign led = {1'b0, datapath_fault, output_saturation,
+              freq_residual_window_bad, phase_residual_window_bad,
+              LED_R0, LED_G0};
 
 function status_snapshot_address;
     input [15:0] address;
@@ -1173,7 +1215,7 @@ always @(posedge clk1 or negedge rst) begin
                     dpll_cordic_input_out_of_range, dpll_cordic_input_overrun, pre_cic_backpressure_seen,
                     manual_offset_overflow, vco_mul_div_config_error,
                     dpll_loop_state, dpll_loss_reason, dpll_signal_present, dpll_phase_locked,
-                    dpll_frequency_locked, dpll_locked, dpll_tracking_valid, dpll_freq_error_valid,
+                    dpll_frequency_locked, pll0_locked_instant, dpll_tracking_valid, dpll_freq_error_valid,
                     dpll_iq_valid, dpll_cic_illegal, dpll_cic_overflow};
                 16'h0109: status_response_data_clk <= {17'h0, dpll_active_cic_shift, dpll_active_cic_rate_r};
                 16'h010A: status_response_data_clk <= {16'h0, dpll_tracking_word[47:32]};

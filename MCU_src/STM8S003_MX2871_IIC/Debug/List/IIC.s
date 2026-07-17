@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// IAR C/C++ Compiler V2.20.3.189 for STM8                16/Jul/2026  17:41:37
+// IAR C/C++ Compiler V2.20.3.189 for STM8                16/Jul/2026  18:21:53
 // Copyright 2010-2017 IAR Systems AB.
 // Standalone license - IAR Embedded Workbench for STMicroelectronics STM8
 //
@@ -29,18 +29,11 @@
         RTMODEL "__rt_version", "4"
 
         EXTERN ?b0
-        EXTERN ?b1
-        EXTERN ?b2
-        EXTERN ?b3
-        EXTERN ?b4
-        EXTERN ?pop_l0
-        EXTERN ?push_l0
 
         PUBLIC I2C_IRQHandler
         PUBLIC IIC_CMD
         PUBLIC IIC_Reg_Buff
         PUBLIC IIC_Slave_Init
-        PUBLIC IIC_Slave_RX_Byte
         PUBLIC _interrupt_21
         
           CFI Names cfiNames0
@@ -148,499 +141,460 @@ IIC_CMD:
 
         SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
           CFI Block cfiBlock0 Using cfiCommon0
-          CFI Function IIC_Slave_TX_Byte
+          CFI Function IIC_Slave_Init
         CODE
-//   10 static void IIC_Slave_TX_Byte(void)
+//   10 void IIC_Slave_Init(void)
 //   11 {
-//   12   if(IIC_Reg_Addr_Point >= IIC_REG_SIZE)
-IIC_Slave_TX_Byte:
+//   12   CLK->PCKENR1 |= CLK_PCKENR1_I2C;
+IIC_Slave_Init:
+        BSET      L:0x50c7, #0x0
+//   13   
+//   14   GPIOB->ODR |= GPIO_PIN_4|GPIO_PIN_5;
+        LD        A, #0x30
+        OR        A, L:0x5005
+        LD        L:0x5005, A
+//   15   GPIOB->DDR &=~ (GPIO_PIN_5|GPIO_PIN_4);
+        LD        A, #0xcf
+        AND       A, L:0x5007
+        LD        L:0x5007, A
+//   16 
+//   17   I2C->CR1 = I2C_CR1_PE;
+        MOV       L:0x5210, #0x1
+//   18   I2C->CR2 = I2C_CR2_ACK;
+        MOV       L:0x5211, #0x4
+//   19   I2C->FREQR = 16;
+        MOV       L:0x5212, #0x10
+//   20   
+//   21   I2C->OARL = 0x4A;//Address
+        MOV       L:0x5213, #0x4a
+//   22   I2C->OARH = I2C_OARH_ADDCONF;
+        MOV       L:0x5214, #0x40
+//   23   
+//   24   /* ADDR events arm byte interrupts; terminal events disarm them. */
+//   25   I2C->ITR = I2C_ITR_ITEVTEN | I2C_ITR_ITERREN;
+        MOV       L:0x521a, #0x3
+//   26   /* Keep I2C and UART at level 3 so neither ISR can preempt the other. */
+//   27   ITC->ISPR5 |= 0xC0;
+        LD        A, #0xc0
+        OR        A, L:0x7f74
+        LD        L:0x7f74, A
+//   28   IIC_Reg_Addr_Point = 0;
+        CLR       L:IIC_Reg_Addr_Point
+//   29   IIC_Reg_Buff[CTRL_REG_ID] = 0xA5;
+        MOV       L:IIC_Reg_Buff, #0xa5
+//   30   IIC_Reg_Buff[CTRL_REG_PROTOCOL_VERSION] = CTRL_PROTOCOL_VERSION;
+        MOV       L:IIC_Reg_Buff + 1, #0x3
+//   31   IIC_Reg_Buff[CTRL_REG_REQUEST_SEQ] = 0;
+        CLR       L:IIC_Reg_Buff + 2
+//   32   IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] = 0;
+        CLR       L:IIC_Reg_Buff + 3
+//   33   IIC_Reg_Addr_Get = 0;
+        CLR       L:IIC_Reg_Addr_Get
+//   34   IIC_CMD = 0;
+        CLR       L:IIC_CMD
+//   35 }
+        RET
+          CFI EndBlock cfiBlock0
+//   36 
+//   37 
+
+        SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
+          CFI Block cfiBlock1 Using cfiCommon1
+          CFI Function I2C_IRQHandler
+        CODE
+//   38 INTERRUPT_HANDLER(I2C_IRQHandler, 19)
+//   39 {
+I2C_IRQHandler:
+_interrupt_21:
+        PUSH      S:?b0
+          CFI ?b0 Frame(CFA, -9)
+          CFI CFA SP+10
+//   40   uint8_t Last_Event_SR1 = I2C->SR1;
+        LD        A, L:0x5217
+//   41   uint8_t Cache;
+//   42 
+//   43   if((Last_Event_SR1 & (I2C_SR1_ADDR | I2C_SR1_RXNE |
+//   44                         I2C_SR1_STOPF | I2C_SR1_TXE)) == I2C_SR1_TXE)
+        LD        S:?b0, A
+        AND       A, #0xd2
+        CP        A, #0x80
+        JRNE      L:??I2C_IRQHandler_0
+//   45   {
+//   46     if((I2C->SR2 & (I2C_SR2_AF | I2C_SR2_BERR |
+//   47                     I2C_SR2_OVR | I2C_SR2_ARLO)) == 0)
+        LD        A, #0xf
+        BCP       A, L:0x5218
+        JRNE      L:??I2C_IRQHandler_0
+//   48     {
+//   49       if(IIC_Reg_Addr_Point >= IIC_REG_SIZE)
         LDW       X, #IIC_Reg_Addr_Point
         LD        A, (X)
         CP        A, #0x60
-        JRC       L:??IIC_Slave_TX_Byte_0
-//   13   {
-//   14     I2C->DR = 0xA5;
+        JRC       L:??I2C_IRQHandler_1
+//   50       {
+//   51         I2C->DR = 0xA5;
         MOV       L:0x5216, #0xa5
-        RET
-//   15   }
-//   16   else
-//   17   {
-//   18     I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
-??IIC_Slave_TX_Byte_0:
+        JP        L:??I2C_IRQHandler_2
+//   52       }
+//   53       else
+//   54       {
+//   55         I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+??I2C_IRQHandler_1:
         LD        A, L:IIC_Reg_Addr_Point
         CLRW      X
         LD        XL, A
         LD        A, (L:IIC_Reg_Buff,X)
         LD        L:0x5216, A
-//   19     IIC_Reg_Addr_Point++;
+//   56         IIC_Reg_Addr_Point++;
         LD        A, #0x1
         ADD       A, L:IIC_Reg_Addr_Point
         LD        L:IIC_Reg_Addr_Point, A
-//   20     if(IIC_Reg_Addr_Point >= IIC_REG_SIZE) IIC_Reg_Addr_Point = 0;
+//   57         if(IIC_Reg_Addr_Point >= IIC_REG_SIZE) IIC_Reg_Addr_Point = 0;
         LDW       X, #IIC_Reg_Addr_Point
         LD        A, (X)
         CP        A, #0x60
-        JRC       L:??IIC_Slave_TX_Byte_1
+        JRNC      ??lb_0
+        JP        L:??I2C_IRQHandler_2
+??lb_0:
         CLR       L:IIC_Reg_Addr_Point
-//   21   }
-//   22 }
-??IIC_Slave_TX_Byte_1:
-        RET
-          CFI EndBlock cfiBlock0
-//   23 
-
-        SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
-          CFI Block cfiBlock1 Using cfiCommon0
-          CFI Function IIC_Slave_Init
-        CODE
-//   24 void IIC_Slave_Init(void)
-//   25 {
-//   26   CLK->PCKENR1 |= CLK_PCKENR1_I2C;
-IIC_Slave_Init:
-        BSET      L:0x50c7, #0x0
-//   27   
-//   28   GPIOB->ODR |= GPIO_PIN_4|GPIO_PIN_5;
-        LD        A, #0x30
-        OR        A, L:0x5005
-        LD        L:0x5005, A
-//   29   GPIOB->DDR &=~ (GPIO_PIN_5|GPIO_PIN_4);
-        LD        A, #0xcf
-        AND       A, L:0x5007
-        LD        L:0x5007, A
-//   30 
-//   31   I2C->CR1 = I2C_CR1_PE;
-        MOV       L:0x5210, #0x1
-//   32   I2C->CR2 = I2C_CR2_ACK;
-        MOV       L:0x5211, #0x4
-//   33   I2C->FREQR = 16;
-        MOV       L:0x5212, #0x10
-//   34   
-//   35   I2C->OARL = 0x4A;//Address
-        MOV       L:0x5213, #0x4a
-//   36   I2C->OARH = I2C_OARH_ADDCONF;
-        MOV       L:0x5214, #0x40
-//   37   
-//   38   /* ADDR events arm byte interrupts; terminal events disarm them. */
-//   39   I2C->ITR = I2C_ITR_ITEVTEN | I2C_ITR_ITERREN;
-        MOV       L:0x521a, #0x3
-//   40   /* Keep I2C and UART at level 3 so neither ISR can preempt the other. */
-//   41   ITC->ISPR5 |= 0xC0;
-        LD        A, #0xc0
-        OR        A, L:0x7f74
-        LD        L:0x7f74, A
-//   42   IIC_Reg_Addr_Point = 0;
-        CLR       L:IIC_Reg_Addr_Point
-//   43   IIC_Reg_Buff[CTRL_REG_ID] = 0xA5;
-        MOV       L:IIC_Reg_Buff, #0xa5
-//   44   IIC_Reg_Buff[CTRL_REG_PROTOCOL_VERSION] = CTRL_PROTOCOL_VERSION;
-        MOV       L:IIC_Reg_Buff + 1, #0x3
-//   45   IIC_Reg_Buff[CTRL_REG_REQUEST_SEQ] = 0;
-        CLR       L:IIC_Reg_Buff + 2
-//   46   IIC_Reg_Buff[CTRL_REG_CONTROL_FLAGS] = 0;
-        CLR       L:IIC_Reg_Buff + 3
-//   47   IIC_Reg_Addr_Get = 0;
-        CLR       L:IIC_Reg_Addr_Get
-//   48   IIC_CMD = 0;
-        CLR       L:IIC_CMD
-//   49 }
-        RET
-          CFI EndBlock cfiBlock1
-//   50 
-//   51 
-
-        SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
-          CFI Block cfiBlock2 Using cfiCommon0
-          CFI Function IIC_Slave_RX_Byte
-        CODE
-//   52 void IIC_Slave_RX_Byte(uint8_t Last_Event_SR1)
-//   53 {
-//   54   uint8_t Cache;
-//   55   if((Last_Event_SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE)
-IIC_Slave_RX_Byte:
+//   58       }
+//   59       return;
+        JP        L:??I2C_IRQHandler_2
+//   60     }
+//   61   }
+//   62 
+//   63   if((Last_Event_SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE)
+??I2C_IRQHandler_0:
+        LD        A, S:?b0
         BCP       A, #0x40
-        JREQ      L:??IIC_Slave_RX_Byte_0
-//   56   {
-//   57     Cache = I2C->DR;
+        JREQ      L:??I2C_IRQHandler_3
+//   64   {
+//   65     Cache = I2C->DR;
         MOV       S:?b0, L:0x5216
-//   58     if(IIC_Reg_Addr_Get)
+//   66     if(IIC_Reg_Addr_Get)
         LD        A, L:IIC_Reg_Addr_Get
-        JREQ      L:??IIC_Slave_RX_Byte_1
-//   59     {
-//   60       if(((IIC_Reg_Addr_Point>=CTRL_PERSIST_BEGIN)&&
-//   61           (IIC_Reg_Addr_Point<CTRL_PERSIST_END))||
-//   62          (IIC_Reg_Addr_Point==CTRL_REG_DEBUG_DAC_PRESET))
+        JREQ      L:??I2C_IRQHandler_4
+//   67     {
+//   68       if(((IIC_Reg_Addr_Point >= CTRL_PERSIST_BEGIN) &&
+//   69           (IIC_Reg_Addr_Point < CTRL_PERSIST_END)) ||
+//   70          (IIC_Reg_Addr_Point==CTRL_REG_DEBUG_DAC_PRESET))
         LDW       X, #IIC_Reg_Addr_Point
         LD        A, (X)
         CP        A, #0x4
-        JRC       L:??IIC_Slave_RX_Byte_2
+        JRC       L:??I2C_IRQHandler_5
         LD        A, (X)
         CP        A, #0x40
-        JRC       L:??IIC_Slave_RX_Byte_3
-??IIC_Slave_RX_Byte_2:
+        JRC       L:??I2C_IRQHandler_6
+??I2C_IRQHandler_5:
         LD        A, #0x47
         CP        A, L:IIC_Reg_Addr_Point
-        JRNE      L:??IIC_Slave_RX_Byte_0
-//   63       {
-//   64         IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
-??IIC_Slave_RX_Byte_3:
+        JREQ      ??lb_1
+        JP        L:??I2C_IRQHandler_2
+//   71       {
+//   72         IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
+??lb_1:
+??I2C_IRQHandler_6:
         LD        A, L:IIC_Reg_Addr_Point
         CLRW      X
         LD        XL, A
         LD        A, S:?b0
         LD        (L:IIC_Reg_Buff,X), A
-//   65         IIC_Reg_Addr_Point++;
+//   73         IIC_Reg_Addr_Point++;
         LD        A, #0x1
         ADD       A, L:IIC_Reg_Addr_Point
         LD        L:IIC_Reg_Addr_Point, A
-        RET
-//   66       }
-//   67     }
-//   68     else
-//   69     {
-//   70       IIC_Reg_Addr_Get = 1;
-??IIC_Slave_RX_Byte_1:
+        JP        L:??I2C_IRQHandler_2
+//   74       }
+//   75     }
+//   76     else
+//   77     {
+//   78       IIC_Reg_Addr_Get = 1;
+??I2C_IRQHandler_4:
         MOV       L:IIC_Reg_Addr_Get, #0x1
-//   71       if(Cache < IIC_REG_SIZE)//Data
+//   79       if(Cache < IIC_REG_SIZE)
         LD        A, S:?b0
         CP        A, #0x60
-        JRNC      L:??IIC_Slave_RX_Byte_4
-//   72       {
-//   73         IIC_Reg_Addr_Point = Cache;
+        JRNC      L:??I2C_IRQHandler_7
+//   80       {
+//   81         IIC_Reg_Addr_Point = Cache;
         LD        L:IIC_Reg_Addr_Point, A
-        RET
-//   74       }
-//   75       else//CMD
-//   76       {
-//   77         if((Cache>=0xC0)&&(Cache<=0xC9))
-??IIC_Slave_RX_Byte_4:
+        JP        L:??I2C_IRQHandler_2
+//   82       }
+//   83       else
+//   84       {
+//   85         if((Cache >= 0xC0) && (Cache <= 0xC9))
+??I2C_IRQHandler_7:
         ADD       A, #0x40
         CP        A, #0xa
-        JRNC      L:??IIC_Slave_RX_Byte_5
-//   78         {
-//   79           
-//   80           IIC_CMD = Cache;
+        JRNC      L:??I2C_IRQHandler_8
+//   86         {
+//   87           IIC_CMD = Cache;
         LD        A, S:?b0
         LD        L:IIC_CMD, A
-//   81           IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] |= CTRL_BRIDGE_STATUS_BUSY;//busy
+//   88           IIC_Reg_Buff[CTRL_REG_BRIDGE_STATUS] |= CTRL_BRIDGE_STATUS_BUSY;
         LD        A, #0x1
         OR        A, L:IIC_Reg_Buff + 70
         LD        L:IIC_Reg_Buff + 70, A
-//   82           
-//   83         }
-//   84         IIC_Reg_Addr_Point = IIC_REG_SIZE;
-??IIC_Slave_RX_Byte_5:
+//   89         }
+//   90         IIC_Reg_Addr_Point = IIC_REG_SIZE;
+??I2C_IRQHandler_8:
         MOV       L:IIC_Reg_Addr_Point, #0x60
-//   85       }
-//   86     }   
-//   87   }  
-//   88 }
-??IIC_Slave_RX_Byte_0:
-        RET
-          CFI EndBlock cfiBlock2
-//   89 
-
-        SECTION `.near_func.text`:CODE:REORDER:NOROOT(0)
-          CFI Block cfiBlock3 Using cfiCommon1
-          CFI Function I2C_IRQHandler
-        CODE
-//   90 INTERRUPT_HANDLER(I2C_IRQHandler, 19)
-//   91 {
-I2C_IRQHandler:
-_interrupt_21:
-        PUSH      CC
-          CFI CFA SP+10
-        POP       A
-          CFI CFA SP+9
-        AND       A, #0xbf
-        PUSH      A
-          CFI CFA SP+10
-        POP       CC
-          CFI CFA SP+9
-        CALL      L:?push_l0
-          CFI ?b3 Frame(CFA, -9)
-          CFI ?b2 Frame(CFA, -10)
-          CFI ?b1 Frame(CFA, -11)
-          CFI ?b0 Frame(CFA, -12)
-          CFI CFA SP+13
-        PUSH      S:?b4
-          CFI ?b4 Frame(CFA, -13)
-          CFI CFA SP+14
-//   92   uint8_t Last_Event_SR1 = I2C->SR1;
-        MOV       S:?b4, L:0x5217
-//   93   uint8_t Last_Event_SR3 = I2C->SR3;
-        MOV       S:?b3, L:0x5219
-//   94   uint8_t Last_Event_SR2 = I2C->SR2;
-        MOV       S:?b2, L:0x5218
-//   95   uint8_t RX_Handled = 0;
-        CLR       S:?b0
-//   96   uint8_t Transfer_End = 0;
-        CLR       S:?b1
-//   97 
-//   98   if((Last_Event_SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE)
-        LD        A, S:?b4
-        BCP       A, #0x40
-        JREQ      L:??I2C_IRQHandler_0
-//   99   {
-//  100     IIC_Slave_RX_Byte(Last_Event_SR1);
-        LD        A, S:?b4
-        CALL      L:IIC_Slave_RX_Byte
-//  101     RX_Handled = 1;
-        MOV       S:?b0, #0x1
-//  102   }
-//  103 
-//  104   if(Last_Event_SR2 & (I2C_SR2_AF | I2C_SR2_BERR |
-//  105                        I2C_SR2_OVR | I2C_SR2_ARLO))
-??I2C_IRQHandler_0:
-        LD        A, S:?b2
-        BCP       A, #0xf
-        JREQ      L:??I2C_IRQHandler_1
-//  106   {
-//  107     I2C->SR2 &= (uint8_t)~(I2C_SR2_AF | I2C_SR2_BERR |
-//  108                             I2C_SR2_OVR | I2C_SR2_ARLO);
+//   91       }
+//   92     }
+//   93     return;
+        JRA       L:??I2C_IRQHandler_2
+//   94   }
+//   95 
+//   96   if(I2C->SR2 & (I2C_SR2_AF | I2C_SR2_BERR |
+//   97                  I2C_SR2_OVR | I2C_SR2_ARLO))
+??I2C_IRQHandler_3:
+        LD        A, #0xf
+        BCP       A, L:0x5218
+        JREQ      L:??I2C_IRQHandler_9
+//   98   {
+//   99     I2C->SR2 &= (uint8_t)~(I2C_SR2_AF | I2C_SR2_BERR |
+//  100                             I2C_SR2_OVR | I2C_SR2_ARLO);
         LD        A, #0xf0
         AND       A, L:0x5218
         LD        L:0x5218, A
-//  109     Transfer_End = 1;
-        MOV       S:?b1, #0x1
-//  110   }
-//  111 
-//  112   if((Last_Event_SR1 & I2C_SR1_STOPF) == I2C_SR1_STOPF)
-??I2C_IRQHandler_1:
-        LD        A, S:?b4
-        BCP       A, #0x10
-        JREQ      L:??I2C_IRQHandler_2
-//  113   {
-//  114     I2C->CR2 |= I2C_CR2_ACK;
-        BSET      L:0x5211, #0x2
-//  115     Transfer_End = 1;
-        MOV       S:?b1, #0x1
-//  116   }
-//  117 
-//  118   if(Transfer_End)
-??I2C_IRQHandler_2:
-        LD        A, S:?b4
-        AND       A, #0x2
-        TNZ       S:?b1
-        JREQ      L:??I2C_IRQHandler_3
-//  119   {
-//  120     I2C->ITR &= (uint8_t)~I2C_ITR_ITBUFEN;
+//  101     I2C->ITR &= (uint8_t)~I2C_ITR_ITBUFEN;
         BRES      L:0x521a, #0x2
-//  121     IIC_Reg_Addr_Get = 0;
+//  102     IIC_Reg_Addr_Get = 0;
         CLR       L:IIC_Reg_Addr_Get
-//  122     if((Last_Event_SR1 & I2C_SR1_ADDR) == 0) return;
-        TNZ       A
-        JREQ      L:??I2C_IRQHandler_4
-//  123   }
-//  124 
-//  125   if((Last_Event_SR1 & I2C_SR1_ADDR) == I2C_SR1_ADDR)
-??I2C_IRQHandler_3:
-        TNZ       A
-        JREQ      L:??I2C_IRQHandler_5
-//  126   {
-//  127     I2C->ITR |= I2C_ITR_ITBUFEN;
+//  103     return;
+        JRA       L:??I2C_IRQHandler_2
+//  104   }
+//  105 
+//  106   if((Last_Event_SR1 & I2C_SR1_STOPF) == I2C_SR1_STOPF)
+??I2C_IRQHandler_9:
+        LD        A, S:?b0
+        BCP       A, #0x10
+        JREQ      L:??I2C_IRQHandler_10
+//  107   {
+//  108     I2C->CR2 |= I2C_CR2_ACK;
+        BSET      L:0x5211, #0x2
+//  109     I2C->ITR &= (uint8_t)~I2C_ITR_ITBUFEN;
+        BRES      L:0x521a, #0x2
+//  110     IIC_Reg_Addr_Get = 0;
+        CLR       L:IIC_Reg_Addr_Get
+//  111     return;
+        JRA       L:??I2C_IRQHandler_2
+//  112   }
+//  113 
+//  114   if((Last_Event_SR1 & I2C_SR1_ADDR) == I2C_SR1_ADDR)
+??I2C_IRQHandler_10:
+        LD        A, S:?b0
+        BCP       A, #0x2
+        JREQ      L:??I2C_IRQHandler_2
+//  115   {
+//  116     Cache = I2C->SR3;
+        MOV       S:?b0, L:0x5219
+//  117     I2C->ITR |= I2C_ITR_ITBUFEN;
         BSET      L:0x521a, #0x2
-//  128     if((Last_Event_SR3 & I2C_SR3_TRA) == I2C_SR3_TRA)
-        LD        A, S:?b3
+//  118     if((Cache & I2C_SR3_TRA) == I2C_SR3_TRA)
+        LD        A, S:?b0
         BCP       A, #0x4
-        JREQ      L:??I2C_IRQHandler_6
-//  129     {
-//  130       IIC_Slave_TX_Byte();
-        CALL      L:IIC_Slave_TX_Byte
-        JRA       L:??I2C_IRQHandler_4
-//  131     }
-//  132     else
-//  133     {
-//  134       IIC_Reg_Addr_Get = 0;
-??I2C_IRQHandler_6:
+        JREQ      L:??I2C_IRQHandler_11
+//  119     {
+//  120       if(IIC_Reg_Addr_Point >= IIC_REG_SIZE)
+        LDW       X, #IIC_Reg_Addr_Point
+        LD        A, (X)
+        CP        A, #0x60
+        JRC       L:??I2C_IRQHandler_12
+//  121       {
+//  122         I2C->DR = 0xA5;
+        MOV       L:0x5216, #0xa5
+        JRA       L:??I2C_IRQHandler_2
+//  123       }
+//  124       else
+//  125       {
+//  126         I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+??I2C_IRQHandler_12:
+        LD        A, L:IIC_Reg_Addr_Point
+        CLRW      X
+        LD        XL, A
+        LD        A, (L:IIC_Reg_Buff,X)
+        LD        L:0x5216, A
+//  127         IIC_Reg_Addr_Point++;
+        LD        A, #0x1
+        ADD       A, L:IIC_Reg_Addr_Point
+        LD        L:IIC_Reg_Addr_Point, A
+//  128         if(IIC_Reg_Addr_Point >= IIC_REG_SIZE) IIC_Reg_Addr_Point = 0;
+        LDW       X, #IIC_Reg_Addr_Point
+        LD        A, (X)
+        CP        A, #0x60
+        JRC       L:??I2C_IRQHandler_2
+        CLR       L:IIC_Reg_Addr_Point
+        JRA       L:??I2C_IRQHandler_2
+//  129       }
+//  130     }
+//  131     else
+//  132     {
+//  133       IIC_Reg_Addr_Get = 0;
+??I2C_IRQHandler_11:
         CLR       L:IIC_Reg_Addr_Get
-//  135     }
-//  136     return;
-        JRA       L:??I2C_IRQHandler_4
-//  137   }
-//  138 
-//  139   if(RX_Handled) return;
-??I2C_IRQHandler_5:
-        TNZ       S:?b0
-        JRNE      L:??I2C_IRQHandler_4
-//  140 
-//  141   if(((Last_Event_SR3 & I2C_SR3_TRA) == I2C_SR3_TRA) &&
-//  142      ((Last_Event_SR1 & I2C_SR1_TXE) == I2C_SR1_TXE))
-        LD        A, S:?b3
-        BCP       A, #0x4
-        JREQ      L:??I2C_IRQHandler_4
-        LD        A, S:?b4
-        BCP       A, #0x80
-        JREQ      L:??I2C_IRQHandler_4
-//  143   {
-//  144     IIC_Slave_TX_Byte();
-        CALL      L:IIC_Slave_TX_Byte
-//  145   }
-//  146 }
-??I2C_IRQHandler_4:
-        POP       S:?b4
-          CFI ?b4 SameValue
-          CFI CFA SP+13
-        CALL      L:?pop_l0
+//  134     }
+//  135   }
+//  136 }
+??I2C_IRQHandler_2:
+        POP       S:?b0
           CFI ?b0 SameValue
-          CFI ?b1 SameValue
-          CFI ?b2 SameValue
-          CFI ?b3 SameValue
           CFI CFA SP+9
         IRET
-          CFI EndBlock cfiBlock3
+          CFI EndBlock cfiBlock1
 
         SECTION VREGS:DATA:REORDER:NOROOT(0)
 
         END
-//  147 
-//  148 
-//  149 
-//  150 //typedef enum
-//  151 //{
-//  152 //  I2C_EVENT_SLAVE_RECEIVER_ADDRESS_MATCHED    = (uint16_t)0x0202,  /*!< BUSY and ADDR flags */
-//  153 //  I2C_EVENT_SLAVE_TRANSMITTER_ADDRESS_MATCHED = (uint16_t)0x0682,  /*!< TRA, BUSY, TXE and ADDR flags */
-//  154 //  I2C_EVENT_SLAVE_GENERALCALLADDRESS_MATCHED  = (uint16_t)0x1200,  /*!< EV2: GENCALL and BUSY flags */
-//  155 //  I2C_EVENT_SLAVE_BYTE_RECEIVED              = (uint16_t)0x0240,  /*!< BUSY and RXNE flags */
-//  156 //  I2C_EVENT_SLAVE_STOP_DETECTED              = (uint16_t)0x0010,  /*!< STOPF flag */
-//  157 //  I2C_EVENT_SLAVE_BYTE_TRANSMITTED           = (uint16_t)0x0684,  /*!< TRA, BUSY, TXE and BTF flags */
-//  158 //  I2C_EVENT_SLAVE_BYTE_TRANSMITTING          = (uint16_t)0x0680,  /*!< TRA, BUSY and TXE flags */
-//  159 //} I2C_Event_TypeDef;  
-//  160 
-//  161 //INTERRUPT_HANDLER(I2C_IRQHandler, 19)
-//  162 //{
-//  163 //  uint8_t Cache;
-//  164 //  __IO uint16_t lastevent=0;
-//  165 //  *((uint8_t*)&lastevent+1)=I2C->SR1;
-//  166 //  *(uint8_t*)&lastevent=I2C->SR3;
-//  167 //  GPIOD->ODR &=~ GPIO_PIN_5;
-//  168 //  
-//  169 //  if((lastevent&I2C_EVENT_SLAVE_TRANSMITTER_ADDRESS_MATCHED) == I2C_EVENT_SLAVE_TRANSMITTER_ADDRESS_MATCHED)
-//  170 //  {
-//  171 //    I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
-//  172 //    GPIOD->ODR |= GPIO_PIN_5;
-//  173 //    IIC_Reg_Addr_Point++;
-//  174 //    if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;
-//  175 //    GPIOD->ODR &=~ GPIO_PIN_5; 
-//  176 //  }
-//  177 //  else
-//  178 //  if((lastevent&I2C_EVENT_SLAVE_RECEIVER_ADDRESS_MATCHED) == I2C_EVENT_SLAVE_RECEIVER_ADDRESS_MATCHED)  
+//  137 
+//  138 
+//  139 
+//  140 //typedef enum
+//  141 //{
+//  142 //  I2C_EVENT_SLAVE_RECEIVER_ADDRESS_MATCHED    = (uint16_t)0x0202,  /*!< BUSY and ADDR flags */
+//  143 //  I2C_EVENT_SLAVE_TRANSMITTER_ADDRESS_MATCHED = (uint16_t)0x0682,  /*!< TRA, BUSY, TXE and ADDR flags */
+//  144 //  I2C_EVENT_SLAVE_GENERALCALLADDRESS_MATCHED  = (uint16_t)0x1200,  /*!< EV2: GENCALL and BUSY flags */
+//  145 //  I2C_EVENT_SLAVE_BYTE_RECEIVED              = (uint16_t)0x0240,  /*!< BUSY and RXNE flags */
+//  146 //  I2C_EVENT_SLAVE_STOP_DETECTED              = (uint16_t)0x0010,  /*!< STOPF flag */
+//  147 //  I2C_EVENT_SLAVE_BYTE_TRANSMITTED           = (uint16_t)0x0684,  /*!< TRA, BUSY, TXE and BTF flags */
+//  148 //  I2C_EVENT_SLAVE_BYTE_TRANSMITTING          = (uint16_t)0x0680,  /*!< TRA, BUSY and TXE flags */
+//  149 //} I2C_Event_TypeDef;  
+//  150 
+//  151 //INTERRUPT_HANDLER(I2C_IRQHandler, 19)
+//  152 //{
+//  153 //  uint8_t Cache;
+//  154 //  __IO uint16_t lastevent=0;
+//  155 //  *((uint8_t*)&lastevent+1)=I2C->SR1;
+//  156 //  *(uint8_t*)&lastevent=I2C->SR3;
+//  157 //  GPIOD->ODR &=~ GPIO_PIN_5;
+//  158 //  
+//  159 //  if((lastevent&I2C_EVENT_SLAVE_TRANSMITTER_ADDRESS_MATCHED) == I2C_EVENT_SLAVE_TRANSMITTER_ADDRESS_MATCHED)
+//  160 //  {
+//  161 //    I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+//  162 //    GPIOD->ODR |= GPIO_PIN_5;
+//  163 //    IIC_Reg_Addr_Point++;
+//  164 //    if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;
+//  165 //    GPIOD->ODR &=~ GPIO_PIN_5; 
+//  166 //  }
+//  167 //  else
+//  168 //  if((lastevent&I2C_EVENT_SLAVE_RECEIVER_ADDRESS_MATCHED) == I2C_EVENT_SLAVE_RECEIVER_ADDRESS_MATCHED)  
+//  169 //  {
+//  170 //    IIC_Reg_Addr_Get = 0;
+//  171 //  }
+//  172 //  if((lastevent&I2C_EVENT_SLAVE_BYTE_TRANSMITTING) == I2C_EVENT_SLAVE_BYTE_TRANSMITTING)
+//  173 //  {
+//  174 //      I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+//  175 //      IIC_Reg_Addr_Point++;
+//  176 //      if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;    
+//  177 //  }
+//  178 //  if((lastevent&I2C_EVENT_SLAVE_BYTE_RECEIVED) == I2C_EVENT_SLAVE_BYTE_RECEIVED)
 //  179 //  {
-//  180 //    IIC_Reg_Addr_Get = 0;
-//  181 //  }
-//  182 //  if((lastevent&I2C_EVENT_SLAVE_BYTE_TRANSMITTING) == I2C_EVENT_SLAVE_BYTE_TRANSMITTING)
-//  183 //  {
-//  184 //      I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
-//  185 //      IIC_Reg_Addr_Point++;
-//  186 //      if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;    
-//  187 //  }
-//  188 //  if((lastevent&I2C_EVENT_SLAVE_BYTE_RECEIVED) == I2C_EVENT_SLAVE_BYTE_RECEIVED)
-//  189 //  {
-//  190 //    Cache = I2C->DR;
-//  191 //    if(IIC_Reg_Addr_Get)
-//  192 //    {
-//  193 //      if(IIC_Reg_Addr_Point!=0)//0寄存器是只读
-//  194 //      {
-//  195 //        IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
-//  196 //      }
-//  197 //    }
-//  198 //    else
-//  199 //    {
-//  200 //      if(Cache < IIC_REG_SIZE)//Data
-//  201 //      {
-//  202 //        IIC_Reg_Addr_Point = Cache;
-//  203 //        IIC_Reg_Addr_Get = 1;
-//  204 //      }
-//  205 //      else//CMD
-//  206 //      {
-//  207 //      
-//  208 //      }
-//  209 //    }   
-//  210 //  }
-//  211 //  if((I2C->SR1&I2C_SR1_STOPF) == I2C_SR1_STOPF)
-//  212 //  {
-//  213 //    I2C->CR2 = I2C_CR2_ACK;    
-//  214 //  }
-//  215 //  
-//  216 //  if((I2C->SR2&I2C_SR2_AF) == I2C_SR2_AF)
-//  217 //  {
-//  218 //    I2C->SR2 &=~ I2C_SR2_AF;
-//  219 //  }
-//  220 //  if((I2C->SR2&I2C_SR2_BERR) == I2C_SR2_BERR)
-//  221 //  {
-//  222 //    I2C->SR2 &=~ I2C_SR2_BERR;
-//  223 //  }    
-//  224 //  GPIOD->ODR |= GPIO_PIN_5;
-//  225 //}
-//  226 
-//  227 
-//  228 //INTERRUPT_HANDLER(I2C_IRQHandler, 19)
-//  229 //{
-//  230 //  uint8_t Cache;
-//  231 //  __IO uint16_t lastevent=0;
-//  232 //  *((uint8_t*)&lastevent+1)=I2C->SR1&(*((uint8_t*)&I2C_Event+1));
-//  233 //  *(uint8_t*)&lastevent=I2C->SR3&(*(uint8_t*)&I2C_Event);
+//  180 //    Cache = I2C->DR;
+//  181 //    if(IIC_Reg_Addr_Get)
+//  182 //    {
+//  183 //      if(IIC_Reg_Addr_Point!=0)//0寄存器是只读
+//  184 //      {
+//  185 //        IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
+//  186 //      }
+//  187 //    }
+//  188 //    else
+//  189 //    {
+//  190 //      if(Cache < IIC_REG_SIZE)//Data
+//  191 //      {
+//  192 //        IIC_Reg_Addr_Point = Cache;
+//  193 //        IIC_Reg_Addr_Get = 1;
+//  194 //      }
+//  195 //      else//CMD
+//  196 //      {
+//  197 //      
+//  198 //      }
+//  199 //    }   
+//  200 //  }
+//  201 //  if((I2C->SR1&I2C_SR1_STOPF) == I2C_SR1_STOPF)
+//  202 //  {
+//  203 //    I2C->CR2 = I2C_CR2_ACK;    
+//  204 //  }
+//  205 //  
+//  206 //  if((I2C->SR2&I2C_SR2_AF) == I2C_SR2_AF)
+//  207 //  {
+//  208 //    I2C->SR2 &=~ I2C_SR2_AF;
+//  209 //  }
+//  210 //  if((I2C->SR2&I2C_SR2_BERR) == I2C_SR2_BERR)
+//  211 //  {
+//  212 //    I2C->SR2 &=~ I2C_SR2_BERR;
+//  213 //  }    
+//  214 //  GPIOD->ODR |= GPIO_PIN_5;
+//  215 //}
+//  216 
+//  217 
+//  218 //INTERRUPT_HANDLER(I2C_IRQHandler, 19)
+//  219 //{
+//  220 //  uint8_t Cache;
+//  221 //  __IO uint16_t lastevent=0;
+//  222 //  *((uint8_t*)&lastevent+1)=I2C->SR1&(*((uint8_t*)&I2C_Event+1));
+//  223 //  *(uint8_t*)&lastevent=I2C->SR3&(*(uint8_t*)&I2C_Event);
+//  224 //  
+//  225 //  
+//  226 //  if((I2C->SR2&I2C_SR2_AF) == I2C_SR2_AF)
+//  227 //  {
+//  228 //    I2C->SR2 &=~ I2C_SR2_AF;
+//  229 //  
+//  230 //  }
+//  231 //  if((I2C->SR2&I2C_SR2_BERR) == I2C_SR2_BERR)
+//  232 //  {
+//  233 //    I2C->SR2 &=~ I2C_SR2_BERR;
 //  234 //  
-//  235 //  
-//  236 //  if((I2C->SR2&I2C_SR2_AF) == I2C_SR2_AF)
+//  235 //  }
+//  236 //  if(I2C_CheckEvent(I2C_EVENT_SLAVE_RECEIVER_ADDRESS_MATCHED))
 //  237 //  {
-//  238 //    I2C->SR2 &=~ I2C_SR2_AF;
-//  239 //  
-//  240 //  }
-//  241 //  if((I2C->SR2&I2C_SR2_BERR) == I2C_SR2_BERR)
-//  242 //  {
-//  243 //    I2C->SR2 &=~ I2C_SR2_BERR;
-//  244 //  
-//  245 //  }
-//  246 //  if(I2C_CheckEvent(I2C_EVENT_SLAVE_RECEIVER_ADDRESS_MATCHED))
-//  247 //  {
-//  248 //    if(I2C_CheckEvent(I2C_EVENT_SLAVE_TRANSMITTER_ADDRESS_MATCHED))
-//  249 //    {
-//  250 //      I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
-//  251 //      IIC_Reg_Addr_Point++;
-//  252 //      if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;
-//  253 //    }
-//  254 //    else
-//  255 //    {
-//  256 //      IIC_Reg_Addr_Get = 0;
-//  257 //    }
-//  258 //  }
-//  259 //  if(I2C_CheckEvent(I2C_EVENT_SLAVE_BYTE_TRANSMITTING))
-//  260 //  {
-//  261 //      I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
-//  262 //      IIC_Reg_Addr_Point++;
-//  263 //      if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;    
-//  264 //  }
-//  265 //  if(I2C_CheckEvent(I2C_EVENT_SLAVE_BYTE_RECEIVED))
-//  266 //  {
-//  267 //    Cache = I2C->DR;
-//  268 //    if(IIC_Reg_Addr_Get)
-//  269 //    {
-//  270 //      if(IIC_Reg_Addr_Point!=0)//0寄存器是只读
-//  271 //      {
-//  272 //        IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
-//  273 //      }
-//  274 //    }
-//  275 //    else
-//  276 //    {
-//  277 //      if(Cache < IIC_REG_SIZE)//Data
-//  278 //      {
-//  279 //        IIC_Reg_Addr_Point = Cache;
-//  280 //        IIC_Reg_Addr_Get = 1;
-//  281 //      }
-//  282 //      else//CMD
-//  283 //      {
-//  284 //      
-//  285 //      }
-//  286 //    }   
-//  287 //  }
-//  288 //  
-//  289 //}
-//  290 
+//  238 //    if(I2C_CheckEvent(I2C_EVENT_SLAVE_TRANSMITTER_ADDRESS_MATCHED))
+//  239 //    {
+//  240 //      I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+//  241 //      IIC_Reg_Addr_Point++;
+//  242 //      if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;
+//  243 //    }
+//  244 //    else
+//  245 //    {
+//  246 //      IIC_Reg_Addr_Get = 0;
+//  247 //    }
+//  248 //  }
+//  249 //  if(I2C_CheckEvent(I2C_EVENT_SLAVE_BYTE_TRANSMITTING))
+//  250 //  {
+//  251 //      I2C->DR = IIC_Reg_Buff[IIC_Reg_Addr_Point];
+//  252 //      IIC_Reg_Addr_Point++;
+//  253 //      if(IIC_Reg_Addr_Point>=IIC_REG_SIZE)IIC_Reg_Addr_Point = 0;    
+//  254 //  }
+//  255 //  if(I2C_CheckEvent(I2C_EVENT_SLAVE_BYTE_RECEIVED))
+//  256 //  {
+//  257 //    Cache = I2C->DR;
+//  258 //    if(IIC_Reg_Addr_Get)
+//  259 //    {
+//  260 //      if(IIC_Reg_Addr_Point!=0)//0寄存器是只读
+//  261 //      {
+//  262 //        IIC_Reg_Buff[IIC_Reg_Addr_Point] = Cache;
+//  263 //      }
+//  264 //    }
+//  265 //    else
+//  266 //    {
+//  267 //      if(Cache < IIC_REG_SIZE)//Data
+//  268 //      {
+//  269 //        IIC_Reg_Addr_Point = Cache;
+//  270 //        IIC_Reg_Addr_Get = 1;
+//  271 //      }
+//  272 //      else//CMD
+//  273 //      {
+//  274 //      
+//  275 //      }
+//  276 //    }   
+//  277 //  }
+//  278 //  
+//  279 //}
+//  280 
 // 
 //  99 bytes in section .near.bss
-// 364 bytes in section .near_func.text
+// 376 bytes in section .near_func.text
 // 
-// 364 bytes of CODE memory
+// 376 bytes of CODE memory
 //  99 bytes of DATA memory
 //
 //Errors: none

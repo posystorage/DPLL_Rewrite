@@ -104,9 +104,11 @@ module loop_state_manager_stage_a #(
     wire phase_ok = phase_abs <= phase_lock_threshold_r;
     wire freq_ok = freq_abs <= freq_lock_threshold_r;
     assign signal_present = signal_present_in;
-    wire loop_ok = signal_present && phase_ok && freq_ok && !correction_saturated;
-    wire signal_bad = !signal_present;
-    wire loss_sample = signal_bad || !phase_ok || !freq_ok || correction_saturated;
+    // Magnitude is reported for diagnostics only.  Lock quality is decided by
+    // phase/frequency residuals and output saturation so weak signals can be
+    // captured instead of being rejected by a fixed amplitude gate.
+    wire loop_ok = phase_ok && freq_ok && !correction_saturated;
+    wire loss_sample = !phase_ok || !freq_ok || correction_saturated;
 
     function [DWELL_WIDTH-1:0] nonzero_dwell;
         input [DWELL_WIDTH-1:0] value;
@@ -277,7 +279,7 @@ module loop_state_manager_stage_a #(
 
                     ST_FLL_ACQUIRE, ST_REACQUIRE: begin
                         if (measurement_valid) begin
-                            if (signal_present && freq_ok && !correction_saturated) begin
+                            if (freq_ok && !correction_saturated) begin
                                 bad_count <= {DWELL_WIDTH{1'b0}};
                                 loss_reason <= LOSS_NONE;
                                 if (track_iir_preheat) begin
@@ -302,8 +304,6 @@ module loop_state_manager_stage_a #(
                                 bad_count <= bad_count + 1'b1;
                                 if (correction_saturated) begin
                                     loss_reason <= LOSS_SATURATION;
-                                end else if (!signal_present) begin
-                                    loss_reason <= LOSS_SIGNAL;
                                 end else begin
                                     loss_reason <= LOSS_FREQUENCY;
                                 end
@@ -314,7 +314,7 @@ module loop_state_manager_stage_a #(
                     ST_FLL_PLL_BLEND: begin
                         track_iir_preheat <= 1'b0;
                         if (measurement_valid) begin
-                            if (signal_present && freq_ok && !correction_saturated) begin
+                            if (freq_ok && !correction_saturated) begin
                                 bad_count <= {DWELL_WIDTH{1'b0}};
                                 loss_reason <= LOSS_NONE;
                                 if (phase_ok) begin
@@ -334,9 +334,9 @@ module loop_state_manager_stage_a #(
                             end else begin
                                 good_count <= {DWELL_WIDTH{1'b0}};
                                 if (bad_count >= loss_target_r) begin
-                                    loop_state <= signal_present ? ST_REACQUIRE : ST_HOLDOVER;
-                                    loss_reason <= !signal_present ? LOSS_SIGNAL :
-                                                   (correction_saturated ? LOSS_SATURATION : LOSS_FREQUENCY);
+                                    loop_state <= ST_REACQUIRE;
+                                    loss_reason <= correction_saturated ? LOSS_SATURATION :
+                                                   (freq_ok ? LOSS_PHASE : LOSS_FREQUENCY);
                                     bad_count <= {DWELL_WIDTH{1'b0}};
                                 end else begin
                                     bad_count <= bad_count + 1'b1;
@@ -354,9 +354,6 @@ module loop_state_manager_stage_a #(
                                     if (correction_saturated) begin
                                         loop_state <= ST_REACQUIRE;
                                         loss_reason <= LOSS_SATURATION;
-                                    end else if (!signal_present) begin
-                                        loop_state <= ST_HOLDOVER;
-                                        loss_reason <= LOSS_SIGNAL;
                                     end else if (!freq_ok) begin
                                         loop_state <= ST_REACQUIRE;
                                         loss_reason <= LOSS_FREQUENCY;
@@ -377,12 +374,17 @@ module loop_state_manager_stage_a #(
 
                     ST_HOLDOVER: begin
                         track_iir_preheat <= 1'b0;
-                        if (measurement_valid && signal_present) begin
+                        if (measurement_valid) begin
                             loop_state <= ST_REACQUIRE;
                             holdover_count <= {TIMEOUT_WIDTH{1'b0}};
                         end else if (holdover_count >= holdover_target_r) begin
-                            loop_state <= ST_FAULT;
+                            // A lost measurement is recoverable.  Reserve
+                            // ST_FAULT for CIC/datapath faults and malformed
+                            // state transitions that require APPLY/reset.
+                            loop_state <= ST_REACQUIRE;
                             loss_reason <= LOSS_TIMEOUT;
+                            holdover_count <= {TIMEOUT_WIDTH{1'b0}};
+                            measurement_gap_count <= {TIMEOUT_WIDTH{1'b0}};
                         end else begin
                             holdover_count <= holdover_count + 1'b1;
                         end

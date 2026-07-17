@@ -62,6 +62,16 @@
 #include "xuartps_hw.h"
 #include "control_protocol.h"
 
+#ifndef CONTROL_DCC_LOG_ENABLE
+#define CONTROL_DCC_LOG_ENABLE 0
+#endif
+
+#if CONTROL_DCC_LOG_ENABLE
+#define CONTROL_DCC_LOG(...) xil_printf(__VA_ARGS__)
+#else
+#define CONTROL_DCC_LOG(...) do { } while (0)
+#endif
+
 
 
 XUartPs XUartPs_uart0;
@@ -370,7 +380,7 @@ static uint8_t dpll_initialize_abi(void)
 	status = dpll_driver_check_abi(&dpll_driver);
 	dpll_abi_ready = dpll_driver.abi_ready;
 	if (status == DPLL_DRIVER_OK) {
-		xil_printf("DPLL ABI ready abi=0x%08lx config=0x%08lx build=0x%08lx git=0x%08lx attempts=%lu\r\n",
+		CONTROL_DCC_LOG("DPLL ABI ready abi=0x%08lx config=0x%08lx build=0x%08lx git=0x%08lx attempts=%lu\r\n",
 		           (unsigned long)dpll_driver.actual.abi_version,
 		           (unsigned long)dpll_driver.actual.config_version,
 		           (unsigned long)dpll_driver.actual.build_id,
@@ -378,7 +388,7 @@ static uint8_t dpll_initialize_abi(void)
 		           (unsigned long)dpll_driver.abi_attempts);
 		return 1;
 	}
-	xil_printf("DPLL ABI timeout actual abi=0x%08lx config=0x%08lx build=0x%08lx git=0x%08lx "
+	CONTROL_DCC_LOG("DPLL ABI timeout actual abi=0x%08lx config=0x%08lx build=0x%08lx git=0x%08lx "
 	           "expected abi=0x%08lx config=0x%08lx build=0x%08lx git=0x%08lx attempts=%lu\r\n",
 	           (unsigned long)dpll_driver.actual.abi_version,
 	           (unsigned long)dpll_driver.actual.config_version,
@@ -441,13 +451,15 @@ static int dpll_write_center_filter_profile(uint32_t center_word_hi)
 {
 	dpll_filter_profile_t profile;
 	dpll_profile_validation_t validation;
+	#if CONTROL_DCC_LOG_ENABLE
 	const char *support_name;
+	#endif
 	int status;
 
 	dpll_driver_ensure_initialized();
 	status = dpll_compute_filter_profile_checked(center_word_hi, &profile, &validation);
 	if (status != DPLL_DRIVER_OK) {
-		xil_printf("DPLL profile rejected center_word=0x%08lx errors=0x%08lx\r\n",
+		CONTROL_DCC_LOG("DPLL profile rejected center_word=0x%08lx errors=0x%08lx\r\n",
 		           (unsigned long)center_word_hi,
 		           (unsigned long)validation.errors);
 		return DPLL_DRIVER_ERR_VERIFY;
@@ -456,10 +468,12 @@ static int dpll_write_center_filter_profile(uint32_t center_word_hi)
 	                                   &profile, &validation);
 	if (status != DPLL_DRIVER_OK) return status;
 
+	#if CONTROL_DCC_LOG_ENABLE
 	support_name = profile.support == DPLL_PROFILE_SUPPORT_VERIFIED ? "verified" :
 	               profile.support == DPLL_PROFILE_SUPPORT_STANDARD ? "standard" :
 	               "extended-unverified";
-	xil_printf("DPLL profile center=%luHz support=%s limit=+/-20%% R=%u shift=%u L=%u image=%luHz acq=%luHz track=%luHz\r\n",
+	#endif
+	CONTROL_DCC_LOG("DPLL profile center=%luHz support=%s limit=+/-20%% R=%u shift=%u L=%u image=%luHz acq=%luHz track=%luHz\r\n",
 	           (unsigned long)profile.center_hz,
 	           support_name,
 	           (unsigned int)profile.cic_r,
@@ -508,7 +522,7 @@ void Uart0PS_Init(void)
 	status = XUartPs_CfgInitialize(&XUartPs_uart0,XUartPs_Config_uart0,XUartPs_Config_uart0->BaseAddress);
 	if(status != XST_SUCCESS)
 	{
-		print("Initialize uart1 fail\n");
+		CONTROL_DCC_LOG("Initialize uart1 fail\n");
 	}
 	XUartPs_SetOperMode(&XUartPs_uart0, XUARTPS_OPER_MODE_NORMAL);
 	XUartPsFormat_uart0.BaudRate = 921600;//娉㈢壒鐜�921600
@@ -518,7 +532,7 @@ void Uart0PS_Init(void)
 	status = XUartPs_SetDataFormat(&XUartPs_uart0,&XUartPsFormat_uart0);
 	if(status != XST_SUCCESS)
 	{
-		print("set Buad Rate fail\n");
+		CONTROL_DCC_LOG("set Buad Rate fail\n");
 	}
 	XUartPs_SetFifoThreshold(&XUartPs_uart0,32);
 	XUartPs_SetRecvTimeout(&XUartPs_uart0,4);//4*4=16 timeout IXR
@@ -1380,7 +1394,7 @@ void PC_HOST_CMD_Respond(void)
 				PC_HOST_Send_ASK_Only(0);
 				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
 				Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);
-				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
+				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,1);
 				break;
 
 			case PC_CMD_WRITE_DPLL_DEBUG_CONFIG:
@@ -1529,7 +1543,7 @@ void Uart1PS_Init(void)
 
 	config = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);
 	status = XUartPs_CfgInitialize(&XUartPs_uart1, config, config->BaseAddress);
-	if (status != XST_SUCCESS) print("Initialize uart1 fail\n");
+	if (status != XST_SUCCESS) CONTROL_DCC_LOG("Initialize uart1 fail\n");
 
 	XUartPs_SetOperMode(&XUartPs_uart1, XUARTPS_OPER_MODE_NORMAL);
 	/* The 2018.3 driver limits this API to 921600; set exact 1 Mbps below. */
@@ -1538,7 +1552,7 @@ void Uart1PS_Init(void)
 	format.Parity = XUARTPS_FORMAT_NO_PARITY;
 	format.StopBits = XUARTPS_FORMAT_1_STOP_BIT;
 	status = XUartPs_SetDataFormat(&XUartPs_uart1, &format);
-	if (status != XST_SUCCESS) print("set uart1 baud rate fail\n");
+	if (status != XST_SUCCESS) CONTROL_DCC_LOG("set uart1 baud rate fail\n");
 
 	base_address = XUartPs_uart1.Config.BaseAddress;
 	XUartPs_DisableUart(&XUartPs_uart1);
@@ -1894,6 +1908,7 @@ static void Control_Reset_Both(void)
 	Xil_Out32(Opal_Kelly_Reset_Trigger_Addr, 0U);
 	Xil_Out32(Freq_Meter_Reset_Trigger_Addr, 0U);
 	usleep(100U);
+	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 1U);
 	dpll_invalidate_abi();
 }
 
@@ -2044,7 +2059,7 @@ int main()
     Uart1PS_Init();
 
 	while (!Control_Link_Startup()) {
-		print("control link startup failed, retrying\r\n");
+		CONTROL_DCC_LOG("control link startup failed, retrying\r\n");
 		usleep(100000U);
 	}
 
@@ -2053,7 +2068,7 @@ int main()
 	Xil_Out32(VCO_Freq_Manual_Offset_Addr, 0U);
 
 	/* The original precision frequency-meter path remains independent. */
-	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 0U);
+	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 1U);
 	Xil_Out32(Freq_Meter_Centre_Frequency_Addr, 0x51EB851EU);
 	Xil_Out32(Freq_Meter_PID_GainP_Addr, 0x00400000U);
 	Xil_Out32(Freq_Meter_PID_GainI_Addr, 0x00100000U);
@@ -2067,7 +2082,7 @@ int main()
 	Xil_Out32(Freq_Meter_Phase_Residuals_Threshold_Addr, 1000U);
 	Xil_Out32(Freq_Meter_Phase_Residuals_Offset_Addr, 0U);
 	Xil_Out32(Freq_Meter_Freq_Residuals_Threshold_Addr, 500U);
-	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 0U);
+	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 1U);
 
     XUartPs_SendByte(XUartPs_uart0.Config.BaseAddress,'C');
 

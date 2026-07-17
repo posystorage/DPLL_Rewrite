@@ -208,15 +208,19 @@ module loop_state_manager_stage_a_tb;
         push_measurement(18'd20, 22'd30, 16'd1);
         push_measurement(18'd20, 22'd30, 16'd1);
         push_measurement(18'd20, 22'd30, 16'd1);
-        expect_state(ST_HOLDOVER);
-        if (loss_reason !== 4'd1) begin
-            $display("FAIL: expected signal loss reason got %0d", loss_reason);
+        expect_state(ST_PLL_TRACK);
+        if (locked !== 1'b1) begin
+            $display("FAIL: weak magnitude incorrectly affected lock");
             $finish;
         end
 
-        push_measurement(18'd20, 22'd30, 16'd20);
-        push_measurement(18'd20, 22'd30, 16'd20);
-        repeat (1) @(posedge clk);
+        push_measurement(18'd20, 22'd300, 16'd20);
+        if (locked !== 1'b0) begin
+            $display("FAIL: out-of-range frequency residual was reported locked");
+            $finish;
+        end
+        push_measurement(18'd20, 22'd300, 16'd20);
+        push_measurement(18'd20, 22'd300, 16'd20);
         expect_state(ST_REACQUIRE);
 
         push_measurement(18'd20, 22'd30, 16'd20);
@@ -239,14 +243,10 @@ module loop_state_manager_stage_a_tb;
             $display("FAIL: expected timeout loss reason got %0d", loss_reason);
             $finish;
         end
-        repeat (7) @(posedge clk);
+        wait_for_state(ST_REACQUIRE);
         #1;
-        expect_state(ST_HOLDOVER);
-        repeat (1) @(posedge clk);
-        #1;
-        expect_state(ST_FAULT);
         if (loss_reason !== 4'd6) begin
-            $display("FAIL: expected holdover timeout loss reason got %0d", loss_reason);
+            $display("FAIL: expected recoverable timeout loss reason got %0d", loss_reason);
             $finish;
         end
 

@@ -3,7 +3,7 @@
 #include "display.h"
 #include "ENCODER.h"
 
-#define PAGE0_MAX_ADJ_INDEX 7U
+#define PAGE0_MAX_ADJ_INDEX 8U
 #define PAGE1_MAX_ADJ_INDEX 9U
 
 typedef enum
@@ -30,7 +30,8 @@ static uint8_t Cursor_Div;
 static uint8_t Cursor_Gain[4];
 static uint8_t Cursor_Limit[2];
 static uint8_t Cursor_Phase;
-static uint8_t Cursor_Amplitude_Frequency;
+static uint8_t Cursor_Amplitude;
+static uint8_t Cursor_Frequency;
 static uint16_t Refresh_Timer_Cnt;
 
 static uint8_t is_add(Ctrl_Cursor_Enum option)
@@ -135,15 +136,17 @@ static void adjust_mul_div(Ctrl_Cursor_Enum option, uint8_t offset,
 {
 	uint32_t value = STM8_Bank_Get_U16(offset);
 	uint32_t step = POW10[*cursor];
-	if (is_add(option) && value + step <= 9999U) value += step;
+	uint32_t maximum = is_div ? 9999U : 65535U;
+	uint8_t maximum_cursor = is_div ? 4U : 5U;
+	if (is_add(option) && value + step <= maximum) value += step;
 	if (is_sub(option) && value > step) value -= step;
 	if (is_add(option) || is_sub(option)) {
 		STM8_Bank_Put_U16(offset, (uint16_t)value);
 		apply_pll_change();
 	} else if (option == Cursor_Left) {
-		if (++(*cursor) > 4U) *cursor = 1U;
+		if (++(*cursor) > maximum_cursor) *cursor = 1U;
 	} else if (option == Cursor_Right) {
-		if (*cursor <= 1U) *cursor = 4U;
+		if (*cursor <= 1U) *cursor = maximum_cursor;
 		else (*cursor)--;
 	}
 	Display_UI_Show_PLL_Mux_Div_Index(is_div ? 0U : *cursor,
@@ -225,7 +228,7 @@ static void CtrlP1I6_Phase_Threshold(Ctrl_Cursor_Enum option)
 	Display_UI_Show_Phase_Threshold(Cursor_Phase);
 }
 
-static void CtrlP1I7_Debug_DAC(Ctrl_Cursor_Enum option)
+static void CtrlP0I7_Debug_DAC(Ctrl_Cursor_Enum option)
 {
 	uint8_t preset = STM8_Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
 	if (is_add(option)) {
@@ -241,33 +244,40 @@ static void CtrlP1I7_Debug_DAC(Ctrl_Cursor_Enum option)
 	Display_UI_Show_Debug_DAC_Preset(1U);
 }
 
-static void CtrlP1I8_Amplitude_Frequency(Ctrl_Cursor_Enum option)
+static void CtrlP1I7_Amplitude(Ctrl_Cursor_Enum option)
 {
-	uint8_t frequency_selected = Cursor_Amplitude_Frequency > 3U;
-	uint8_t digit = frequency_selected ? Cursor_Amplitude_Frequency - 3U :
-	                                 Cursor_Amplitude_Frequency;
-	uint32_t step = frequency_selected ? POW10[digit] : POW10[digit + 1U];
-	uint32_t value;
-	uint8_t offset;
-	uint32_t maximum;
-
-	offset = frequency_selected ? CTRL_REG_FREQ_THRESHOLD_HZ : CTRL_REG_DAC_AMPLITUDE_MV;
-	maximum = frequency_selected ? 999U : 2000U;
-	value = STM8_Bank_Get_U16(offset);
-	if (is_add(option) && value + step <= maximum) value += step;
+	uint32_t value = STM8_Bank_Get_U16(CTRL_REG_DAC_AMPLITUDE_MV);
+	uint32_t step = POW10[Cursor_Amplitude + 1U];
+	if (is_add(option) && value + step <= 2000U) value += step;
 	if (is_sub(option) && value >= step) value -= step;
 	if (is_add(option) || is_sub(option)) {
-		STM8_Bank_Put_U16(offset, (uint16_t)value);
+		STM8_Bank_Put_U16(CTRL_REG_DAC_AMPLITUDE_MV, (uint16_t)value);
 		apply_pll_change();
 	} else if (option == Cursor_Left) {
-		if (++Cursor_Amplitude_Frequency > 6U) Cursor_Amplitude_Frequency = 1U;
+		if (++Cursor_Amplitude > 3U) Cursor_Amplitude = 1U;
 	} else if (option == Cursor_Right) {
-		if (Cursor_Amplitude_Frequency <= 1U) Cursor_Amplitude_Frequency = 6U;
-		else Cursor_Amplitude_Frequency--;
+		if (Cursor_Amplitude <= 1U) Cursor_Amplitude = 3U;
+		else Cursor_Amplitude--;
 	}
-	Display_UI_Show_Amplitude_Freq_Threshold(
-		Cursor_Amplitude_Frequency <= 3U ? Cursor_Amplitude_Frequency : 0U,
-		Cursor_Amplitude_Frequency > 3U ? Cursor_Amplitude_Frequency - 3U : 0U);
+	Display_UI_Show_Amplitude_Freq_Threshold(Cursor_Amplitude, 0U);
+}
+
+static void CtrlP1I8_Frequency(Ctrl_Cursor_Enum option)
+{
+	uint32_t value = STM8_Bank_Get_U16(CTRL_REG_FREQ_THRESHOLD_HZ);
+	uint32_t step = POW10[Cursor_Frequency];
+	if (is_add(option) && value + step <= 999U) value += step;
+	if (is_sub(option) && value >= step) value -= step;
+	if (is_add(option) || is_sub(option)) {
+		STM8_Bank_Put_U16(CTRL_REG_FREQ_THRESHOLD_HZ, (uint16_t)value);
+		apply_pll_change();
+	} else if (option == Cursor_Left) {
+		if (++Cursor_Frequency > 3U) Cursor_Frequency = 1U;
+	} else if (option == Cursor_Right) {
+		if (Cursor_Frequency <= 1U) Cursor_Frequency = 3U;
+		else Cursor_Frequency--;
+	}
+	Display_UI_Show_Amplitude_Freq_Threshold(0U, Cursor_Frequency);
 }
 
 static void (*CtrlP0_Fun[PAGE0_MAX_ADJ_INDEX])(Ctrl_Cursor_Enum) = {
@@ -277,14 +287,14 @@ static void (*CtrlP0_Fun[PAGE0_MAX_ADJ_INDEX])(Ctrl_Cursor_Enum) = {
 	CtrlP0I3_PLL_Enable,
 	CtrlP0I4_PLL_Frequency,
 	CtrlP0I5_PLL_Mul,
-	CtrlP0I6_PLL_Div
+	CtrlP0I6_PLL_Div,
+	CtrlP0I7_Debug_DAC
 };
 
 static void (*CtrlP1_Fun[PAGE1_MAX_ADJ_INDEX])(Ctrl_Cursor_Enum) = {
 	CtrlP1I0_Gain, CtrlP1I1_Gain, CtrlP1I2_Gain, CtrlP1I3_Gain,
 	CtrlP1I4_Positive_Limit, CtrlP1I5_Negative_Limit,
-	CtrlP1I6_Phase_Threshold, CtrlP1I7_Debug_DAC,
-	CtrlP1I8_Amplitude_Frequency
+	CtrlP1I6_Phase_Threshold, CtrlP1I7_Amplitude, CtrlP1I8_Frequency
 };
 
 void Ctrl_KEY_Response_Service(void)
@@ -381,7 +391,8 @@ void Ctrl_Data_Init(void)
 	Cursor_Limit[0] = 3U;
 	Cursor_Limit[1] = 3U;
 	Cursor_Phase = 3U;
-	Cursor_Amplitude_Frequency = 2U;
+	Cursor_Amplitude = 2U;
+	Cursor_Frequency = 2U;
 }
 
 void Ctrl_Dispaly_Refresh_Timer_Service(void)
@@ -397,8 +408,8 @@ void Ctrl_Dispaly_Refresh_Show_Status(void)
 		if (Page_Num == 0U) {
 			Display_UI_Microwave_Source_Refresh_Status();
 			Display_UI_PLL_Refresh_Status();
+			if (Display_UI_Get_Status() == 0U)
+				Display_UI_Show_Debug_DAC_Preset(0U);
 		}
-		else if (Display_UI_Get_Status() == 0U)
-			Display_UI_Show_Debug_DAC_Preset(0U);
 	}
 }

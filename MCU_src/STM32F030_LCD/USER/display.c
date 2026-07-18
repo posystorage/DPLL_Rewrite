@@ -68,6 +68,7 @@ static void Display_UI_Blink_Show_Register(uint16_t x, uint16_t y,
 	Display_UI_Blink_Show(1U);
 }
 
+
 /* Keep an active PLL-enable blink synchronized with the latest confirmed state. */
 static void Display_UI_Blink_Show_Update(uint16_t x, uint16_t y,
 		uint8_t *text, uint16_t color)
@@ -180,27 +181,19 @@ static void display_unsigned(uint16_t x, uint16_t y, uint32_t value,
 	}
 }
 
-static uint8_t append_u32(uint8_t *text, uint8_t index, uint32_t value)
+static uint8_t format_phase(int32_t centidegrees, uint8_t show_sign,
+		uint8_t minimum_decimals, uint8_t minimum_integer_digits,
+		uint8_t *text, uint8_t *integer_start, uint8_t *integer_digits)
 {
-	uint8_t power = 10U;
-	uint8_t started = 0U;
-	Display_U32toDec(value);
-	while (power > 0U) {
-		power--;
-		if (U32_Dec_Buff[power] != 0U || power == 0U) started = 1U;
-		if (started) text[index++] = (uint8_t)('0' + U32_Dec_Buff[power]);
-	}
-	return index;
-}
-
-static void display_phase(uint16_t x, uint16_t y, int32_t centidegrees,
-		uint8_t show_sign, uint8_t blink, uint16_t color)
-{
-	uint8_t text[8];
+	uint8_t decimals;
+	uint8_t actual_digits = 10U;
 	uint8_t index = 0U;
+	uint8_t power;
 	uint32_t magnitude;
+	uint32_t integer;
+	uint32_t fraction = 0U;
 	uint32_t scaled;
-	LCD_Show_Square(x, y, 56U, 16U, WHITE);
+
 	if (centidegrees < 0) {
 		text[index++] = '-';
 		magnitude = (uint32_t)(-centidegrees);
@@ -208,24 +201,88 @@ static void display_phase(uint16_t x, uint16_t y, int32_t centidegrees,
 		magnitude = (uint32_t)centidegrees;
 		if (show_sign) text[index++] = '+';
 	}
-	if (magnitude >= 10000U) {
-		index = append_u32(text, index, (magnitude + 50U) / 100U);
-	} else if (magnitude >= 1000U) {
+	decimals = magnitude >= 10000U ? 0U : (magnitude >= 1000U ? 1U : 2U);
+	if (decimals < minimum_decimals) decimals = minimum_decimals;
+	if (decimals == 0U) {
+		integer = (magnitude + 50U) / 100U;
+	} else if (decimals == 1U) {
 		scaled = (magnitude + 5U) / 10U;
-		index = append_u32(text, index, scaled / 10U);
-		text[index++] = '.';
-		text[index++] = (uint8_t)('0' + scaled % 10U);
+		integer = scaled / 10U;
+		fraction = scaled % 10U;
+		if (minimum_decimals == 0U && integer >= 100U) {
+			decimals = 0U;
+			integer = (magnitude + 50U) / 100U;
+		}
 	} else {
-		index = append_u32(text, index, magnitude / 100U);
+		integer = magnitude / 100U;
+		fraction = magnitude % 100U;
+	}
+
+	Display_U32toDec(integer);
+	while (actual_digits > 1U && U32_Dec_Buff[actual_digits - 1U] == 0U)
+		actual_digits--;
+	if (minimum_integer_digits > actual_digits)
+		actual_digits = minimum_integer_digits;
+	*integer_start = index;
+	*integer_digits = actual_digits;
+	for (power = actual_digits; power > 0U; --power)
+		text[index++] = (uint8_t)('0' + U32_Dec_Buff[power - 1U]);
+	if (decimals) {
 		text[index++] = '.';
-		text[index++] = (uint8_t)('0' + (magnitude / 10U) % 10U);
-		text[index++] = (uint8_t)('0' + magnitude % 10U);
+		if (decimals == 2U)
+			text[index++] = (uint8_t)('0' + fraction / 10U);
+		text[index++] = (uint8_t)('0' + fraction % 10U);
 	}
 	text[index++] = '~';
 	text[index] = '\0';
+	return index;
+}
+
+static void display_phase(uint16_t x, uint16_t y, int32_t centidegrees,
+		uint8_t show_sign, uint8_t blink_power, uint16_t color)
+{
+	uint8_t text[10];
+	uint8_t integer_start;
+	uint8_t integer_digits;
+	uint8_t length = format_phase(centidegrees, show_sign,
+	                              blink_power == 1U ? 2U :
+	                              (blink_power == 2U ? 1U : 0U),
+	                              blink_power >= 3U ?
+	                              (uint8_t)(blink_power - 2U) : 1U,
+	                              text, &integer_start, &integer_digits);
+	uint8_t index;
+	uint8_t blink_index = 0U;
+	uint16_t text_width = 0U;
+	uint16_t show_x;
+	uint16_t cursor_x;
+
+	for (index = 0U; index < length; ++index)
+		text_width += text[index] == '.' ? 4U : 8U;
+	show_x = (uint16_t)(x + 56U - text_width);
+	LCD_Show_Square(x, y, 56U, 16U, WHITE);
 	BACK_COLOR = WHITE;
-	LCD_16ShowString_hanzi(x, y, text, color);
-	if (blink) Display_UI_Blink_Show_Register(x, y, text, color);
+	cursor_x = show_x;
+	for (index = 0U; index < length; ++index) {
+		if (text[index] == '.') {
+			LCD_SHOW_ASCII_1608(cursor_x, y, '.', color);
+			cursor_x += 4U;
+		} else {
+			LCD_SHOW_ASCII_1608(cursor_x, y, text[index], color);
+			cursor_x += 8U;
+		}
+	}
+	if (blink_power == 0U) return;
+	if (blink_power == 1U)
+		blink_index = (uint8_t)(integer_start + integer_digits + 2U);
+	else if (blink_power == 2U)
+		blink_index = (uint8_t)(integer_start + integer_digits + 1U);
+	else
+		blink_index = (uint8_t)(integer_start + integer_digits -
+		                        1U - (blink_power - 3U));
+	cursor_x = show_x;
+	for (index = 0U; index < blink_index; ++index)
+		cursor_x += text[index] == '.' ? 4U : 8U;
+	display_digit_blink(cursor_x, y, (uint8_t)(text[blink_index] - '0'), color);
 }
 
 void Display_UI_Microwave_Source_Refresh_Status(void)
@@ -340,10 +397,10 @@ void Display_UI_Show_PLL_Set_Freq(uint32_t blink_bit)
 		}
 	} else {
 		Display_U32toDec(frequency_hz);
+		LCD_SHOW_ASCII_1608(126U, 49U, '.', DARKBLUE);
 		display_unsigned(88U, 49U, frequency_hz, 5U, 0U, DARKBLUE);
-		LCD_SHOW_ASCII_1608(128U, 49U, '.', DARKBLUE);
-		LCD_SHOW_ASCII_1608(136U, 49U, (uint8_t)('0' + value % 10U), DARKBLUE);
-		if (blink_bit == 1U) display_digit_blink(136U, 49U, (uint8_t)(value % 10U), DARKBLUE);
+		LCD_SHOW_ASCII_1608(130U, 49U, (uint8_t)('0' + value % 10U), DARKBLUE);
+		if (blink_bit == 1U) display_digit_blink(130U, 49U, (uint8_t)(value % 10U), DARKBLUE);
 		else if (blink_bit >= 2U && blink_bit <= 6U) {
 			blink_x = (uint16_t)(120U - (blink_bit - 2U) * 8U);
 			display_digit_blink(blink_x, 49U, U32_Dec_Buff[blink_bit - 2U], DARKBLUE);
@@ -354,17 +411,18 @@ void Display_UI_Show_PLL_Set_Freq(uint32_t blink_bit)
 void Display_UI_Show_PLL_Mux_Div_Index(uint32_t blink_mul, uint32_t blink_div)
 {
 	display_unsigned(54U, 65U, STM8_Bank_Get_U16(CTRL_REG_OUTPUT_MUL),
-	                 4U, (uint8_t)blink_mul, DARKBLUE);
-	display_unsigned(126U, 65U, STM8_Bank_Get_U16(CTRL_REG_OUTPUT_DIV),
+	                 5U, (uint8_t)blink_mul, DARKBLUE);
+	display_unsigned(98U, 65U, STM8_Bank_Get_U16(CTRL_REG_OUTPUT_DIV),
 	                 4U, (uint8_t)blink_div, DARKBLUE);
 }
 
 static void display_signed_integer(uint16_t x, uint16_t y, int32_t value,
 		uint8_t digits, uint16_t color)
 {
-	uint32_t magnitude;
+	uint32_t magnitude = value < 0 ? (uint32_t)(-value) : (uint32_t)value;
+	LCD_Show_Square(x, y, (uint16_t)((digits + 1U) * 8U), 16U, WHITE);
+	BACK_COLOR = WHITE;
 	LCD_SHOW_ASCII_1608(x, y, value < 0 ? '-' : '+', color);
-	magnitude = value < 0 ? (uint32_t)(-value) : (uint32_t)value;
 	display_unsigned((uint16_t)(x + 8U), y, magnitude, digits, 0U, color);
 }
 
@@ -382,8 +440,8 @@ static void display_fast_meter(void)
 	LCD_SHOW_ASCII_1608(72U, 112U, '.', INDIANRED);
 	Display_U32toDec(fraction);
 	for (power = 6U; power > 0U; --power)
-		LCD_SHOW_ASCII_1608((uint16_t)(80U + (6U - power) * 8U), 112U,
-		                       (uint8_t)('0' + U32_Dec_Buff[power - 1U]), INDIANRED);
+		LCD_SHOW_ASCII_1608((uint16_t)(76U + (6U - power) * 8U), 112U,
+	                       (uint8_t)('0' + U32_Dec_Buff[power - 1U]), INDIANRED);
 }
 
 static void display_loop_state(uint8_t status, uint8_t link_state)
@@ -412,12 +470,14 @@ void Display_UI_PLL_Refresh_Status(void)
 	uint8_t status = STM8_Control_Bank[CTRL_REG_DPLL_STATUS];
 	uint8_t link_state = STM8_Slave_Get_Link_State();
 	Display_UI_PLL_Enable(0U);
-	display_signed_integer(30U, 81U, STM8_Bank_Get_S32(CTRL_REG_FREQ_ERROR_HZ),
-	                       5U, INDIANRED);
-	display_phase(104U, 81U, STM8_Bank_Get_S32(CTRL_REG_PHASE_ERROR_CDEG),
-	              1U, 0U, INDIANRED);
+	display_signed_integer(46U, 81U,
+	                       STM8_Bank_Get_S32(CTRL_REG_FREQ_ERROR_HZ),
+	                       4U, INDIANRED);
+	display_phase(104U, 81U,
+	              STM8_Bank_Get_S32(CTRL_REG_PHASE_ERROR_CDEG),
+	              0U, 0U, INDIANRED);
 	display_unsigned(54U, 97U, STM8_Bank_Get_U32(CTRL_REG_OUTPUT_FREQ_HZ),
-	                 7U, 0U, INDIANRED);
+	                 8U, 0U, INDIANRED);
 	display_fast_meter();
 	display_loop_state(status, link_state);
 	if (link_state != STM8_LINK_ONLINE) {
@@ -459,12 +519,18 @@ void Display_UI_PLL_Main_Page_Init(void)
 	BACK_COLOR = LIGHTCYAN;
 	LCD_16ShowString_hanzi(14U, 33U, "锁相环", BLACK);
 	BACK_COLOR = WHITE;
-	LCD_16ShowString_hanzi(14U, 49U, "中心频率:", BLACK);
+	LCD_SHOW_ASCII_1608(76U, 49U, ':', BLACK);
+	LCD_16ShowString_hanzi(14U, 49U, "中心频率", BLACK);
+	
 	LCD_16ShowString_hanzi(144U, 49U, "Hz", BLACK);
 	LCD_16ShowString_hanzi(14U, 65U, "倍频", BLACK);
-	LCD_16ShowString_hanzi(94U, 65U, "除频", BLACK);
-	LCD_16ShowString_hanzi(14U, 81U, "频", BLACK);
-	LCD_16ShowString_hanzi(88U, 81U, "相", BLACK);
+	LCD_SHOW_ASCII_1608(46U, 65U, '*', BLACK);
+	LCD_SHOW_ASCII_1608(92U, 65U, '/', BLACK);
+	LCD_SHOW_ASCII_1608(132U, 65U, 'D', BLACK);
+	LCD_SHOW_ASCII_1608(139U, 65U, '1', BLACK);
+	LCD_SHOW_ASCII_1608(145U, 65U, ':', BLACK);
+	LCD_16ShowString_hanzi(14U, 81U, "频残", BLACK);
+	LCD_16ShowString_hanzi(86U, 81U, "相残", BLACK);
 	LCD_16ShowString_hanzi(14U, 97U, "输出:", GRAYBLUE);
 	LCD_16ShowString_hanzi(136U, 97U, "Hz", GRAYBLUE);
 	LCD_16ShowString_hanzi(14U, 112U, "频率", GRAYBLUE);
@@ -472,6 +538,7 @@ void Display_UI_PLL_Main_Page_Init(void)
 	Display_UI_PLL_Enable(0U);
 	Display_UI_Show_PLL_Set_Freq(0U);
 	Display_UI_Show_PLL_Mux_Div_Index(0U, 0U);
+	Display_UI_Show_Debug_DAC_Preset(0U);
 	Display_UI_PLL_Refresh_Status();
 }
 
@@ -494,23 +561,18 @@ void Display_UI_Show_PLL_Limit(uint8_t row, uint32_t blink_bit)
 
 void Display_UI_Show_Phase_Threshold(uint32_t blink_bit)
 {
-	display_phase(96U, 96U, (int32_t)STM8_Bank_Get_U16(CTRL_REG_PHASE_THRESHOLD_CDEG),
-	              0U, blink_bit ? 1U : 0U, DARKBLUE);
+	display_phase(88U, 96U, (int32_t)STM8_Bank_Get_U16(CTRL_REG_PHASE_THRESHOLD_CDEG),
+	              0U, (uint8_t)blink_bit, DARKBLUE);
 }
 
 void Display_UI_Show_Debug_DAC_Preset(uint32_t blink)
 {
-	uint8_t text[2];
 	uint8_t preset = STM8_Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
 	uint8_t glyph = preset <= CTRL_DEBUG_DAC_PRESET_MAX ?
-	                (uint8_t)('0' + preset) : (uint8_t)'-';
+	                (uint8_t)('0' + preset) : '-';
 	BACK_COLOR = WHITE;
-	LCD_SHOW_ASCII_1608(88U, 96U, glyph, DARKBLUE);
-	if (blink) {
-		text[0] = glyph;
-		text[1] = '\0';
-		Display_UI_Blink_Show_Register(88U, 96U, text, DARKBLUE);
-	}
+	LCD_SHOW_ASCII_1608(150U, 65U, glyph, DARKBLUE);
+	if (blink && preset <= CTRL_DEBUG_DAC_PRESET_MAX) display_digit_blink(150U, 65U, preset, DARKBLUE);
 }
 
 void Display_UI_Show_Amplitude_Freq_Threshold(uint32_t amplitude_blink,
@@ -521,11 +583,11 @@ void Display_UI_Show_Amplitude_Freq_Threshold(uint32_t amplitude_blink,
 	uint8_t digit;
 	LCD_SHOW_ASCII_1608(46U, 112U, (uint8_t)('0' + amplitude / 1000U), DARKBLUE);
 	LCD_SHOW_ASCII_1608(54U, 112U, '.', DARKBLUE);
-	LCD_SHOW_ASCII_1608(62U, 112U, (uint8_t)('0' + (amplitude / 100U) % 10U), DARKBLUE);
-	LCD_SHOW_ASCII_1608(70U, 112U, (uint8_t)('0' + (amplitude / 10U) % 10U), DARKBLUE);
-	LCD_SHOW_ASCII_1608(78U, 112U, 'V', BLACK);
-	if (amplitude_blink == 1U) display_digit_blink(70U, 112U, (uint8_t)((amplitude / 10U) % 10U), DARKBLUE);
-	if (amplitude_blink == 2U) display_digit_blink(62U, 112U, (uint8_t)((amplitude / 100U) % 10U), DARKBLUE);
+	LCD_SHOW_ASCII_1608(58U, 112U, (uint8_t)('0' + (amplitude / 100U) % 10U), DARKBLUE);
+	LCD_SHOW_ASCII_1608(66U, 112U, (uint8_t)('0' + (amplitude / 10U) % 10U), DARKBLUE);
+	LCD_SHOW_ASCII_1608(74U, 112U, 'V', BLACK);
+	if (amplitude_blink == 1U) display_digit_blink(66U, 112U, (uint8_t)((amplitude / 10U) % 10U), DARKBLUE);
+	if (amplitude_blink == 2U) display_digit_blink(58U, 112U, (uint8_t)((amplitude / 100U) % 10U), DARKBLUE);
 	if (amplitude_blink == 3U) display_digit_blink(46U, 112U, (uint8_t)(amplitude / 1000U), DARKBLUE);
 	Display_U32toDec(frequency);
 	for (digit = 3U; digit > 0U; --digit)
@@ -548,9 +610,6 @@ void Display_UI_PLL_Vice_Page_Init(void)
 	LCD_16ShowString_hanzi(14U, 64U, "输出上限", BLACK);
 	LCD_16ShowString_hanzi(14U, 80U, "输出下限", BLACK);
 	LCD_16ShowString_hanzi(14U, 96U, "相残限", BLACK);
-	LCD_SHOW_ASCII_1608(64U, 96U, 'D', BLACK);
-	LCD_SHOW_ASCII_1608(72U, 96U, '1', BLACK);
-	LCD_SHOW_ASCII_1608(80U, 96U, ':', BLACK);
 	LCD_16ShowString_hanzi(14U, 112U, "幅度", BLACK);
 	LCD_16ShowString_hanzi(88U, 112U, "频残", BLACK);
 	Display_UI_Show_PLL_Gain(0U, 0U);
@@ -560,7 +619,6 @@ void Display_UI_PLL_Vice_Page_Init(void)
 	Display_UI_Show_PLL_Limit(0U, 0U);
 	Display_UI_Show_PLL_Limit(1U, 0U);
 	Display_UI_Show_Phase_Threshold(0U);
-	Display_UI_Show_Debug_DAC_Preset(0U);
 	Display_UI_Show_Amplitude_Freq_Threshold(0U, 0U);
 }
 

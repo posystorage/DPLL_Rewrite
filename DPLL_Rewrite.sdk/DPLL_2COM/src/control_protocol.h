@@ -8,6 +8,8 @@
 
 #define CTRL_MWS_FREQ_MIN_KHZ              23500UL
 #define CTRL_MWS_FREQ_MAX_KHZ              6400000UL
+#define CTRL_DPLL_CENTER_MIN_DHZ            40000UL
+#define CTRL_DPLL_CENTER_MAX_DHZ          2500000UL
 #define CTRL_DPLL_OUTPUT_MAX_DHZ            625000000UL
 #define CTRL_FAST_INTERVAL_MIN_MS          10U
 #define CTRL_FAST_INTERVAL_MAX_MS          34359U
@@ -43,10 +45,13 @@
 #define CTRL_REG_DEBUG_DAC_PRESET           71U
 #define CTRL_REG_FREQ_ERROR_HZ             72U
 #define CTRL_REG_PHASE_ERROR_CDEG          76U
-#define CTRL_REG_OUTPUT_FREQ_HZ            80U
+#define CTRL_REG_OUTPUT_FREQ_MILLIHZ        80U
 #define CTRL_REG_FAST_METER_HZ             84U
 #define CTRL_REG_FAST_METER_SEQ            88U
 #define CTRL_REG_ACTIVE_CONFIG_CRC         92U
+
+#define CTRL_FAST_METER_SEQ_MASK            0x7FFFFFFFUL
+#define CTRL_FREQ_METER_LOCKED_MASK         0x80000000UL
 
 #define CTRL_FLAG_DPLL_ENABLE              0x01U
 #define CTRL_FLAG_MWS_ENABLE               0x02U

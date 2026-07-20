@@ -81,6 +81,9 @@ uint8_t PLL_Lock_Status;
 
 static uint8_t Control_Bank[CTRL_BANK_SIZE];
 static uint8_t Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_MANUAL;
+static uint8_t Control_Freq_Meter_Reset_Request_Seen;
+
+#define CONTROL_FREQ_METER_RESET_REQUEST 0xFEU
 
 static uint8_t Control_Link_Startup(void);
 static void Control_Link_Service(void);
@@ -90,6 +93,7 @@ static uint8_t control_restore_persistent(const uint8_t *previous,
 		uint8_t original_error, uint8_t sync_bridge);
 static uint8_t Control_Set_MWS_Enable(uint8_t enable);
 static uint8_t Control_Set_DPLL_Enable(uint8_t enable);
+static void Control_Reset_Frequency_Meter(void);
 static void Control_Reset_Both(void);
 static void control_put_u32(uint8_t offset, uint32_t value);
 static uint8_t control_uart_write(uint8_t offset, uint8_t length, const uint8_t *data);
@@ -207,7 +211,7 @@ typedef struct {
 static const debug_dac_preset_t
 Debug_DAC_Presets[CTRL_DEBUG_DAC_PRESET_MAX + 1U] = {
 	{0U, 0x0100U, 0U, 0x5000U},
-	{1U, 0x0004U, 0U, 0x7FFFU},
+	{1U, 0x0000U, 0U, 0x7FFFU},
 	{2U, 0x0100U, 0U, 0x5000U},
 	{3U, 0x0000U, 0U, 0x7FFFU},
 	{4U, 0x0000U, 0U, 0x7FFFU},
@@ -1392,9 +1396,7 @@ void PC_HOST_CMD_Respond(void)
 				break;
 			case PC_CMD_FREQMETER_RESET:
 				PC_HOST_Send_ASK_Only(0);
-				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,0);
-				Xil_Out32(Freq_Meter_Reset_Trigger_Addr,0);
-				Xil_Out32(Freq_Meter_Lock_Ctrl_Addr,1);
+				Control_Reset_Frequency_Meter();
 				break;
 
 			case PC_CMD_WRITE_DPLL_DEBUG_CONFIG:
@@ -1702,7 +1704,8 @@ static uint8_t control_validate_bank(void)
 	    Control_Bank[CTRL_REG_PROTOCOL_VERSION] != CTRL_PROTOCOL_VERSION) return 0U;
 	if (microwave_khz < CTRL_MWS_FREQ_MIN_KHZ ||
 	    microwave_khz > CTRL_MWS_FREQ_MAX_KHZ) return 0U;
-	if (center < 40000UL || center > 1250000UL) return 0U;
+	if (center < CTRL_DPLL_CENTER_MIN_DHZ ||
+	    center > CTRL_DPLL_CENTER_MAX_DHZ) return 0U;
 	if (!control_output_ratio_valid(center,
 	                                control_get_u16(CTRL_REG_OUTPUT_MUL),
 	                                control_get_u16(CTRL_REG_OUTPUT_DIV))) return 0U;
@@ -1835,12 +1838,14 @@ static uint32_t control_fast_meter_hz(void)
 	return frequency > 0xFFFFFFFFULL ? 0xFFFFFFFFUL : (uint32_t)frequency;
 }
 
-static uint32_t control_dpll_output_hz(void)
+static uint32_t control_dpll_output_millihz(void)
 {
 	uint32_t high_before;
 	uint32_t high_after;
 	uint32_t low;
-	uint32_t word_hi32;
+	uint64_t scaled_high;
+	uint64_t remainder;
+	uint64_t millihz;
 	uint32_t retry;
 	for (retry = 0U; retry < 4U; ++retry) {
 		high_before = Xil_In32(DPLL_TRACKING_WORD_HI_Addr) & 0xFFFFU;
@@ -1849,14 +1854,22 @@ static uint32_t control_dpll_output_hz(void)
 		if (high_before == high_after) break;
 	}
 	if (high_before != high_after) return 0U;
-	word_hi32 = (high_after << 16) | (low >> 16);
-	return (uint32_t)(((uint64_t)word_hi32 * 125000000ULL + 0x80000000ULL) >> 32);
+
+	/* 125000000000 / 2^48 reduces to 244140625 / 2^39. */
+	scaled_high = (uint64_t)high_after * 244140625ULL;
+	millihz = scaled_high >> 7;
+	remainder = ((scaled_high & 0x7FULL) << 32) +
+	            (uint64_t)low * 244140625ULL;
+	millihz += (remainder + (1ULL << 38)) >> 39;
+	return millihz > 0xFFFFFFFFULL ? 0xFFFFFFFFUL : (uint32_t)millihz;
 }
 
 static void control_collect_runtime(void)
 {
 	uint32_t system_status = Xil_In32(System_Statue);
+	uint32_t freq_meter_status = Xil_In32(Freq_Meter_System_Statue_Addr);
 	uint32_t core_flags = Xil_In32(DPLL_CORE_FLAGS_Addr);
+	uint32_t fast_meter_sequence;
 	int32_t frequency_raw = (int32_t)Xil_In32(DDC0_inst_frequency);
 	int32_t phase_raw = (int32_t)Xil_In32(PLL0_phase_residuals);
 	uint8_t dpll_status = CTRL_DPLL_STATUS_ARM_ONLINE;
@@ -1878,8 +1891,13 @@ static void control_collect_runtime(void)
 	control_put_u32(CTRL_REG_PHASE_ERROR_CDEG,
 	                (uint32_t)control_div_round_signed((int64_t)phase_raw * 36000LL,
 	                                                   262144LL));
-	control_put_u32(CTRL_REG_OUTPUT_FREQ_HZ, control_dpll_output_hz());
+	control_put_u32(CTRL_REG_OUTPUT_FREQ_MILLIHZ, control_dpll_output_millihz());
 	control_put_u32(CTRL_REG_FAST_METER_HZ, control_fast_meter_hz());
+	fast_meter_sequence = control_get_u32(CTRL_REG_FAST_METER_SEQ) &
+	                      CTRL_FAST_METER_SEQ_MASK;
+	if (freq_meter_status & 0x10U)
+		fast_meter_sequence |= CTRL_FREQ_METER_LOCKED_MASK;
+	control_put_u32(CTRL_REG_FAST_METER_SEQ, fast_meter_sequence);
 	control_put_u32(CTRL_REG_ACTIVE_CONFIG_CRC, Xil_In32(DPLL_ACTIVE_CONFIG_CRC_Addr));
 }
 
@@ -1898,6 +1916,13 @@ static uint8_t control_publish_runtime(void)
 	ok &= control_uart_write(CTRL_REG_RESPONSE_SEQ, 1U,
 	                         &final_sequence);
 	return ok;
+}
+
+static void Control_Reset_Frequency_Meter(void)
+{
+	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 0U);
+	Xil_Out32(Freq_Meter_Reset_Trigger_Addr, 0U);
+	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 1U);
 }
 
 static void Control_Reset_Both(void)
@@ -1923,7 +1948,6 @@ static uint8_t Control_Link_Startup(void)
 		usleep(10000U);
 	}
 	if (retry == 200U) return 0U;
-
 	Control_Bank[CTRL_REG_CONTROL_FLAGS] = 0U;
 	if (!control_uart_write(CTRL_REG_CONTROL_FLAGS, 1U,
 	                        &Control_Bank[CTRL_REG_CONTROL_FLAGS])) return 0U;
@@ -1974,7 +1998,16 @@ static void Control_Link_Service(void)
 		}
 		Control_Bank[CTRL_REG_RESPONSE_SEQ] = Control_Request_Seen;
 	}
-	if (debug_preset != Control_Debug_Preset_Seen) {
+	if (debug_preset == CONTROL_FREQ_METER_RESET_REQUEST) {
+		if (!Control_Freq_Meter_Reset_Request_Seen) {
+			Control_Freq_Meter_Reset_Request_Seen = 1U;
+			Control_Reset_Frequency_Meter();
+		}
+		Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = Control_Debug_Preset_Seen;
+		control_uart_write(CTRL_REG_DEBUG_DAC_PRESET, 1U,
+		                   &Control_Bank[CTRL_REG_DEBUG_DAC_PRESET]);
+	} else if (debug_preset != Control_Debug_Preset_Seen) {
+		Control_Freq_Meter_Reset_Request_Seen = 0U;
 		if (debug_preset <= CTRL_DEBUG_DAC_PRESET_MAX) {
 			Control_Apply_Debug_DAC_Preset(debug_preset);
 			Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = debug_preset;
@@ -1983,6 +2016,8 @@ static void Control_Link_Service(void)
 			control_uart_write(CTRL_REG_DEBUG_DAC_PRESET, 1U,
 			                   &Control_Bank[CTRL_REG_DEBUG_DAC_PRESET]);
 		}
+	} else {
+		Control_Freq_Meter_Reset_Request_Seen = 0U;
 	}
 	control_collect_runtime();
 	control_publish_runtime();

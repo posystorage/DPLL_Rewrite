@@ -51,6 +51,7 @@ module dpll_core_sine_lock_tb;
         .rst_125m(rst),
         .sample_valid(sample_valid),
         .loop_enable(1'b1),
+        .status_clear(1'b0),
         .adc_sample(adc_sample),
         .center_word(CENTER_WORD),
         .config_apply(config_apply),

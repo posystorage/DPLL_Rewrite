@@ -37,6 +37,7 @@ static const dpll_filter_band_t dpll_filter_bands[] = {
     { 100000U, 12000U, 5000U, 0U },
     { 150000U, 15000U, 7000U, 0U },
     { 200000U, 18000U, 8000U, 0U },
+    /* Extended 200-250 kHz band; CIC R is still chosen by image guard. */
     { 250000U, 20000U, 9000U, 0U }
 };
 

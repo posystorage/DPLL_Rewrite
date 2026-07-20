@@ -50,6 +50,7 @@ module dpll_multifrequency_path_tb;
         .rst_125m(rst),
         .sample_valid(sample_valid),
         .loop_enable(1'b1),
+        .status_clear(1'b0),
         .adc_sample(adc_sample),
         .center_word(center_word),
         .config_apply(config_apply),

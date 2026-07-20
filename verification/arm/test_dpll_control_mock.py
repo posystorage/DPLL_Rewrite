@@ -9,6 +9,7 @@ DRIVER_C = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "dpll_driver.c"
 DRIVER_H = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "dpll_driver.h"
 PERIPH = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "Peripherals.h"
 PROTOCOL = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "control_protocol.h"
+PROFILE = ROOT / "DPLL_Rewrite.sdk" / "DPLL_2COM" / "src" / "dpll_profile.c"
 HOST_TEST = ROOT / "verification" / "arm" / "dpll_driver_host_test.c"
 
 
@@ -17,7 +18,7 @@ def read_source(path: Path) -> str:
 
 
 def function_body(text: str, name: str) -> str:
-    match = re.search(rf"(?:static\s+)?(?:void|int|uint8_t)\s+{name}\s*\([^)]*\)\s*\{{", text)
+    match = re.search(rf"(?:static\s+)?(?:void|int|uint8_t|uint32_t)\s+{name}\s*\([^)]*\)\s*\{{", text)
     if not match:
         raise AssertionError(f"missing function {name}")
     depth = 1
@@ -38,6 +39,7 @@ class DpllArmControlContractTest(unittest.TestCase):
         cls.driver_h = DRIVER_H.read_text(encoding="utf-8")
         cls.periph = read_source(PERIPH)
         cls.protocol = read_source(PROTOCOL)
+        cls.profile = read_source(PROFILE)
         cls.host_test = HOST_TEST.read_text(encoding="utf-8")
 
     def test_firmware_uses_the_host_compiled_driver(self):
@@ -90,7 +92,7 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn("memcpy(&Control_Bank[CTRL_PERSIST_BEGIN], previous", restore)
         self.assertIn("control_apply_bank()", restore)
         self.assertIn("control_uart_write", restore)
-        self.assertIn("Control_Last_Error = original_error", restore)
+        self.assertIn("control_report_error(original_error)", restore)
 
         pc_apply = function_body(self.arm, "Control_Apply_Persistent")
         self.assertIn("memcpy(previous", pc_apply)
@@ -161,7 +163,7 @@ class DpllArmControlContractTest(unittest.TestCase):
     def test_debug_dac_presets_match_frozen_table_and_old_default(self):
         for row in (
             "{0U, 0x0100U, 0U, 0x5000U}",
-            "{1U, 0x0004U, 0U, 0x7FFFU}",
+            "{1U, 0x0000U, 0U, 0x7FFFU}",
             "{2U, 0x0100U, 0U, 0x5000U}",
             "{3U, 0x0000U, 0U, 0x7FFFU}",
             "{4U, 0x0000U, 0U, 0x7FFFU}",
@@ -178,6 +180,30 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn(
             "Control_Set_Debug_DAC_Preset(CTRL_DEBUG_DAC_PRESET_DEFAULT)", reset
         )
+
+    def test_runtime_frequency_units_and_meter_lock_are_distinct(self):
+        self.assertIn("CTRL_REG_OUTPUT_FREQ_MILLIHZ", self.protocol)
+        self.assertIn("CTRL_REG_FAST_METER_HZ", self.protocol)
+        self.assertIn("CTRL_FREQ_METER_LOCKED_MASK", self.protocol)
+        dpll_frequency = function_body(self.arm, "control_dpll_output_millihz")
+        self.assertIn("244140625ULL", dpll_frequency)
+        self.assertIn("1ULL << 38", dpll_frequency)
+        runtime = function_body(self.arm, "control_collect_runtime")
+        self.assertIn("CTRL_REG_OUTPUT_FREQ_MILLIHZ", runtime)
+        self.assertIn("control_dpll_output_millihz()", runtime)
+        self.assertIn("CTRL_REG_FAST_METER_HZ", runtime)
+        self.assertIn("CTRL_FREQ_METER_LOCKED_MASK", runtime)
+
+    def test_frequency_meter_reset_restores_previous_dac_preset(self):
+        service = function_body(self.arm, "Control_Link_Service")
+        token = service.index("debug_preset == CONTROL_FREQ_METER_RESET_REQUEST")
+        restore = service.index(
+            "Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = Control_Debug_Preset_Seen",
+            token,
+        )
+        writeback = service.index("control_uart_write(CTRL_REG_DEBUG_DAC_PRESET", restore)
+        self.assertLess(token, restore)
+        self.assertLess(restore, writeback)
 
     def test_lcd_debug_preset_poll_is_outside_persistent_apply(self):
         service = function_body(self.arm, "Control_Link_Service")
@@ -228,10 +254,39 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn("(core_flags >> 9) & 0x0FU", self.arm)
 
     def test_control_uart_and_output_range_match_mcu_contract(self):
-        self.assertIn("format.BaudRate = 1000000;", self.arm)
+        self.assertIn("format.BaudRate = 921600;", self.arm)
+        self.assertIn("XUartPs_uart1.BaudRate = 1000000U;", self.arm)
         self.assertIn("CTRL_DPLL_OUTPUT_MAX_DHZ", self.arm)
         self.assertIn("control_output_ratio_valid", self.arm)
         self.assertIn("CTRL_FAST_INTERVAL_MAX_MS", self.arm)
+
+    def test_center_range_and_extended_profile_reach_250_khz(self):
+        self.assertIn("center > CTRL_DPLL_CENTER_MAX_DHZ", self.arm)
+        self.assertIn("CTRL_DPLL_CENTER_MAX_DHZ          2500000UL", self.protocol)
+        self.assertIn("DPLL_MAX_CENTER_HZ        250000.0", self.profile)
+        self.assertIn("DPLL_STANDARD_MAX_HZ      200000.0", self.profile)
+        self.assertRegex(
+            self.profile,
+            r"\{\s*250000U,\s*20000U,\s*9000U,\s*0U\s*\}",
+        )
+
+        rates = [16, 15, 12, 10, 8]
+
+        def selected_rate(center_hz):
+            for rate_r in rates:
+                output_rate = 3_125_000.0 / rate_r
+                image = 2.0 * center_hz
+                image -= round(image / output_rate) * output_rate
+                if abs(image) >= 2.2 * 20_000.0 and output_rate >= 8.0 * 20_000.0:
+                    return rate_r
+            return None
+
+        self.assertEqual(selected_rate(200_001), 12)
+        self.assertEqual(selected_rate(217_312), 12)
+        self.assertEqual(selected_rate(217_313), 16)
+        self.assertEqual(selected_rate(250_000), 16)
+        self.assertTrue(all(selected_rate(frequency) is not None
+                            for frequency in range(200_001, 250_001)))
 
 
 if __name__ == "__main__":

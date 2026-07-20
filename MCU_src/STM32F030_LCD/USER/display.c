@@ -238,8 +238,9 @@ static uint8_t format_phase(int32_t centidegrees, uint8_t show_sign,
 	return index;
 }
 
-static void display_phase(uint16_t x, uint16_t y, int32_t centidegrees,
-		uint8_t show_sign, uint8_t blink_power, uint16_t color)
+static void display_phase(uint16_t x, uint16_t y, uint16_t width,
+		int32_t centidegrees, uint8_t show_sign, uint8_t blink_power,
+		uint16_t color)
 {
 	uint8_t text[10];
 	uint8_t integer_start;
@@ -258,8 +259,8 @@ static void display_phase(uint16_t x, uint16_t y, int32_t centidegrees,
 
 	for (index = 0U; index < length; ++index)
 		text_width += text[index] == '.' ? 4U : 8U;
-	show_x = (uint16_t)(x + 56U - text_width);
-	LCD_Show_Square(x, y, 56U, 16U, WHITE);
+	show_x = (uint16_t)(x + width - text_width);
+	LCD_Show_Square(x, y, width, 16U, WHITE);
 	BACK_COLOR = WHITE;
 	cursor_x = show_x;
 	for (index = 0U; index < length; ++index) {
@@ -382,29 +383,19 @@ void Display_UI_Show_PLL_Set_Freq(uint32_t blink_bit)
 {
 	uint32_t value = STM8_Bank_Get_U32(CTRL_REG_CENTER_FREQ_DHZ);
 	uint32_t frequency_hz = value / 10U;
-	uint8_t digit;
-	uint16_t blink_x = 0U;
-	LCD_Show_Square(88U, 49U, 56U, 16U, WHITE);
+	uint16_t blink_x;
+
+	LCD_Show_Square(82U, 49U, 62U, 16U, WHITE);
 	BACK_COLOR = WHITE;
-	if (frequency_hz >= 100000UL) {
-		Display_U32toDec(frequency_hz);
-		for (digit = 6U; digit > 0U; --digit)
-			LCD_SHOW_ASCII_1608((uint16_t)(88U + (6U - digit) * 8U), 49U,
-			                       (uint8_t)('0' + U32_Dec_Buff[digit - 1U]), DARKBLUE);
-		if (blink_bit >= 2U && blink_bit <= 7U) {
-			blink_x = (uint16_t)(128U - (blink_bit - 2U) * 8U);
-			display_digit_blink(blink_x, 49U, U32_Dec_Buff[blink_bit - 2U], DARKBLUE);
-		}
-	} else {
-		Display_U32toDec(frequency_hz);
-		LCD_SHOW_ASCII_1608(126U, 49U, '.', DARKBLUE);
-		display_unsigned(88U, 49U, frequency_hz, 5U, 0U, DARKBLUE);
-		LCD_SHOW_ASCII_1608(130U, 49U, (uint8_t)('0' + value % 10U), DARKBLUE);
-		if (blink_bit == 1U) display_digit_blink(130U, 49U, (uint8_t)(value % 10U), DARKBLUE);
-		else if (blink_bit >= 2U && blink_bit <= 6U) {
-			blink_x = (uint16_t)(120U - (blink_bit - 2U) * 8U);
-			display_digit_blink(blink_x, 49U, U32_Dec_Buff[blink_bit - 2U], DARKBLUE);
-		}
+	display_unsigned(82U, 49U, frequency_hz, 6U, 0U, DARKBLUE);
+	LCD_SHOW_ASCII_1608(130U, 49U, '.', DARKBLUE);
+	LCD_SHOW_ASCII_1608(134U, 49U, (uint8_t)('0' + value % 10U), DARKBLUE);
+	if (blink_bit == 1U) {
+		display_digit_blink(134U, 49U, (uint8_t)(value % 10U), DARKBLUE);
+	} else if (blink_bit >= 2U && blink_bit <= 7U) {
+		blink_x = (uint16_t)(122U - (blink_bit - 2U) * 8U);
+		display_digit_blink(blink_x, 49U,
+		                    U32_Dec_Buff[blink_bit - 2U], DARKBLUE);
 	}
 }
 
@@ -429,19 +420,57 @@ static void display_signed_integer(uint16_t x, uint16_t y, int32_t value,
 static void display_fast_meter(void)
 {
 	uint32_t frequency = STM8_Bank_Get_U32(CTRL_REG_FAST_METER_HZ);
+	uint32_t meter_status = STM8_Bank_Get_U32(CTRL_REG_FAST_METER_SEQ);
 	uint32_t integer = frequency / 1000000UL;
 	uint32_t fraction = frequency % 1000000UL;
+	uint8_t link_state = STM8_Slave_Get_Link_State();
+	uint8_t dpll_status = STM8_Control_Bank[CTRL_REG_DPLL_STATUS];
+	uint8_t locked = (meter_status & CTRL_FREQ_METER_LOCKED_MASK) != 0U;
+	uint8_t online = link_state == STM8_LINK_ONLINE &&
+	                 (dpll_status & CTRL_DPLL_STATUS_ARM_ONLINE) != 0U;
+	uint16_t lock_color;
 	uint8_t power;
 	Display_U32toDec(integer);
-	LCD_SHOW_ASCII_1608(48U, 112U, U32_Dec_Buff[2] ? (uint8_t)('0' + U32_Dec_Buff[2]) : ' ', INDIANRED);
-	LCD_SHOW_ASCII_1608(56U, 112U, (U32_Dec_Buff[2] || U32_Dec_Buff[1]) ?
+	LCD_SHOW_ASCII_1608(46U, 112U, U32_Dec_Buff[2] ? (uint8_t)('0' + U32_Dec_Buff[2]) : ' ', INDIANRED);
+	LCD_SHOW_ASCII_1608(54U, 112U, (U32_Dec_Buff[2] || U32_Dec_Buff[1]) ?
 	                       (uint8_t)('0' + U32_Dec_Buff[1]) : ' ', INDIANRED);
-	LCD_SHOW_ASCII_1608(64U, 112U, (uint8_t)('0' + U32_Dec_Buff[0]), INDIANRED);
-	LCD_SHOW_ASCII_1608(72U, 112U, '.', INDIANRED);
+	LCD_SHOW_ASCII_1608(62U, 112U, (uint8_t)('0' + U32_Dec_Buff[0]), INDIANRED);
+	LCD_SHOW_ASCII_1608(70U, 112U, '.', INDIANRED);
 	Display_U32toDec(fraction);
 	for (power = 6U; power > 0U; --power)
-		LCD_SHOW_ASCII_1608((uint16_t)(76U + (6U - power) * 8U), 112U,
-	                       (uint8_t)('0' + U32_Dec_Buff[power - 1U]), INDIANRED);
+		LCD_SHOW_ASCII_1608((uint16_t)(74U + (6U - power) * 8U), 112U,
+		                       (uint8_t)('0' + U32_Dec_Buff[power - 1U]), INDIANRED);
+	if (!online) lock_color = GRAY;
+	else lock_color = locked ? DARKGREEN : BRRED;
+	LCD_SHOW_Icon_1612(147U, 112U, (online && locked) ? 0U : 1U, lock_color);
+}
+
+static void display_dpll_output_frequency(void)
+{
+	uint32_t millihz = STM8_Bank_Get_U32(CTRL_REG_OUTPUT_FREQ_MILLIHZ);
+	uint32_t frequency_hz = millihz / 1000U;
+	uint32_t fraction = millihz % 1000U;
+	uint16_t start_x;
+	uint8_t digits;
+
+	if (frequency_hz >= 100000UL) {
+		start_x = 54U;
+		digits = 6U;
+	} else if (frequency_hz >= 10000UL) {
+		start_x = 62U;
+		digits = 5U;
+	} else {
+		start_x = 70U;
+		digits = 4U;
+	}
+	LCD_Show_Square(54U, 97U, 76U, 16U, WHITE);
+	BACK_COLOR = WHITE;
+	display_unsigned(start_x, 97U, frequency_hz, digits, 0U, INDIANRED);
+	LCD_SHOW_ASCII_1608(102U, 97U, '.', INDIANRED);
+	Display_U32toDec(fraction);
+	LCD_SHOW_ASCII_1608(106U, 97U, (uint8_t)('0' + U32_Dec_Buff[2]), INDIANRED);
+	LCD_SHOW_ASCII_1608(114U, 97U, (uint8_t)('0' + U32_Dec_Buff[1]), INDIANRED);
+	LCD_SHOW_ASCII_1608(122U, 97U, (uint8_t)('0' + U32_Dec_Buff[0]), INDIANRED);
 }
 
 static void display_loop_state(uint8_t status, uint8_t link_state)
@@ -472,12 +501,11 @@ void Display_UI_PLL_Refresh_Status(void)
 	Display_UI_PLL_Enable(0U);
 	display_signed_integer(46U, 81U,
 	                       STM8_Bank_Get_S32(CTRL_REG_FREQ_ERROR_HZ),
-	                       4U, INDIANRED);
-	display_phase(104U, 81U,
+	                       3U, INDIANRED);
+	display_phase(114U, 81U, 46U,
 	              STM8_Bank_Get_S32(CTRL_REG_PHASE_ERROR_CDEG),
 	              0U, 0U, INDIANRED);
-	display_unsigned(54U, 97U, STM8_Bank_Get_U32(CTRL_REG_OUTPUT_FREQ_HZ),
-	                 8U, 0U, INDIANRED);
+	display_dpll_output_frequency();
 	display_fast_meter();
 	display_loop_state(status, link_state);
 	if (link_state != STM8_LINK_ONLINE) {
@@ -530,11 +558,11 @@ void Display_UI_PLL_Main_Page_Init(void)
 	LCD_SHOW_ASCII_1608(139U, 65U, '1', BLACK);
 	LCD_SHOW_ASCII_1608(145U, 65U, ':', BLACK);
 	LCD_16ShowString_hanzi(14U, 81U, "频残", BLACK);
-	LCD_16ShowString_hanzi(86U, 81U, "相残", BLACK);
+	LCD_16ShowString_hanzi(82U, 81U, "相残", BLACK);
 	LCD_16ShowString_hanzi(14U, 97U, "输出:", GRAYBLUE);
 	LCD_16ShowString_hanzi(136U, 97U, "Hz", GRAYBLUE);
-	LCD_16ShowString_hanzi(14U, 112U, "频率", GRAYBLUE);
-	LCD_16ShowString_hanzi(136U, 112U, "MHz", GRAYBLUE);
+	LCD_16ShowString_hanzi(14U, 112U, "重频", GRAYBLUE);
+	LCD_16ShowString_hanzi(122U, 112U, "MHz", GRAYBLUE);
 	Display_UI_PLL_Enable(0U);
 	Display_UI_Show_PLL_Set_Freq(0U);
 	Display_UI_Show_PLL_Mux_Div_Index(0U, 0U);
@@ -561,7 +589,8 @@ void Display_UI_Show_PLL_Limit(uint8_t row, uint32_t blink_bit)
 
 void Display_UI_Show_Phase_Threshold(uint32_t blink_bit)
 {
-	display_phase(88U, 96U, (int32_t)STM8_Bank_Get_U16(CTRL_REG_PHASE_THRESHOLD_CDEG),
+	display_phase(88U, 96U, 56U,
+	              (int32_t)STM8_Bank_Get_U16(CTRL_REG_PHASE_THRESHOLD_CDEG),
 	              0U, (uint8_t)blink_bit, DARKBLUE);
 }
 

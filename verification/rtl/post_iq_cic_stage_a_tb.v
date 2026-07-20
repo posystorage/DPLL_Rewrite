@@ -7,6 +7,7 @@ module post_iq_cic_stage_a_tb;
     reg signed [17:0] i_in = 18'sd0;
     reg signed [17:0] q_in = 18'sd0;
     reg config_apply = 1'b0;
+    reg status_clear = 1'b0;
     reg [8:0] shadow_rate_r = 9'd8;
     reg [5:0] shadow_output_shift = 6'd0;
     reg flush = 1'b0;
@@ -31,6 +32,7 @@ module post_iq_cic_stage_a_tb;
         .i_in(i_in),
         .q_in(q_in),
         .config_apply(config_apply),
+        .status_clear(status_clear),
         .shadow_rate_r(shadow_rate_r),
         .shadow_output_shift(shadow_output_shift),
         .flush(flush),
@@ -126,6 +128,15 @@ module post_iq_cic_stage_a_tb;
         repeat (16) tick_sample(18'sd1, -18'sd1);
         if (valid_count != valid_count_before + 2) begin
             $display("FAIL: illegal config flushed CIC state, valid_count=%0d", valid_count);
+            $finish;
+        end
+
+        status_clear = 1'b1;
+        @(posedge clk_125m);
+        #1;
+        status_clear = 1'b0;
+        if (illegal_config_seen !== 1'b0 || active_rate_r !== 9'd8) begin
+            $display("FAIL: status clear changed active CIC config or left sticky error set");
             $finish;
         end
 

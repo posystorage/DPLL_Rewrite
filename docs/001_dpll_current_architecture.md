@@ -195,7 +195,11 @@ CORDIC 输入合法检查范围：
 -262144 <= I,Q <= +262144
 ```
 
-注意：CORDIC 三个 sticky 错误由 `rst_125m` 或独立 `status_clear` 清零。当前核心只在首次 `state 3 -> state 4` 边沿产生该状态清零脉冲；adapter 的数据通路 `clear/config_apply` 不清 sticky，也不会借状态清零去复位 FIFO 或 CORDIC IP。
+CORDIC 三个 sticky 错误和 CIC 的 sticky 状态由独立 `status_clear` 清零；该清零
+不复位 FIFO、CORDIC IP、CIC 积分器或 active 配置。wrapper 捕获故障后立即清除
+源锁存，并把 LED5/锁定资格中的数据通路故障保持 `2^25 / 125 MHz = 0.268 s`。
+重复故障重新开始该窗口。DPLL 关闭期间持续清空相位、频率和数据通路故障历史，
+重新开启后从干净窗口重新判定；LED4 仍只表示当前输出饱和。
 
 ### 2.7 phase detector
 

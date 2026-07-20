@@ -502,13 +502,11 @@ wire shadow_magnitude_legal = (Magnitude_Enter_Threshold0[19:0] > Magnitude_Exit
 wire shadow_dwell_legal = (Acquire_Dwell0[15:0] != 16'd0) &&
                           (Blend_Dwell0[15:0] != 16'd0) &&
                           (Loss_Dwell0[15:0] != 16'd0);
-wire shadow_measurement_timeout_legal = (Measurement_Timeout0[23:0] == 24'd0) ||
-                                        (Measurement_Timeout0[23:0] >= shadow_measurement_min);
 wire shadow_holdover_legal = Holdover_Timeout0[23:0] != 24'd0;
 wire shadow_post_iir_mode_legal = (post_iir_mode[31:2] == 30'd0);
 wire [15:0] shadow_rejected_mask_no_mul = {5'd0, !shadow_post_iir_mode_legal,
     !shadow_width_legal, !shadow_holdover_legal,
-    !shadow_measurement_timeout_legal, !shadow_dwell_legal, !shadow_magnitude_legal,
+    1'b0, !shadow_dwell_legal, !shadow_magnitude_legal,
     !shadow_limits_legal, 1'b0, !shadow_fll_delay_legal,
     !shadow_cic_shift_legal, !shadow_cic_rate_legal};
 
@@ -647,6 +645,8 @@ reg [15:0] apply_rejected_mask_base_r;
 reg [63:0] apply_vco_product_r;
 reg [63:0] apply_vco_max_product_r;
 reg apply_vco_factors_nonzero_r;
+reg [23:0] apply_measurement_min_r;
+reg [23:0] apply_measurement_timeout_r;
 reg [15:0] apply_rejected_mask_next_r;
 reg config_commit_toggle_sys;
 (* ASYNC_REG = "TRUE" *) reg config_commit_meta_clk;
@@ -680,6 +680,18 @@ reg [31:0] live_debug_dac_format;
 wire debug_commit_pulse_clk = debug_commit_sync_clk ^ debug_commit_seen_clk;
 wire debug_dac_live_update_sys = debug_dac_offset_update || debug_dac_gain_update ||
                                  debug_dac_source_update || debug_dac_format_update;
+wire apply_measurement_timeout_legal = (apply_measurement_timeout_r == 24'd0) ||
+                                       (apply_measurement_timeout_r >= apply_measurement_min_r);
+
+// These values are consumed only after this APPLY edge.  Avoiding an
+// asynchronous reset allows Vivado to use the multiplier's output register.
+always @(posedge sys_clk) begin
+    if (config_apply_state == APPLY_STATE_IDLE &&
+        config_apply_flag && !config_apply_busy) begin
+        apply_measurement_min_r <= shadow_measurement_min;
+        apply_measurement_timeout_r <= Measurement_Timeout0[23:0];
+    end
+end
 
 always @(posedge sys_clk or negedge sys_rstn) begin
     if (!sys_rstn) begin
@@ -722,6 +734,7 @@ always @(posedge sys_clk or negedge sys_rstn) begin
             end
             APPLY_STATE_MUL: begin
                 apply_rejected_mask_next_r <= apply_rejected_mask_base_r |
+                    {8'd0, !apply_measurement_timeout_legal, 7'd0} |
                     {12'd0, !(apply_vco_factors_nonzero_r &&
                               (apply_vco_product_r <= apply_vco_max_product_r)), 3'd0};
                 config_apply_state <= APPLY_STATE_CHECK;
@@ -936,6 +949,7 @@ dpll_single_clock_core_stage_a dpll_single_clock_core_stage_a_inst (
     .rst_125m(rst_core_r),
     .sample_valid(pre_cic_valid),
     .loop_enable(pll0_lock),
+    .status_clear(datapath_status_clear),
     .adc_sample(pre_cic_sample),
     .center_word(active_center_word),
     .config_apply(config_apply_core_pulse),
@@ -1111,23 +1125,29 @@ wire pll0_locked_instant;
 localparam [25:0] RESIDUAL_WINDOW_CYCLES = 26'd33554432; // 2^25 at 125 MHz
 reg [25:0] phase_residual_window_count;
 reg [25:0] freq_residual_window_count;
+reg [25:0] datapath_fault_window_count;
 reg phase_residual_window_bad;
 reg freq_residual_window_bad;
+reg datapath_fault_window_bad;
 wire residuals0_are_above_threshold_phase = phase_residual_window_bad;
 wire residuals0_are_above_threshold_freq = freq_residual_window_bad;
 reg residuals0_are_above_threshold;
 reg LED_G0;
 reg LED_R0;
-reg pre_cic_backpressure_seen;
 reg [23:0] status_counter;
 wire output_saturation = dac0_railed_positive | dac0_railed_negative;
-wire datapath_fault = dpll_cic_illegal | dpll_cic_overflow |
-                      dpll_cordic_input_overrun |
-                      dpll_cordic_input_out_of_range |
-                      dpll_cordic_output_format_error |
-                      pre_cic_backpressure_seen;
+wire pre_cic_backpressure_seen = ~rst_125m_stage_a && !pre_cic_ready;
+wire datapath_fault_event = dpll_cic_illegal | dpll_cic_overflow |
+                            dpll_cordic_input_overrun |
+                            dpll_cordic_input_out_of_range |
+                            dpll_cordic_output_format_error |
+                            pre_cic_backpressure_seen;
+wire datapath_status_clear = !pll0_lock || datapath_fault_event;
+wire datapath_fault = datapath_fault_window_bad;
 wire lock_qualification_bad = phase_residual_bad | freq_residual_bad |
-                               output_saturation | datapath_fault;
+                               phase_residual_window_bad |
+                               freq_residual_window_bad |
+                               output_saturation | datapath_fault_window_bad;
 assign pll0_locked_instant = dpll_locked && !lock_qualification_bad;
 
 always @(posedge clk1) begin
@@ -1135,12 +1155,24 @@ always @(posedge clk1) begin
         residuals0_are_above_threshold <= 1'b0;
         phase_residual_window_count <= 26'd0;
         freq_residual_window_count <= 26'd0;
+        datapath_fault_window_count <= 26'd0;
         phase_residual_window_bad <= 1'b0;
         freq_residual_window_bad <= 1'b0;
+        datapath_fault_window_bad <= 1'b0;
         LED_G0 <= 1'b0;
         LED_R0 <= 1'b1;
-        pre_cic_backpressure_seen <= 1'b0;
         status_counter <= 24'h0;
+    end else if (!pll0_lock) begin
+        residuals0_are_above_threshold <= 1'b0;
+        phase_residual_window_count <= 26'd0;
+        freq_residual_window_count <= 26'd0;
+        datapath_fault_window_count <= 26'd0;
+        phase_residual_window_bad <= 1'b0;
+        freq_residual_window_bad <= 1'b0;
+        datapath_fault_window_bad <= 1'b0;
+        LED_G0 <= 1'b0;
+        LED_R0 <= 1'b1;
+        status_counter <= status_counter + 24'h1;
     end else begin
         if (phase_residual_bad) begin
             phase_residual_window_count <= 26'd0;
@@ -1160,11 +1192,17 @@ always @(posedge clk1) begin
             else
                 freq_residual_window_bad <= 1'b0;
         end
+        if (datapath_fault_event) begin
+            datapath_fault_window_count <= 26'd0;
+            datapath_fault_window_bad <= 1'b1;
+        end else if (datapath_fault_window_bad) begin
+            if (datapath_fault_window_count < RESIDUAL_WINDOW_CYCLES)
+                datapath_fault_window_count <= datapath_fault_window_count + 1'b1;
+            else
+                datapath_fault_window_bad <= 1'b0;
+        end
         residuals0_are_above_threshold <= phase_residual_window_bad |
                                            freq_residual_window_bad;
-        if (~rst_125m_stage_a && !pre_cic_ready) begin
-            pre_cic_backpressure_seen <= 1'b1;
-        end
         status_counter <= status_counter + 24'h1;
         LED_G0 <= dpll_locked && !lock_qualification_bad &&
                   !phase_residual_window_bad && !freq_residual_window_bad;

@@ -14,6 +14,7 @@ module post_iq_cic_stage_a #(
     input  wire signed [INPUT_WIDTH-1:0]    i_in,
     input  wire signed [INPUT_WIDTH-1:0]    q_in,
     input  wire                             config_apply,
+    input  wire                             status_clear,
     input  wire [RATE_WIDTH-1:0]            shadow_rate_r,
     input  wire [SHIFT_WIDTH-1:0]           shadow_output_shift,
     input  wire                             flush,
@@ -181,6 +182,8 @@ module post_iq_cic_stage_a #(
             end else begin
                 illegal_config_seen <= 1'b1;
             end
+        end else if (status_clear) begin
+            illegal_config_seen <= 1'b0;
         end
     end
 
@@ -232,6 +235,8 @@ module post_iq_cic_stage_a #(
                     || shifted_saturation_needed(q_rounded);
                 out_valid <= 1'b1;
             end
+            if (status_clear)
+                overflow_seen <= 1'b0;
         end
 
         if (clear_i_integrators) begin

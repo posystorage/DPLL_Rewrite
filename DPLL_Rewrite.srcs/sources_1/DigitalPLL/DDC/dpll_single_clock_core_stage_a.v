@@ -16,6 +16,7 @@ module dpll_single_clock_core_stage_a #(
     input  wire                                  rst_125m,
     input  wire                                  sample_valid,
     input  wire                                  loop_enable,
+    input  wire                                  status_clear,
     input  wire signed [ADC_WIDTH-1:0]           adc_sample,
     input  wire [WORD_WIDTH-1:0]                 center_word,
     input  wire                                  config_apply,
@@ -194,7 +195,8 @@ module dpll_single_clock_core_stage_a #(
         (post_iir_active_bypass != post_iir_requested_bypass) ||
         (post_iir_active_use_track != post_iir_requested_track);
     assign detector_reconfigure = config_apply | cic_flush | post_iir_selection_changed;
-    wire cordic_status_clear = (loop_state == 4'd4) && (loop_state_d == 4'd3);
+    wire cordic_status_clear = status_clear |
+                               ((loop_state == 4'd4) && (loop_state_d == 4'd3));
 
     always @(posedge clk_125m) begin
         rst_nco_r <= rst_125m;
@@ -380,6 +382,7 @@ module dpll_single_clock_core_stage_a #(
         .i_in(mixer_i_cic_r),
         .q_in(mixer_q_cic_r),
         .config_apply(config_apply),
+        .status_clear(status_clear),
         .shadow_rate_r(cic_rate_r),
         .shadow_output_shift(cic_output_shift),
         .flush(cic_flush),

@@ -17,6 +17,7 @@ void STM8Slave_MAX2871_ON_CMD(void);
 void STM8Slave_MAX2871_OFF_CMD(void);
 void STM8Slave_PLL_ON_CMD(void);
 void STM8Slave_PLL_OFF_CMD(void);
+uint8_t STM8_Slave_Reset_Frequency_Meter(void);
 
 void STM8_Slave_Set_MAX2871_Freq_Power(void);
 uint8_t STM8_Slave_Set_Debug_DAC_Preset(uint8_t preset);

@@ -117,8 +117,8 @@ static void CtrlP0I4_PLL_Frequency(Ctrl_Cursor_Enum option)
 {
 	uint32_t value = STM8_Bank_Get_U32(CTRL_REG_CENTER_FREQ_DHZ);
 	uint32_t step = POW10[Cursor_Center];
-	if (is_add(option) && value + step <= 1250000UL) value += step;
-	if (is_sub(option) && value >= 40000UL + step) value -= step;
+	if (is_add(option) && value + step <= CTRL_DPLL_CENTER_MAX_DHZ) value += step;
+	if (is_sub(option) && value >= CTRL_DPLL_CENTER_MIN_DHZ + step) value -= step;
 	if (is_add(option) || is_sub(option)) {
 		STM8_Bank_Put_U32(CTRL_REG_CENTER_FREQ_DHZ, value);
 		apply_pll_change();
@@ -322,6 +322,12 @@ void Ctrl_KEY_Response_Service(void)
 			Page_Num = 1U;
 		}
 		Key_Value = 0U;
+	}
+	if (Key_Value & KEY5_Long_Press) {
+		if (Page_Num == 0U &&
+		    STM8_Slave_Get_Link_State() == STM8_LINK_ONLINE)
+			STM8_Slave_Reset_Frequency_Meter();
+		Key_Value &= ~KEY5_Long_Press;
 	}
 
 	if (Key_Value & (KEY1_Short_Press | KEY2_Short_Press)) {

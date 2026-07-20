@@ -36,6 +36,7 @@ module dpll_single_clock_core_stage_a_tb;
         .rst_125m(rst),
         .sample_valid(sample_valid),
         .loop_enable(1'b1),
+        .status_clear(1'b0),
         .adc_sample(adc_sample),
         .center_word(48'h0100_0000_0000),
         .config_apply(config_apply),

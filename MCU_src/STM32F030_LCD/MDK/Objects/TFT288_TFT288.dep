@@ -11,12 +11,12 @@ I (..\HARDWARE\DELAY\delay.h)(0x59E5E6BC)
 I (..\HARDWARE\LCD\lcd.h)(0x615EB8F0)
 I (..\HARDWARE\TIM16\TIM16.h)(0x5D7CCF31)
 I (..\HARDWARE\ENCODER\ENCODER.h)(0x6133BA9B)
-I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A562483)
-I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A562481)
+I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A5DE571)
+I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A5DEEC9)
 I (..\USER\display.h)(0x6A55F537)
 I (..\USER\control.h)(0x6A551029)
 I (..\HARDWARE\ADC\ADC.h)(0x6159C899)
-F (..\USER\display.c)(0x6A5B3DFE)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\display.o --omf_browse .\objects\display.crf --depend .\objects\display.d)
+F (..\USER\display.c)(0x6A5DF2EF)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\display.o --omf_browse .\objects\display.crf --depend .\objects\display.d)
 I (..\USER\display.h)(0x6A55F537)
 I (..\CORE\stm32f0xx.h)(0x54808D10)
 I (..\CORE\core_cm0.h)(0x547D9684)
@@ -26,10 +26,10 @@ I (..\CORE\core_cmFunc.h)(0x556D6D76)
 I (..\CORE\system_stm32f0xx.h)(0x54808D10)
 I (..\HARDWARE\LCD\lcd.h)(0x615EB8F0)
 I (..\HARDWARE\DELAY\delay.h)(0x59E5E6BC)
-I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A562483)
-I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A562481)
+I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A5DE571)
+I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A5DEEC9)
 I (..\HARDWARE\ADC\ADC.h)(0x6159C899)
-F (..\USER\control.c)(0x6A5A66DF)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\control.o --omf_browse .\objects\control.crf --depend .\objects\control.d)
+F (..\USER\control.c)(0x6A5DE572)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\control.o --omf_browse .\objects\control.crf --depend .\objects\control.d)
 I (..\USER\control.h)(0x6A551029)
 I (..\CORE\stm32f0xx.h)(0x54808D10)
 I (..\CORE\core_cm0.h)(0x547D9684)
@@ -37,8 +37,8 @@ I (C:\Keil_MDK_C51\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (..\CORE\core_cmInstr.h)(0x556D6F18)
 I (..\CORE\core_cmFunc.h)(0x556D6D76)
 I (..\CORE\system_stm32f0xx.h)(0x54808D10)
-I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A562483)
-I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A562481)
+I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A5DE571)
+I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A5DEEC9)
 I (..\USER\display.h)(0x6A55F537)
 I (..\HARDWARE\ENCODER\ENCODER.h)(0x6133BA9B)
 F (..\HARDWARE\DELAY\delay.c)(0x5F218B22)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\delay.o --omf_browse .\objects\delay.crf --depend .\objects\delay.d)
@@ -73,8 +73,8 @@ I (..\HARDWARE\DELAY\delay.h)(0x59E5E6BC)
 I (..\HARDWARE\ENCODER\ENCODER.h)(0x6133BA9B)
 I (..\USER\display.h)(0x6A55F537)
 I (..\HARDWARE\ADC\ADC.h)(0x6159C899)
-I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A562483)
-I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A562481)
+I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A5DE571)
+I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A5DEEC9)
 I (..\USER\control.h)(0x6A551029)
 F (..\HARDWARE\ENCODER\ENCODER.c)(0x614D8F07)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\encoder.o --omf_browse .\objects\encoder.crf --depend .\objects\encoder.d)
 I (..\HARDWARE\ENCODER\ENCODER.h)(0x6133BA9B)
@@ -95,15 +95,15 @@ I (..\CORE\core_cmInstr.h)(0x556D6F18)
 I (..\CORE\core_cmFunc.h)(0x556D6D76)
 I (..\CORE\system_stm32f0xx.h)(0x54808D10)
 I (..\HARDWARE\DELAY\delay.h)(0x59E5E6BC)
-F (..\HARDWARE\STM8Slave\STM8Slave.c)(0x6A562568)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\stm8slave.o --omf_browse .\objects\stm8slave.crf --depend .\objects\stm8slave.d)
-I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A562483)
+F (..\HARDWARE\STM8Slave\STM8Slave.c)(0x6A5DE620)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\stm8slave.o --omf_browse .\objects\stm8slave.crf --depend .\objects\stm8slave.d)
+I (..\HARDWARE\STM8Slave\STM8Slave.h)(0x6A5DE571)
 I (..\CORE\stm32f0xx.h)(0x54808D10)
 I (..\CORE\core_cm0.h)(0x547D9684)
 I (C:\Keil_MDK_C51\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (..\CORE\core_cmInstr.h)(0x556D6F18)
 I (..\CORE\core_cmFunc.h)(0x556D6D76)
 I (..\CORE\system_stm32f0xx.h)(0x54808D10)
-I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A562481)
+I (..\HARDWARE\STM8Slave\control_protocol.h)(0x6A5DEEC9)
 I (..\HARDWARE\IIC\iic.h)(0x61370A2A)
 I (..\HARDWARE\DELAY\delay.h)(0x59E5E6BC)
 F (..\HARDWARE\ADC\ADC.c)(0x615C1ECA)(-c --cpu Cortex-M0 -g -O0 --apcs=interwork --split_sections -I ..\CORE -I ..\USER -I ..\HARDWARE\DELAY -I ..\HARDWARE\LCD -I ..\HARDWARE\TIM16 -I ..\HARDWARE\ENCODER -I ..\HARDWARE\IIC -I ..\HARDWARE\STM8Slave -I ..\HARDWARE\ADC-IC:\Keil_MDK_C51\Packs\Keil\STM32F0xx_DFP\1.5.0\Device\Include-IC:\Keil_MDK_C51\ARM\CMSIS\Include-D__UVISION_VERSION="535" -DSTM32F030x6 -DSTM32F030-o .\objects\adc.o --omf_browse .\objects\adc.crf --depend .\objects\adc.d)

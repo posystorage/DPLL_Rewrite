@@ -7,6 +7,7 @@
 #define STM8_EEPROM_WRITE_TIME          10000U
 #define STM8_STATUS_RETRY_LIMIT         60U
 #define STM8_WRITE_VERIFY_RETRY_LIMIT   3U
+#define FREQ_METER_RESET_REQUEST        0xFEU
 
 uint8_t STM8_Control_Bank[CTRL_BANK_SIZE];
 static uint8_t STM8_Control_Snapshot[CTRL_BANK_SIZE];
@@ -105,6 +106,13 @@ void STM8Slave_PLL_ON_CMD(void)
 void STM8Slave_PLL_OFF_CMD(void)
 {
 	STM8Slave_Command(0xC8U, 1U);
+}
+
+uint8_t STM8_Slave_Reset_Frequency_Meter(void)
+{
+	uint8_t request = FREQ_METER_RESET_REQUEST;
+	return STM8Slave_Write_Verified(CTRL_REG_DEBUG_DAC_PRESET, 1U,
+	                                &request);
 }
 
 void STM8Slave_Init(void)

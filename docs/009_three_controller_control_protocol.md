@@ -30,7 +30,7 @@
 | 3 | 1 | control flags | bit0 DPLL，bit1 MAX2871；不持久化 |
 | 4 | 4 | microwave frequency | 整数 kHz，范围 `23500--6400000` |
 | 8 | 1 | microwave power | `0..3` |
-| 12 | 4 | center frequency | `0.1 Hz/LSB`，范围 `4--125 kHz` |
+| 12 | 4 | center frequency | `0.1 Hz/LSB`，可设置范围 `4--250 kHz`；`5--200 kHz` 为标准设计范围 |
 | 16 | 2 | output MUL | 无符号整数，非零；由 ARM 按中心频率校验输出上限 |
 | 18 | 2 | output DIV | 无符号整数，非零；由 ARM 按中心频率校验输出上限 |
 | 20 | 4 | Kp_track | 低 24 bit 有效 |
@@ -50,12 +50,12 @@
 | 68 | 1 | loop state | FPGA 环路状态 |
 | 69 | 1 | loss reason | FPGA 失锁原因 |
 | 70 | 1 | bridge status | bit0 为 STM8 I2C 命令 BUSY；bit1 为本次启动 EEPROM 校验异常锁存 |
-| 71 | 1 | debug DAC preset | 非持久快捷预设 `0..8`；`FF` 表示 PC 完整手动配置 |
+| 71 | 1 | debug DAC preset/action | 非持久快捷预设 `0..8`；`FE` 请求精密频率计复位；`FF` 表示 PC 完整手动配置 |
 | 72 | 4 | actual frequency error | 有符号整数 Hz |
 | 76 | 4 | actual phase error | 有符号 `0.01 degree/LSB` |
-| 80 | 4 | DPLL output frequency | 无符号整数 Hz |
-| 84 | 4 | fast meter result | 无符号整数 Hz |
-| 88 | 4 | fast meter sequence | FPGA 快速结果序号 |
+| 80 | 4 | DPLL realtime frequency | 无符号整数，`1 mHz/LSB`；跟踪相位字对应的 MUL/DIV 前频率 |
+| 84 | 4 | fast meter result | 无符号整数，`1 Hz/LSB`；第一页“重频”参考值 |
+| 88 | 4 | fast meter sequence/status | bits30:0 为 FPGA 快速结果序号，bit31 为精密频率计稳定锁定 |
 | 92 | 4 | active config CRC | FPGA active 配置 CRC |
 
 相位显示只做整数拆位：绝对值达到 `100 degree` 时显示整数，达到 `10 degree`
@@ -73,6 +73,13 @@ center frequency * MUL / DIV <= 62.5 MHz
 偏移 71 不属于 `[4,64)`，不进入 EEPROM，也不推进 request sequence。STM32
 只把它作为 `D1:0..8` 的快捷选择；ARM 收到变化后直接写 FPGA live debug
 寄存器，不执行 CONFIG_APPLY、不改变 active CRC、不触发环路重捕获。
+
+偏移 71 的保留值 `FE` 是版本 3 的兼容扩展，表示一次精密频率计复位请求。STM32
+只在 ARM 在线时写入 `FE`；ARM 收到后执行与 PC `0x96` 相同的复位，并把偏移 71
+恢复为请求前的 D1 预设值。该请求不使用 STM8 命令、不推进 request sequence、
+不执行 DPLL CONFIG_APPLY、不写 EEPROM。ARM 启动时会先把偏移 71 初始化为默认
+D1 预设，因此不会重放启动前遗留的请求。STM8 只透明转发该值，无需修改或重新
+烧录版本 3 固件。
 
 ## 3. ARM 与 STM8 UART 帧
 
@@ -145,7 +152,7 @@ sequence 等于该值、快照内 request sequence 也等于该值。实现采�
 5. 等待复位完成并重新检查 DPLL ABI。
 6. 把中心频率、限幅、相位、频差和幅度等物理定点量换算成 FPGA 格式。
 7. 生成完整频点 profile，覆盖四个屏幕增益和物理设置，一次性 APPLY。
-8. 把 DAC1 恢复为默认快捷预设 `D1:1`，即老固件的校正量输出位窗。
+8. 把 DAC1 恢复为默认快捷预设 `D1:1`，即校正量 raw 低位观察窗口。
 9. 回写状态与换算后的显示值，DPLL 与 MAX2871 继续保持关闭。
 
 STM32 通常先启动；Logo 结束后直接进入第一页并在后台轮询，不使用独立的通信失败
@@ -216,7 +223,7 @@ payload length 12: uint32 source, uint32 format, int16 offset, int16 gain
 | D1 | source 内容 | format | gain | offset | 观察含义 |
 |---:|---|---:|---:|---:|---|
 | 0 | `freq_correction[55:24]` | `0100` | `5000` | 0 | 最终校正量，算术缩放观察 |
-| 1 | `(tracking-center)[47:16]` | `0004` | `7FFF` | 0 | 老 DAC1 等效校正位窗，默认 |
+| 1 | `(tracking-center)[47:16]` | `0000` | `7FFF` | 0 | 校正量 raw 低位窗，默认 |
 | 2 | `freq_state[55:24]` | `0100` | `5000` | 0 | 积分状态 |
 | 3 | phase error | `0000` | `7FFF` | 0 | 相位残差低位 |
 | 4 | frequency error | `0000` | `7FFF` | 0 | 频率残差低位 |
@@ -229,7 +236,7 @@ payload length 12: uint32 source, uint32 format, int16 offset, int16 gain
 shift/saturate；`format[5:0]` 在 raw 模式是窗口最低位，在移位模式是右移位数。
 raw 模式不使用 gain/offset，表中仍写固定值以保证完整寄存器状态确定。当前顶层
 物理 DAC B 使用 formatter 输出低 14 bit，因此 `D1:1` 最终对应 tracking delta
-`[33:20]`，与老代码 `PID_OUT_With_Limit` 的实际 DAC1 校正观察窗口等效。
+`[29:16]`。该快捷预设只改变 DAC1 观察位窗，不改变 DPLL 运算或控制区频率字段。
 
 所有快捷和完整写入都是非固化 live 设置；整机上电或 `0x8E` 复位后统一回到
 `D1:1`。这两种写法都不调用 DPLL APPLY，也不写 STM8 EEPROM。

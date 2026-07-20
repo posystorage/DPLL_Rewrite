@@ -33,6 +33,8 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         self.assertEqual(macros["CTRL_REG_PHASE_THRESHOLD_CDEG"], "44U")
         self.assertEqual(macros["CTRL_REG_PHASE_ERROR_CDEG"], "76U")
         self.assertEqual(macros["CTRL_REG_MWS_FREQ_KHZ"], "4U")
+        self.assertEqual(macros["CTRL_DPLL_CENTER_MIN_DHZ"], "40000UL")
+        self.assertEqual(macros["CTRL_DPLL_CENTER_MAX_DHZ"], "2500000UL")
         self.assertEqual(macros["CTRL_DPLL_OUTPUT_MAX_DHZ"], "625000000UL")
         self.assertEqual(macros["CTRL_FAST_INTERVAL_MAX_MS"], "34359U")
         self.assertEqual(macros["CTRL_REG_DEBUG_DAC_PRESET"], "71U")
@@ -79,7 +81,7 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
             encoding="utf-8"
         )
         body = re.search(
-            r"static uint32_t control_dpll_output_hz\(void\)\s*\{(.*?)\n\}",
+            r"static uint32_t control_dpll_output_millihz\(void\)\s*\{(.*?)\n\}",
             source,
             re.S,
         )
@@ -87,6 +89,26 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         self.assertIn("DPLL_TRACKING_WORD_HI_Addr", body.group(1))
         self.assertIn("PLL0_Output_Limit", body.group(1))
         self.assertNotIn("PLL0_Output_Limit_Average", body.group(1))
+
+    def test_runtime_frequency_fields_have_distinct_units(self):
+        macros = macro_table(HEADERS[0])
+        self.assertEqual(macros["CTRL_REG_OUTPUT_FREQ_MILLIHZ"], "80U")
+        self.assertEqual(macros["CTRL_REG_FAST_METER_HZ"], "84U")
+        self.assertEqual(macros["CTRL_REG_FAST_METER_SEQ"], "88U")
+        self.assertEqual(macros["CTRL_FAST_METER_SEQ_MASK"], "0x7FFFFFFFUL")
+        self.assertEqual(macros["CTRL_FREQ_METER_LOCKED_MASK"], "0x80000000UL")
+
+    def test_lcd_runtime_frequency_layout_and_label(self):
+        display = (ROOT / "MCU_src/STM32F030_LCD/USER/display.c").read_text(
+            encoding="gbk"
+        )
+        self.assertIn('LCD_16ShowString_hanzi(14U, 112U, "重频"', display)
+        self.assertIn("LCD_SHOW_ASCII_1608(46U, 112U", display)
+        self.assertIn('LCD_16ShowString_hanzi(122U, 112U, "MHz"', display)
+        self.assertIn("LCD_SHOW_Icon_1612(147U, 112U", display)
+        self.assertIn("(online && locked) ? 0U : 1U", display)
+        self.assertIn("CTRL_REG_OUTPUT_FREQ_MILLIHZ", display)
+        self.assertIn("uint32_t fraction = millihz % 1000U", display)
 
     def test_stm8_keeps_verified_original_one_mbps_uart_setup(self):
         source = (ROOT / "MCU_src/STM8S003_MX2871_IIC/src/RedPitaya.c").read_text(
@@ -103,7 +125,7 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         ).read_text(encoding="ascii")
         self.assertIn("IIC_Read(STM8_SLAVE_ADDR, 0U, CTRL_BANK_SIZE", source)
         self.assertIn(
-            "STM8_Control_Snapshot[CTRL_REG_RESPONSE_SEQ] == sequence_after", source
+            "STM8_Control_Snapshot[CTRL_REG_RESPONSE_SEQ] != sequence_after", source
         )
         self.assertIn(
             "STM8_Control_Snapshot[CTRL_REG_REQUEST_SEQ] == sequence_after", source
@@ -161,15 +183,57 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
             encoding="gbk"
         )
         bridge = (ROOT / "MCU_src/STM8S003_MX2871_IIC/src/IIC.c").read_text(
-            encoding="gbk"
+            encoding="gbk", errors="ignore"
         )
+        self.assertIn("#define PAGE0_MAX_ADJ_INDEX 8U", control)
         self.assertIn("#define PAGE1_MAX_ADJ_INDEX 9U", control)
-        self.assertIn("CtrlP1I7_Debug_DAC", control)
-        self.assertIn("CtrlP1I8_Amplitude_Frequency", control)
+        self.assertIn("CtrlP0I7_Debug_DAC", control)
+        self.assertIn("CtrlP1I7_Amplitude", control)
+        self.assertIn("CtrlP1I8_Frequency", control)
         self.assertIn("Display_UI_Show_Debug_DAC_Preset", display)
-        self.assertIn("LCD_SHOW_ASCII_1608(64U, 96U, 'D'", display)
+        self.assertIn("LCD_SHOW_ASCII_1608(132U, 65U, 'D'", display)
         self.assertIn("LCD_SHOW_ASCII_0806(154U, 37U, glyph", display)
         self.assertIn("IIC_Reg_Addr_Point==CTRL_REG_DEBUG_DAC_PRESET", bridge)
+
+    def test_frequency_meter_reset_uses_live_token_without_stm8_command(self):
+        arm = (ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/src/helloworld.c").read_text(
+            encoding="utf-8"
+        )
+        lcd_driver = (
+            ROOT / "MCU_src/STM32F030_LCD/HARDWARE/STM8Slave/STM8Slave.c"
+        ).read_text(encoding="ascii")
+        lcd_control = (ROOT / "MCU_src/STM32F030_LCD/USER/control.c").read_text(
+            encoding="ascii"
+        )
+        stm8_main = (
+            ROOT / "MCU_src/STM8S003_MX2871_IIC/src/main.c"
+        ).read_text(encoding="ascii")
+
+        self.assertIn("CONTROL_FREQ_METER_RESET_REQUEST 0xFEU", arm)
+        self.assertIn("Control_Reset_Frequency_Meter();", arm)
+        helper = re.search(
+            r"static void Control_Reset_Frequency_Meter\(void\)\s*\{(.*?)\n\}",
+            arm,
+            re.S,
+        )
+        self.assertIsNotNone(helper)
+        self.assertIn("Freq_Meter_Reset_Trigger_Addr", helper.group(1))
+        self.assertNotIn("Opal_Kelly_Reset_Trigger_Addr", helper.group(1))
+
+        request = re.search(
+            r"uint8_t STM8_Slave_Reset_Frequency_Meter\(void\)\s*\{(.*?)\n\}",
+            lcd_driver,
+            re.S,
+        )
+        self.assertIsNotNone(request)
+        self.assertIn("CTRL_REG_DEBUG_DAC_PRESET", request.group(1))
+        self.assertIn("FREQ_METER_RESET_REQUEST", request.group(1))
+        self.assertIn("STM8Slave_Write_Verified", request.group(1))
+        self.assertNotIn("STM8Slave_Command", request.group(1))
+        self.assertNotIn("0xC4", request.group(1))
+        self.assertIn("KEY5_Long_Press", lcd_control)
+        self.assertIn("STM8_Slave_Reset_Frequency_Meter", lcd_control)
+        self.assertNotIn("case 0xC6", stm8_main)
 
     def test_arm_owns_center_frequency_mul_div_output_limit(self):
         arm = (ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/src/helloworld.c").read_text(
@@ -185,6 +249,23 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         self.assertNotIn("uint64_t", lcd)
         self.assertIn("STM8_Slave_Read_Status()", lcd)
         self.assertIn("CTRL_ERROR_NONE", lcd)
+        self.assertIn("value + step <= CTRL_DPLL_CENTER_MAX_DHZ", lcd)
+        self.assertIn("center > CTRL_DPLL_CENTER_MAX_DHZ", arm)
+
+    def test_center_frequency_display_has_fixed_six_plus_one_layout(self):
+        display = (ROOT / "MCU_src/STM32F030_LCD/USER/display.c").read_text(
+            encoding="gbk"
+        )
+        body = re.search(
+            r"void Display_UI_Show_PLL_Set_Freq\(.*?\n\}", display, re.S
+        )
+        self.assertIsNotNone(body)
+        source = body.group(0)
+        self.assertIn("LCD_Show_Square(82U, 49U, 62U, 16U, WHITE)", source)
+        self.assertIn("display_unsigned(82U, 49U, frequency_hz, 6U", source)
+        self.assertIn("LCD_SHOW_ASCII_1608(130U, 49U, '.', DARKBLUE)", source)
+        self.assertIn("LCD_SHOW_ASCII_1608(134U, 49U", source)
+        self.assertNotIn("if (frequency_hz >= 100000UL)", source)
 
     def test_max2871_range_includes_exact_lower_bound(self):
         source = (ROOT / "MCU_src/STM8S003_MX2871_IIC/src/MAX2871.c").read_text(

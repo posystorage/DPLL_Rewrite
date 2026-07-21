@@ -5,7 +5,7 @@ module dpll_multifrequency_path_tb;
     reg rst = 1'b1;
     reg sample_valid = 1'b0;
     reg signed [15:0] adc_sample = 16'sd0;
-    reg config_apply = 1'b0;
+    reg controller_reacquire = 1'b0;
     reg [47:0] center_word = 48'd0;
 
     wire [47:0] tracking_word;
@@ -26,7 +26,7 @@ module dpll_multifrequency_path_tb;
     wire [8:0] active_cic_rate_r;
     wire [5:0] active_cic_output_shift;
     wire cic_overflow_seen;
-    wire cic_illegal_config_seen;
+    wire cic_illegal_config_seen = 1'b0;
     wire signed [15:0] lo_cos;
     wire signed [15:0] lo_sin;
 
@@ -53,7 +53,8 @@ module dpll_multifrequency_path_tb;
         .status_clear(1'b0),
         .adc_sample(adc_sample),
         .center_word(center_word),
-        .config_apply(config_apply),
+        .controller_reacquire(controller_reacquire),
+        .detector_reconfigure(controller_reacquire),
         .cic_rate_r(9'd8),
         .cic_output_shift(6'd4),
         .cic_flush(1'b0),
@@ -112,7 +113,6 @@ module dpll_multifrequency_path_tb;
         .post_iir_active_bypass(),
         .post_iir_active_use_track(),
         .cic_overflow_seen(cic_overflow_seen),
-        .cic_illegal_config_seen(cic_illegal_config_seen),
         .lo_cos(lo_cos),
         .lo_sin(lo_sin)
     );
@@ -169,9 +169,9 @@ module dpll_multifrequency_path_tb;
             collect_case = 1'b1;
 
             @(posedge clk);
-            config_apply = 1'b1;
+            controller_reacquire = 1'b1;
             @(posedge clk);
-            config_apply = 1'b0;
+            controller_reacquire = 1'b0;
 
             for (n = 0; n < 360; n = n + 1) begin
                 push_sample(stimulus_sample(n, case_no));

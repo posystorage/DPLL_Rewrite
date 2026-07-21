@@ -72,7 +72,9 @@ negative = 0xFFEB074A = -40000.0135 Hz
 | `0x0021` | `Kp_track` | `6000000` | state 6 |
 | `0x0022` | `Ki_track` | `180000` | state 6 |
 
-系数是 signed 24 bit，写 32-bit 寄存器时 `[31:24]` 必须是 bit23 的符号扩展，否则 APPLY 会拒绝。
+系数是 signed 24 bit。ARM 必须在提交候选配置时检查范围，并以 bit23 符号扩展
+写入32-bit活动寄存器；HDL只取约定宽度，不负责拒绝错误写法。增益寄存器的更新
+脉冲只清控制器状态，不清CIC/IIR。
 
 系数尺度：
 
@@ -190,10 +192,9 @@ ARM 应按以下顺序配置：
 2. 检查 `ABI_VERSION`、`CONFIG_VERSION`、`FPGA_BUILD_ID`、`GIT_HASH`。
 3. 调用 filter profile 生成器写中心频率、CIC、FLL delay、IIR banks。
 4. 写完整 FLL/PI、阈值、dwell、limits、MUL/DIV。
-5. 写 `CONFIG_APPLY`。
-6. 轮询 busy/error/apply sequence。
-7. 核对 active snapshot 和 active config CRC。
-8. APPLY 成功后再 enable。
+5. ARM比较committed config，只写变化字段；初次启动写完整配置。
+6. CIC/IIR/FLL delay结构字段写入会自动清检测链；增益写入只重捕获控制器。
+7. 配置写完后再enable。
 
 22 kHz 中心应使用：
 
@@ -231,15 +232,16 @@ warmup   = 16
 
 这些值不再分散硬编码在 `main()` 中。
 
-### 5.3 measurement timeout 与 CRC
+### 5.3 measurement timeout 与 ARM 配置签名
 
-ARM expected CRC 与 RTL 已统一使用：
+ARM 在生成 profile 时显式写入：
 
 ```text
 measurement_timeout = 2400*R + 512
 ```
 
-寄存器 `0x0059=0` 时，ARM 会按相同的自动值计算 active config CRC。
+`0x0059` 不再用 `0` 表示 RTL 自动计算。ARM 必须提交显式 timeout。ARM 为已提交
+候选配置生成软件签名并发布到控制区偏移 92；FPGA `0x011E` 保留读零。
 
 ### 5.4 可配置频率范围
 
@@ -250,12 +252,12 @@ measurement_timeout = 2400*R + 512
 
 ## 6. 参数设置坑点
 
-### 6.1 APPLY 与 enable
+### 6.1 配置更新与enable
 
-- shadow 寄存器写入不会立即改变 active 算法。
-- 必须 APPLY 成功后再 enable。
-- APPLY 会让状态机重新进入 CONFIGURE/WARMUP/FLL_ACQUIRE。
-- debug DAC 四个寄存器是 live 配置，不需要 APPLY，也不应触发重捕获。
+- 活动寄存器在跨时钟写事务确认前已经更新。
+- 初次完整配置必须在DPLL关闭状态下完成，然后再enable。
+- 只有增益或结构参数变化才进入重新捕获；阈值、limits、DAC和MUL/DIV不重启。
+- debug DAC四个寄存器直接生效，不触发重捕获。
 
 ### 6.2 signed 宽度
 
@@ -316,7 +318,7 @@ freq_error
 
 1. `Ki_blend=468800` 的更长时间仿真，确认最终进入 state 6 并保持。
 2. 固定 Ki，仅扫描 `Kp_blend`，确认阻尼和相位窗口停留时间。
-3. ARM 与 RTL 的 measurement timeout/CRC 公式统一。
+3. ARM 显式 timeout、软件配置签名与完整 active 回读保持一致。
 4. ARM 启动中心、Ki、warmup 与目标 profile 同步。
 5. 板上验证 CORDIC sticky 的首次置位时间，而不是只读最终 sticky。
 6. 其他中心频率必须重新生成 CIC/IIR/FLL delay profile，不能只改 center word。

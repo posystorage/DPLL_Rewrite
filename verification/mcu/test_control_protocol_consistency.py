@@ -235,16 +235,17 @@ class ControlProtocolConsistencyTest(unittest.TestCase):
         self.assertIn("STM8_Slave_Reset_Frequency_Meter", lcd_control)
         self.assertNotIn("case 0xC6", stm8_main)
 
-    def test_arm_owns_center_frequency_mul_div_output_limit(self):
+    def test_arm_validates_center_and_nonzero_mul_div_only(self):
         arm = (ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/src/helloworld.c").read_text(
             encoding="utf-8"
         )
         lcd = (ROOT / "MCU_src/STM32F030_LCD/USER/control.c").read_text(
             encoding="ascii"
         )
-        self.assertIn("control_output_ratio_valid", arm)
-        self.assertIn("CTRL_DPLL_OUTPUT_MAX_DHZ", arm)
-        self.assertIn("(uint64_t)center_dhz * multiplier", arm)
+        self.assertNotIn("control_output_ratio_valid", arm)
+        self.assertNotIn("CTRL_DPLL_OUTPUT_MAX_DHZ", arm)
+        self.assertNotIn("(uint64_t)center_dhz * multiplier", arm)
+        self.assertRegex(arm, r"multiplier\s*==\s*0U\s*\|\|\s*divider\s*==\s*0U")
         self.assertNotIn("CTRL_DPLL_OUTPUT_MAX_DHZ", lcd)
         self.assertNotIn("uint64_t", lcd)
         self.assertIn("STM8_Slave_Read_Status()", lcd)

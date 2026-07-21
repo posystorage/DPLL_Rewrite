@@ -5,7 +5,7 @@ module dpll_single_clock_core_stage_a_tb;
     reg rst = 1'b1;
     reg sample_valid = 1'b0;
     reg signed [15:0] adc_sample = 16'sd0;
-    reg config_apply = 1'b0;
+    reg controller_reacquire = 1'b0;
 
     wire [47:0] tracking_word;
     wire tracking_valid;
@@ -17,7 +17,7 @@ module dpll_single_clock_core_stage_a_tb;
     wire iq_valid;
     wire [8:0] active_cic_rate_r;
     wire [5:0] active_cic_output_shift;
-    wire cic_illegal_config_seen;
+    wire cic_illegal_config_seen = 1'b0;
 
     integer n;
     integer iq_seen = 0;
@@ -39,7 +39,8 @@ module dpll_single_clock_core_stage_a_tb;
         .status_clear(1'b0),
         .adc_sample(adc_sample),
         .center_word(48'h0100_0000_0000),
-        .config_apply(config_apply),
+        .controller_reacquire(controller_reacquire),
+        .detector_reconfigure(controller_reacquire),
         .cic_rate_r(9'd8),
         .cic_output_shift(6'd9),
         .cic_flush(1'b0),
@@ -98,7 +99,6 @@ module dpll_single_clock_core_stage_a_tb;
         .post_iir_active_bypass(),
         .post_iir_active_use_track(),
         .cic_overflow_seen(),
-        .cic_illegal_config_seen(cic_illegal_config_seen),
         .lo_cos(),
         .lo_sin()
     );
@@ -146,15 +146,15 @@ module dpll_single_clock_core_stage_a_tb;
         repeat (4) @(posedge clk);
         rst = 1'b0;
         @(posedge clk);
-        config_apply = 1'b1;
+        controller_reacquire = 1'b1;
         @(posedge clk);
         #1;
         if (!tracking_valid || tracking_word !== 48'h0100_0000_0000) begin
-            $display("FAIL: config_apply did not present center word with valid, valid=%b word=%h",
+            $display("FAIL: controller_reacquire did not present center word with valid, valid=%b word=%h",
                      tracking_valid, tracking_word);
             $finish;
         end
-        config_apply = 1'b0;
+        controller_reacquire = 1'b0;
 
         // Cross-dot FLL needs delay history plus a complete 16-sample block
         // before division/replay can emit frequency results.

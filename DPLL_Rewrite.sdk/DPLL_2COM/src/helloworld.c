@@ -82,6 +82,7 @@ uint8_t PLL_Lock_Status;
 static uint8_t Control_Bank[CTRL_BANK_SIZE];
 static uint8_t Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_MANUAL;
 static uint8_t Control_Freq_Meter_Reset_Request_Seen;
+static uint8_t Control_DPLL_Enabled;
 
 #define CONTROL_FREQ_METER_RESET_REQUEST 0xFEU
 
@@ -190,16 +191,15 @@ uint64_t Freq_meter_gate_time_cache = 0;
 #define ARM_EXPECTED_DPLL_FPGA_BUILD_ID   DPLL_GENERATED_BUILD_ID
 #define ARM_EXPECTED_DPLL_GIT_HASH        DPLL_GENERATED_GIT_HASH
 #define PC_ERR_DPLL_ABI_MISMATCH          0xF3U
-#define PC_ERR_DPLL_APPLY_TIMEOUT         0xF5U
 #define PC_ERR_DPLL_APPLY_REJECTED        0xF6U
 #define PC_ERR_DPLL_APPLY_VERIFY          0xF7U
-#define DPLL_APPLY_POLL_LIMIT             1024U
 #define DPLL_ABI_RETRY_COUNT              100U
 #define DPLL_ABI_RETRY_DELAY_US           100U
 #define PC_HOST_MAX_FRAME_BYTES           128U
 #define DPLL_ADV_CONFIG_PAYLOAD_BYTES     90U
 #define DPLL_DEBUG_CONFIG_PAYLOAD_BYTES   12U
 #define DPLL_DEBUG_PRESET_PAYLOAD_BYTES   1U
+#define FREQ_METER_D_FILTER_COEFF          0x0000FFFFU
 
 typedef struct {
 	uint32_t source;
@@ -207,6 +207,23 @@ typedef struct {
 	uint16_t offset;
 	uint16_t gain;
 } debug_dac_preset_t;
+
+typedef struct {
+	uint32_t center_word;
+	uint32_t phase_threshold;
+	uint16_t frequency_threshold;
+	uint32_t positive_limit;
+	uint32_t negative_limit;
+	uint32_t gain_p;
+	uint32_t gain_i;
+	uint32_t gain_i2;
+	uint32_t gain_d;
+	uint32_t manual_offset;
+	uint32_t phase_offset;
+	uint32_t gate_time_low;
+	uint16_t gate_time_high;
+	uint32_t fast_interval_cycles;
+} freq_meter_config_t;
 
 static const debug_dac_preset_t
 Debug_DAC_Presets[CTRL_DEBUG_DAC_PRESET_MAX + 1U] = {
@@ -224,82 +241,61 @@ Debug_DAC_Presets[CTRL_DEBUG_DAC_PRESET_MAX + 1U] = {
 static uint8_t dpll_abi_ready = 0;
 static uint8_t dpll_driver_initialized = 0;
 static dpll_driver_t dpll_driver;
+static dpll_config_t DPLL_Committed_Config;
+static uint8_t DPLL_Committed_Config_Valid;
+static uint32_t DPLL_Committed_Signature;
+static freq_meter_config_t Freq_Meter_Committed_Config;
+static uint8_t Freq_Meter_Committed_Config_Valid;
+static debug_dac_preset_t Debug_DAC_Committed_Config;
+static uint8_t Debug_DAC_Committed_Config_Valid;
 
 static const dpll_reg_map_t dpll_register_map = {
-	PLL0_Lock_Ctrl_Addr,
-	DPLL_CONFIG_APPLY_Addr,
-	DPLL_CONFIG_REJECTED_MASK_Addr,
-	DPLL_ABI_VERSION_Addr,
-	DPLL_CONFIG_VERSION_Addr,
-	DPLL_FPGA_BUILD_ID_Addr,
-	DPLL_GIT_HASH_Addr,
-	DAC0_Centre_Frequency_Addr,
-	DPLL_POST_IQ_CIC_R_Addr,
-	DPLL_POST_IQ_CIC_SHIFT_Addr,
-	VOC_Fre_Mul_Addr,
-	VOC_Fre_Div_Addr,
-	DPLL_PLL_KP_TRACK_Addr,
-	DPLL_PLL_KI_TRACK_Addr,
-	DPLL_FLL_KF_ACQUIRE_Addr,
-	DPLL_FLL_KF_BLEND_Addr,
-	DPLL_FLL_KF_TRACK_Addr,
-	DPLL_PLL_KP_BLEND_Addr,
-	DPLL_PLL_KI_BLEND_Addr,
-	DAC0_Phase_Residuals_Threshold_Addr,
-	DAC0_Phase_Residuals_Offset_Addr,
-	DAC0_Freq_Residuals_Threshold_Addr,
-	DPLL_MAG_ENTER_THRESHOLD_Addr,
-	DPLL_MAG_EXIT_THRESHOLD_Addr,
-	DPLL_ACQUIRE_DWELL_Addr,
-	DPLL_BLEND_DWELL_Addr,
-	DPLL_LOSS_DWELL_Addr,
-	DPLL_HOLDOVER_TIMEOUT_Addr,
-	DPLL_MEASUREMENT_TIMEOUT_Addr,
-	DPLL_FLL_DELAY_SEL_Addr,
-	DPLL_WARMUP_SAMPLES_Addr,
-	DPLL_POST_IIR_CONFIG_Addr,
-	DPLL_POST_IIR_ACQ_B0_Addr,
-	DPLL_POST_IIR_ACQ_B1_Addr,
-	DPLL_POST_IIR_ACQ_B2_Addr,
-	DPLL_POST_IIR_ACQ_A1_Addr,
-	DPLL_POST_IIR_ACQ_A2_Addr,
-	DPLL_POST_IIR_TRACK_B0_Addr,
-	DPLL_POST_IIR_TRACK_B1_Addr,
-	DPLL_POST_IIR_TRACK_B2_Addr,
-	DPLL_POST_IIR_TRACK_A1_Addr,
-	DPLL_POST_IIR_TRACK_A2_Addr,
-	DPLL_FREQ_POS_LIMIT_Addr,
-	DPLL_FREQ_NEG_LIMIT_Addr,
-	VCO_Freq_Manual_Offset_Addr,
-	DAC0_VCO_Offset_Addr,
-	DAC0_VOC_Amplitude_Addr,
-	DPLL_DEBUG_DAC_OFFSET_ADDR,
-	DPLL_DEBUG_DAC_GAIN_ADDR,
-	DPLL_DEBUG_DAC_SOURCE_ADDR,
-	DPLL_DEBUG_DAC_FORMAT_ADDR,
-	DPLL_ACTIVE_CENTER_Addr,
-	DPLL_ACTIVE_CIC_CONFIG_Addr,
-	DPLL_ACTIVE_MUL_DIV_Addr,
-	DPLL_ACTIVE_KP_TRACK_Addr,
-	DPLL_ACTIVE_KI_TRACK_Addr,
-	DPLL_ACTIVE_KF_ACQUIRE_Addr,
-	DPLL_ACTIVE_KF_BLEND_Addr,
-	DPLL_ACTIVE_KF_TRACK_Addr,
-	DPLL_ACTIVE_KP_BLEND_Addr,
-	DPLL_ACTIVE_KI_BLEND_Addr,
-	DPLL_ACTIVE_POST_IIR_CONFIG_Addr,
-	DPLL_ACTIVE_POST_IIR_ACQ_B0_Addr,
-	DPLL_ACTIVE_POST_IIR_ACQ_B1_Addr,
-	DPLL_ACTIVE_POST_IIR_ACQ_B2_Addr,
-	DPLL_ACTIVE_POST_IIR_ACQ_A1_Addr,
-	DPLL_ACTIVE_POST_IIR_ACQ_A2_Addr,
-	DPLL_ACTIVE_POST_IIR_TRACK_B0_Addr,
-	DPLL_ACTIVE_POST_IIR_TRACK_B1_Addr,
-	DPLL_ACTIVE_POST_IIR_TRACK_B2_Addr,
-	DPLL_ACTIVE_POST_IIR_TRACK_A1_Addr,
-	DPLL_ACTIVE_POST_IIR_TRACK_A2_Addr,
-	DPLL_APPLIED_ABI_VERSION_Addr,
-	DPLL_ACTIVE_CONFIG_CRC_Addr
+	.lock_ctrl = PLL0_Lock_Ctrl_Addr,
+	.reconfigure = DPLL_RECONFIGURE_Addr,
+	.abi_version = DPLL_ABI_VERSION_Addr,
+	.config_version = DPLL_CONFIG_VERSION_Addr,
+	.build_id = DPLL_FPGA_BUILD_ID_Addr,
+	.git_hash = DPLL_GIT_HASH_Addr,
+	.center = DAC0_Centre_Frequency_Addr,
+	.cic_r = DPLL_POST_IQ_CIC_R_Addr,
+	.cic_shift = DPLL_POST_IQ_CIC_SHIFT_Addr,
+	.mul = VOC_Fre_Mul_Addr,
+	.div = VOC_Fre_Div_Addr,
+	.kp_track = DPLL_PLL_KP_TRACK_Addr,
+	.ki_track = DPLL_PLL_KI_TRACK_Addr,
+	.kf_acquire = DPLL_FLL_KF_ACQUIRE_Addr,
+	.kf_blend = DPLL_FLL_KF_BLEND_Addr,
+	.kf_track = DPLL_FLL_KF_TRACK_Addr,
+	.kp_blend = DPLL_PLL_KP_BLEND_Addr,
+	.ki_blend = DPLL_PLL_KI_BLEND_Addr,
+	.phase_threshold = DAC0_Phase_Residuals_Threshold_Addr,
+	.phase_setpoint = DAC0_Phase_Residuals_Offset_Addr,
+	.freq_threshold = DAC0_Freq_Residuals_Threshold_Addr,
+	.mag_enter = DPLL_MAG_ENTER_THRESHOLD_Addr,
+	.mag_exit = DPLL_MAG_EXIT_THRESHOLD_Addr,
+	.acquire_dwell = DPLL_ACQUIRE_DWELL_Addr,
+	.blend_dwell = DPLL_BLEND_DWELL_Addr,
+	.loss_dwell = DPLL_LOSS_DWELL_Addr,
+	.holdover_timeout = DPLL_HOLDOVER_TIMEOUT_Addr,
+	.measurement_timeout = DPLL_MEASUREMENT_TIMEOUT_Addr,
+	.fll_delay = DPLL_FLL_DELAY_SEL_Addr,
+	.warmup_samples = DPLL_WARMUP_SAMPLES_Addr,
+	.post_iir_config = DPLL_POST_IIR_CONFIG_Addr,
+	.post_iir_acq_b0 = DPLL_POST_IIR_ACQ_B0_Addr,
+	.post_iir_acq_b1 = DPLL_POST_IIR_ACQ_B1_Addr,
+	.post_iir_acq_b2 = DPLL_POST_IIR_ACQ_B2_Addr,
+	.post_iir_acq_a1 = DPLL_POST_IIR_ACQ_A1_Addr,
+	.post_iir_acq_a2 = DPLL_POST_IIR_ACQ_A2_Addr,
+	.post_iir_track_b0 = DPLL_POST_IIR_TRACK_B0_Addr,
+	.post_iir_track_b1 = DPLL_POST_IIR_TRACK_B1_Addr,
+	.post_iir_track_b2 = DPLL_POST_IIR_TRACK_B2_Addr,
+	.post_iir_track_a1 = DPLL_POST_IIR_TRACK_A1_Addr,
+	.post_iir_track_a2 = DPLL_POST_IIR_TRACK_A2_Addr,
+	.positive_limit = DPLL_FREQ_POS_LIMIT_Addr,
+	.negative_limit = DPLL_FREQ_NEG_LIMIT_Addr,
+	.manual_offset = VCO_Freq_Manual_Offset_Addr,
+	.dac0_offset = DAC0_VCO_Offset_Addr,
+	.dac0_amplitude = DAC0_VOC_Amplitude_Addr
 };
 
 static const dpll_identity_t dpll_expected_identity = {
@@ -337,7 +333,7 @@ static void dpll_driver_ensure_initialized(void)
 	io.context = 0;
 	dpll_driver_init(&dpll_driver, &io, &dpll_register_map,
 	                 &dpll_expected_identity, DPLL_ABI_RETRY_COUNT,
-	                 DPLL_ABI_RETRY_DELAY_US, DPLL_APPLY_POLL_LIMIT);
+	                 DPLL_ABI_RETRY_DELAY_US);
 	dpll_driver_initialized = 1;
 }
 
@@ -405,32 +401,13 @@ static uint8_t dpll_initialize_abi(void)
 	           (unsigned long)dpll_driver.abi_attempts);
 	return 0;
 }
-static int dpll_apply_config_result(dpll_apply_result_t *result)
-{
-	int status;
-	dpll_driver_ensure_initialized();
-	if (!dpll_abi_ready) dpll_driver_invalidate_abi(&dpll_driver);
-	status = dpll_driver_apply(&dpll_driver, result);
-	dpll_abi_ready = dpll_driver.abi_ready;
-	if (status == DPLL_DRIVER_ERR_ABI) PLL_Lock_Status = 0x00;
-	return status;
-}
-static int dpll_apply_config(void)
-{
-	dpll_apply_result_t result;
-	return dpll_apply_config_result(&result);
-}
-static void pc_send_dpll_apply_result(int apply_status)
+static void pc_send_dpll_config_result(int apply_status)
 {
 	if (apply_status == -1) {
 		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_ABI_MISMATCH);
 		return;
 	}
-	if (apply_status == -2) {
-		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_TIMEOUT);
-		return;
-	}
-	if (apply_status == -3) {
+	if (apply_status == DPLL_DRIVER_ERR_CONFIG) {
 		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_REJECTED);
 		return;
 	}
@@ -451,41 +428,27 @@ static int dpll_set_enable(uint32_t enable)
 	return status;
 }
 
-static int dpll_write_center_filter_profile(uint32_t center_word_hi)
+static int dpll_commit_candidate(const dpll_config_t *candidate)
 {
-	dpll_filter_profile_t profile;
-	dpll_profile_validation_t validation;
-	#if CONTROL_DCC_LOG_ENABLE
-	const char *support_name;
-	#endif
+	dpll_config_validation_t validation;
 	int status;
 
 	dpll_driver_ensure_initialized();
-	status = dpll_compute_filter_profile_checked(center_word_hi, &profile, &validation);
-	if (status != DPLL_DRIVER_OK) {
-		CONTROL_DCC_LOG("DPLL profile rejected center_word=0x%08lx errors=0x%08lx\r\n",
-		           (unsigned long)center_word_hi,
-		           (unsigned long)validation.errors);
-		return DPLL_DRIVER_ERR_VERIFY;
+	if (dpll_validate_config(candidate, &validation) != DPLL_DRIVER_OK) {
+		CONTROL_DCC_LOG("DPLL candidate rejected errors=0x%08lx profile=0x%08lx\r\n",
+		                (unsigned long)validation.errors,
+		                (unsigned long)validation.profile.errors);
+		return DPLL_DRIVER_ERR_CONFIG;
 	}
-	status = dpll_driver_stage_profile(&dpll_driver, center_word_hi,
-	                                   &profile, &validation);
+	status = dpll_driver_write_config(
+		&dpll_driver, candidate,
+		DPLL_Committed_Config_Valid ? &DPLL_Committed_Config : 0,
+		&validation);
+	dpll_abi_ready = dpll_driver.abi_ready;
 	if (status != DPLL_DRIVER_OK) return status;
-
-	#if CONTROL_DCC_LOG_ENABLE
-	support_name = profile.support == DPLL_PROFILE_SUPPORT_VERIFIED ? "verified" :
-	               profile.support == DPLL_PROFILE_SUPPORT_STANDARD ? "standard" :
-	               "extended-unverified";
-	#endif
-	CONTROL_DCC_LOG("DPLL profile center=%luHz support=%s limit=+/-20%% R=%u shift=%u L=%u image=%luHz acq=%luHz track=%luHz\r\n",
-	           (unsigned long)profile.center_hz,
-	           support_name,
-	           (unsigned int)profile.cic_r,
-	           (unsigned int)profile.cic_shift,
-	           (unsigned int)(1U << profile.fll_delay_sel),
-	           (unsigned long)profile.mirror_alias_hz,
-	           (unsigned long)profile.acquire_cutoff_hz,
-	           (unsigned long)profile.track_cutoff_hz);
+	DPLL_Committed_Config = *candidate;
+	DPLL_Committed_Config_Valid = 1U;
+	DPLL_Committed_Signature = dpll_config_signature(candidate);
 	return DPLL_DRIVER_OK;
 }
 void PC_HOST_CMD_Get(void);
@@ -1012,80 +975,204 @@ void CMD_1B_READ_VBIAS_ADC(void)
 }
 
 
+static uint8_t freq_meter_validate_config(const freq_meter_config_t *config)
+{
+	int32_t positive_limit;
+	int32_t negative_limit;
+	if (config == 0) return 0U;
+	positive_limit = (int32_t)config->positive_limit;
+	negative_limit = (int32_t)config->negative_limit;
+	if (config->center_word == 0U || config->frequency_threshold > 0x03FFU ||
+	    positive_limit <= 0 || negative_limit >= 0 ||
+	    (config->gate_time_low == 0U && config->gate_time_high == 0U) ||
+	    config->fast_interval_cycles <
+	        (uint32_t)CTRL_FAST_INTERVAL_MIN_MS * 125000UL ||
+	    config->fast_interval_cycles >
+	        (uint32_t)CTRL_FAST_INTERVAL_MAX_MS * 125000UL)
+		return 0U;
+	return 1U;
+}
+
+static uint8_t freq_meter_commit_candidate(const freq_meter_config_t *candidate)
+{
+	if (!freq_meter_validate_config(candidate)) return 0U;
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->center_word != Freq_Meter_Committed_Config.center_word)
+		Xil_Out32(Freq_Meter_Centre_Frequency_Addr, candidate->center_word);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->phase_threshold != Freq_Meter_Committed_Config.phase_threshold)
+		Xil_Out32(Freq_Meter_Phase_Residuals_Threshold_Addr, candidate->phase_threshold);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->frequency_threshold != Freq_Meter_Committed_Config.frequency_threshold)
+		Xil_Out32(Freq_Meter_Freq_Residuals_Threshold_Addr, candidate->frequency_threshold);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->positive_limit != Freq_Meter_Committed_Config.positive_limit)
+		Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr, candidate->positive_limit);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->negative_limit != Freq_Meter_Committed_Config.negative_limit)
+		Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr, candidate->negative_limit);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->gain_p != Freq_Meter_Committed_Config.gain_p)
+		Xil_Out32(Freq_Meter_PID_GainP_Addr, candidate->gain_p);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->gain_i != Freq_Meter_Committed_Config.gain_i)
+		Xil_Out32(Freq_Meter_PID_GainI_Addr, candidate->gain_i);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->gain_i2 != Freq_Meter_Committed_Config.gain_i2)
+		Xil_Out32(Freq_Meter_PID_GainI2_Addr, candidate->gain_i2);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->gain_d != Freq_Meter_Committed_Config.gain_d)
+		Xil_Out32(Freq_Meter_PID_GainD_Addr, candidate->gain_d);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->manual_offset != Freq_Meter_Committed_Config.manual_offset)
+		Xil_Out32(Freq_Meter_Freq_Manual_Offset_Addr, candidate->manual_offset);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->phase_offset != Freq_Meter_Committed_Config.phase_offset)
+		Xil_Out32(Freq_Meter_Phase_Residuals_Offset_Addr, candidate->phase_offset);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->gate_time_low != Freq_Meter_Committed_Config.gate_time_low)
+		Xil_Out32(Freq_Meter_Gate_Time_L_Addr, candidate->gate_time_low);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->gate_time_high != Freq_Meter_Committed_Config.gate_time_high)
+		Xil_Out32(Freq_Meter_Gate_Time_H_Addr, candidate->gate_time_high);
+	if (!Freq_Meter_Committed_Config_Valid ||
+	    candidate->fast_interval_cycles != Freq_Meter_Committed_Config.fast_interval_cycles)
+		Xil_Out32(Freq_Meter_Fast_Interval_Addr, candidate->fast_interval_cycles);
+	Freq_Meter_Committed_Config = *candidate;
+	Freq_Meter_Committed_Config_Valid = 1U;
+	return 1U;
+}
+
+static uint8_t debug_dac_validate_config(const debug_dac_preset_t *config)
+{
+	uint32_t mode;
+	uint32_t amount;
+	int16_t offset;
+	if (config == 0 || config->source > 0x0AU ||
+	    (config->format & ~0x00000F3FU) != 0U)
+		return 0U;
+	mode = (config->format >> 8) & 0x03U;
+	amount = config->format & 0x3FU;
+	offset = (int16_t)config->offset;
+	if (mode > 2U || (mode == 0U && amount > 16U) ||
+	    (mode != 0U && amount > 31U) || offset < -8192 || offset > 8191)
+		return 0U;
+	return 1U;
+}
+
+static uint8_t debug_dac_commit_candidate(const debug_dac_preset_t *candidate)
+{
+	if (!debug_dac_validate_config(candidate)) return 0U;
+	Xil_Out32(DPLL_DEBUG_DAC_OFFSET_ADDR, candidate->offset);
+	Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR, candidate->gain);
+	Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR, candidate->format);
+	Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR, candidate->source);
+	Debug_DAC_Committed_Config = *candidate;
+	Debug_DAC_Committed_Config_Valid = 1U;
+	return 1U;
+}
+
 void CMD_8F_WRITE_DPLL_ADV_CONFIG(void)
 {
-	if (pc_payload_len() < DPLL_ADV_CONFIG_PAYLOAD_BYTES) {
+	dpll_config_t candidate;
+	int status;
+	if (pc_payload_len() != DPLL_ADV_CONFIG_PAYLOAD_BYTES) {
 		PC_HOST_Send_ASK_Only(0xF2);
 		return;
 	}
-	Xil_Out32(DPLL_FLL_KF_TRACK_Addr, pc_get_u32(4));
-	Xil_Out32(DPLL_PLL_KP_BLEND_Addr, pc_get_u32(8));
-	Xil_Out32(DPLL_PLL_KI_BLEND_Addr, pc_get_u32(12));
-	Xil_Out32(DPLL_MAG_ENTER_THRESHOLD_Addr, pc_get_u32(16));
-	Xil_Out32(DPLL_MAG_EXIT_THRESHOLD_Addr, pc_get_u32(20));
-	Xil_Out32(DPLL_ACQUIRE_DWELL_Addr, pc_get_u32(24));
-	Xil_Out32(DPLL_BLEND_DWELL_Addr, pc_get_u32(28));
-	Xil_Out32(DPLL_LOSS_DWELL_Addr, pc_get_u32(32));
-	Xil_Out32(DPLL_HOLDOVER_TIMEOUT_Addr, pc_get_u32(36));
-	Xil_Out32(DPLL_POST_IQ_CIC_R_Addr, pc_get_u16(40));
-	Xil_Out32(DPLL_POST_IQ_CIC_SHIFT_Addr, PC_HOST_CMD_data_Buff[42]);
-	Xil_Out32(DPLL_FLL_DELAY_SEL_Addr, PC_HOST_CMD_data_Buff[43]);
-	Xil_Out32(DPLL_WARMUP_SAMPLES_Addr, pc_get_u16(44));
-	Xil_Out32(DPLL_MEASUREMENT_TIMEOUT_Addr, pc_get_u32(46));
-	Xil_Out32(DPLL_POST_IIR_CONFIG_Addr, pc_get_u32(50));
-	Xil_Out32(DPLL_POST_IIR_ACQ_B0_Addr, pc_get_u32(54));
-	Xil_Out32(DPLL_POST_IIR_ACQ_B1_Addr, pc_get_u32(58));
-	Xil_Out32(DPLL_POST_IIR_ACQ_B2_Addr, pc_get_u32(62));
-	Xil_Out32(DPLL_POST_IIR_ACQ_A1_Addr, pc_get_u32(66));
-	Xil_Out32(DPLL_POST_IIR_ACQ_A2_Addr, pc_get_u32(70));
-	Xil_Out32(DPLL_POST_IIR_TRACK_B0_Addr, pc_get_u32(74));
-	Xil_Out32(DPLL_POST_IIR_TRACK_B1_Addr, pc_get_u32(78));
-	Xil_Out32(DPLL_POST_IIR_TRACK_B2_Addr, pc_get_u32(82));
-	Xil_Out32(DPLL_POST_IIR_TRACK_A1_Addr, pc_get_u32(86));
-	Xil_Out32(DPLL_POST_IIR_TRACK_A2_Addr, pc_get_u32(90));
-	pc_send_dpll_apply_result(dpll_apply_config());
+	if (!DPLL_Committed_Config_Valid) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_REJECTED);
+		return;
+	}
+	if (pc_get_u32(24) > 0xFFFFU || pc_get_u32(28) > 0xFFFFU ||
+	    pc_get_u32(32) > 0xFFFFU || pc_get_u32(50) > 0xFFU) {
+		PC_HOST_Send_ASK_Only(PC_ERR_DPLL_APPLY_REJECTED);
+		return;
+	}
+	candidate = DPLL_Committed_Config;
+	candidate.profile.kf_track = (int32_t)pc_get_u32(4);
+	candidate.profile.kp_blend = (int32_t)pc_get_u32(8);
+	candidate.profile.ki_blend = (int32_t)pc_get_u32(12);
+	candidate.profile.magnitude_enter = pc_get_u32(16);
+	candidate.profile.magnitude_exit = pc_get_u32(20);
+	candidate.profile.acquire_dwell = (uint16_t)pc_get_u32(24);
+	candidate.profile.blend_dwell = (uint16_t)pc_get_u32(28);
+	candidate.profile.loss_dwell = (uint16_t)pc_get_u32(32);
+	candidate.profile.holdover_timeout = pc_get_u32(36);
+	candidate.profile.cic_r = pc_get_u16(40);
+	candidate.profile.cic_shift = PC_HOST_CMD_data_Buff[42];
+	candidate.profile.fll_delay_sel = PC_HOST_CMD_data_Buff[43];
+	candidate.profile.warmup_samples = pc_get_u16(44);
+	candidate.profile.measurement_timeout = pc_get_u32(46);
+	candidate.profile.post_iir_mode = (uint8_t)pc_get_u32(50);
+	candidate.profile.acquire_b0 = (int32_t)pc_get_u32(54);
+	candidate.profile.acquire_b1 = (int32_t)pc_get_u32(58);
+	candidate.profile.acquire_b2 = (int32_t)pc_get_u32(62);
+	candidate.profile.acquire_a1 = (int32_t)pc_get_u32(66);
+	candidate.profile.acquire_a2 = (int32_t)pc_get_u32(70);
+	candidate.profile.track_b0 = (int32_t)pc_get_u32(74);
+	candidate.profile.track_b1 = (int32_t)pc_get_u32(78);
+	candidate.profile.track_b2 = (int32_t)pc_get_u32(82);
+	candidate.profile.track_a1 = (int32_t)pc_get_u32(86);
+	candidate.profile.track_a2 = (int32_t)pc_get_u32(90);
+	status = dpll_commit_candidate(&candidate);
+	pc_send_dpll_config_result(status);
 }
 void CMD_90_WRITE_FREQMETER_FREQ(void)
 {
-	Xil_Out32(Freq_Meter_Centre_Frequency_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//涓績棰戠巼
-	PC_HOST_Send_ASK_Only(0);
+	freq_meter_config_t candidate = Freq_Meter_Committed_Config;
+	if (pc_payload_len() != 4U || !Freq_Meter_Committed_Config_Valid) {
+		PC_HOST_Send_ASK_Only(0xF2U);
+		return;
+	}
+	candidate.center_word = pc_get_u32(4);
+	PC_HOST_Send_ASK_Only(freq_meter_commit_candidate(&candidate) ? 0U : CTRL_ERROR_RANGE);
 }
 void CMD_91_WRITE_FREQMETER_THRESHOLD(void)
 {
-    Xil_Out32(Freq_Meter_Freq_Residuals_Threshold_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[4]));//14Bit
-    Xil_Out32(Freq_Meter_Phase_Residuals_Threshold_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[6]));//32Bit
-	PC_HOST_Send_ASK_Only(0);
+	freq_meter_config_t candidate = Freq_Meter_Committed_Config;
+	if (pc_payload_len() != 4U || !Freq_Meter_Committed_Config_Valid) {
+		PC_HOST_Send_ASK_Only(0xF2U);
+		return;
+	}
+	candidate.frequency_threshold = pc_get_u16(4);
+	candidate.phase_threshold = pc_get_u16(6);
+	PC_HOST_Send_ASK_Only(freq_meter_commit_candidate(&candidate) ? 0U : CTRL_ERROR_RANGE);
 }
 void CMD_92_WRITE_FREQMETER_LIMIT(void)
 {
-	uint32_t data;
-
-    //Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//涓婁綅鏈哄偍瀛樺拰浼犲叆鍙傛暟涓洪珮16bit鍐欏叆鍒癋PGA鍐呴儴涓�32Bit
-    //Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//涓婁綅鏈哄偍瀛樺拰浼犲叆鍙傛暟涓洪珮16bit鍐欏叆鍒癋PGA鍐呴儴涓�32Bit
-
-	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[4]);
-	if(data > 0x7FFF) data = 0x3FFF;
-    Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr,data<<16);//涓婁綅鏈哄偍瀛樺拰浼犲叆鍙傛暟涓洪珮16bit鍐欏叆鍒癋PGA鍐呴儴涓�32Bit
-
-	data = *((uint16_t*)&PC_HOST_CMD_data_Buff[6]);
-	if(data < 0xA000) data = 0xA000;
-    Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr,data<<16);//涓婁綅鏈哄偍瀛樺拰浼犲叆鍙傛暟涓洪珮16bit鍐欏叆鍒癋PGA鍐呴儴涓�32Bit
-
-	PC_HOST_Send_ASK_Only(0);
+	freq_meter_config_t candidate = Freq_Meter_Committed_Config;
+	if (pc_payload_len() != 4U || !Freq_Meter_Committed_Config_Valid) {
+		PC_HOST_Send_ASK_Only(0xF2U);
+		return;
+	}
+	candidate.positive_limit = (uint32_t)pc_get_u16(4) << 16;
+	candidate.negative_limit = (uint32_t)pc_get_u16(6) << 16;
+	PC_HOST_Send_ASK_Only(freq_meter_commit_candidate(&candidate) ? 0U : CTRL_ERROR_RANGE);
 }
 void CMD_93_WRITE_FREQMETER_PID(void)
 {
-    Xil_Out32(Freq_Meter_PID_GainP_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));
-    Xil_Out32(Freq_Meter_PID_GainI_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[8]));
-    Xil_Out32(Freq_Meter_PID_GainI2_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[12]));
-    Xil_Out32(Freq_Meter_PID_GainD_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[16]));
-	PC_HOST_Send_ASK_Only(0);
+	freq_meter_config_t candidate = Freq_Meter_Committed_Config;
+	if (pc_payload_len() != 16U || !Freq_Meter_Committed_Config_Valid) {
+		PC_HOST_Send_ASK_Only(0xF2U);
+		return;
+	}
+	candidate.gain_p = pc_get_u32(4);
+	candidate.gain_i = pc_get_u32(8);
+	candidate.gain_i2 = pc_get_u32(12);
+	candidate.gain_d = pc_get_u32(16);
+	PC_HOST_Send_ASK_Only(freq_meter_commit_candidate(&candidate) ? 0U : CTRL_ERROR_RANGE);
 }
 void CMD_94_WRITE_FREQMETER_TIMER(void)
 {
-	Xil_Out32(Freq_Meter_Gate_Time_L_Addr,*((uint32_t*)&PC_HOST_CMD_data_Buff[4]));//涓績棰戠巼
-	Xil_Out32(Freq_Meter_Gate_Time_H_Addr,*((uint16_t*)&PC_HOST_CMD_data_Buff[8]));//涓績棰戠巼
-	PC_HOST_Send_ASK_Only(0);
+	freq_meter_config_t candidate = Freq_Meter_Committed_Config;
+	if (pc_payload_len() != 6U || !Freq_Meter_Committed_Config_Valid) {
+		PC_HOST_Send_ASK_Only(0xF2U);
+		return;
+	}
+	candidate.gate_time_low = pc_get_u32(4);
+	candidate.gate_time_high = pc_get_u16(8);
+	PC_HOST_Send_ASK_Only(freq_meter_commit_candidate(&candidate) ? 0U : CTRL_ERROR_RANGE);
 }
 
 static uint8_t Control_Apply_Debug_DAC_Preset(uint8_t preset)
@@ -1093,11 +1180,7 @@ static uint8_t Control_Apply_Debug_DAC_Preset(uint8_t preset)
 	const debug_dac_preset_t *config;
 	if (preset > CTRL_DEBUG_DAC_PRESET_MAX) return 0U;
 	config = &Debug_DAC_Presets[preset];
-	Xil_Out32(DPLL_DEBUG_DAC_OFFSET_ADDR, config->offset);
-	Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR, config->gain);
-	Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR, config->format);
-	Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR, config->source);
-	return 1U;
+	return debug_dac_commit_candidate(config);
 }
 
 static uint8_t Control_Set_Debug_DAC_Preset(uint8_t preset)
@@ -1119,6 +1202,7 @@ void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 {
 	uint8_t length = pc_payload_len();
 	uint8_t previous_preset;
+	debug_dac_preset_t candidate;
 	if (length == DPLL_DEBUG_PRESET_PAYLOAD_BYTES) {
 		if (!Control_Set_Debug_DAC_Preset(PC_HOST_CMD_data_Buff[4])) {
 			PC_HOST_Send_ASK_Only(
@@ -1141,10 +1225,17 @@ void CMD_97_WRITE_DPLL_DEBUG_CONFIG(void)
 		PC_HOST_Send_ASK_Only(CTRL_ERROR_PROTOCOL);
 		return;
 	}
-	Xil_Out32(DPLL_DEBUG_DAC_OFFSET_ADDR, pc_get_u16(12));
-	Xil_Out32(DPLL_DEBUG_DAC_GAIN_ADDR, pc_get_u16(14));
-	Xil_Out32(DPLL_DEBUG_DAC_FORMAT_ADDR, pc_get_u32(8));
-	Xil_Out32(DPLL_DEBUG_DAC_SOURCE_ADDR, pc_get_u32(4));
+	candidate.source = pc_get_u32(4);
+	candidate.format = pc_get_u32(8);
+	candidate.offset = pc_get_u16(12);
+	candidate.gain = pc_get_u16(14);
+	if (!debug_dac_commit_candidate(&candidate)) {
+		Control_Bank[CTRL_REG_DEBUG_DAC_PRESET] = previous_preset;
+		control_uart_write(CTRL_REG_DEBUG_DAC_PRESET, 1U,
+		                   &Control_Bank[CTRL_REG_DEBUG_DAC_PRESET]);
+		PC_HOST_Send_ASK_Only(CTRL_ERROR_RANGE);
+		return;
+	}
 	Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_MANUAL;
 	PC_HOST_Send_ASK_Only(0U);
 }
@@ -1181,15 +1272,22 @@ void CMD_1D_READ_CONTROL_BANK(void)
 
 void CMD_1E_READ_DPLL_DEBUG_CONFIG(void)
 {
-	uint32_t offset = Xil_In32(DPLL_DEBUG_DAC_OFFSET_ADDR);
-	uint32_t gain = Xil_In32(DPLL_DEBUG_DAC_GAIN_ADDR);
+	debug_dac_preset_t config;
+	if (Debug_DAC_Committed_Config_Valid) {
+		config = Debug_DAC_Committed_Config;
+	} else {
+		config.offset = (uint16_t)Xil_In32(DPLL_DEBUG_DAC_OFFSET_ADDR);
+		config.gain = (uint16_t)Xil_In32(DPLL_DEBUG_DAC_GAIN_ADDR);
+		config.source = Xil_In32(DPLL_DEBUG_DAC_SOURCE_ADDR);
+		config.format = Xil_In32(DPLL_DEBUG_DAC_FORMAT_ADDR);
+	}
 	Uart0_TX_Buff[4] = Control_Bank[CTRL_REG_DEBUG_DAC_PRESET];
-	pc_put_u32(5U, Xil_In32(DPLL_DEBUG_DAC_SOURCE_ADDR));
-	pc_put_u32(9U, Xil_In32(DPLL_DEBUG_DAC_FORMAT_ADDR));
-	Uart0_TX_Buff[13] = (uint8_t)offset;
-	Uart0_TX_Buff[14] = (uint8_t)(offset >> 8);
-	Uart0_TX_Buff[15] = (uint8_t)gain;
-	Uart0_TX_Buff[16] = (uint8_t)(gain >> 8);
+	pc_put_u32(5U, config.source);
+	pc_put_u32(9U, config.format);
+	Uart0_TX_Buff[13] = (uint8_t)config.offset;
+	Uart0_TX_Buff[14] = (uint8_t)(config.offset >> 8);
+	Uart0_TX_Buff[15] = (uint8_t)config.gain;
+	Uart0_TX_Buff[16] = (uint8_t)(config.gain >> 8);
 	PC_HOST_ASK_Pack(13U);
 }
 
@@ -1361,7 +1459,8 @@ void PC_HOST_CMD_Respond(void)
 			case PC_CMD_PLL_RESET:
 				Control_Reset_Both();
 				dpll_invalidate_abi();
-				if (dpll_initialize_abi() && control_apply_bank() &&
+				if (freq_meter_commit_candidate(&Freq_Meter_Committed_Config) &&
+				    dpll_initialize_abi() && control_apply_bank() &&
 				    Control_Set_Debug_DAC_Preset(CTRL_DEBUG_DAC_PRESET_DEFAULT)) {
 					PC_HOST_Send_ASK_Only(0U);
 				} else {
@@ -1441,7 +1540,6 @@ static volatile uint32_t Control_Uart_RX_Count;
 static volatile uint8_t Control_Uart_Frame_Ready;
 static uint8_t Control_Uart_TX[CONTROL_UART_BUFFER_SIZE];
 static uint8_t Control_Request_Seen;
-static uint8_t Control_DPLL_Enabled;
 static uint8_t Control_Last_Error;
 static uint32_t Control_Service_Divider;
 static uint32_t Control_Error_Hold_Loops;
@@ -1686,29 +1784,21 @@ static uint32_t control_amplitude_raw(uint16_t millivolts)
 	return ((uint32_t)millivolts * 32767UL + 1000UL) / 2000UL;
 }
 
-static uint8_t control_output_ratio_valid(uint32_t center_dhz,
-		uint16_t multiplier, uint16_t divider)
-{
-	if (multiplier == 0U || divider == 0U) return 0U;
-	return (uint64_t)center_dhz * multiplier <=
-	       (uint64_t)CTRL_DPLL_OUTPUT_MAX_DHZ * divider;
-}
-
 static uint8_t control_validate_bank(void)
 {
 	uint32_t center = control_get_u32(CTRL_REG_CENTER_FREQ_DHZ);
 	uint32_t microwave_khz = control_get_u32(CTRL_REG_MWS_FREQ_KHZ);
 	int32_t positive_limit = control_get_s32(CTRL_REG_POS_LIMIT_HZ);
 	int32_t negative_limit = control_get_s32(CTRL_REG_NEG_LIMIT_HZ);
+	uint16_t multiplier = control_get_u16(CTRL_REG_OUTPUT_MUL);
+	uint16_t divider = control_get_u16(CTRL_REG_OUTPUT_DIV);
 	if (Control_Bank[CTRL_REG_ID] != 0xA5U ||
 	    Control_Bank[CTRL_REG_PROTOCOL_VERSION] != CTRL_PROTOCOL_VERSION) return 0U;
 	if (microwave_khz < CTRL_MWS_FREQ_MIN_KHZ ||
 	    microwave_khz > CTRL_MWS_FREQ_MAX_KHZ) return 0U;
 	if (center < CTRL_DPLL_CENTER_MIN_DHZ ||
 	    center > CTRL_DPLL_CENTER_MAX_DHZ) return 0U;
-	if (!control_output_ratio_valid(center,
-	                                control_get_u16(CTRL_REG_OUTPUT_MUL),
-	                                control_get_u16(CTRL_REG_OUTPUT_DIV))) return 0U;
+	if (multiplier == 0U || divider == 0U) return 0U;
 	if (control_get_u32(CTRL_REG_KP_TRACK) > 0x007FFFFFUL ||
 	    control_get_u32(CTRL_REG_KI_TRACK) > 0x007FFFFFUL ||
 	    control_get_u32(CTRL_REG_KF_ACQUIRE) > 0x007FFFFFUL ||
@@ -1721,10 +1811,78 @@ static uint8_t control_validate_bank(void)
 	return 1U;
 }
 
+static int dpll_build_control_candidate(uint32_t center_word,
+		dpll_config_t *candidate)
+{
+	dpll_filter_profile_t generated;
+	dpll_profile_validation_t validation;
+	if (candidate == 0 ||
+	    dpll_compute_filter_profile_checked(center_word, &generated,
+	                                        &validation) != DPLL_DRIVER_OK)
+		return DPLL_DRIVER_ERR_CONFIG;
+
+	if (DPLL_Committed_Config_Valid &&
+	    DPLL_Committed_Config.center_word_hi == center_word) {
+		*candidate = DPLL_Committed_Config;
+	} else {
+		memset(candidate, 0, sizeof(*candidate));
+		candidate->center_word_hi = center_word;
+		candidate->profile = generated;
+		candidate->mul_factor = 1U;
+		candidate->div_factor = 1U;
+		if (DPLL_Committed_Config_Valid) {
+			candidate->profile.kf_track = DPLL_Committed_Config.profile.kf_track;
+			candidate->profile.kp_blend = DPLL_Committed_Config.profile.kp_blend;
+			candidate->profile.ki_blend = DPLL_Committed_Config.profile.ki_blend;
+			candidate->profile.phase_setpoint =
+				DPLL_Committed_Config.profile.phase_setpoint;
+			candidate->profile.magnitude_enter =
+				DPLL_Committed_Config.profile.magnitude_enter;
+			candidate->profile.magnitude_exit =
+				DPLL_Committed_Config.profile.magnitude_exit;
+			candidate->profile.acquire_dwell =
+				DPLL_Committed_Config.profile.acquire_dwell;
+			candidate->profile.blend_dwell =
+				DPLL_Committed_Config.profile.blend_dwell;
+			candidate->profile.loss_dwell =
+				DPLL_Committed_Config.profile.loss_dwell;
+			candidate->profile.warmup_samples =
+				DPLL_Committed_Config.profile.warmup_samples;
+			candidate->profile.holdover_timeout =
+				DPLL_Committed_Config.profile.holdover_timeout;
+			candidate->profile.post_iir_mode =
+				DPLL_Committed_Config.profile.post_iir_mode;
+			candidate->manual_offset = DPLL_Committed_Config.manual_offset;
+			candidate->dac0_offset = DPLL_Committed_Config.dac0_offset;
+		}
+	}
+
+	candidate->center_word_hi = center_word;
+	candidate->mul_factor = control_get_u16(CTRL_REG_OUTPUT_MUL);
+	candidate->div_factor = control_get_u16(CTRL_REG_OUTPUT_DIV);
+	candidate->profile.kp_track = (int32_t)control_get_u32(CTRL_REG_KP_TRACK);
+	candidate->profile.ki_track = (int32_t)control_get_u32(CTRL_REG_KI_TRACK);
+	candidate->profile.kf_acquire = (int32_t)control_get_u32(CTRL_REG_KF_ACQUIRE);
+	candidate->profile.kf_blend = (int32_t)control_get_u32(CTRL_REG_KF_BLEND);
+	candidate->profile.correction_limit_pos_hi =
+		control_limit_word(control_get_s32(CTRL_REG_POS_LIMIT_HZ));
+	candidate->profile.correction_limit_neg_hi =
+		control_limit_word(control_get_s32(CTRL_REG_NEG_LIMIT_HZ));
+	candidate->profile.phase_threshold =
+		control_phase_raw(control_get_u16(CTRL_REG_PHASE_THRESHOLD_CDEG));
+	candidate->profile.freq_threshold =
+		control_frequency_raw(control_get_u16(CTRL_REG_FREQ_THRESHOLD_HZ));
+	candidate->dac0_amplitude =
+		(int16_t)control_amplitude_raw(control_get_u16(CTRL_REG_DAC_AMPLITUDE_MV));
+	return DPLL_DRIVER_OK;
+}
+
 static uint8_t control_apply_bank(void)
 {
 	uint32_t center_word;
 	uint32_t interval_cycles;
+	dpll_config_t candidate;
+	freq_meter_config_t meter_candidate;
 	int apply_status;
 	if (!control_validate_bank()) {
 		control_report_error(CTRL_ERROR_RANGE);
@@ -1734,36 +1892,34 @@ static uint8_t control_apply_bank(void)
 	}
 
 	center_word = control_center_word(control_get_u32(CTRL_REG_CENTER_FREQ_DHZ));
-	if (dpll_write_center_filter_profile(center_word) != DPLL_DRIVER_OK) {
+	if (dpll_build_control_candidate(center_word, &candidate) != DPLL_DRIVER_OK) {
 		control_report_error(CTRL_ERROR_APPLY);
 		dpll_set_enable(0U);
 		Control_DPLL_Enabled = 0U;
 		return 0U;
 	}
-
-	Xil_Out32(VOC_Fre_Mul_Addr, control_get_u16(CTRL_REG_OUTPUT_MUL));
-	Xil_Out32(VOC_Fre_Div_Addr, control_get_u16(CTRL_REG_OUTPUT_DIV));
-	Xil_Out32(DPLL_PLL_KP_TRACK_Addr, control_get_u32(CTRL_REG_KP_TRACK));
-	Xil_Out32(DPLL_PLL_KI_TRACK_Addr, control_get_u32(CTRL_REG_KI_TRACK));
-	Xil_Out32(DPLL_FLL_KF_ACQUIRE_Addr, control_get_u32(CTRL_REG_KF_ACQUIRE));
-	Xil_Out32(DPLL_FLL_KF_BLEND_Addr, control_get_u32(CTRL_REG_KF_BLEND));
-	Xil_Out32(DPLL_FREQ_POS_LIMIT_Addr,
-	          (uint32_t)control_limit_word(control_get_s32(CTRL_REG_POS_LIMIT_HZ)));
-	Xil_Out32(DPLL_FREQ_NEG_LIMIT_Addr,
-	          (uint32_t)control_limit_word(control_get_s32(CTRL_REG_NEG_LIMIT_HZ)));
-	Xil_Out32(DAC0_Phase_Residuals_Threshold_Addr,
-	          control_phase_raw(control_get_u16(CTRL_REG_PHASE_THRESHOLD_CDEG)));
-	Xil_Out32(DAC0_Freq_Residuals_Threshold_Addr,
-	          control_frequency_raw(control_get_u16(CTRL_REG_FREQ_THRESHOLD_HZ)));
-	Xil_Out32(DAC0_VOC_Amplitude_Addr,
-	          control_amplitude_raw(control_get_u16(CTRL_REG_DAC_AMPLITUDE_MV)));
 	interval_cycles = (uint32_t)control_get_u16(CTRL_REG_FAST_INTERVAL_MS) * 125000UL;
-	Xil_Out32(Freq_Meter_Fast_Interval_Addr, interval_cycles);
+	if (!Freq_Meter_Committed_Config_Valid) {
+		control_report_error(CTRL_ERROR_APPLY);
+		return 0U;
+	}
+	meter_candidate = Freq_Meter_Committed_Config;
+	meter_candidate.fast_interval_cycles = interval_cycles;
+	if (!freq_meter_validate_config(&meter_candidate)) {
+		control_report_error(CTRL_ERROR_RANGE);
+		return 0U;
+	}
 
-	apply_status = dpll_apply_config();
+	apply_status = dpll_commit_candidate(&candidate);
 	if (apply_status != DPLL_DRIVER_OK) {
 		control_report_error((apply_status == DPLL_DRIVER_ERR_ABI) ?
 		                     CTRL_ERROR_ABI : CTRL_ERROR_APPLY);
+		dpll_set_enable(0U);
+		Control_DPLL_Enabled = 0U;
+		return 0U;
+	}
+	if (!freq_meter_commit_candidate(&meter_candidate)) {
+		control_report_error(CTRL_ERROR_RANGE);
 		dpll_set_enable(0U);
 		Control_DPLL_Enabled = 0U;
 		return 0U;
@@ -1898,7 +2054,7 @@ static void control_collect_runtime(void)
 	if (freq_meter_status & 0x10U)
 		fast_meter_sequence |= CTRL_FREQ_METER_LOCKED_MASK;
 	control_put_u32(CTRL_REG_FAST_METER_SEQ, fast_meter_sequence);
-	control_put_u32(CTRL_REG_ACTIVE_CONFIG_CRC, Xil_In32(DPLL_ACTIVE_CONFIG_CRC_Addr));
+	control_put_u32(CTRL_REG_ACTIVE_CONFIG_CRC, DPLL_Committed_Signature);
 }
 
 static uint8_t control_publish_runtime(void)
@@ -1934,7 +2090,27 @@ static void Control_Reset_Both(void)
 	Xil_Out32(Freq_Meter_Reset_Trigger_Addr, 0U);
 	usleep(100U);
 	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 1U);
+	Freq_Meter_Committed_Config_Valid = 0U;
+	Debug_DAC_Committed_Config_Valid = 0U;
 	dpll_invalidate_abi();
+}
+
+static void freq_meter_initialize_defaults(void)
+{
+	memset(&Freq_Meter_Committed_Config, 0,
+	       sizeof(Freq_Meter_Committed_Config));
+	Freq_Meter_Committed_Config.center_word = 0x51EB851EU;
+	Freq_Meter_Committed_Config.phase_threshold = 1000U;
+	Freq_Meter_Committed_Config.frequency_threshold = 500U;
+	Freq_Meter_Committed_Config.positive_limit = 0x4FFFFFFFU;
+	Freq_Meter_Committed_Config.negative_limit = 0xB0000000U;
+	Freq_Meter_Committed_Config.gain_p = 0x00400000U;
+	Freq_Meter_Committed_Config.gain_i = 0x00100000U;
+	Freq_Meter_Committed_Config.gain_i2 = 0x00000100U;
+	Xil_Out32(Freq_Meter_Coefd_Filter_Addr, FREQ_METER_D_FILTER_COEFF);
+	Freq_Meter_Committed_Config.gate_time_low = 125000000U;
+	Freq_Meter_Committed_Config.fast_interval_cycles = 62500000U;
+	Freq_Meter_Committed_Config_Valid = 0U;
 }
 
 static uint8_t Control_Link_Startup(void)
@@ -1956,6 +2132,10 @@ static uint8_t Control_Link_Startup(void)
 	                        &Control_Bank[CTRL_REG_DEBUG_DAC_PRESET])) return 0U;
 	Control_Debug_Preset_Seen = CTRL_DEBUG_DAC_PRESET_MANUAL;
 	Control_Reset_Both();
+	if (!freq_meter_commit_candidate(&Freq_Meter_Committed_Config)) {
+		control_report_error(CTRL_ERROR_RANGE);
+		return 0U;
+	}
 	if (!dpll_initialize_abi()) {
 		control_report_error(CTRL_ERROR_ABI);
 	} else {
@@ -2092,31 +2272,13 @@ int main()
     XPS_Core_init();
     Uart0PS_Init();
     Uart1PS_Init();
+	freq_meter_initialize_defaults();
 
 	while (!Control_Link_Startup()) {
 		CONTROL_DCC_LOG("control link startup failed, retrying\r\n");
 		usleep(100000U);
 	}
 
-	Xil_Out32(DAC0_DDC_Angle_Select_Addr, 0U);
-	Xil_Out32(DAC0_VCO_Offset_Addr, 0U);
-	Xil_Out32(VCO_Freq_Manual_Offset_Addr, 0U);
-
-	/* The original precision frequency-meter path remains independent. */
-	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 1U);
-	Xil_Out32(Freq_Meter_Centre_Frequency_Addr, 0x51EB851EU);
-	Xil_Out32(Freq_Meter_PID_GainP_Addr, 0x00400000U);
-	Xil_Out32(Freq_Meter_PID_GainI_Addr, 0x00100000U);
-	Xil_Out32(Freq_Meter_PID_GainI2_Addr, 0x00000100U);
-	Xil_Out32(Freq_Meter_PID_GainD_Addr, 0U);
-	Xil_Out32(Freq_Meter_Coefd_Filter_Addr, 0x0FFFFU);
-	Xil_Out32(Freq_Meter_Freq_Pos_Limit_Addr, 0x4FFFFFFFU);
-	Xil_Out32(Freq_Meter_Freq_Neg_Limit_Addr, 0xB0000000U);
-	Xil_Out32(Freq_Meter_Freq_Manual_Offset_Addr, 0U);
-	Xil_Out32(Freq_Meter_Gate_Time_H_Addr, 0U);
-	Xil_Out32(Freq_Meter_Phase_Residuals_Threshold_Addr, 1000U);
-	Xil_Out32(Freq_Meter_Phase_Residuals_Offset_Addr, 0U);
-	Xil_Out32(Freq_Meter_Freq_Residuals_Threshold_Addr, 500U);
 	Xil_Out32(Freq_Meter_Lock_Ctrl_Addr, 1U);
 
     XUartPs_SendByte(XUartPs_uart0.Config.BaseAddress,'C');

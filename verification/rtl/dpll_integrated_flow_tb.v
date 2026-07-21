@@ -108,6 +108,7 @@ module dpll_integrated_flow_tb;
     task bus_write;
         input [15:0] index;
         input [31:0] value;
+        integer wait_count;
         begin
             @(negedge sys_clk);
             sys_addr = {14'd0, index, 2'b00};
@@ -115,8 +116,12 @@ module dpll_integrated_flow_tb;
             sys_sel = 4'hf;
             sys_wen = 1'b1;
             sys_ren = 1'b0;
-            @(posedge sys_clk);
-            #1;
+            wait_count = 0;
+            while (!sys_ack && wait_count < 64) begin
+                @(posedge sys_clk);
+                #1;
+                wait_count = wait_count + 1;
+            end
             if (!sys_ack) begin
                 $display("FAIL: write timeout index=0x%04h value=0x%08h", index, value);
                 $finish;
@@ -158,28 +163,6 @@ module dpll_integrated_flow_tb;
         end
     endtask
 
-    task wait_apply_done;
-        integer wait_count;
-        reg [31:0] apply_status;
-        begin
-            wait_count = 0;
-            apply_status = 32'h0000_0001;
-            while (((apply_status[0] == 1'b1) || (apply_status[15:8] == 8'd0)) && wait_count < 128) begin
-                bus_read(16'h006f, apply_status);
-                wait_count = wait_count + 1;
-            end
-            if (apply_status[0]) begin
-                $display("FAIL: CONFIG_APPLY busy stuck status=0x%08h", apply_status);
-                $finish;
-            end
-            if (apply_status[1]) begin
-                bus_read(16'h0070, apply_status);
-                $display("FAIL: CONFIG_APPLY rejected mask=0x%08h", apply_status);
-                $finish;
-            end
-        end
-    endtask
-
     task log_read;
         input [15:0] index;
         input [8*32-1:0] name;
@@ -215,7 +198,7 @@ module dpll_integrated_flow_tb;
         bus_write(16'h0020, 32'h0000_0000);
         run_clocks(RESET_DELAY_CYCLES);
 
-        $display("Programming DPLL register shadow set for 5.5 kHz center, 5 kHz ADC DDS input");
+        $display("Programming DPLL active registers for 5.5 kHz center, 5 kHz ADC DDS input");
         bus_write(16'h0010, CENTER_WORD_HI);
         bus_write(16'h0011, 32'h0000_0000);
         bus_write(16'h0021, 32'd6000000);
@@ -266,15 +249,16 @@ module dpll_integrated_flow_tb;
         bus_write(16'h006d, PROFILE_TRACK_A1);
         bus_write(16'h006e, PROFILE_TRACK_A2);
         run_clocks(INIT_SETTLE_CYCLES);
-        bus_write(16'h006f, 32'h0000_0001);
-        wait_apply_done();
+        // All fields are already active. Clear the completed detector/control
+        // pipeline once before enabling the loop.
+        bus_write(16'h006f, 32'h0000_0003);
         run_clocks(INIT_SETTLE_CYCLES);
         bus_write(16'h0020, 32'h0000_0001);
 
         log_read(16'h0110, "ACTIVE_CENTER_WORD_HI");
         log_read(16'h0111, "ACTIVE_CIC_CONFIG");
         log_read(16'h0112, "ACTIVE_OUTPUT_MUL_DIV");
-        log_read(16'h011e, "ACTIVE_CONFIG_CRC");
+        log_read(16'h011e, "RESERVED_CONFIG_CRC");
         log_read(16'h011f, "ACTIVE_POST_IIR_CONFIG");
         log_read(16'h0120, "ACTIVE_POST_IIR_ACQ_B0");
         log_read(16'h0123, "ACTIVE_POST_IIR_ACQ_A1");

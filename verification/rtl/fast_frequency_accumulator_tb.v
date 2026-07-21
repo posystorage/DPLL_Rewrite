@@ -65,8 +65,12 @@ module fast_frequency_accumulator_tb;
         @(negedge clk);
         interval_cycles = 32'd0;
         wait_and_check(31'd4, 80'd9, 32'd3);
-        wait_and_check(31'd5, 80'd3, 32'd1);
-        wait_and_check(31'd6, 80'd3, 32'd1);
+        repeat (16) @(posedge clk);
+        #1;
+        if (update_sequence !== 31'd4 || result_interval_cycles !== 32'd3) begin
+            $display("FAIL: zero interval was silently rewritten into a running interval");
+            $finish;
+        end
 
         $display("PASS: fast_frequency_accumulator_tb");
         $finish;

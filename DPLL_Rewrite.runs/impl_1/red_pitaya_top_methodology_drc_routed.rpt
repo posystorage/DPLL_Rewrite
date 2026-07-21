@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Mon Jul 20 19:10:03 2026
+| Date         : Tue Jul 21 04:06:03 2026
 | Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 | Command      : report_methodology -file red_pitaya_top_methodology_drc_routed.rpt -pb red_pitaya_top_methodology_drc_routed.pb -rpx red_pitaya_top_methodology_drc_routed.rpx
 | Design       : red_pitaya_top
@@ -23,15 +23,12 @@ Table of Contents
           Floorplan: design_1
       Design limits: <entire design considered>
              Max violations: <unlimited>
-             Violations found: 107
+             Violations found: 90
 +-----------+----------+-------------------------------------------------+------------+
 | Rule      | Severity | Description                                     | Violations |
 +-----------+----------+-------------------------------------------------+------------+
-| DPIR-1    | Warning  | Asynchronous driver check                       | 18         |
-| SYNTH-10  | Warning  | Wide multiplier                                 | 6          |
 | SYNTH-11  | Warning  | DSP output not registered                       | 1          |
-| SYNTH-13  | Warning  | combinational multiplier                        | 1          |
-| SYNTH-14  | Warning  | DSP cannot absorb non-zero init register        | 7          |
+| SYNTH-14  | Warning  | DSP cannot absorb non-zero init register        | 15         |
 | TIMING-18 | Warning  | Missing input or output delay                   | 40         |
 | XDCB-5    | Warning  | Runtime inefficient way to find pin objects     | 2          |
 | XDCC-5    | Warning  | User Non-Timing constraint/property overwritten | 4          |
@@ -40,169 +37,84 @@ Table of Contents
 
 2. REPORT DETAILS
 -----------------
-DPIR-1#1 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[0] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#2 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[10] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#3 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[11] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#4 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[12] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#5 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[13] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#6 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[14] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#7 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[15] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#8 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[16] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#9 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[17] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#10 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[1] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#11 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[2] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#12 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[3] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#13 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[4] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#14 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[5] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#15 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[6] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#16 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[7] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#17 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[8] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-DPIR-1#18 Warning
-Asynchronous driver check  
-DSP dpll_wrapper_inst/VCO_inst0/ARG input pin dpll_wrapper_inst/VCO_inst0/ARG/B[9] is connected to registers with an asynchronous reset. This is preventing the possibility of merging these registers in to the DSP Block since the DSP block registers only possess synchronous reset capability.  It is suggested to recode or change these registers to remove the reset or use a synchronous reset to get the best optimization for performance, power and area.
-Related violations: <none>
-
-SYNTH-10#1 Warning
-Wide multiplier  
-Detected multiplier at dpll_wrapper_inst/apply_vco_max_product_r0 of size 15x17, it is decomposed from a wide multipler into 3 DSP blocks.
-Related violations: <none>
-
-SYNTH-10#2 Warning
-Wide multiplier  
-Detected multiplier at dpll_wrapper_inst/apply_vco_max_product_r0__0 of size 18x17, it is decomposed from a wide multipler into 3 DSP blocks.
-Related violations: <none>
-
-SYNTH-10#3 Warning
-Wide multiplier  
-Detected multiplier at dpll_wrapper_inst/apply_vco_max_product_r0__1 of size 18x17, it is decomposed from a wide multipler into 3 DSP blocks.
-Related violations: <none>
-
-SYNTH-10#4 Warning
-Wide multiplier  
-Detected multiplier at dpll_wrapper_inst/apply_vco_product_r0 of size 15x17, it is decomposed from a wide multipler into 3 DSP blocks.
-Related violations: <none>
-
-SYNTH-10#5 Warning
-Wide multiplier  
-Detected multiplier at dpll_wrapper_inst/apply_vco_product_r0__0 of size 18x17, it is decomposed from a wide multipler into 3 DSP blocks.
-Related violations: <none>
-
-SYNTH-10#6 Warning
-Wide multiplier  
-Detected multiplier at dpll_wrapper_inst/apply_vco_product_r0__1 of size 18x17, it is decomposed from a wide multipler into 3 DSP blocks.
-Related violations: <none>
-
 SYNTH-11#1 Warning
 DSP output not registered  
 DSP instance dpll_wrapper_inst/debug_dac_formatter_inst/product_r30 is not fully pipelined on the output side. MREG/PREG are not used.
 Related violations: <none>
 
-SYNTH-13#1 Warning
-combinational multiplier  
-Detected combinational multiplier in DSP instance dpll_wrapper_inst/shadow_measurement_min.
-Related violations: <none>
-
 SYNTH-14#1 Warning
 DSP cannot absorb non-zero init register  
-Register dpll_wrapper_inst/reg_cic_rate/output_reg[0] cannot be absorbed into DSP block due to its non-zero INIT value.
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[0] cannot be absorbed into DSP block due to its non-zero INIT value.
 Related violations: <none>
 
 SYNTH-14#2 Warning
 DSP cannot absorb non-zero init register  
-Register dpll_wrapper_inst/reg_cic_rate/output_reg[1] cannot be absorbed into DSP block due to its non-zero INIT value.
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[10] cannot be absorbed into DSP block due to its non-zero INIT value.
 Related violations: <none>
 
 SYNTH-14#3 Warning
 DSP cannot absorb non-zero init register  
-Register dpll_wrapper_inst/reg_cic_rate/output_reg[2] cannot be absorbed into DSP block due to its non-zero INIT value.
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[11] cannot be absorbed into DSP block due to its non-zero INIT value.
 Related violations: <none>
 
 SYNTH-14#4 Warning
 DSP cannot absorb non-zero init register  
-Register dpll_wrapper_inst/reg_cic_rate/output_reg[3] cannot be absorbed into DSP block due to its non-zero INIT value.
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[12] cannot be absorbed into DSP block due to its non-zero INIT value.
 Related violations: <none>
 
 SYNTH-14#5 Warning
 DSP cannot absorb non-zero init register  
-Register dpll_wrapper_inst/reg_cic_rate/output_reg[4] cannot be absorbed into DSP block due to its non-zero INIT value.
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[13] cannot be absorbed into DSP block due to its non-zero INIT value.
 Related violations: <none>
 
 SYNTH-14#6 Warning
 DSP cannot absorb non-zero init register  
-Register dpll_wrapper_inst/reg_freq_div/output_reg[0] cannot be absorbed into DSP block due to its non-zero INIT value.
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[14] cannot be absorbed into DSP block due to its non-zero INIT value.
 Related violations: <none>
 
 SYNTH-14#7 Warning
 DSP cannot absorb non-zero init register  
-Register dpll_wrapper_inst/reg_freq_mul/output_reg[0] cannot be absorbed into DSP block due to its non-zero INIT value.
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[1] cannot be absorbed into DSP block due to its non-zero INIT value.
+Related violations: <none>
+
+SYNTH-14#8 Warning
+DSP cannot absorb non-zero init register  
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[2] cannot be absorbed into DSP block due to its non-zero INIT value.
+Related violations: <none>
+
+SYNTH-14#9 Warning
+DSP cannot absorb non-zero init register  
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[3] cannot be absorbed into DSP block due to its non-zero INIT value.
+Related violations: <none>
+
+SYNTH-14#10 Warning
+DSP cannot absorb non-zero init register  
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[4] cannot be absorbed into DSP block due to its non-zero INIT value.
+Related violations: <none>
+
+SYNTH-14#11 Warning
+DSP cannot absorb non-zero init register  
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[5] cannot be absorbed into DSP block due to its non-zero INIT value.
+Related violations: <none>
+
+SYNTH-14#12 Warning
+DSP cannot absorb non-zero init register  
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[6] cannot be absorbed into DSP block due to its non-zero INIT value.
+Related violations: <none>
+
+SYNTH-14#13 Warning
+DSP cannot absorb non-zero init register  
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[7] cannot be absorbed into DSP block due to its non-zero INIT value.
+Related violations: <none>
+
+SYNTH-14#14 Warning
+DSP cannot absorb non-zero init register  
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[8] cannot be absorbed into DSP block due to its non-zero INIT value.
+Related violations: <none>
+
+SYNTH-14#15 Warning
+DSP cannot absorb non-zero init register  
+Register dpll_wrapper_inst/reg_dac0_amp/output_reg[9] cannot be absorbed into DSP block due to its non-zero INIT value.
 Related violations: <none>
 
 TIMING-18#1 Warning

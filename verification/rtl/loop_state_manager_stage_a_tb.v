@@ -13,7 +13,7 @@ module loop_state_manager_stage_a_tb;
     reg clk = 1'b0;
     reg rst = 1'b1;
     reg loop_enable = 1'b0;
-    reg config_apply = 1'b0;
+    reg controller_reacquire = 1'b0;
     reg measurement_valid = 1'b0;
     reg magnitude_valid = 1'b0;
     reg phase_valid = 1'b0;
@@ -47,7 +47,7 @@ module loop_state_manager_stage_a_tb;
         .clk_125m(clk),
         .rst_125m(rst),
         .loop_enable(loop_enable),
-        .config_apply(config_apply),
+        .controller_reacquire(controller_reacquire),
         .magnitude_valid(magnitude_valid),
         .phase_valid(phase_valid),
         .frequency_valid(frequency_valid),
@@ -149,10 +149,10 @@ module loop_state_manager_stage_a_tb;
 
         @(negedge clk);
         loop_enable = 1'b1;
-        config_apply = 1'b1;
+        controller_reacquire = 1'b1;
         @(posedge clk);
         #1;
-        config_apply = 1'b0;
+        controller_reacquire = 1'b0;
         repeat (2) @(posedge clk);
         expect_state(ST_WARMUP);
 

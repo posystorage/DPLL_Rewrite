@@ -91,35 +91,35 @@
 
 #define DPLL_FREQ_POS_LIMIT_Addr (DPLL_BASE_ADDR|(0x0028<<2))//signed high 32 bits of positive 48-bit DDS correction limit
 #define DPLL_FREQ_NEG_LIMIT_Addr (DPLL_BASE_ADDR|(0x0029<<2))//signed high 32 bits of negative 48-bit DDS correction limit
-#define VCO_Freq_Manual_Offset_Addr (DPLL_BASE_ADDR|(0x002A<<2))//16bit
+#define VCO_Freq_Manual_Offset_Addr (DPLL_BASE_ADDR|(0x002A<<2))//signed 32bit
 
 //DAC0
-#define DAC0_VCO_Offset_Addr (DPLL_BASE_ADDR|(0x0030<<2))//offset 14bit;
-#define DAC0_VOC_Amplitude_Addr (DPLL_BASE_ADDR|(0x0031<<2))//amplitude 15bit;
-#define VOC_Fre_Mul_Addr (DPLL_BASE_ADDR|(0x0032<<2))//amplitude 15bit;
-#define VOC_Fre_Div_Addr (DPLL_BASE_ADDR|(0x0033<<2))//amplitude 15bit;
+#define DAC0_VCO_Offset_Addr (DPLL_BASE_ADDR|(0x0030<<2))//signed offset 14bit
+#define DAC0_VOC_Amplitude_Addr (DPLL_BASE_ADDR|(0x0031<<2))//16bit field, valid amplitude is nonnegative
+#define VOC_Fre_Mul_Addr (DPLL_BASE_ADDR|(0x0032<<2))//unsigned 16bit
+#define VOC_Fre_Div_Addr (DPLL_BASE_ADDR|(0x0033<<2))//unsigned 16bit
 
 //DAC1 is a debug output only, not a second DPLL.
-#define DPLL_DEBUG_DAC_OFFSET_ADDR (DPLL_BASE_ADDR|(0x0040<<2))//debug offset 14bit;
-#define DPLL_DEBUG_DAC_GAIN_ADDR (DPLL_BASE_ADDR|(0x0041<<2))//debug gain 16bit;
-#define DPLL_DEBUG_DAC_SOURCE_ADDR (DPLL_BASE_ADDR|(0x0042<<2))//debug source select;
-#define DPLL_DEBUG_DAC_FORMAT_ADDR (DPLL_BASE_ADDR|(0x0043<<2))//debug format/reserved
+#define DPLL_DEBUG_DAC_OFFSET_ADDR (DPLL_BASE_ADDR|(0x0040<<2))//signed debug offset 14bit
+#define DPLL_DEBUG_DAC_GAIN_ADDR (DPLL_BASE_ADDR|(0x0041<<2))//signed debug gain 16bit
+#define DPLL_DEBUG_DAC_SOURCE_ADDR (DPLL_BASE_ADDR|(0x0042<<2))//debug source select 4bit
+#define DPLL_DEBUG_DAC_FORMAT_ADDR (DPLL_BASE_ADDR|(0x0043<<2))//debug format/reserved 12bit
 
 
 //��������ָʾ
-#define DAC0_Phase_Residuals_Threshold_Addr (DPLL_BASE_ADDR|(0x0050<<2))//Phase_Residuals 32bit
-#define DAC0_Phase_Residuals_Offset_Addr (DPLL_BASE_ADDR|(0x0051<<2))//Phase_Residuals 32bit
-#define DAC0_Freq_Residuals_Threshold_Addr (DPLL_BASE_ADDR|(0x0052<<2))//Frequency_Residuals 10bit
+#define DAC0_Phase_Residuals_Threshold_Addr (DPLL_BASE_ADDR|(0x0050<<2))//unsigned phase threshold 18bit
+#define DAC0_Phase_Residuals_Offset_Addr (DPLL_BASE_ADDR|(0x0051<<2))//signed phase setpoint 18bit
+#define DAC0_Freq_Residuals_Threshold_Addr (DPLL_BASE_ADDR|(0x0052<<2))//unsigned frequency threshold 22bit
 #define DPLL_MAG_ENTER_THRESHOLD_Addr (DPLL_BASE_ADDR|(0x0053<<2))
 #define DPLL_MAG_EXIT_THRESHOLD_Addr (DPLL_BASE_ADDR|(0x0054<<2))
 #define DPLL_ACQUIRE_DWELL_Addr (DPLL_BASE_ADDR|(0x0055<<2))
 #define DPLL_BLEND_DWELL_Addr (DPLL_BASE_ADDR|(0x0056<<2))
 #define DPLL_LOSS_DWELL_Addr (DPLL_BASE_ADDR|(0x0057<<2))
 #define DPLL_HOLDOVER_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0058<<2))//low 24 bits; holdover duration in 125 MHz ticks
-#define DPLL_MEASUREMENT_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0059<<2))//0=auto (120*R+256), otherwise low 24 bits
+#define DPLL_MEASUREMENT_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x0059<<2))//explicit low 24-bit timeout
 
-//DPLL v1 post-IQ CIC/FLL configuration. R/shift writes are shadowed; write
-//DPLL_CONFIG_APPLY_Addr to atomically apply them in the DPLL clock-valid domain.
+//DPLL post-IQ CIC/FLL configuration. Writes take effect directly in the
+//125 MHz domain. Structural writes clear the detector and restart acquisition.
 #define DPLL_POST_IQ_CIC_R_Addr (DPLL_BASE_ADDR|(0x0060<<2))
 #define DPLL_POST_IQ_CIC_SHIFT_Addr (DPLL_BASE_ADDR|(0x0061<<2))
 #define DPLL_FLL_DELAY_SEL_Addr (DPLL_BASE_ADDR|(0x0062<<2))
@@ -135,14 +135,10 @@
 #define DPLL_POST_IIR_TRACK_B2_Addr (DPLL_BASE_ADDR|(0x006C<<2))
 #define DPLL_POST_IIR_TRACK_A1_Addr (DPLL_BASE_ADDR|(0x006D<<2))
 #define DPLL_POST_IIR_TRACK_A2_Addr (DPLL_BASE_ADDR|(0x006E<<2))
-#define DPLL_CONFIG_APPLY_Addr (DPLL_BASE_ADDR|(0x006F<<2))
-#define DPLL_CONFIG_APPLY_BUSY_MASK 0x00000001U
-#define DPLL_CONFIG_APPLY_ERROR_MASK 0x00000002U
-#define DPLL_CONFIG_APPLY_ERROR_CODE_MASK 0x000000F0U
-#define DPLL_CONFIG_APPLY_ERROR_CODE_SHIFT 4U
-#define DPLL_CONFIG_APPLY_SEQ_MASK 0x0000FF00U
-#define DPLL_CONFIG_APPLY_SEQ_SHIFT 8U
-#define DPLL_CONFIG_REJECTED_MASK_Addr (DPLL_BASE_ADDR|(0x0070<<2))
+#define DPLL_RECONFIGURE_Addr (DPLL_BASE_ADDR|(0x006F<<2))
+#define DPLL_RECONFIGURE_CONTROLLER 0x00000001U
+#define DPLL_RECONFIGURE_DETECTOR   0x00000002U
+#define DPLL_RESERVED_0070_Addr (DPLL_BASE_ADDR|(0x0070<<2))//reserved, reads zero
 
 
 
@@ -159,7 +155,6 @@
 
 #define DPLL_CORE_FLAGS_Addr (DPLL_BASE_ADDR|(0x0108<<2))
 #define DPLL_LOOP_STATE_LOSS_REASON_Addr DPLL_CORE_FLAGS_Addr
-#define DPLL_CORE_FLAG_VCO_MUL_DIV_CONFIG_ERROR (1U<<17)
 #define DPLL_CORE_FLAG_PRE_CIC_BACKPRESSURE (1U<<19)
 #define DPLL_CORE_FLAG_POST_IIR_BYPASS (1U<<23)
 #define DPLL_CORE_FLAG_POST_IIR_USE_TRACK (1U<<24)
@@ -183,7 +178,7 @@
 #define DPLL_ACTIVE_HOLDOVER_TIMEOUT_Addr (DPLL_BASE_ADDR|(0x011B<<2))
 #define DPLL_APPLIED_ABI_VERSION_Addr (DPLL_BASE_ADDR|(0x011C<<2))
 #define DPLL_GIT_HASH_Addr (DPLL_BASE_ADDR|(0x011D<<2))
-#define DPLL_ACTIVE_CONFIG_CRC_Addr (DPLL_BASE_ADDR|(0x011E<<2))
+#define DPLL_RESERVED_011E_Addr (DPLL_BASE_ADDR|(0x011E<<2))//reserved, reads zero
 #define DPLL_ACTIVE_POST_IIR_CONFIG_Addr (DPLL_BASE_ADDR|(0x011F<<2))
 #define DPLL_ACTIVE_POST_IIR_ACQ_B0_Addr (DPLL_BASE_ADDR|(0x0120<<2))
 #define DPLL_ACTIVE_POST_IIR_ACQ_B1_Addr (DPLL_BASE_ADDR|(0x0121<<2))
@@ -195,6 +190,18 @@
 #define DPLL_ACTIVE_POST_IIR_TRACK_B2_Addr (DPLL_BASE_ADDR|(0x0127<<2))
 #define DPLL_ACTIVE_POST_IIR_TRACK_A1_Addr (DPLL_BASE_ADDR|(0x0128<<2))
 #define DPLL_ACTIVE_POST_IIR_TRACK_A2_Addr (DPLL_BASE_ADDR|(0x0129<<2))
+#define DPLL_ACTIVE_PHASE_SETPOINT_Addr (DPLL_BASE_ADDR|(0x012A<<2))
+#define DPLL_ACTIVE_PHASE_THRESHOLD_Addr (DPLL_BASE_ADDR|(0x012B<<2))
+#define DPLL_ACTIVE_FREQ_THRESHOLD_Addr (DPLL_BASE_ADDR|(0x012C<<2))
+#define DPLL_ACTIVE_MAG_ENTER_Addr (DPLL_BASE_ADDR|(0x012D<<2))
+#define DPLL_ACTIVE_MAG_EXIT_Addr (DPLL_BASE_ADDR|(0x012E<<2))
+#define DPLL_ACTIVE_ACQUIRE_BLEND_DWELL_Addr (DPLL_BASE_ADDR|(0x012F<<2))
+#define DPLL_ACTIVE_LOSS_WARMUP_DWELL_Addr (DPLL_BASE_ADDR|(0x0130<<2))
+#define DPLL_ACTIVE_POSITIVE_LIMIT_Addr (DPLL_BASE_ADDR|(0x0131<<2))
+#define DPLL_ACTIVE_NEGATIVE_LIMIT_Addr (DPLL_BASE_ADDR|(0x0132<<2))
+#define DPLL_ACTIVE_MANUAL_OFFSET_Addr (DPLL_BASE_ADDR|(0x0133<<2))
+#define DPLL_ACTIVE_DAC0_PAIR_Addr (DPLL_BASE_ADDR|(0x0134<<2))
+#define DPLL_ACTIVE_FLL_DELAY_Addr (DPLL_BASE_ADDR|(0x0135<<2))
 #define PLL0_Test_Reg DPLL_FPGA_BUILD_ID_Addr
 
 #endif

@@ -8,7 +8,6 @@ module pll_vco_mul_div_tb;
     reg [15:0] mul_factor = 16'd1;
     reg [15:0] div_factor = 16'd1;
     wire [47:0] data_out;
-    wire config_error;
 
     integer seen_first;
     localparam integer MULT_LATENCY_CYCLES = 8;
@@ -26,8 +25,7 @@ module pll_vco_mul_div_tb;
         .data_in(data_in),
         .data_out(data_out),
         .PLL_Mul_factor(mul_factor),
-        .PLL_Div_factor(div_factor),
-        .config_error(config_error)
+        .PLL_Div_factor(div_factor)
     );
 
     task push_sample;
@@ -74,26 +72,8 @@ module pll_vco_mul_div_tb;
         push_sample(48'd1001, 16'd1, 16'd2);
         wait_output(48'd501);
 
-        push_sample(48'd5, 16'd7, 16'd0);
-        repeat (OUTPUT_TIMEOUT_CYCLES) @(posedge clk);
-        #1;
-        if (data_out !== 48'd501 || config_error !== 1'b1) begin
-            $display("FAIL: DIV=0 should preserve previous output and set config_error, got out=%0d err=%b",
-                     data_out, config_error);
-            $finish;
-        end
-
         push_sample(48'd65535, 16'd1, 16'hffff);
         wait_output(48'd1);
-
-        push_sample(48'd1234, 16'd0, 16'd1);
-        repeat (OUTPUT_TIMEOUT_CYCLES) @(posedge clk);
-        #1;
-        if (data_out !== 48'd1 || config_error !== 1'b1) begin
-            $display("FAIL: MUL=0 should be rejected without output change, got out=%0d err=%b",
-                     data_out, config_error);
-            $finish;
-        end
 
         push_sample({48{1'b1}}, 16'hFFFF, 16'd1);
         wait_output({48{1'b1}});

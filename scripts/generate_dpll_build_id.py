@@ -9,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VERILOG_HEADER = ROOT / "DPLL_Rewrite.srcs/sources_1/DigitalPLL/dpll_build_id.vh"
 ARM_HEADER = ROOT / "DPLL_Rewrite.sdk/DPLL_2COM/src/dpll_build_id.h"
-ABI_VERSION = 0x00000004
-CONFIG_VERSION = 0x00010007
+ABI_VERSION = 0x00000005
+CONFIG_VERSION = 0x00010008
 EXCLUDED = {VERILOG_HEADER.resolve(), ARM_HEADER.resolve()}
 SOURCE_PREFIXES = (
     "DPLL_Rewrite.srcs/",

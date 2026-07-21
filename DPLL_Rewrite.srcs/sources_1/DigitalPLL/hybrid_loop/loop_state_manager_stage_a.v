@@ -13,7 +13,7 @@ module loop_state_manager_stage_a #(
     input  wire                                  clk_125m,
     input  wire                                  rst_125m,
     input  wire                                  loop_enable,
-    input  wire                                  config_apply,
+    input  wire                                  controller_reacquire,
     input  wire                                  magnitude_valid,
     input  wire                                  phase_valid,
     input  wire                                  frequency_valid,
@@ -110,20 +110,6 @@ module loop_state_manager_stage_a #(
     wire loop_ok = phase_ok && freq_ok && !correction_saturated;
     wire loss_sample = !phase_ok || !freq_ok || correction_saturated;
 
-    function [DWELL_WIDTH-1:0] nonzero_dwell;
-        input [DWELL_WIDTH-1:0] value;
-        begin
-            nonzero_dwell = (value == {DWELL_WIDTH{1'b0}}) ? {{(DWELL_WIDTH-1){1'b0}}, 1'b1} : value;
-        end
-    endfunction
-
-    function [TIMEOUT_WIDTH-1:0] nonzero_timeout;
-        input [TIMEOUT_WIDTH-1:0] value;
-        begin
-            nonzero_timeout = (value == {TIMEOUT_WIDTH{1'b0}}) ? {{(TIMEOUT_WIDTH-1){1'b0}}, 1'b1} : value;
-        end
-    endfunction
-
     always @* begin
         enable_fll = 1'b0;
         enable_pll_i = 1'b0;
@@ -201,12 +187,12 @@ module loop_state_manager_stage_a #(
             holdover_timeout_r <= holdover_timeout;
             measurement_timeout_r <= measurement_timeout;
             warmup_samples_r <= warmup_samples;
-            warmup_target_r <= nonzero_dwell(warmup_samples_r) - 1'b1;
-            acquire_target_r <= nonzero_dwell(acquire_dwell_r) - 1'b1;
-            blend_target_r <= nonzero_dwell(blend_dwell_r) - 1'b1;
-            loss_target_r <= nonzero_dwell(loss_dwell_r) - 1'b1;
-            holdover_target_r <= nonzero_timeout(holdover_timeout_r) - 1'b1;
-            measurement_timeout_target_r <= nonzero_timeout(measurement_timeout_r) - 1'b1;
+            warmup_target_r <= warmup_samples_r - 1'b1;
+            acquire_target_r <= acquire_dwell_r - 1'b1;
+            blend_target_r <= blend_dwell_r - 1'b1;
+            loss_target_r <= loss_dwell_r - 1'b1;
+            holdover_target_r <= holdover_timeout_r - 1'b1;
+            measurement_timeout_target_r <= measurement_timeout_r - 1'b1;
 
             if (measurement_valid) begin
                 measurement_gap_count <= {TIMEOUT_WIDTH{1'b0}};
@@ -225,7 +211,7 @@ module loop_state_manager_stage_a #(
                 holdover_count <= {TIMEOUT_WIDTH{1'b0}};
                 measurement_gap_count <= {TIMEOUT_WIDTH{1'b0}};
                 track_iir_preheat <= 1'b0;
-            end else if (config_apply) begin
+            end else if (controller_reacquire) begin
                 loop_state <= ST_CONFIGURE;
                 loss_reason <= LOSS_NONE;
                 good_count <= {DWELL_WIDTH{1'b0}};
@@ -392,7 +378,7 @@ module loop_state_manager_stage_a #(
 
                     ST_FAULT: begin
                         track_iir_preheat <= 1'b0;
-                        if (config_apply) begin
+                        if (controller_reacquire) begin
                             loop_state <= ST_CONFIGURE;
                             loss_reason <= LOSS_NONE;
                         end

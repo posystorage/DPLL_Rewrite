@@ -13,22 +13,19 @@ module post_iq_cic_stage_a #(
     input  wire                             in_valid,
     input  wire signed [INPUT_WIDTH-1:0]    i_in,
     input  wire signed [INPUT_WIDTH-1:0]    q_in,
-    input  wire                             config_apply,
+    input  wire                             reconfigure,
     input  wire                             status_clear,
-    input  wire [RATE_WIDTH-1:0]            shadow_rate_r,
-    input  wire [SHIFT_WIDTH-1:0]           shadow_output_shift,
+    input  wire [RATE_WIDTH-1:0]            rate_r,
+    input  wire [SHIFT_WIDTH-1:0]           output_shift,
     input  wire                             flush,
     output reg                              out_valid,
     output reg signed [OUTPUT_WIDTH-1:0]    i_out,
     output reg signed [OUTPUT_WIDTH-1:0]    q_out,
-    output reg [RATE_WIDTH-1:0]             active_rate_r,
-    output reg [SHIFT_WIDTH-1:0]            active_output_shift,
-    output reg                              overflow_seen,
-    output reg                              illegal_config_seen
+    output wire [RATE_WIDTH-1:0]            active_rate_r,
+    output wire [SHIFT_WIDTH-1:0]           active_output_shift,
+    output reg                              overflow_seen
 );
 
-    localparam [RATE_WIDTH-1:0] MIN_RATE = {{(RATE_WIDTH-4){1'b0}}, 4'd8};
-    localparam [RATE_WIDTH-1:0] MAX_RATE = 9'd312;
     localparam integer ROUND_WIDTH = ACC_WIDTH + 1;
     localparam [2:0] WARMUP_OUTPUT_COUNT = 3'd3;
 
@@ -87,7 +84,6 @@ module post_iq_cic_stage_a #(
     (* keep = "true", dont_touch = "true" *) reg clear_comb_pipeline;
     (* keep = "true", dont_touch = "true" *) reg clear_shift_pipeline;
 
-    wire apply_is_legal;
     wire clear_request;
     wire signed [ACC_WIDTH-1:0] i_ext;
     wire signed [ACC_WIDTH-1:0] q_ext;
@@ -96,8 +92,9 @@ module post_iq_cic_stage_a #(
     wire signed [ROUND_WIDTH-1:0] i_rounding_bias_signed;
     wire signed [ROUND_WIDTH-1:0] q_rounding_bias_signed;
 
-    assign apply_is_legal = (shadow_rate_r >= MIN_RATE) && (shadow_rate_r <= MAX_RATE);
-    assign clear_request = rst_125m || flush || (config_apply && apply_is_legal);
+    assign clear_request = rst_125m || flush || reconfigure;
+    assign active_rate_r = rate_r;
+    assign active_output_shift = output_shift;
     assign i_ext = {{(ACC_WIDTH-INPUT_WIDTH){i_in[INPUT_WIDTH-1]}}, i_in};
     assign q_ext = {{(ACC_WIDTH-INPUT_WIDTH){q_in[INPUT_WIDTH-1]}}, q_in};
     assign i_comb3_ext = {i_comb3[ACC_WIDTH-1], i_comb3};
@@ -169,21 +166,9 @@ module post_iq_cic_stage_a #(
 
     always @(posedge clk_125m) begin
         if (rst_125m) begin
-            active_rate_r <= MIN_RATE;
-            active_output_shift <= {SHIFT_WIDTH{1'b0}};
-            active_rounding_bias <= {ROUND_WIDTH{1'b0}};
-            illegal_config_seen <= 1'b0;
-        end else if (config_apply) begin
-            if (apply_is_legal) begin
-                active_rate_r <= shadow_rate_r;
-                active_output_shift <= shadow_output_shift;
-                active_rounding_bias <= rounding_bias_for_shift(shadow_output_shift);
-                illegal_config_seen <= 1'b0;
-            end else begin
-                illegal_config_seen <= 1'b1;
-            end
-        end else if (status_clear) begin
-            illegal_config_seen <= 1'b0;
+            active_rounding_bias <= rounding_bias_for_shift(output_shift);
+        end else begin
+            active_rounding_bias <= rounding_bias_for_shift(output_shift);
         end
     end
 

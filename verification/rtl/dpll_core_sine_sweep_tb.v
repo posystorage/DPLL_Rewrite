@@ -11,7 +11,7 @@ module dpll_core_sine_sweep_tb;
     reg rst = 1'b1;
     reg sample_valid = 1'b0;
     reg signed [15:0] adc_sample = 16'sd0;
-    reg config_apply = 1'b0;
+    reg controller_reacquire = 1'b0;
     reg [47:0] center_word = 48'd0;
     reg [8:0] cic_rate_r = 9'd8;
     reg [5:0] cic_shift = 6'd4;
@@ -39,7 +39,7 @@ module dpll_core_sine_sweep_tb;
     wire iq_valid;
     wire signed [17:0] cordic_phase_out;
     wire cic_overflow_seen;
-    wire cic_illegal_config_seen;
+    wire cic_illegal_config_seen = 1'b0;
 
     integer fd;
     integer iq_fd;
@@ -74,7 +74,8 @@ module dpll_core_sine_sweep_tb;
         .status_clear(1'b0),
         .adc_sample(adc_sample),
         .center_word(center_word),
-        .config_apply(config_apply),
+        .controller_reacquire(controller_reacquire),
+        .detector_reconfigure(controller_reacquire),
         .cic_rate_r(cic_rate_r),
         .cic_output_shift(cic_shift),
         .cic_flush(1'b0),
@@ -133,7 +134,6 @@ module dpll_core_sine_sweep_tb;
         .post_iir_active_bypass(),
         .post_iir_active_use_track(),
         .cic_overflow_seen(cic_overflow_seen),
-        .cic_illegal_config_seen(cic_illegal_config_seen),
         .lo_cos(),
         .lo_sin()
     );
@@ -247,9 +247,9 @@ module dpll_core_sine_sweep_tb;
         begin
             configure_case(index);
             @(posedge clk);
-            config_apply = 1'b1;
+            controller_reacquire = 1'b1;
             @(posedge clk);
-            config_apply = 1'b0;
+            controller_reacquire = 1'b0;
 
             for (sample_index = 0; sample_index < samples_per_case; sample_index = sample_index + 1) begin
                 push_sine_sample();
@@ -324,7 +324,7 @@ module dpll_core_sine_sweep_tb;
             $finish;
         end
         $fdisplay(iq_fd, "case_index,sample_count,i_baseband,q_baseband,cordic_phase,phase_error");
-        $fdisplay(fd, "case_index,index,config_apply,sample_count,fll_valid_count,input_hz,center_hz,center_word,cic_rate_r,cic_shift,tracking_word,freq_state,freq_correction,phase_error,freq_error,freq_error_valid,loop_state,loss_reason,signal_present,phase_locked,frequency_locked,locked,magnitude,hybrid_state_before,hybrid_center_word,hybrid_positive_limit,hybrid_negative_limit,hybrid_fll_term,hybrid_i_term,hybrid_p_term");
+        $fdisplay(fd, "case_index,index,controller_reacquire,sample_count,fll_valid_count,input_hz,center_hz,center_word,cic_rate_r,cic_shift,tracking_word,freq_state,freq_correction,phase_error,freq_error,freq_error_valid,loop_state,loss_reason,signal_present,phase_locked,frequency_locked,locked,magnitude,hybrid_state_before,hybrid_center_word,hybrid_positive_limit,hybrid_negative_limit,hybrid_fll_term,hybrid_i_term,hybrid_p_term");
 
         repeat (8) @(posedge clk);
         rst = 1'b0;
@@ -362,7 +362,7 @@ module dpll_core_sine_sweep_tb;
         end
         if (!rst && tracking_valid) begin
             $fdisplay(fd, "%0d,%0d,%0d,%0d,%0d,%0f,%0f,0x%012h,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,0x%012h,%0d,%0d,%0d,%0d,%0d",
-                      case_no, tracking_count, config_apply, sample_count, fll_valid_count,
+                      case_no, tracking_count, controller_reacquire, sample_count, fll_valid_count,
                       input_hz, center_hz, center_word, cic_rate_r, cic_shift,
                       tracking_word, freq_state, freq_correction, phase_error, freq_error,
                       freq_error_valid, loop_state, loss_reason, signal_present,

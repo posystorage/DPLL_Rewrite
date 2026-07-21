@@ -124,7 +124,8 @@ STM32 在命令前后轮询 BUSY，最多 5000 次，每次间隔 200 us。命�
    回读失败时不盲目重发 `C4`，防止同一请求被重复计数。
 4. `C4` 是持久区事务的提交标记。STM8 收到后将 request sequence 加一；ARM 在序号
    不变时忽略 STM8 RAM 中尚未提交的 `[4,64)`，避免轮询污染回滚基线。
-5. ARM 发现新序号后才复制候选参数、校验、换算并原子 APPLY FPGA。
+5. ARM 发现新序号后才复制候选参数、校验和换算，再把变化字段直接写入 FPGA
+   活动寄存器；需要重启控制器或检测链时使用局部重配置语义。
 6. 成功时 ARM 保留候选参数；失败时恢复提交前持久区和 FPGA active 配置，并把
    旧持久区写回 STM8 RAM。
 7. ARM 写入 last error 和运行状态，最后令 response sequence 等于 request
@@ -162,7 +163,7 @@ STM32 修改 `D1:0..8` 时只把偏移 71 写入 STM8 RAM 并立即回读校验�
 操作不发送 `C4` 或保留命令 `C6`，因此不要求修改 STM8 固件。ARM 每约 50 ms
 读取偏移 71；检测到 `FE` 后执行与 PC `0x96` 相同的精密频率计复位序列，并把
 偏移 71 恢复为请求前的 D1 预设值。ARM 启动时会先写入默认 D1 预设，不重放启动
-前遗留的 `FE`。该操作不改变 DPLL enable、参数、active CRC 或 EEPROM。
+前遗留的 `FE`。该操作不改变 DPLL enable、参数、ARM active signature 或 EEPROM。
 
 ## 5. EEPROM
 
@@ -190,10 +191,10 @@ STM32 通常先于 ARM 启动。STM32 初始化 I2C 后尝试读取一次状态�
 第一页自动恢复锁定、残差、限幅和 loop_state 状态显示。
 
 ARM 启动后循环 PING STM8 并读取完整控制区，强制清除两个 enable，随后同时复位
-DPLL 与精密频率计、重检 FPGA ABI、把 EEPROM 物理参数换算并 APPLY，最后发布
+DPLL 与精密频率计、重检 FPGA ABI、把 EEPROM 物理参数换算并按字段写入 FPGA，最后发布
 一致状态。ARM 还会把非持久 DAC1 预设强制初始化为 `D1:1`，采用 format
 `0x0000` 的校正量 raw 低位观察窗口；PC `0x8E` 复位后执行相同初始化。STM8 UART 链路断开时 ARM 重试
-启动；FPGA ABI/APPLY 失败时 ARM 仍发布
+启动；FPGA ABI 或配置校验失败时 ARM 仍发布
 在线状态和错误码，但保持 DPLL 关闭。
 
 运行时控制区明确区分两路频率：偏移 80 是 DPLL 跟踪相位字对应的实时频率，

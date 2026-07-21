@@ -13,7 +13,7 @@ module dpll_core_sine_lock_tb;
     reg rst = 1'b1;
     reg sample_valid = 1'b0;
     reg signed [15:0] adc_sample = 16'sd0;
-    reg config_apply = 1'b0;
+    reg controller_reacquire = 1'b0;
 
     wire [47:0] tracking_word;
     wire tracking_valid;
@@ -29,7 +29,7 @@ module dpll_core_sine_lock_tb;
     wire locked;
     wire [19:0] magnitude;
     wire cic_overflow_seen;
-    wire cic_illegal_config_seen;
+    wire cic_illegal_config_seen = 1'b0;
 
     integer n;
     integer idle;
@@ -54,7 +54,8 @@ module dpll_core_sine_lock_tb;
         .status_clear(1'b0),
         .adc_sample(adc_sample),
         .center_word(CENTER_WORD),
-        .config_apply(config_apply),
+        .controller_reacquire(controller_reacquire),
+        .detector_reconfigure(controller_reacquire),
         .cic_rate_r(9'd78),
         .cic_output_shift(6'd13),
         .cic_flush(1'b0),
@@ -113,7 +114,6 @@ module dpll_core_sine_lock_tb;
         .post_iir_active_bypass(),
         .post_iir_active_use_track(),
         .cic_overflow_seen(cic_overflow_seen),
-        .cic_illegal_config_seen(cic_illegal_config_seen),
         .lo_cos(),
         .lo_sin()
     );
@@ -163,9 +163,9 @@ module dpll_core_sine_lock_tb;
         repeat (8) @(posedge clk);
         rst = 1'b0;
         @(posedge clk);
-        config_apply = 1'b1;
+        controller_reacquire = 1'b1;
         @(posedge clk);
-        config_apply = 1'b0;
+        controller_reacquire = 1'b0;
 
         for (n = 0; n < 6500; n = n + 1) begin
             push_sine_sample();

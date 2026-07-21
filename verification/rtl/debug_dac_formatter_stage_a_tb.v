@@ -39,7 +39,7 @@ module debug_dac_formatter_stage_a_tb;
             @(posedge clk);
             #1;
             source_valid = 1'b0;
-            repeat (4) @(posedge clk);
+            repeat (5) @(posedge clk);
             #1;
             if (dac_sample !== expected) begin
                 $display("FAIL: expected %0d got %0d format=0x%08x source=0x%08x",

@@ -8,8 +8,7 @@ module PLL_VCO_MUL_DIV(
     input  wire [47:0] data_in,
     output reg  [47:0] data_out,
     input  wire [15:0] PLL_Mul_factor,
-    input  wire [15:0] PLL_Div_factor,
-    output reg         config_error
+    input  wire [15:0] PLL_Div_factor
 );
 
 localparam [2:0] ST_IDLE      = 3'd0;
@@ -44,9 +43,6 @@ reg [63:0] quotient_integer_reg = 64'd0;
 reg round_bit_reg = 1'b0;
 reg [64:0] rounded_quotient_reg = 65'd0;
 
-wire requested_config_is_legal = (PLL_Mul_factor != 16'd0) &&
-                                 (PLL_Div_factor != 16'd0);
-
 function [47:0] sat_quotient_48;
     input [64:0] rounded_value;
     begin
@@ -76,17 +72,12 @@ always @(posedge clk) begin
         round_bit_reg <= 1'b0;
         rounded_quotient_reg <= 65'd0;
         data_out <= 48'd0;
-        config_error <= 1'b0;
     end else begin
         if (sample_valid) begin
-            if (requested_config_is_legal) begin
-                pending_word <= data_in;
-                pending_mul <= PLL_Mul_factor;
-                pending_div <= PLL_Div_factor;
-                pending_valid <= 1'b1;
-            end else begin
-                config_error <= 1'b1;
-            end
+            pending_word <= data_in;
+            pending_mul <= PLL_Mul_factor;
+            pending_div <= PLL_Div_factor;
+            pending_valid <= 1'b1;
         end
 
         case (state)

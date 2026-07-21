@@ -30,8 +30,8 @@
 | `owner_table_v1.md` | 旧多 agent/worktree 分工已结束 | 模块职责边界和 ABI 同步原则 |
 | `subagent_dispatch_v1.md` | 派工计划已完成 | 不引入第二 DPLL、不恢复 PII2/D、不改变 DAC1 debug 定位 |
 | `dpll_integrated_flow_tb_plan.md` | TB 已建成且运行方法/时长已变化 | wrapper 级集成仿真范围、ARM-style APPLY 流程 |
-| `rfc_config_apply_status_v1.md` | 已落地 | `0x006F` busy/error/sequence 的基本语义 |
-| `rfc_vco_mul_div_config_status.md` | 已落地 | 非法 MUL/DIV 拒绝、unsigned divider、sticky error |
+| `rfc_config_apply_status_v1.md` | 已废弃 | 当前`0x006F`是无状态局部重配置命令，不再有busy/sequence |
+| `rfc_vco_mul_div_config_status.md` | 已废弃 | unsigned divider 保留；非法配置拒绝和 sticky error 已迁移为 ARM 校验 |
 | `CORDIC_WordSerial_20bit_Migration_Guide_CN.md` | 迁移完成，且文件编码损坏 | 20-bit I/Q、18-bit phase、2-entry FIFO、AXI handshake、无硬编码 latency、无额外 20->16 路径 |
 | `dpll_iir_cic_notch_crossdot_codex.md` | 大量内容是未实施建议，且文件编码损坏 | post-IIR 和 cross-dot 的原理、R 不应只用于“赌零点”、滤波/鉴频需联合设计 |
 | `dpll_fixed_point_v1.md` | 仍有大量有效内容，但含旧 Ki、旧 damping 估计和“待确认”项目，不再适合作为冻结规范 | 48-bit frequency word、18-bit phase、20-bit I/Q/magnitude、56-bit state、产品 shift、Q2.30 IIR |
@@ -48,12 +48,12 @@
 - DACout1 只做调试。
 - 算法 core 统一在 125 MHz 下运行，所有低速状态只在 valid 时推进。
 
-### 3.2 配置必须原子提交
+### 3.2 配置由ARM统一校验并按字段生效
 
-- 中心频率、CIC、IIR、FLL/PI、阈值、dwell、limits、MUL/DIV 构成同一 active snapshot。
-- ARM 应先写完整 shadow set，再 APPLY，再核对 active snapshot/CRC，最后 enable。
-- 不能在闭环运行时零散修改 shadow 寄存器并假设它们立即生效。
-- debug DAC 是 live-only，不应导致重捕获。
+- ARM维护完整candidate和committed config，先整体校验，再只写变化字段。
+- FPGA每个参数只有一份活动寄存器，不保留shadow/active副本。
+- 增益变化只清控制器；CIC/IIR/FLL delay变化清检测链；其他字段直接生效。
+- debug DAC直接生效，不导致重捕获。
 
 ### 3.3 固定点尺度必须端到端一致
 
@@ -106,51 +106,36 @@ CONFIG_VERSION = 0x00010007
 
 Build ID 和 Git hash 由脚本生成，不应在文档中写死为长期常量。
 
-### 4.1 写/影子寄存器
+### 4.1 活动寄存器
 
 | index | 当前含义 | 类型 |
 |---:|---|---|
 | `0x0000` | reset trigger | immediate |
-| `0x0010` | center word high 32 | shadow |
+| `0x0010` | center word high 32 | direct |
 | `0x0011` | readback selector | live/legacy |
 | `0x0020` | DPLL enable | immediate |
-| `0x0021` | Kp track | shadow |
-| `0x0022` | Ki track | shadow |
-| `0x0023` | Kf acquire | shadow |
-| `0x0024` | Kf blend | shadow |
-| `0x0025` | Kf track | shadow |
-| `0x0026` | Kp blend | shadow |
-| `0x0027` | Ki blend | shadow |
-| `0x0028` | signed correction positive-limit high 32，内部补 16 个低位零 | shadow |
-| `0x0029` | signed correction negative-limit high 32，内部补 16 个低位零 | shadow |
-| `0x002A` | manual frequency offset | shadow |
-| `0x0030` | DAC0 offset | shadow |
-| `0x0031` | DAC0 amplitude | shadow |
-| `0x0032` | output MUL | shadow |
-| `0x0033` | output DIV | shadow |
+| `0x0021..0x0027` | Kp/Ki/Kf系数 | direct + controller reacquire |
+| `0x0028` | signed correction positive-limit high 32，内部补 16 个低位零 | direct |
+| `0x0029` | signed correction negative-limit high 32，内部补 16 个低位零 | direct |
+| `0x002A` | manual frequency offset | direct |
+| `0x0030` | DAC0 offset | direct |
+| `0x0031` | DAC0 amplitude | direct |
+| `0x0032` | output MUL | direct |
+| `0x0033` | output DIV | direct |
 | `0x0040` | debug DAC offset | live |
 | `0x0041` | debug DAC gain | live |
 | `0x0042` | debug DAC source | live |
 | `0x0043` | debug DAC format | live |
-| `0x0050` | phase lock threshold | shadow |
-| `0x0051` | phase setpoint | shadow |
-| `0x0052` | frequency lock threshold | shadow |
-| `0x0053` | magnitude enter threshold | shadow |
-| `0x0054` | magnitude exit threshold | shadow |
-| `0x0055` | acquire dwell | shadow |
-| `0x0056` | blend dwell | shadow |
-| `0x0057` | loss dwell | shadow |
-| `0x0058` | holdover timeout | shadow |
-| `0x0059` | measurement timeout | shadow，0=RTL auto |
-| `0x0060` | post-IQ CIC R | shadow |
-| `0x0061` | post-IQ CIC shift | shadow |
-| `0x0062` | FLL delay selector | shadow |
-| `0x0063` | warmup samples | shadow |
-| `0x0064` | post-IIR mode | shadow |
-| `0x0065..0x0069` | ACQUIRE biquad b0/b1/b2/a1/a2 | shadow |
-| `0x006A..0x006E` | TRACK biquad b0/b1/b2/a1/a2 | shadow |
-| `0x006F` | CONFIG_APPLY trigger/status | command/readback |
-| `0x0070` | APPLY rejected field mask | read-only |
+| `0x0050..0x0059` | thresholds、dwell和timeout | direct |
+| `0x0060` | post-IQ CIC R | direct + detector reconfigure |
+| `0x0061` | post-IQ CIC shift | direct + detector reconfigure |
+| `0x0062` | FLL delay selector | direct + detector reconfigure |
+| `0x0063` | warmup samples | direct |
+| `0x0064` | post-IIR mode | direct + detector reconfigure |
+| `0x0065..0x0069` | ACQUIRE biquad b0/b1/b2/a1/a2 | direct + detector reconfigure |
+| `0x006A..0x006E` | TRACK biquad b0/b1/b2/a1/a2 | direct + detector reconfigure |
+| `0x006F` | bit0控制器重捕获，bit1检测链重配置；读取0 | command |
+| `0x0070` | 保留，固定读零 | read-only |
 
 ### 4.2 状态/readback
 
@@ -180,9 +165,10 @@ Build ID 和 Git hash 由脚本生成，不应在文档中写死为长期常量�
 | `0x011B` | active holdover timeout |
 | `0x011C` | applied ABI version |
 | `0x011D` | FPGA Git hash |
-| `0x011E` | active config CRC |
+| `0x011E` | 保留，固定读零；配置签名由 ARM 维护 |
 | `0x011F` | active post-IIR mode |
 | `0x0120..0x0129` | active ACQUIRE/TRACK IIR 系数 |
+| `0x012A..0x0135` | active 阈值、dwell、limits、offset、DAC0、FLL delay |
 
 旧寄存器文档把 `0x0102` 命名为 raw CORDIC phase，这是当前代码不成立的地方；RTL 返回的是 phase error。
 
@@ -197,7 +183,7 @@ Build ID 和 Git hash 由脚本生成，不应在文档中写死为长期常量�
 | 20 | CORDIC input overrun sticky |
 | 19 | pre-CIC backpressure sticky |
 | 18 | manual offset overflow |
-| 17 | VCO MUL/DIV config error sticky |
+| 17 | 保留，固定为 0 |
 | 16:13 | loop state |
 | 12:9 | loss reason |
 | 8 | signal present |
@@ -207,21 +193,20 @@ Build ID 和 Git hash 由脚本生成，不应在文档中写死为长期常量�
 | 4 | tracking valid |
 | 3 | frequency error valid |
 | 2 | post-IIR I/Q valid |
-| 1 | CIC illegal config |
+| 1 | 保留，固定为 0 |
 | 0 | CIC overflow sticky |
 
-### 4.4 CONFIG_APPLY status
+### 4.4 局部重配置命令
 
-`0x006F` readback：
+`0x006F`写入：
 
 ```text
-bit 0      busy
-bit 1      error
-bits 7:4   error code
-bits 15:8  apply sequence
+bit 0      controller reacquire
+bit 1      detector reconfigure（同时controller reacquire）
+read       固定为0
 ```
 
-拒绝原因 mask 从 `0x0070` 读取。ARM 应等待 sequence 变化且 busy 清零，再核对 active snapshot。
+配置合法性只在ARM候选配置层判断；HDL不产生rejected mask、busy或sequence。
 
 ## 5. 保留为未来研究、但不是当前实现的内容
 

@@ -18,7 +18,7 @@ def read(path: Path, encoding: str = "utf-8") -> str:
 
 
 def read_gbk(path: Path) -> str:
-    return path.read_text(encoding="gbk", errors="strict")
+    return read(path)
 
 
 def pass_if(condition: bool, label: str, detail: str = "") -> tuple[str, bool]:
@@ -68,6 +68,7 @@ def no_retired_stage_a_stubs() -> tuple[str, bool]:
 def main() -> int:
     wrapper = read(DPLL / "dpll_wrapper.v")
     core = read(DPLL / "DDC" / "dpll_single_clock_core_stage_a.v")
+    cordic_adapter = read(DPLL / "DDC" / "cordic_word_serial_adapter.v")
     cic = read(DPLL / "DDC" / "post_iq_cic_stage_a.v")
     vco = read(DPLL / "VCO" / "PLL_VCO_MUL_DIV.v")
     dbg = read(DPLL / "debug" / "debug_dac_formatter_stage_a.v")
@@ -75,6 +76,7 @@ def main() -> int:
     loop = read(DPLL / "hybrid_loop" / "loop_state_manager_stage_a.v")
     lo_dds_h_xci = read(SRC / "Freq_Meter" / "DDC" / "ip" / "LO_DDS_H" / "LO_DDS_H.xci")
     arm_mock = read(ROOT / "verification" / "arm" / "test_dpll_control_mock.py")
+    arm_host_test = read(ROOT / "verification" / "arm" / "dpll_driver_host_test.c")
     arm = read_gbk(SDK / "helloworld.c")
     periph = read_gbk(SDK / "Peripherals.h")
 
@@ -103,12 +105,19 @@ def main() -> int:
     ))
     checks.append(pass_if("LO_DDS_H tracking_lo_dds_inst" in core and "PARAM_VALUE.Output_Selection\">Sine_and_Cosine" in lo_dds_h_xci, "IQ LO uses Xilinx DDS sine/cosine IP", "`LO_DDS_H` DDS Compiler configured for sine and cosine"))
     checks.append(pass_if("dc_blocker_valid_stage_a" in core, "DC blocker is present before IQ mixer", "core instantiates `dc_blocker_valid_stage_a`"))
-    angle_cordic_xci = read(DPLL / "DDC" / "ip" / "angle_CORDIC" / "angle_CORDIC.xci")
-    checks.append(pass_if("angle_CORDIC phase_cordic_inst" in core and "PARAM_VALUE.Functional_Selection\">Translate" in angle_cordic_xci, "CORDIC phase/magnitude is in DPLL path", "`angle_CORDIC` IP configured for translate"))
+    angle_cordic_xci = read(DPLL / "DDC" / "ip" / "dpll_angle_CORDIC" / "dpll_angle_CORDIC.xci")
+    checks.append(pass_if("cordic_word_serial_adapter" in core and "dpll_angle_CORDIC cordic_inst" in cordic_adapter and "PARAM_VALUE.Functional_Selection\">Translate" in angle_cordic_xci, "CORDIC phase/magnitude is in DPLL path", "word-serial adapter uses DPLL CORDIC translate IP"))
     checks.append(pass_if("assign phase_error_next = cordic_phase_word - phase_setpoint;" in core, "Phase error comes from CORDIC phase", "not raw Q truncation"))
     checks.append(pass_if("delay_sel" in fll and "phase_delta" in fll and "PHASE_WIDTH" in fll, "FLL phase difference supports selectable wrapped delay", "`fll_phase_difference_stage_a` implements delay selection"))
     checks.append(pass_if(all(name in loop for name in ["FLL_ACQUIRE", "FLL_PLL_BLEND", "PLL_TRACK", "HOLDOVER", "REACQUIRE"]), "FLL/PLL state manager includes acquire/blend/track/holdover/reacquire", "`loop_state_manager_stage_a` state names present"))
-    checks.append(pass_if("config_apply && apply_is_legal" in cic and "illegal_config_seen <= 1'b1" in cic, "Post-IQ CIC R/shift apply is atomic and rejects illegal config", "active config changes only on legal APPLY"))
+    checks.append(pass_if(
+        "assign active_rate_r = rate_r" in cic
+        and "assign active_output_shift = output_shift" in cic
+        and "shadow_rate_r" not in cic
+        and "config_apply" not in cic,
+        "Post-IQ CIC uses one direct active configuration",
+        "ARM-validated R/shift drive the CIC without a shadow bank",
+    ))
     checks.append(pass_if("warmup_outputs_remaining <= WARMUP_OUTPUT_COUNT" in cic and "active_rounding_bias" in cic, "Post-IQ CIC warmup and symmetric rounding exist", "warmup counter and signed rounding bias present"))
     checks.append(pass_if("PLL_VCO_MUL_DIV_inst" in wrapper and "mult_gen_pll VCO0_Multiplier" in vco and "div_gen_pll_u VCO0_Divider" in vco, "Output MUL/DIV uses existing Xilinx IP", "`mult_gen_pll` and unsigned `div_gen_pll_u` instantiated"))
     checks.append(pass_if(all(s in vco for s in ["ST_MULT_WAIT", "ST_DIV_SEND", "ST_DIV_WAIT", "ST_DIV_OUT"]), "Output MUL/DIV uses explicit multi-cycle start/done sequencing", "state machine around multiplier/divider IP"))
@@ -124,16 +133,21 @@ def main() -> int:
         "raw-window and scaled modes implemented",
     ))
     checks.append(pass_if("DPLL_ABI_VERSION_Addr" in periph and "DPLL_FPGA_BUILD_ID_Addr" in periph, "ARM header exposes ABI/build registers", "v1 readback symbols present"))
-    checks.append(pass_if("dpll_abi_ready = dpll_check_abi();" in arm and "action_status = (dpll_set_enable(1) == 0) ? STATUS_ACK : STATUS_NACK;" in arm, "ARM startup and STM control are ABI gated", "startup check plus command-result ACK/NACK"))
+    checks.append(pass_if("dpll_initialize_abi()" in arm and "dpll_driver_set_enable(&dpll_driver, enable)" in arm, "ARM startup and control enable are ABI gated", "startup check plus tested driver enable"))
     checks.append(pass_if(
-        "DPLL_CONFIG_APPLY_SEQ_MASK" in periph
-        and "PC_ERR_DPLL_APPLY_TIMEOUT" in arm
-        and "Xil_In32(DPLL_CONFIG_APPLY_Addr)" in arm
-        and "pc_send_dpll_apply_result(dpll_apply_config());" in arm,
-        "ARM APPLY waits for FPGA readback status",
-        "`dpll_apply_config` polls `CONFIG_APPLY` sequence/busy before ACK",
+        "DPLL_RECONFIGURE_Addr" in periph
+        and "dpll_driver_write_config(" in arm
+        and "dpll_driver_apply" not in arm
+        and "status = dpll_commit_candidate(&candidate);" in arm,
+        "ARM validates candidates and writes changed active fields",
+        "no global APPLY polling or timeout rollback",
     ))
-    checks.append(pass_if(all(token in arm_mock for token in ["MockMmio", "parse_dpll_addr", "write_adv_config", "DPLL_CONFIG_APPLY_Addr"]), "ARM mock MMIO tests cover ABI/APPLY control", "`verification/arm/test_dpll_control_mock.py` parses real register definitions"))
+    checks.append(pass_if(
+        all(token in arm_mock for token in ["dpll_driver_write_config", "test_driver_uses_direct_changed_field_writes_without_global_apply"])
+        and all(token in arm_host_test for token in ["REG_RECONFIGURE", "test_direct_write_and_change_filtering"]),
+        "ARM tests cover centralized direct-register control",
+        "static contract plus host-compiled MMIO driver test",
+    ))
     checks.append(pass_if("PID_GainI2_Addr" not in periph.replace("Freq_Meter_PID_GainI2_Addr", ""), "DPLL ARM aliases do not restore PII2", "remaining I2 name is frequency-meter only"))
     checks.append(pass_if("DAC1 is a debug output only" in periph and "DPLL_DEBUG_DAC_SOURCE_ADDR" in periph, "DAC1/DACout1 ABI is debug-only", "debug source selector uses DPLL debug DAC naming"))
     checks.append(no_uncommented_false_path())

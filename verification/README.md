@@ -20,7 +20,15 @@ Run from the repository root:
 python -m unittest discover -s verification\arm -p test_*.py
 ```
 
-The tests parse the real ARM register definitions and exercise ABI gating, CONFIG_APPLY, enable control, and advanced DPLL shadow-register writes against a mock MMIO map.
+The tests exercise ABI gating, enable control, complete ARM-side candidate validation,
+direct active-register writes, and changed-field filtering against a mock MMIO map.
+
+The current contract uses ARM-side candidate validation and a CDC-safe direct-register
+transaction. FPGA rejected-mask/error/active-CRC and CONFIG_APPLY behavior do not exist.
+`audit_review2_closure.py`, `audit_review3_closure.py`, and
+`audit_review4_closure.py` are archival audits for superseded review snapshots; current closure
+uses `audit_arm_dpll_control.py`, `audit_review_closure.py`, the host driver test and Stage-A RTL
+test scripts.
 
 ## RTL XSIM Checks
 
@@ -47,8 +55,8 @@ The current RTL checks cover the retained mixer unit, post-IQ CIC bit-exact fixe
 
 `run_post_iq_cic_golden_trace.ps1` runs the post-IQ CIC RTL simulation and
 checks the generated CSV against a fixed-point model of the current RTL
-non-blocking timing. It covers legal and illegal APPLY, explicit flush, R=8
-and R=12, impulse/step-like stimulus, warmup suppression, symmetric rounding,
+non-blocking timing. It covers direct configuration updates, explicit reconfigure/flush,
+R=8 and R=12, impulse/step-like stimulus, warmup suppression, symmetric rounding,
 saturation checks, and I/Q shared valid alignment.
 
 `run_multifrequency_golden_trace.ps1` runs the multifrequency RTL simulation,
@@ -72,12 +80,14 @@ and sin/cos quadrant coverage.
 model and checks one-cycle product/valid alignment for changing sample IDs.
 
 `run_pll_vco_mul_div_xsim.ps1` compiles the real multiplier and unsigned
-divider IP models with `PLL_VCO_MUL_DIV` and checks legal scaling, `DIV[15]`,
-zero-factor rejection, saturation, and latest-wins pending behavior.
+divider IP models with `PLL_VCO_MUL_DIV` and checks scaling, `DIV[15]`,
+saturation, and latest-wins pending behavior. Zero factors are rejected by ARM,
+not by this real-time HDL block.
 
 `run_fast_frequency_accumulator_xsim.ps1` checks the continuous display/host
 reference accumulator. It covers exact window length, boundary-only interval
-updates, the defensive zero-to-one-cycle fallback, and gap-free snapshots.
+updates, direct zero-interval behavior, and gap-free snapshots. ARM prevents a
+zero interval from reaching normal operation.
 
 `run_dpll_core_nonzero_tracking_trace.ps1` runs the real DDS/mixer/CIC/CORDIC/
 FLL/hybrid core path with nonzero loop gains and checks multiple nonzero
@@ -100,6 +110,13 @@ replays the frozen fixed-point control law, verifies the one-row registered
 tracking-word update contract, and runs a float replay against every emitted
 RTL row. It is a closed-loop control-law sign-off for the exercised sine
 traces, not a coefficient-tuning or noise-margin characterization.
+
+The historical `run_dpll_core_sine_lock_trace.ps1` and
+`run_dpll_core_sine_sweep_trace.ps1` tests currently stop in `LOSS_TIMEOUT`
+before reaching TRACK. Logs from before this ARM-authority refactor show the
+same failure. They remain diagnostic tuning tests and are not closure gates for
+the configuration-ownership change. The nonzero-gain path test and the 13
+Stage-A/RTL configuration and data-path regressions are the active gates here.
 
 ## Review Closure Audits
 

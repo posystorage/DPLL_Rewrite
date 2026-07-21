@@ -14,8 +14,8 @@
 - STM32F030 只编辑和显示物理定点量，不计算 DDS、FPGA 原始字或浮点数。
 - DPLL 与 MAX2871 使能不持久化，上电和 ARM 复位后均默认关闭。
 - 屏幕每次调节后的 APPLY 时机不变；EEPROM 仍在停止调节约 10 秒后写入。
-- ARM APPLY 失败时恢复提交前的 60 字节持久区和 FPGA active 配置，并把旧配置
-  同步回 STM8；错误码保留给发起方，失败候选不得进入 EEPROM。
+- ARM候选校验失败时不写FPGA，恢复提交前的60字节持久区并同步回STM8；错误码
+  保留给发起方，失败候选不得进入EEPROM，不执行FPGA配置回滚。
 
 ## 2. 96 字节寄存器区
 
@@ -56,28 +56,23 @@
 | 80 | 4 | DPLL realtime frequency | 无符号整数，`1 mHz/LSB`；跟踪相位字对应的 MUL/DIV 前频率 |
 | 84 | 4 | fast meter result | 无符号整数，`1 Hz/LSB`；第一页“重频”参考值 |
 | 88 | 4 | fast meter sequence/status | bits30:0 为 FPGA 快速结果序号，bit31 为精密频率计稳定锁定 |
-| 92 | 4 | active config CRC | FPGA active 配置 CRC |
+| 92 | 4 | active config signature | ARM 已提交 DPLL 候选配置的软件签名 |
 
 相位显示只做整数拆位：绝对值达到 `100 degree` 时显示整数，达到 `10 degree`
 时显示一位小数，其余显示两位小数，例如 `100°`、`50.1°`、`1.05°`。
 
-MUL/DIV 输出上限只由 ARM 按中心频率校验：
-
-```text
-center frequency * MUL / DIV <= 62.5 MHz
-```
-
-`62.5 MHz` 对应 `125 MSPS` DAC 的奈奎斯特上限。STM32 只编辑和提交参数，
-不重复该限制；FPGA HDL 只保留原有 MUL/DIV 非零和 48 bit 相位字范围保护。
+ARM 对中心频率执行 `4--250 kHz` 范围校验；MUL/DIV 只要求非零并符合字段位宽，
+不根据 `center frequency * MUL / DIV` 限制输出频率。FPGA HDL 直接接受 ARM 提交的
+MUL/DIV，48 bit 输出饱和仍作为实时信号链保护保留。
 
 偏移 71 不属于 `[4,64)`，不进入 EEPROM，也不推进 request sequence。STM32
 只把它作为 `D1:0..8` 的快捷选择；ARM 收到变化后直接写 FPGA live debug
-寄存器，不执行 CONFIG_APPLY、不改变 active CRC、不触发环路重捕获。
+寄存器，不改变ARM active signature、不触发环路重捕获。
 
 偏移 71 的保留值 `FE` 是版本 3 的兼容扩展，表示一次精密频率计复位请求。STM32
 只在 ARM 在线时写入 `FE`；ARM 收到后执行与 PC `0x96` 相同的复位，并把偏移 71
 恢复为请求前的 D1 预设值。该请求不使用 STM8 命令、不推进 request sequence、
-不执行 DPLL CONFIG_APPLY、不写 EEPROM。ARM 启动时会先把偏移 71 初始化为默认
+不执行DPLL局部重配置、不写EEPROM。ARM启动时会先把偏移71初始化为默认
 D1 预设，因此不会重放启动前遗留的请求。STM8 只透明转发该值，无需修改或重新
 烧录版本 3 固件。
 
@@ -151,14 +146,14 @@ sequence 等于该值、快照内 request sequence 也等于该值。实现采�
 4. 分别写 DPLL reset 与 frequency-meter reset，两者都复位。
 5. 等待复位完成并重新检查 DPLL ABI。
 6. 把中心频率、限幅、相位、频差和幅度等物理定点量换算成 FPGA 格式。
-7. 生成完整频点 profile，覆盖四个屏幕增益和物理设置，一次性 APPLY。
+7. 生成并校验完整频点profile，只写变化字段；启动时写完整活动配置。
 8. 把 DAC1 恢复为默认快捷预设 `D1:1`，即校正量 raw 低位观察窗口。
 9. 回写状态与换算后的显示值，DPLL 与 MAX2871 继续保持关闭。
 
 STM32 通常先启动；Logo 结束后直接进入第一页并在后台轮询，不使用独立的通信失败
 页面。第一页用 timeout 图标区分 STM8 离线（红色）和 ARM 离线（棕红色），用 error
 图标区分协议版本异常（品红色）和 EEPROM 校验异常（印度红）；第二页不显示这些图标。
-若 STM8 UART 链路不通，ARM 才重试整个启动握手；若 FPGA ABI 或配置 APPLY 失败，
+若STM8 UART链路不通，ARM才重试整个启动握手；若FPGA ABI或候选配置校验失败，
 ARM 仍发布在线状态和明确错误码并保持 DPLL 关闭，避免屏幕永远停留在启动等待。
 
 第一页初始化必须先清除上方 32 行再完整重绘微波源区域，避免第二页数值残留在 `GHz`
@@ -182,7 +177,7 @@ status 字节。
 
 帧解析错误为 `F0` 帧头、`F1` 总长度、`F2` 载荷长度、`F3` 命令范围、`F4`
 校验和。控制命令 status 为：`00` 成功、`01` 协议/链路、`02` 参数范围、`03`
-FPGA 复位、`04` FPGA APPLY、`05` FPGA ABI。
+FPGA复位、`04` FPGA配置、`05` FPGA ABI。
 
 ### 6.2 版本 3 公共控制 API
 
@@ -193,7 +188,7 @@ FPGA 复位、`04` FPGA APPLY、`05` FPGA ABI。
 | `0x1E` | 0 | 13 | 读取 DAC1 预设状态及完整 source/format/offset/gain live 配置 |
 | `0x88` | 0 | `00` | 打开 MAX2871；不持久化 |
 | `0x89` | 0 | `00` | 关闭 MAX2871；不持久化 |
-| `0x8A` | 0 | `00` | 打开 DPLL；不持久化，APPLY/ABI 失败返回错误 |
+| `0x8A` | 0 | `00` | 打开DPLL；不持久化，配置/ABI失败返回错误 |
 | `0x8B` | 0 | `00` | 关闭 DPLL；不持久化 |
 | `0x8E` | 0 | `00` | 同时复位 DPLL 和精密频率计，重检 ABI 并恢复当前配置 |
 | `0x97` | 1 或 12 | `00` | 1 字节选择快捷预设；12 字节完整设置 DAC1 live 配置 |
@@ -239,7 +234,7 @@ raw 模式不使用 gain/offset，表中仍写固定值以保证完整寄存器�
 `[29:16]`。该快捷预设只改变 DAC1 观察位窗，不改变 DPLL 运算或控制区频率字段。
 
 所有快捷和完整写入都是非固化 live 设置；整机上电或 `0x8E` 复位后统一回到
-`D1:1`。这两种写法都不调用 DPLL APPLY，也不写 STM8 EEPROM。
+`D1:1`。这两种写法都不触发DPLL重捕获，也不写STM8 EEPROM。
 
 ### 6.4 精密频率计 API
 

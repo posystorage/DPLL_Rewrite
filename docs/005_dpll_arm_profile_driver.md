@@ -1,63 +1,69 @@
-# 005 ARM DPLL Profile 驱动与有效性检查
+# 005 ARM DPLL Profile驱动与有效性检查
 
-更新日期：2026-07-11
+更新日期：2026-07-21
 
 ## 1. 模块边界
 
-- `dpll_profile.c/.h`：纯参数层。负责频段查表、CIC/FLL delay 选择、
-  Q2.30 IIR 生成、环路默认值和有效性检查，不访问硬件。
-- `dpll_driver.c/.h`：硬件事务层。负责 ABI、shadow 写入、CONFIG_APPLY、
-  active readback 和 CRC。
-- `helloworld.c`：协议与应用层。解析 PC/STM 命令，打印 profile 支持等级，
-  不再维护一套分散的启动参数。
+- `dpll_profile.c/.h`：纯参数层，负责频段选择、CIC/FLL delay、Q2.30 IIR生成、默认环路参数和有效性检查，不访问硬件。
+- `dpll_driver.c/.h`：MMIO驱动层，负责ABI检查、完整候选校验、变化字段比较和活动寄存器写入。
+- `helloworld.c`：协议与应用层，合并PC/STM命令，维护ARM committed config和软件签名。
+
+FPGA没有配置Shadow和全局CONFIG_APPLY。驱动只在完整候选通过校验后写入发生变化的字段。
 
 ## 2. 支持等级
 
 | 等级 | 范围或中心 | 含义 |
 |---|---|---|
-| `VERIFIED` | 5.5 kHz、22 kHz、200 kHz 精确 DDS 高字 | 已有行为级仿真锁定证据 |
-| `STANDARD` | 5--200 kHz | 根据当前架构规则生成，仍需具体硬件频点验收 |
-| `EXTENDED` | 4--5 kHz、200--250 kHz | 允许配置且通过数学检查，但不保证锁定 |
+| `VERIFIED` | 5.5 kHz、22 kHz、200 kHz精确DDS高字 | 已有行为级仿真锁定证据 |
+| `STANDARD` | 5--200 kHz | 按当前架构规则生成，仍需具体硬件频点验收 |
+| `EXTENDED` | 4--5 kHz、200--250 kHz | 允许配置且通过数学检查，不保证锁定 |
 
-超出 `4--250 kHz` 才会被驱动直接拒绝。
+只有超出`4--250 kHz`才由驱动直接拒绝。
 
 ## 3. 频段表
 
 | 中心频率 | ACQUIRE IIR | TRACK IIR | measurement timeout |
 |---:|---:|---:|---:|
-| 4--8 kHz | 1.2 kHz | 0.8 kHz | `125000`，1 ms |
-| 8--15 kHz | 2 kHz | 1.2 kHz | `0`，自动 |
-| 15--30 kHz | 4 kHz | 2 kHz | `0`，自动 |
-| 30--60 kHz | 8 kHz | 3.5 kHz | `0`，自动 |
-| 60--100 kHz | 12 kHz | 5 kHz | `0`，自动 |
-| 100--150 kHz | 15 kHz | 7 kHz | `0`，自动 |
-| 150--200 kHz | 18 kHz | 8 kHz | `0`，自动 |
-| 200--250 kHz | 20 kHz | 9 kHz | `0`，自动 |
+| 4--8 kHz | 1.2 kHz | 0.8 kHz | `125000` |
+| 8--15 kHz | 2 kHz | 1.2 kHz | `2400*R+512` |
+| 15--30 kHz | 4 kHz | 2 kHz | `2400*R+512` |
+| 30--60 kHz | 8 kHz | 3.5 kHz | `2400*R+512` |
+| 60--100 kHz | 12 kHz | 5 kHz | `2400*R+512` |
+| 100--150 kHz | 15 kHz | 7 kHz | `2400*R+512` |
+| 150--200 kHz | 18 kHz | 8 kHz | `2400*R+512` |
+| 200--250 kHz | 20 kHz | 9 kHz | `2400*R+512` |
 
-驱动从 `R={16,15,12,10,8}` 中选择满足镜频和吞吐约束的最大值，
-shift 使用 nominal CIC shift 加 1 bit CORDIC headroom。
+驱动从`R={16,15,12,10,8}`中选择满足镜频和吞吐约束的最大值。shift使用nominal CIC shift并保留1 bit CORDIC headroom。
 
-## 4. 有效性检查
+## 4. 完整校验
 
-profile 在写入任何 shadow 寄存器前检查：
+候选配置在写入任何活动寄存器前检查：
 
-1. 中心频率量化值位于 4--250 kHz。
-2. cutoff 单调且落入唯一频段。
-3. CIC R/shift 符合当前 20-bit 数据通路约束。
-4. 镜频 alias 距离不小于 `2.2 * acquire_cutoff`，输出率不小于
-   `8 * acquire_cutoff`。
-5. IIR cutoff 小于 `0.4 * Fs`，Q2.30 系数对称、单位直流增益且极点稳定。
-6. cross-dot FLL 满足 `Fs >= 4 * L * acquire_cutoff`。
-7. ±20% correction limit 符号正确、对称且未超过中心字的 25%。
-8. Kf/Kp/Ki 可由 signed 24-bit 表示。
-9. threshold、magnitude、dwell、warmup、timeout 和 IIR mode 位宽合法。
+1. 中心频率量化值位于4--250 kHz。
+2. cutoff单调并落入唯一频段。
+3. CIC R/shift符合20-bit数据通路约束。
+4. 镜频距离不小于`2.2*acquire_cutoff`，输出率不小于`8*acquire_cutoff`。
+5. IIR cutoff小于`0.4*Fs`，Q2.30系数对称、单位直流增益且极点稳定。
+6. cross-dot FLL满足`Fs >= 4*L*acquire_cutoff`。
+7. correction limit符号正确且未超过中心字的25%。
+8. Kf/Kp/Ki可由signed 24-bit表示。
+9. threshold、magnitude、dwell、warmup、timeout和IIR mode位宽合法。
+10. MUL/DIV非零，DAC0幅度和偏置合法。
 
-失败时 `dpll_profile_validation_t.errors` 返回字段化 bit mask，ARM 日志会打印
-中心字和错误掩码。
+失败时`dpll_profile_validation_t.errors`返回字段bit mask；FPGA保持原活动配置，不执行回滚写入。
 
-## 5. 共用环路参数
+## 5. 更新粒度
 
-当前 5.5 kHz、22 kHz 与 200 kHz 已验证 profile 使用同一组环路参数：
+- 阈值、dwell、timeout、limits、manual offset、DAC和MUL/DIV直接更新。
+- Kf/Kp/Ki变化由HDL寄存器更新脉冲清控制器状态并重新捕获。
+- CIC R/shift、FLL delay或IIR配置变化清检测链并重新捕获。
+- 未变化字段不产生MMIO写入。
+
+ARM启动时DPLL保持关闭，写完初始完整配置后再按控制标志决定是否开启。运行中单字段API不再因为无关参数触发全局重启。
+
+## 6. 默认环路参数
+
+当前5.5 kHz、22 kHz和200 kHz profile使用：
 
 ```text
 Kp_track=6000000   Ki_track=180000
@@ -70,17 +76,8 @@ dwell acquire/blend/loss=16/64/64
 warmup=16, holdover_timeout=1250000
 ```
 
-这组增益在其他频点属于生成默认值，不等于已经逐频点验证。
+这组增益在其他频点属于生成默认值，不等于已逐频点验证。
 
-## 6. CRC 一致性
+## 7. 软件签名
 
-除 4--8 kHz 频段外，当 `measurement_timeout=0` 时，ARM 与 RTL 都使用：
-
-```text
-measurement_timeout = 2400*R + 512
-```
-
-4--8 kHz 的 0.8 kHz TRACK IIR 在状态 5 切换后需要更长的重建时间。该频段固定写入 `125000`（1 ms），避免自动值在 magnitude 和 FLL block 恢复前触发 `LOSS_TIMEOUT`。这项设置来自 5.5 kHz 中心、5 kHz 激励的 50 ms 行为级仿真验证。
-
-profile staging 后仍必须执行 CONFIG_APPLY，并核对 apply sequence、active snapshot、
-applied ABI 和 active config CRC，全部一致后才允许 enable。
+`dpll_config_signature()`只标识ARM committed config，用于STM控制区同步，不是FPGA CRC。`0x011E`保持读取0。详细的ARM/HDL职责见`011_arm_configuration_authority.md`。

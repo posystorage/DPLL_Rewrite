@@ -149,6 +149,75 @@ static uint8_t dpll_gain_is_signed24(int32_t gain)
     return gain >= -8388608 && gain <= 8388607;
 }
 
+int dpll_validate_runtime_profile(uint32_t center_word_hi,
+                                  const dpll_filter_profile_t *profile,
+                                  dpll_profile_validation_t *validation)
+{
+    uint32_t errors = DPLL_PROFILE_ERROR_NONE;
+    uint32_t minimum_measurement_timeout = 0U;
+    uint8_t expected_shift = 0U;
+    double center_hz = ((double)center_word_hi * DPLL_DDS_CLOCK_HZ) /
+                       DPLL_PHASE_WORD_SCALE;
+
+    if (profile == 0) {
+        errors = DPLL_PROFILE_ERROR_NULL;
+    } else {
+        if (center_hz < DPLL_MIN_CENTER_HZ - 0.5 ||
+            center_hz > DPLL_MAX_CENTER_HZ + 0.5)
+            errors |= DPLL_PROFILE_ERROR_CENTER_RANGE;
+        if (profile->cic_r == 0U || profile->cic_r > 0x1FFU) {
+            errors |= DPLL_PROFILE_ERROR_CIC;
+        } else {
+            expected_shift = (uint8_t)(dpll_expected_cic_shift(profile->cic_r) +
+                                       DPLL_CORDIC_HEADROOM_BITS);
+            if (profile->cic_shift + 1U < expected_shift ||
+                profile->cic_shift > expected_shift + 4U)
+                errors |= DPLL_PROFILE_ERROR_CIC;
+            minimum_measurement_timeout = 2400U * profile->cic_r + 512U;
+        }
+        if (!dpll_biquad_is_valid(profile->acquire_b0, profile->acquire_b1,
+                                  profile->acquire_b2, profile->acquire_a1,
+                                  profile->acquire_a2) ||
+            !dpll_biquad_is_valid(profile->track_b0, profile->track_b1,
+                                  profile->track_b2, profile->track_a1,
+                                  profile->track_a2))
+            errors |= DPLL_PROFILE_ERROR_IIR_STABILITY;
+        if (profile->fll_delay_sel > 3U)
+            errors |= DPLL_PROFILE_ERROR_FLL_DELAY;
+        if (profile->correction_limit_pos_hi <= 0 ||
+            profile->correction_limit_neg_hi >= 0)
+            errors |= DPLL_PROFILE_ERROR_LIMIT;
+        if (!dpll_gain_is_signed24(profile->kp_track) ||
+            !dpll_gain_is_signed24(profile->ki_track) ||
+            !dpll_gain_is_signed24(profile->kf_acquire) ||
+            !dpll_gain_is_signed24(profile->kf_blend) ||
+            !dpll_gain_is_signed24(profile->kf_track) ||
+            !dpll_gain_is_signed24(profile->kp_blend) ||
+            !dpll_gain_is_signed24(profile->ki_blend))
+            errors |= DPLL_PROFILE_ERROR_LOOP_GAIN;
+        if (profile->phase_setpoint < -131072 || profile->phase_setpoint > 131071 ||
+            profile->phase_threshold > 0x3FFFFU ||
+            profile->freq_threshold > 0x3FFFFFU ||
+            profile->magnitude_enter > 0xFFFFFU ||
+            profile->magnitude_exit > 0xFFFFFU ||
+            !((profile->magnitude_enter == 0U && profile->magnitude_exit == 0U) ||
+              (profile->magnitude_enter > profile->magnitude_exit)) ||
+            profile->acquire_dwell == 0U || profile->blend_dwell == 0U ||
+            profile->loss_dwell == 0U || profile->warmup_samples == 0U ||
+            profile->holdover_timeout == 0U || profile->holdover_timeout > 0xFFFFFFU ||
+            profile->measurement_timeout < minimum_measurement_timeout ||
+            profile->measurement_timeout > 0xFFFFFFU || profile->post_iir_mode > 3U)
+            errors |= DPLL_PROFILE_ERROR_STATE_CONFIG;
+    }
+
+    if (validation != 0) {
+        memset(validation, 0, sizeof(*validation));
+        validation->errors = errors;
+        if (profile != 0) validation->support = profile->support;
+    }
+    return errors == DPLL_PROFILE_ERROR_NONE ? 0 : DPLL_PROFILE_ERR_VERIFY;
+}
+
 static dpll_profile_support_t dpll_support_for_center(uint32_t center_word_hi,
                                                        double center_hz)
 {
@@ -198,6 +267,7 @@ int dpll_validate_filter_profile(uint32_t center_word_hi,
     double expected_alias_hz = 0.0;
     uint32_t expected_center_hz = (uint32_t)(center_hz + 0.5);
     uint32_t delay_l = 0U;
+    uint32_t minimum_measurement_timeout = 0U;
     uint32_t index;
 
     if (profile == 0) {
@@ -265,13 +335,19 @@ int dpll_validate_filter_profile(uint32_t center_word_hi,
         !dpll_gain_is_signed24(profile->kp_blend) ||
         !dpll_gain_is_signed24(profile->ki_blend))
         errors |= DPLL_PROFILE_ERROR_LOOP_GAIN;
-    if (profile->phase_threshold > 0x3FFFFU ||
+    if (profile->cic_r <= (0x00FFFFFFU - 512U) / 2400U)
+        minimum_measurement_timeout = 2400U * profile->cic_r + 512U;
+    if (profile->phase_setpoint < -131072 || profile->phase_setpoint > 131071 ||
+        profile->phase_threshold > 0x3FFFFU ||
         profile->freq_threshold > 0x3FFFFFU ||
         profile->magnitude_enter > 0xFFFFFU ||
-        profile->magnitude_exit > profile->magnitude_enter ||
+        profile->magnitude_exit > 0xFFFFFU ||
+        !((profile->magnitude_enter == 0U && profile->magnitude_exit == 0U) ||
+          (profile->magnitude_enter > profile->magnitude_exit)) ||
         profile->acquire_dwell == 0U || profile->blend_dwell == 0U ||
         profile->loss_dwell == 0U || profile->warmup_samples == 0U ||
-        profile->holdover_timeout > 0xFFFFFFU ||
+        profile->holdover_timeout == 0U || profile->holdover_timeout > 0xFFFFFFU ||
+        profile->measurement_timeout < minimum_measurement_timeout ||
         profile->measurement_timeout > 0xFFFFFFU || profile->post_iir_mode > 3U)
         errors |= DPLL_PROFILE_ERROR_STATE_CONFIG;
 
@@ -361,7 +437,8 @@ int dpll_compute_filter_profile_checked(uint32_t center_word_hi,
                                                     band->acquire_cutoff_hz);
     profile->support = dpll_support_for_center(center_word_hi, center_hz);
     dpll_fill_common_loop_parameters(profile);
-    profile->measurement_timeout = band->measurement_timeout;
+    profile->measurement_timeout = band->measurement_timeout != 0U ?
+        band->measurement_timeout : 2400U * selected_r + 512U;
 
     if (dpll_design_biquad(profile->acquire_cutoff_hz, output_rate_hz,
                            &profile->acquire_b0, &profile->acquire_b1,

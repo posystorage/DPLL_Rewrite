@@ -16,7 +16,7 @@ EXPECTED_CENTERS = [5_000.0, 10_000.0, 20_000.0, 50_000.0, 100_000.0, 150_000.0,
 WORD_WIDTH = 48
 STATE_WIDTH = 56
 MODEL_COLUMNS = [
-    "config_apply",
+    "controller_reacquire",
     "freq_state",
     "hybrid_state_before",
     "hybrid_center_word",
@@ -123,16 +123,16 @@ def check_case(case_index: int, rows: list[dict[str, str]]) -> tuple[list[str], 
             signal += 1
         magnitudes.append(parse_int(row["magnitude"]))
 
-        is_apply = parse_int(row["config_apply"]) != 0
+        is_apply = parse_int(row["controller_reacquire"]) != 0
         if is_apply:
             if index != 0:
-                failures.append(f"row {index}: CONFIG_APPLY tracking event is not first")
+                failures.append(f"row {index}: CONTROLLER_REACQUIRE tracking event is not first")
             if tracking_word != center_word:
                 failures.append(
-                    f"row {index}: CONFIG_APPLY tracking 0x{tracking_word:012x} != center 0x{center_word:012x}"
+                    f"row {index}: CONTROLLER_REACQUIRE tracking 0x{tracking_word:012x} != center 0x{center_word:012x}"
                 )
             if parse_int(row["freq_state"]) != 0 or correction != 0:
-                failures.append(f"row {index}: CONFIG_APPLY did not clear loop state/correction")
+                failures.append(f"row {index}: CONTROLLER_REACQUIRE did not clear loop state/correction")
             state = 0
             pending_tracking = center_word
             control_model_matches += 1

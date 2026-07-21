@@ -102,7 +102,7 @@ limit_hz = signed(limit_reg32) * 125000000 / 2^32
 因此限幅寄存器分辨率约为 `0.0291 Hz/LSB`，不再使用 48-bit DDS
 字的亚微赫兹低位精度。内部 `freq_state/freq_correction` 仍保持
 signed 56 bit。ARM profile 默认把正负限幅设置为中心频率的 `±20%`，
-用户可以在 APPLY 前覆盖该 shadow 配置。
+用户可以通过屏幕或PC API覆盖该ARM候选配置；校验通过后直接更新活动寄存器。
 
 ### 2.4 post-IQ CIC
 
@@ -121,9 +121,9 @@ R legal       = 8..312
 - 积分器和 comb 内部使用二补码自然回绕。
 - 输出执行可配置右移、对称取整和 20-bit 饱和。
 - `overflow_seen` 表示输出饱和，不表示内部自然回绕。
-- 合法 `CONFIG_APPLY` 或 flush 会清空 CIC 历史、抽取相位、输出流水线和 CIC overflow sticky。
+- CIC R/shift更新、检测链重配置命令或flush会清空CIC历史、抽取相位、输出流水线和CIC overflow sticky。
 
-RTL 对 shift 的 APPLY 合法窗口为：
+shift合法性完全由ARM profile校验，当前推荐窗口为：
 
 ```text
 expected_shift - 1 <= programmed_shift <= expected_shift + 4
@@ -199,7 +199,7 @@ CORDIC 三个 sticky 错误和 CIC 的 sticky 状态由独立 `status_clear` 清
 不复位 FIFO、CORDIC IP、CIC 积分器或 active 配置。wrapper 捕获故障后立即清除
 源锁存，并把 LED5/锁定资格中的数据通路故障保持 `2^25 / 125 MHz = 0.268 s`。
 重复故障重新开始该窗口。DPLL 关闭期间持续清空相位、频率和数据通路故障历史，
-重新开启后从干净窗口重新判定；LED4 仍只表示当前输出饱和。
+重新开启后从干净窗口重新判定；LED4把最近一次输出饱和保持同样的约0.268秒。
 
 ### 2.7 phase detector
 
@@ -300,27 +300,26 @@ tracking_word   = clamp(center_word + freq_correction,
 
 ## 5. 配置与 CDC
 
-寄存器分为三类：
+参数按更新影响分为三类：
 
 1. 即时控制：reset、enable。
-2. live debug：DACout1 offset/gain/source/format，不需要 APPLY。
-3. shadow 配置：中心字、FLL/PI、阈值、CIC、IIR、MUL/DIV 等，必须整体 APPLY。
+2. 直接生效：中心字、阈值、dwell/timeout、limits、DAC、MUL/DIV和DAC1调试配置。
+3. 局部重配置：FLL/PI增益只重捕获控制器；CIC/IIR/FLL delay清检测链并重捕获。
 
-APPLY 流程：
+跨时钟写流程：
 
 ```text
-ARM 写完整 shadow 配置
-  -> 写 0x006F bit0
-  -> sys_clk 域检查宽度、R/shift、delay、阈值、dwell、timeout、MUL/DIV
-  -> 合法时 toggle 到 clk1 域
-  -> active snapshot 原子更新
-  -> core 收到 config_apply pulse
-  -> CIC/IIR/CORDIC/FLL 历史清理
-  -> CONFIGURE -> WARMUP -> FLL_ACQUIRE
-  -> ack 返回 sys_clk，apply_seq + 1
+ARM校验完整candidate并只写变化字段
+  -> sys_clk域锁存地址/数据并发出request toggle
+  -> clk1域更新唯一活动寄存器
+  -> 按地址产生直接更新、控制器重捕获或检测链重配置
+  -> ack返回sys_clk并结束该次总线事务
 ```
 
-ARM 必须读取 ABI/config/build/git identity，并在 APPLY 后核对 active snapshot 与 config CRC，不能只写寄存器后直接 enable。
+所有配置范围、定点位宽、CIC/IIR、MUL/DIV和状态参数校验均由ARM在写活动寄存器
+前完成。HDL不拒绝、不修正、不代入默认值。ARM启动时先核对ABI/config/build/git
+identity，并在DPLL关闭状态下写入完整初始配置。`0x006F`改为无状态局部重配置命令，
+`0x0070`和`0x011E`保留并固定读零。
 
 ## 6. 输出链与调试 DAC
 
@@ -335,7 +334,9 @@ tracking_word
   -> DACout0
 ```
 
-`OUTPUT_MUL` 或 `OUTPUT_DIV` 为 0、或者乘法结果无法放入 48 bit 时，APPLY 被拒绝。运行时非法 MUL/DIV 会置 sticky config error，并保持旧输出。
+ARM 在提交前只保证 `OUTPUT_MUL/DIV` 非零并符合寄存器位宽，不根据
+`center * MUL / DIV` 代替使用者限制输出频率。HDL 乘除器直接使用 active 值；
+乘法/除法后的 48 bit 输出饱和仍是实时信号链保护，不属于配置校验。
 
 DACout1 调试源：
 

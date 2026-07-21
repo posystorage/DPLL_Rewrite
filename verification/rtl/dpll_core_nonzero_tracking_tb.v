@@ -7,7 +7,7 @@ module dpll_core_nonzero_tracking_tb;
     reg rst = 1'b1;
     reg sample_valid = 1'b0;
     reg signed [15:0] adc_sample = 16'sd0;
-    reg config_apply = 1'b0;
+    reg controller_reacquire = 1'b0;
 
     wire [47:0] tracking_word;
     wire tracking_valid;
@@ -19,7 +19,7 @@ module dpll_core_nonzero_tracking_tb;
     wire locked;
     wire [19:0] magnitude;
     wire cic_overflow_seen;
-    wire cic_illegal_config_seen;
+    wire cic_illegal_config_seen = 1'b0;
 
     integer n;
     integer fd;
@@ -36,7 +36,8 @@ module dpll_core_nonzero_tracking_tb;
         .status_clear(1'b0),
         .adc_sample(adc_sample),
         .center_word(CENTER_WORD),
-        .config_apply(config_apply),
+        .controller_reacquire(controller_reacquire),
+        .detector_reconfigure(controller_reacquire),
         .cic_rate_r(9'd8),
         .cic_output_shift(6'd4),
         .cic_flush(1'b0),
@@ -95,7 +96,6 @@ module dpll_core_nonzero_tracking_tb;
         .post_iir_active_bypass(),
         .post_iir_active_use_track(),
         .cic_overflow_seen(cic_overflow_seen),
-        .cic_illegal_config_seen(cic_illegal_config_seen),
         .lo_cos(),
         .lo_sin()
     );
@@ -138,9 +138,9 @@ module dpll_core_nonzero_tracking_tb;
         repeat (6) @(posedge clk);
         rst = 1'b0;
         @(posedge clk);
-        config_apply = 1'b1;
+        controller_reacquire = 1'b1;
         @(posedge clk);
-        config_apply = 1'b0;
+        controller_reacquire = 1'b0;
 
         for (n = 0; n < 520; n = n + 1) begin
             push_sample(stimulus_sample(n));
@@ -169,9 +169,9 @@ module dpll_core_nonzero_tracking_tb;
 
     always @(posedge clk) begin
         #1;
-        // config_apply also asserts tracking_valid, but it is not a sampled
+        // controller_reacquire also asserts tracking_valid, but it is not a sampled
         // tracking update and the CORDIC magnitude has not populated yet.
-        if (!rst && tracking_valid && !config_apply) begin
+        if (!rst && tracking_valid && !controller_reacquire) begin
             $fdisplay(fd, "%0d,0x%012h,0x%012h,%0d,%0d,%0d,%0d,%0d,%0d,%0d",
                       tracking_count, CENTER_WORD, tracking_word, freq_correction,
                       phase_error, freq_error, freq_error_valid, loop_state, locked,

@@ -19,7 +19,8 @@ module dpll_single_clock_core_stage_a #(
     input  wire                                  status_clear,
     input  wire signed [ADC_WIDTH-1:0]           adc_sample,
     input  wire [WORD_WIDTH-1:0]                 center_word,
-    input  wire                                  config_apply,
+    input  wire                                  controller_reacquire,
+    input  wire                                  detector_reconfigure,
     input  wire [8:0]                            cic_rate_r,
     input  wire [5:0]                            cic_output_shift,
     input  wire                                  cic_flush,
@@ -78,7 +79,6 @@ module dpll_single_clock_core_stage_a #(
     output wire                                  post_iir_active_bypass,
     output wire                                  post_iir_active_use_track,
     output wire                                  cic_overflow_seen,
-    output wire                                  cic_illegal_config_seen,
     output wire                                  cordic_input_overrun_seen,
     output wire                                  cordic_input_out_of_range_seen,
     output wire                                  cordic_output_format_error_seen,
@@ -137,7 +137,6 @@ module dpll_single_clock_core_stage_a #(
     wire post_iir_requested_bypass;
     wire post_iir_requested_track;
     wire post_iir_selection_changed;
-    wire detector_reconfigure;
     reg signed [PHASE_WIDTH-1:0] phase_error_hold;
     reg [MAG_WIDTH-1:0] cordic_magnitude_hold;
     reg freq_error_block_valid_d;
@@ -182,9 +181,9 @@ module dpll_single_clock_core_stage_a #(
     (* keep = "true", dont_touch = "true" *) reg rst_hybrid_r;
     (* keep = "true", dont_touch = "true" *) reg nco_word_ready_dds_r;
 
-    assign nco_word = config_apply ? center_word : tracking_word_hold;
-    assign tracking_word = config_apply ? center_word : tracking_word_hold;
-    assign tracking_valid = correction_valid | config_apply;
+    assign nco_word = controller_reacquire ? center_word : tracking_word_hold;
+    assign tracking_word = controller_reacquire ? center_word : tracking_word_hold;
+    assign tracking_valid = correction_valid | controller_reacquire;
     assign magnitude = cordic_magnitude_hold;
     assign post_iir_state_use_track = track_iir_preheat ||
                                       (loop_state == 4'd5) || (loop_state == 4'd6);
@@ -194,7 +193,7 @@ module dpll_single_clock_core_stage_a #(
     assign post_iir_selection_changed =
         (post_iir_active_bypass != post_iir_requested_bypass) ||
         (post_iir_active_use_track != post_iir_requested_track);
-    assign detector_reconfigure = config_apply | cic_flush | post_iir_selection_changed;
+    wire detector_clear = detector_reconfigure | cic_flush | post_iir_selection_changed;
     wire cordic_status_clear = status_clear |
                                ((loop_state == 4'd4) && (loop_state_d == 4'd3));
 
@@ -222,7 +221,7 @@ module dpll_single_clock_core_stage_a #(
             tracking_word_hold <= {WORD_WIDTH{1'b0}};
             nco_word_ready <= 1'b0;
             nco_word_ready_dds_r <= 1'b0;
-        end else if (config_apply || !loop_enable) begin
+        end else if (controller_reacquire || !loop_enable) begin
             tracking_word_hold <= center_word;
             nco_word_ready <= |center_word;
             nco_word_ready_dds_r <= nco_word_ready;
@@ -381,18 +380,17 @@ module dpll_single_clock_core_stage_a #(
         .in_valid(mixer_cic_valid_r),
         .i_in(mixer_i_cic_r),
         .q_in(mixer_q_cic_r),
-        .config_apply(config_apply),
+        .reconfigure(detector_reconfigure),
         .status_clear(status_clear),
-        .shadow_rate_r(cic_rate_r),
-        .shadow_output_shift(cic_output_shift),
+        .rate_r(cic_rate_r),
+        .output_shift(cic_output_shift),
         .flush(cic_flush),
         .out_valid(cic_iq_valid),
         .i_out(cic_i_baseband),
         .q_out(cic_q_baseband),
         .active_rate_r(active_cic_rate_r),
         .active_output_shift(active_cic_output_shift),
-        .overflow_seen(cic_overflow_seen),
-        .illegal_config_seen(cic_illegal_config_seen)
+        .overflow_seen(cic_overflow_seen)
     );
 
     post_iir_stage_a #(
@@ -403,7 +401,7 @@ module dpll_single_clock_core_stage_a #(
     ) post_iir_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
-        .clear(detector_reconfigure),
+        .clear(detector_clear),
         .in_valid(cic_iq_valid),
         .i_in(cic_i_baseband),
         .q_in(cic_q_baseband),
@@ -433,7 +431,7 @@ module dpll_single_clock_core_stage_a #(
     ) phase_cordic_adapter_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_detector_r),
-        .clear(detector_reconfigure),
+        .clear(detector_clear),
         .status_clear(cordic_status_clear),
         .in_valid(iq_valid),
         .i_in(i_baseband),
@@ -511,7 +509,7 @@ module dpll_single_clock_core_stage_a #(
         .clk_125m(clk_125m),
         .rst_125m(rst_state_r),
         .loop_enable(loop_enable),
-        .config_apply(config_apply),
+        .controller_reacquire(controller_reacquire),
         .magnitude_valid(cordic_valid),
         .phase_valid(cordic_valid),
         .frequency_valid(state_measurement_valid_r),
@@ -521,7 +519,7 @@ module dpll_single_clock_core_stage_a #(
         .phase_abs(state_phase_abs_r),
         .freq_abs(state_freq_abs_r),
         .magnitude(state_magnitude_r),
-        .cic_fault(cic_illegal_config_seen),
+        .cic_fault(1'b0),
         .correction_saturated(saturated_high | saturated_low),
         .phase_lock_threshold(phase_lock_threshold),
         .freq_lock_threshold(freq_lock_threshold),
@@ -563,7 +561,7 @@ module dpll_single_clock_core_stage_a #(
         .rst_125m(rst_detector_r),
         // Magnitude is diagnostic only; do not clear the FLL accumulator for
         // weak inputs that have not crossed the display/diagnostic threshold.
-        .clear(detector_reconfigure),
+        .clear(detector_clear),
         .sample_valid(fll_iq_valid),
         .i_in(i_baseband),
         .q_in(q_baseband),
@@ -625,7 +623,7 @@ module dpll_single_clock_core_stage_a #(
     ) hybrid_loop_inst (
         .clk_125m(clk_125m),
         .rst_125m(rst_hybrid_r),
-        .clear(config_apply),
+        .clear(controller_reacquire),
         .error_valid(hybrid_error_valid_r),
         .enable_fll(hybrid_enable_fll_r),
         .enable_pll_i(hybrid_enable_pll_i_r),

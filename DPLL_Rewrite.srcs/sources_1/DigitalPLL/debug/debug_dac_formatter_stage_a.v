@@ -61,8 +61,8 @@ module debug_dac_formatter_stage_a (
     reg hold_last_r4;
     reg valid_r4;
 
-    wire [4:0] raw_lsb = (shift_or_lsb_r0 > 6'd16) ? 5'd16 : shift_or_lsb_r0[4:0];
-    wire [4:0] shift_amount = (shift_or_lsb_r0 > 6'd31) ? 5'd31 : shift_or_lsb_r0[4:0];
+    wire [4:0] raw_lsb = shift_or_lsb_r0[4:0];
+    wire [4:0] shift_amount = shift_or_lsb_r0[4:0];
     wire signed [31:0] shifted_signed = source_r0 >>> shift_amount;
     wire [31:0] shifted_unsigned = $unsigned(source_r0) >> shift_amount;
     wire signed [31:0] scaled_plus_offset =

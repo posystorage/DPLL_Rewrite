@@ -87,6 +87,9 @@ int dpll_compute_filter_profile_checked(uint32_t center_word_hi,
 int dpll_validate_filter_profile(uint32_t center_word_hi,
                                  const dpll_filter_profile_t *profile,
                                  dpll_profile_validation_t *validation);
+int dpll_validate_runtime_profile(uint32_t center_word_hi,
+                                  const dpll_filter_profile_t *profile,
+                                  dpll_profile_validation_t *validation);
 
 #ifdef __cplusplus
 }

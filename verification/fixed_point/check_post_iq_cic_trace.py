@@ -13,7 +13,6 @@ ACC_WIDTH = 44
 OUTPUT_WIDTH = 20
 ROUND_WIDTH = ACC_WIDTH + 1
 MIN_RATE = 8
-MAX_RATE = 312
 WARMUP_OUTPUT_COUNT = 3
 
 
@@ -49,7 +48,6 @@ class PostIqCicModel:
         self.active_rate = MIN_RATE
         self.active_shift = 0
         self.active_rounding_bias = 0
-        self.illegal_config_seen = False
         self.overflow_seen = False
         self.pending_clear = False
         self.reset_pipelines()
@@ -81,14 +79,10 @@ class PostIqCicModel:
         self.warmup_outputs_remaining = WARMUP_OUTPUT_COUNT
 
     def apply_config(self, rate: int, shift: int) -> None:
-        if MIN_RATE <= rate <= MAX_RATE:
-            self.active_rate = rate
-            self.active_shift = shift
-            self.active_rounding_bias = rounding_bias_for_shift(shift)
-            self.illegal_config_seen = False
-            self.pending_clear = True
-        else:
-            self.illegal_config_seen = True
+        self.active_rate = rate
+        self.active_shift = shift
+        self.active_rounding_bias = rounding_bias_for_shift(shift)
+        self.pending_clear = True
 
     def flush(self) -> None:
         self.overflow_seen = False
@@ -233,12 +227,10 @@ def drive_model() -> list[dict[str, int]]:
                 "overflow_seen": int(overflow),
             })
 
-    def ignored_config_cycle(rate: int, shift: int) -> None:
-        model.step(current_i, current_q)
+    def apply_config_cycle(rate: int, shift: int) -> None:
         model.apply_config(rate, shift)
 
-    def ignored_flush_cycle() -> None:
-        model.step(current_i, current_q)
+    def flush_cycle() -> None:
         model.flush()
 
     model.apply_config(8, 10)
@@ -247,22 +239,22 @@ def drive_model() -> list[dict[str, int]]:
     for _ in range(32):
         push(1, -1)
 
-    ignored_config_cycle(7, 10)
-    for _ in range(16):
+    apply_config_cycle(7, 10)
+    for _ in range(28):
         push(1, -1)
 
-    ignored_config_cycle(8, 10)
+    apply_config_cycle(8, 10)
     for _ in range(24):
         push(0, 0)
     push(2048, -1024)
     for _ in range(48):
         push(0, 0)
 
-    ignored_config_cycle(12, 11)
+    apply_config_cycle(12, 11)
     for _ in range(96):
         push(3, -2)
 
-    ignored_flush_cycle()
+    flush_cycle()
     for _ in range(48):
         push(-5, 7)
 
@@ -313,7 +305,7 @@ def main() -> int:
         "",
         "- 3-stage integrator and 3-stage comb data path.",
         "- Decimation using the pre-update integrator sample, matching the RTL register timing.",
-        "- Legal APPLY flush, illegal APPLY preservation, explicit flush, and warmup suppression.",
+        "- Unconditional configuration APPLY, explicit flush, and warmup suppression.",
         "- Sign-symmetric rounding, output saturation, and I/Q shared valid alignment.",
         "",
         f"Rows checked: {len(rtl_rows)}",

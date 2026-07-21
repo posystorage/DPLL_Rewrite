@@ -18,9 +18,6 @@ reg [79:0] accumulator;
 reg [31:0] elapsed_cycles;
 reg [31:0] active_interval_cycles;
 
-wire [31:0] sanitized_interval_cycles;
-assign sanitized_interval_cycles = (interval_cycles == 32'd0) ? 32'd1 : interval_cycles;
-
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         accumulator            <= 80'd0;
@@ -34,7 +31,7 @@ always @(posedge clk or posedge rst) begin
     else if (active_interval_cycles == 32'd0) begin
         accumulator            <= {{48{1'b0}}, phase_increment};
         elapsed_cycles         <= 32'd1;
-        active_interval_cycles <= sanitized_interval_cycles;
+        active_interval_cycles <= interval_cycles;
     end
     else if (elapsed_cycles >= active_interval_cycles) begin
         result                 <= accumulator;
@@ -44,7 +41,7 @@ always @(posedge clk or posedge rst) begin
 
         accumulator            <= {{48{1'b0}}, phase_increment};
         elapsed_cycles         <= 32'd1;
-        active_interval_cycles <= sanitized_interval_cycles;
+        active_interval_cycles <= interval_cycles;
     end
     else begin
         accumulator    <= accumulator + phase_increment;

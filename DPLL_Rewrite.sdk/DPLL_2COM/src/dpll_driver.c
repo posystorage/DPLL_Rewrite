@@ -12,64 +12,102 @@ static void dpll_write(const dpll_driver_t *driver, uint32_t address, uint32_t v
     driver->io.write32(driver->io.context, address, value);
 }
 
-int dpll_driver_stage_profile(dpll_driver_t *driver,
-                              uint32_t center_word_hi,
-                              const dpll_filter_profile_t *profile,
-                              dpll_profile_validation_t *validation)
+static void dpll_write_profile(dpll_driver_t *driver,
+                               uint32_t center_word_hi,
+                               const dpll_filter_profile_t *profile,
+                               const dpll_config_t *previous)
 {
-    if (driver == 0 || profile == 0 ||
-        dpll_validate_filter_profile(center_word_hi, profile, validation) != 0)
-        return DPLL_DRIVER_ERR_VERIFY;
-
-    dpll_write(driver, driver->regs.shadow_center, center_word_hi);
-    dpll_write(driver, driver->regs.shadow_cic_r, profile->cic_r);
-    dpll_write(driver, driver->regs.shadow_cic_shift, profile->cic_shift);
-    dpll_write(driver, driver->regs.shadow_fll_delay, profile->fll_delay_sel);
-    dpll_write(driver, driver->regs.shadow_positive_limit,
-               (uint32_t)profile->correction_limit_pos_hi);
-    dpll_write(driver, driver->regs.shadow_negative_limit,
-               (uint32_t)profile->correction_limit_neg_hi);
-    dpll_write(driver, driver->regs.shadow_measurement_timeout,
-               profile->measurement_timeout);
-    dpll_write(driver, driver->regs.shadow_post_iir_config, profile->post_iir_mode);
-    dpll_write(driver, driver->regs.shadow_post_iir_acq_b0, (uint32_t)profile->acquire_b0);
-    dpll_write(driver, driver->regs.shadow_post_iir_acq_b1, (uint32_t)profile->acquire_b1);
-    dpll_write(driver, driver->regs.shadow_post_iir_acq_b2, (uint32_t)profile->acquire_b2);
-    dpll_write(driver, driver->regs.shadow_post_iir_acq_a1, (uint32_t)profile->acquire_a1);
-    dpll_write(driver, driver->regs.shadow_post_iir_acq_a2, (uint32_t)profile->acquire_a2);
-    dpll_write(driver, driver->regs.shadow_post_iir_track_b0, (uint32_t)profile->track_b0);
-    dpll_write(driver, driver->regs.shadow_post_iir_track_b1, (uint32_t)profile->track_b1);
-    dpll_write(driver, driver->regs.shadow_post_iir_track_b2, (uint32_t)profile->track_b2);
-    dpll_write(driver, driver->regs.shadow_post_iir_track_a1, (uint32_t)profile->track_a1);
-    dpll_write(driver, driver->regs.shadow_post_iir_track_a2, (uint32_t)profile->track_a2);
-    dpll_write(driver, driver->regs.shadow_kp_track, (uint32_t)profile->kp_track);
-    dpll_write(driver, driver->regs.shadow_ki_track, (uint32_t)profile->ki_track);
-    dpll_write(driver, driver->regs.shadow_kf_acquire, (uint32_t)profile->kf_acquire);
-    dpll_write(driver, driver->regs.shadow_kf_blend, (uint32_t)profile->kf_blend);
-    dpll_write(driver, driver->regs.shadow_kf_track, (uint32_t)profile->kf_track);
-    dpll_write(driver, driver->regs.shadow_kp_blend, (uint32_t)profile->kp_blend);
-    dpll_write(driver, driver->regs.shadow_ki_blend, (uint32_t)profile->ki_blend);
-    dpll_write(driver, driver->regs.shadow_phase_threshold, profile->phase_threshold);
-    dpll_write(driver, driver->regs.shadow_phase_setpoint, (uint32_t)profile->phase_setpoint);
-    dpll_write(driver, driver->regs.shadow_freq_threshold, profile->freq_threshold);
-    dpll_write(driver, driver->regs.shadow_mag_enter, profile->magnitude_enter);
-    dpll_write(driver, driver->regs.shadow_mag_exit, profile->magnitude_exit);
-    dpll_write(driver, driver->regs.shadow_acquire_dwell, profile->acquire_dwell);
-    dpll_write(driver, driver->regs.shadow_blend_dwell, profile->blend_dwell);
-    dpll_write(driver, driver->regs.shadow_loss_dwell, profile->loss_dwell);
-    dpll_write(driver, driver->regs.shadow_warmup_samples, profile->warmup_samples);
-    dpll_write(driver, driver->regs.shadow_holdover_timeout, profile->holdover_timeout);
-    return DPLL_DRIVER_OK;
+    const dpll_filter_profile_t *old = previous == 0 ? 0 : &previous->profile;
+#define WRITE_PROFILE_FIELD(field, reg_field) \
+    do { if (old == 0 || profile->field != old->field) \
+        dpll_write(driver, driver->regs.reg_field, (uint32_t)profile->field); } while (0)
+    if (previous == 0 || center_word_hi != previous->center_word_hi)
+        dpll_write(driver, driver->regs.center, center_word_hi);
+    WRITE_PROFILE_FIELD(cic_r, cic_r);
+    WRITE_PROFILE_FIELD(cic_shift, cic_shift);
+    WRITE_PROFILE_FIELD(fll_delay_sel, fll_delay);
+    WRITE_PROFILE_FIELD(correction_limit_pos_hi, positive_limit);
+    WRITE_PROFILE_FIELD(correction_limit_neg_hi, negative_limit);
+    WRITE_PROFILE_FIELD(measurement_timeout, measurement_timeout);
+    WRITE_PROFILE_FIELD(post_iir_mode, post_iir_config);
+    WRITE_PROFILE_FIELD(acquire_b0, post_iir_acq_b0);
+    WRITE_PROFILE_FIELD(acquire_b1, post_iir_acq_b1);
+    WRITE_PROFILE_FIELD(acquire_b2, post_iir_acq_b2);
+    WRITE_PROFILE_FIELD(acquire_a1, post_iir_acq_a1);
+    WRITE_PROFILE_FIELD(acquire_a2, post_iir_acq_a2);
+    WRITE_PROFILE_FIELD(track_b0, post_iir_track_b0);
+    WRITE_PROFILE_FIELD(track_b1, post_iir_track_b1);
+    WRITE_PROFILE_FIELD(track_b2, post_iir_track_b2);
+    WRITE_PROFILE_FIELD(track_a1, post_iir_track_a1);
+    WRITE_PROFILE_FIELD(track_a2, post_iir_track_a2);
+    WRITE_PROFILE_FIELD(kp_track, kp_track);
+    WRITE_PROFILE_FIELD(ki_track, ki_track);
+    WRITE_PROFILE_FIELD(kf_acquire, kf_acquire);
+    WRITE_PROFILE_FIELD(kf_blend, kf_blend);
+    WRITE_PROFILE_FIELD(kf_track, kf_track);
+    WRITE_PROFILE_FIELD(kp_blend, kp_blend);
+    WRITE_PROFILE_FIELD(ki_blend, ki_blend);
+    WRITE_PROFILE_FIELD(phase_threshold, phase_threshold);
+    WRITE_PROFILE_FIELD(phase_setpoint, phase_setpoint);
+    WRITE_PROFILE_FIELD(freq_threshold, freq_threshold);
+    WRITE_PROFILE_FIELD(magnitude_enter, mag_enter);
+    WRITE_PROFILE_FIELD(magnitude_exit, mag_exit);
+    WRITE_PROFILE_FIELD(acquire_dwell, acquire_dwell);
+    WRITE_PROFILE_FIELD(blend_dwell, blend_dwell);
+    WRITE_PROFILE_FIELD(loss_dwell, loss_dwell);
+    WRITE_PROFILE_FIELD(warmup_samples, warmup_samples);
+    WRITE_PROFILE_FIELD(holdover_timeout, holdover_timeout);
+#undef WRITE_PROFILE_FIELD
 }
 
-static uint32_t dpll_sign_extend(uint32_t value, uint32_t sign_bit)
+int dpll_validate_config(const dpll_config_t *config,
+                         dpll_config_validation_t *validation)
 {
-    uint32_t mask = (sign_bit >= 31U) ? 0xffffffffU : ((1UL << (sign_bit + 1U)) - 1U);
-    value &= mask;
-    if ((value & (1UL << sign_bit)) != 0U) {
-        value |= ~mask;
+    uint32_t errors = DPLL_CONFIG_ERROR_NONE;
+    dpll_profile_validation_t profile_validation;
+
+    memset(&profile_validation, 0, sizeof(profile_validation));
+    if (config == 0 ||
+        dpll_validate_runtime_profile(config->center_word_hi,
+                                      config == 0 ? 0 : &config->profile,
+                                      &profile_validation) != 0)
+        errors |= DPLL_CONFIG_ERROR_PROFILE;
+    if (config == 0 || config->mul_factor == 0U || config->div_factor == 0U)
+        errors |= DPLL_CONFIG_ERROR_MUL_DIV;
+    if (config == 0 || config->dac0_offset < -8192 || config->dac0_offset > 8191 ||
+        config->dac0_amplitude < 0)
+        errors |= DPLL_CONFIG_ERROR_DAC;
+
+    if (validation != 0) {
+        validation->profile = profile_validation;
+        validation->errors = errors;
     }
-    return value;
+    return errors == DPLL_CONFIG_ERROR_NONE ? DPLL_DRIVER_OK : DPLL_DRIVER_ERR_CONFIG;
+}
+
+int dpll_driver_write_config(dpll_driver_t *driver,
+                             const dpll_config_t *config,
+                             const dpll_config_t *previous,
+                             dpll_config_validation_t *validation)
+{
+    if (driver == 0 || dpll_validate_config(config, validation) != DPLL_DRIVER_OK)
+        return DPLL_DRIVER_ERR_CONFIG;
+    if (!driver->abi_ready && dpll_driver_check_abi(driver) != DPLL_DRIVER_OK) {
+        dpll_write(driver, driver->regs.lock_ctrl, 0U);
+        return DPLL_DRIVER_ERR_ABI;
+    }
+
+    dpll_write_profile(driver, config->center_word_hi, &config->profile, previous);
+#define WRITE_CONFIG_FIELD(field, reg_field) \
+    do { if (previous == 0 || config->field != previous->field) \
+        dpll_write(driver, driver->regs.reg_field, (uint32_t)config->field); } while (0)
+    WRITE_CONFIG_FIELD(mul_factor, mul);
+    WRITE_CONFIG_FIELD(div_factor, div);
+    WRITE_CONFIG_FIELD(manual_offset, manual_offset);
+    WRITE_CONFIG_FIELD(dac0_offset, dac0_offset);
+    WRITE_CONFIG_FIELD(dac0_amplitude, dac0_amplitude);
+#undef WRITE_CONFIG_FIELD
+    return DPLL_DRIVER_OK;
 }
 
 static uint32_t dpll_config_crc_mix(uint32_t crc, uint32_t value)
@@ -103,8 +141,7 @@ void dpll_driver_init(dpll_driver_t *driver,
                       const dpll_reg_map_t *regs,
                       const dpll_identity_t *expected,
                       uint32_t abi_retry_count,
-                      uint32_t abi_retry_delay_us,
-                      uint32_t apply_poll_limit)
+                      uint32_t abi_retry_delay_us)
 {
     memset(driver, 0, sizeof(*driver));
     driver->io = *io;
@@ -112,7 +149,6 @@ void dpll_driver_init(dpll_driver_t *driver,
     driver->expected = *expected;
     driver->abi_retry_count = abi_retry_count;
     driver->abi_retry_delay_us = abi_retry_delay_us;
-    driver->apply_poll_limit = apply_poll_limit;
 }
 
 void dpll_driver_invalidate_abi(dpll_driver_t *driver)
@@ -143,189 +179,50 @@ int dpll_driver_check_abi(dpll_driver_t *driver)
     return DPLL_DRIVER_ERR_ABI;
 }
 
-static void dpll_clear_apply_result(dpll_apply_result_t *result)
+uint32_t dpll_config_signature(const dpll_config_t *config)
 {
-    memset(result, 0, sizeof(*result));
-}
-
-static uint32_t dpll_expected_active_config_crc(const dpll_driver_t *driver)
-{
-    uint32_t cic_r = dpll_read(driver, driver->regs.shadow_cic_r) & 0x1FFU;
-    uint32_t measurement_timeout =
-        dpll_read(driver, driver->regs.shadow_measurement_timeout) & 0x00FFFFFFU;
-    uint32_t negative_limit = dpll_read(driver, driver->regs.shadow_negative_limit);
     uint32_t words[34];
 
-    if (measurement_timeout == 0U) {
-        measurement_timeout = (2400U * cic_r) + 512U;
-    }
-    if (negative_limit == 0U) {
-        negative_limit = 0x80000000U;
-    }
-
-    words[0] = dpll_read(driver, driver->regs.shadow_center);
-    words[1] = ((dpll_read(driver, driver->regs.shadow_fll_delay) & 0x3U) << 15) |
-               ((dpll_read(driver, driver->regs.shadow_cic_shift) & 0x3FU) << 9) | cic_r;
-    words[2] = ((dpll_read(driver, driver->regs.shadow_mul) & 0xFFFFU) << 16) |
-               (dpll_read(driver, driver->regs.shadow_div) & 0xFFFFU);
-    words[3] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_kp_track), 23U);
-    words[4] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_ki_track), 23U);
-    words[5] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_kf_acquire), 23U);
-    words[6] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_kf_blend), 23U);
-    words[7] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_kf_track), 23U);
-    words[8] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_kp_blend), 23U);
-    words[9] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_ki_blend), 23U);
-    words[10] = dpll_sign_extend(dpll_read(driver, driver->regs.shadow_phase_setpoint), 17U);
-    words[11] = dpll_read(driver, driver->regs.shadow_phase_threshold) & 0x0003FFFFU;
-    words[12] = dpll_read(driver, driver->regs.shadow_freq_threshold) & 0x003FFFFFU;
-    words[13] = dpll_read(driver, driver->regs.shadow_mag_enter) & 0x000FFFFFU;
-    words[14] = dpll_read(driver, driver->regs.shadow_mag_exit) & 0x000FFFFFU;
-    words[15] = ((dpll_read(driver, driver->regs.shadow_acquire_dwell) & 0xFFFFU) << 16) |
-                (dpll_read(driver, driver->regs.shadow_blend_dwell) & 0xFFFFU);
-    words[16] = ((dpll_read(driver, driver->regs.shadow_loss_dwell) & 0xFFFFU) << 16) |
-                (dpll_read(driver, driver->regs.shadow_warmup_samples) & 0xFFFFU);
-    words[17] = measurement_timeout;
-    words[18] = dpll_read(driver, driver->regs.shadow_holdover_timeout) & 0x00FFFFFFU;
-    words[19] = dpll_read(driver, driver->regs.shadow_positive_limit);
-    words[20] = negative_limit;
-    words[21] = dpll_read(driver, driver->regs.shadow_manual_offset);
-    words[22] = ((dpll_sign_extend(dpll_read(driver, driver->regs.shadow_dac0_offset), 13U) & 0xFFFFU) << 16) |
-                (dpll_sign_extend(dpll_read(driver, driver->regs.shadow_dac0_amplitude), 15U) & 0xFFFFU);
-    words[23] = dpll_read(driver, driver->regs.shadow_post_iir_config) & 0x3U;
-    words[24] = dpll_read(driver, driver->regs.shadow_post_iir_acq_b0);
-    words[25] = dpll_read(driver, driver->regs.shadow_post_iir_acq_b1);
-    words[26] = dpll_read(driver, driver->regs.shadow_post_iir_acq_b2);
-    words[27] = dpll_read(driver, driver->regs.shadow_post_iir_acq_a1);
-    words[28] = dpll_read(driver, driver->regs.shadow_post_iir_acq_a2);
-    words[29] = dpll_read(driver, driver->regs.shadow_post_iir_track_b0);
-    words[30] = dpll_read(driver, driver->regs.shadow_post_iir_track_b1);
-    words[31] = dpll_read(driver, driver->regs.shadow_post_iir_track_b2);
-    words[32] = dpll_read(driver, driver->regs.shadow_post_iir_track_a1);
-    words[33] = dpll_read(driver, driver->regs.shadow_post_iir_track_a2);
+    if (config == 0) return 0U;
+    words[0] = config->center_word_hi;
+    words[1] = ((uint32_t)config->profile.fll_delay_sel << 24) |
+               ((uint32_t)config->profile.cic_shift << 16) | config->profile.cic_r;
+    words[2] = ((uint32_t)config->mul_factor << 16) | config->div_factor;
+    words[3] = (uint32_t)config->profile.kp_track;
+    words[4] = (uint32_t)config->profile.ki_track;
+    words[5] = (uint32_t)config->profile.kf_acquire;
+    words[6] = (uint32_t)config->profile.kf_blend;
+    words[7] = (uint32_t)config->profile.kf_track;
+    words[8] = (uint32_t)config->profile.kp_blend;
+    words[9] = (uint32_t)config->profile.ki_blend;
+    words[10] = (uint32_t)config->profile.phase_setpoint;
+    words[11] = config->profile.phase_threshold;
+    words[12] = config->profile.freq_threshold;
+    words[13] = config->profile.magnitude_enter;
+    words[14] = config->profile.magnitude_exit;
+    words[15] = ((uint32_t)config->profile.acquire_dwell << 16) |
+                config->profile.blend_dwell;
+    words[16] = ((uint32_t)config->profile.loss_dwell << 16) |
+                config->profile.warmup_samples;
+    words[17] = config->profile.measurement_timeout;
+    words[18] = config->profile.holdover_timeout;
+    words[19] = (uint32_t)config->profile.correction_limit_pos_hi;
+    words[20] = (uint32_t)config->profile.correction_limit_neg_hi;
+    words[21] = (uint32_t)config->manual_offset;
+    words[22] = ((uint32_t)(uint16_t)config->dac0_offset << 16) |
+                (uint16_t)config->dac0_amplitude;
+    words[23] = config->profile.post_iir_mode;
+    words[24] = (uint32_t)config->profile.acquire_b0;
+    words[25] = (uint32_t)config->profile.acquire_b1;
+    words[26] = (uint32_t)config->profile.acquire_b2;
+    words[27] = (uint32_t)config->profile.acquire_a1;
+    words[28] = (uint32_t)config->profile.acquire_a2;
+    words[29] = (uint32_t)config->profile.track_b0;
+    words[30] = (uint32_t)config->profile.track_b1;
+    words[31] = (uint32_t)config->profile.track_b2;
+    words[32] = (uint32_t)config->profile.track_a1;
+    words[33] = (uint32_t)config->profile.track_a2;
     return dpll_config_crc_words(words, 34U);
-}
-
-int dpll_driver_apply(dpll_driver_t *driver, dpll_apply_result_t *result)
-{
-    uint32_t before;
-    uint32_t before_sequence;
-    uint32_t expected_sequence;
-    uint32_t status = 0U;
-    uint32_t sequence = 0U;
-    uint32_t poll;
-    uint32_t requested_center;
-    uint32_t requested_cic;
-    uint32_t requested_mul_div;
-    uint32_t requested_kp_track;
-    uint32_t requested_ki_track;
-    uint32_t requested_kf_acquire;
-    uint32_t requested_kf_blend;
-    uint32_t requested_kf_track;
-    uint32_t requested_kp_blend;
-    uint32_t requested_ki_blend;
-    uint32_t requested_post_iir_config;
-    uint32_t requested_post_iir_acq_b0;
-    uint32_t requested_post_iir_acq_b1;
-    uint32_t requested_post_iir_acq_b2;
-    uint32_t requested_post_iir_acq_a1;
-    uint32_t requested_post_iir_acq_a2;
-    uint32_t requested_post_iir_track_b0;
-    uint32_t requested_post_iir_track_b1;
-    uint32_t requested_post_iir_track_b2;
-    uint32_t requested_post_iir_track_a1;
-    uint32_t requested_post_iir_track_a2;
-    uint32_t requested_active_config_crc;
-    uint32_t active_cic;
-
-    dpll_clear_apply_result(result);
-    if (!driver->abi_ready && dpll_driver_check_abi(driver) != DPLL_DRIVER_OK) {
-        dpll_write(driver, driver->regs.lock_ctrl, 0U);
-        return DPLL_DRIVER_ERR_ABI;
-    }
-
-    requested_center = dpll_read(driver, driver->regs.shadow_center);
-    requested_cic = ((dpll_read(driver, driver->regs.shadow_cic_shift) & 0x3FU) << 9) |
-                    (dpll_read(driver, driver->regs.shadow_cic_r) & 0x1FFU);
-    requested_mul_div = ((dpll_read(driver, driver->regs.shadow_mul) & 0xFFFFU) << 16) |
-                        (dpll_read(driver, driver->regs.shadow_div) & 0xFFFFU);
-    requested_kp_track = dpll_read(driver, driver->regs.shadow_kp_track);
-    requested_ki_track = dpll_read(driver, driver->regs.shadow_ki_track);
-    requested_kf_acquire = dpll_read(driver, driver->regs.shadow_kf_acquire);
-    requested_kf_blend = dpll_read(driver, driver->regs.shadow_kf_blend);
-    requested_kf_track = dpll_read(driver, driver->regs.shadow_kf_track);
-    requested_kp_blend = dpll_read(driver, driver->regs.shadow_kp_blend);
-    requested_ki_blend = dpll_read(driver, driver->regs.shadow_ki_blend);
-    requested_post_iir_config = dpll_read(driver, driver->regs.shadow_post_iir_config) & 0x3U;
-    requested_post_iir_acq_b0 = dpll_read(driver, driver->regs.shadow_post_iir_acq_b0);
-    requested_post_iir_acq_b1 = dpll_read(driver, driver->regs.shadow_post_iir_acq_b1);
-    requested_post_iir_acq_b2 = dpll_read(driver, driver->regs.shadow_post_iir_acq_b2);
-    requested_post_iir_acq_a1 = dpll_read(driver, driver->regs.shadow_post_iir_acq_a1);
-    requested_post_iir_acq_a2 = dpll_read(driver, driver->regs.shadow_post_iir_acq_a2);
-    requested_post_iir_track_b0 = dpll_read(driver, driver->regs.shadow_post_iir_track_b0);
-    requested_post_iir_track_b1 = dpll_read(driver, driver->regs.shadow_post_iir_track_b1);
-    requested_post_iir_track_b2 = dpll_read(driver, driver->regs.shadow_post_iir_track_b2);
-    requested_post_iir_track_a1 = dpll_read(driver, driver->regs.shadow_post_iir_track_a1);
-    requested_post_iir_track_a2 = dpll_read(driver, driver->regs.shadow_post_iir_track_a2);
-    requested_active_config_crc = dpll_expected_active_config_crc(driver);
-
-    before = dpll_read(driver, driver->regs.config_apply);
-    before_sequence = (before & DPLL_APPLY_SEQ_MASK) >> DPLL_APPLY_SEQ_SHIFT;
-    expected_sequence = (before_sequence + 1U) & 0xFFU;
-    dpll_write(driver, driver->regs.config_apply, 1U);
-
-    for (poll = 0U; poll < driver->apply_poll_limit; ++poll) {
-        status = dpll_read(driver, driver->regs.config_apply);
-        sequence = (status & DPLL_APPLY_SEQ_MASK) >> DPLL_APPLY_SEQ_SHIFT;
-        if ((status & DPLL_APPLY_BUSY_MASK) == 0U) {
-            if ((status & DPLL_APPLY_ERROR_MASK) != 0U) {
-                result->error_code = (uint8_t)((status & DPLL_APPLY_ERROR_CODE_MASK) >>
-                                               DPLL_APPLY_ERROR_CODE_SHIFT);
-                result->rejected_field_mask =
-                    (uint16_t)(dpll_read(driver, driver->regs.config_rejected_mask) & 0xFFFFU);
-                return DPLL_DRIVER_ERR_REJECTED;
-            }
-            if (sequence == expected_sequence) {
-                break;
-            }
-        }
-    }
-    if (poll == driver->apply_poll_limit) {
-        return DPLL_DRIVER_ERR_TIMEOUT;
-    }
-
-    active_cic = dpll_read(driver, driver->regs.active_cic);
-    result->applied_sequence = (uint8_t)expected_sequence;
-    result->active_r = (uint16_t)(active_cic & 0x1FFU);
-    result->active_shift = (uint8_t)((active_cic >> 9) & 0x3FU);
-
-    if (dpll_read(driver, driver->regs.active_center) != requested_center ||
-        active_cic != requested_cic ||
-        dpll_read(driver, driver->regs.active_mul_div) != requested_mul_div ||
-        dpll_read(driver, driver->regs.active_kp_track) != requested_kp_track ||
-        dpll_read(driver, driver->regs.active_ki_track) != requested_ki_track ||
-        dpll_read(driver, driver->regs.active_kf_acquire) != requested_kf_acquire ||
-        dpll_read(driver, driver->regs.active_kf_blend) != requested_kf_blend ||
-        dpll_read(driver, driver->regs.active_kf_track) != requested_kf_track ||
-        dpll_read(driver, driver->regs.active_kp_blend) != requested_kp_blend ||
-        dpll_read(driver, driver->regs.active_ki_blend) != requested_ki_blend ||
-        dpll_read(driver, driver->regs.active_post_iir_config) != requested_post_iir_config ||
-        dpll_read(driver, driver->regs.active_post_iir_acq_b0) != requested_post_iir_acq_b0 ||
-        dpll_read(driver, driver->regs.active_post_iir_acq_b1) != requested_post_iir_acq_b1 ||
-        dpll_read(driver, driver->regs.active_post_iir_acq_b2) != requested_post_iir_acq_b2 ||
-        dpll_read(driver, driver->regs.active_post_iir_acq_a1) != requested_post_iir_acq_a1 ||
-        dpll_read(driver, driver->regs.active_post_iir_acq_a2) != requested_post_iir_acq_a2 ||
-        dpll_read(driver, driver->regs.active_post_iir_track_b0) != requested_post_iir_track_b0 ||
-        dpll_read(driver, driver->regs.active_post_iir_track_b1) != requested_post_iir_track_b1 ||
-        dpll_read(driver, driver->regs.active_post_iir_track_b2) != requested_post_iir_track_b2 ||
-        dpll_read(driver, driver->regs.active_post_iir_track_a1) != requested_post_iir_track_a1 ||
-        dpll_read(driver, driver->regs.active_post_iir_track_a2) != requested_post_iir_track_a2 ||
-        dpll_read(driver, driver->regs.applied_abi_version) != driver->expected.abi_version ||
-        dpll_read(driver, driver->regs.active_config_crc) != requested_active_config_crc) {
-        return DPLL_DRIVER_ERR_VERIFY;
-    }
-
-    result->accepted = 1U;
-    return DPLL_DRIVER_OK;
 }
 
 int dpll_driver_set_enable(dpll_driver_t *driver, uint32_t enable)

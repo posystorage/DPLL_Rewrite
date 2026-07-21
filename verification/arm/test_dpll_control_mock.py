@@ -47,7 +47,7 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertTrue(DRIVER_C.exists())
         self.assertTrue(DRIVER_H.exists())
         self.assertIn("dpll_driver_check_abi(&dpll_driver)", self.arm)
-        self.assertIn("dpll_driver_apply(&dpll_driver, result)", self.arm)
+        self.assertIn("dpll_driver_write_config(", self.arm)
         self.assertIn("dpll_driver_set_enable(&dpll_driver, enable)", self.arm)
 
     def test_abi_retry_timeout_and_reset_recheck_are_real_driver_paths(self):
@@ -59,21 +59,17 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn("actual abi=0x%08lx", self.arm)
         self.assertIn("expected abi=0x%08lx", self.arm)
 
-    def test_apply_checks_busy_error_exact_sequence_and_active_readback(self):
+    def test_driver_uses_direct_changed_field_writes_without_global_apply(self):
         for needle in (
-            "DPLL_APPLY_BUSY_MASK",
-            "DPLL_APPLY_ERROR_MASK",
-            "sequence == expected_sequence",
-            "config_rejected_mask",
-            "active_center",
-            "active_cic",
-            "active_mul_div",
-            "applied_abi_version",
-            "DPLL_DRIVER_ERR_VERIFY",
+            "dpll_driver_write_config",
+            "dpll_write_profile",
+            "previous == 0 || config->field != previous->field",
+            "old == 0 || profile->field != old->field",
         ):
             self.assertIn(needle, self.driver_c + self.driver_h)
-        self.assertNotIn("& 0xFFFFFFU) != requested_", self.driver_c)
-        self.assertIn("dpll_read(driver, driver->regs.active_kp_track) != requested_kp_track", self.driver_c)
+        self.assertNotIn("dpll_driver_apply", self.driver_c + self.driver_h)
+        self.assertNotIn("DPLL_APPLY_BUSY_MASK", self.driver_c + self.driver_h)
+        self.assertNotIn("apply_poll_limit", self.driver_c + self.driver_h)
 
     def test_control_bank_apply_and_advanced_apply_commit_before_success(self):
         bank_apply = function_body(self.arm, "Control_Apply_Persistent")
@@ -84,7 +80,9 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn("Control_Apply_Persistent", command)
 
         advanced = function_body(self.arm, "CMD_8F_WRITE_DPLL_ADV_CONFIG")
-        self.assertIn("pc_send_dpll_apply_result(dpll_apply_config())", advanced)
+        self.assertIn("candidate = DPLL_Committed_Config", advanced)
+        self.assertIn("dpll_commit_candidate(&candidate)", advanced)
+        self.assertIn("pc_send_dpll_config_result(status)", advanced)
         self.assertNotIn("PC_HOST_Send_ASK_Only(0);", advanced)
 
     def test_failed_pc_and_lcd_apply_restore_previous_persistent_bank(self):
@@ -123,25 +121,57 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn("Control_Apply_Persistent(candidate)", body)
         self.assertNotIn("Xil_Out32(Freq_Meter_Fast_Interval_Addr", body)
 
+    def test_frequency_meter_validation_is_centralized_before_writes(self):
+        validator = function_body(self.arm, "freq_meter_validate_config")
+        timer = function_body(self.arm, "CMD_94_WRITE_FREQMETER_TIMER")
+        bank = function_body(self.arm, "control_apply_bank")
+        self.assertIn("config->gate_time_low == 0U", validator)
+        self.assertNotIn("gate_time_low | candidate.gate_time_high", timer)
+        self.assertLess(
+            bank.index("freq_meter_validate_config(&meter_candidate)"),
+            bank.index("dpll_commit_candidate(&candidate)"),
+        )
+        self.assertLess(
+            bank.index("dpll_commit_candidate(&candidate)"),
+            bank.index("freq_meter_commit_candidate(&meter_candidate)"),
+        )
+
+    def test_frequency_meter_d_gain_is_public_but_d_filter_is_arm_fixed(self):
+        initializer = function_body(self.arm, "freq_meter_initialize_defaults")
+        advanced = function_body(self.arm, "CMD_93_WRITE_FREQMETER_PID")
+        self.assertIn("candidate.gain_d = pc_get_u32(16)", advanced)
+        self.assertIn("#define FREQ_METER_D_FILTER_COEFF", self.arm)
+        self.assertIn(
+            "Xil_Out32(Freq_Meter_Coefd_Filter_Addr, FREQ_METER_D_FILTER_COEFF)",
+            initializer,
+        )
+        config_decl = re.search(
+            r"typedef\s+struct\s*\{(?P<body>.*?)\}\s*freq_meter_config_t\s*;",
+            self.arm,
+            re.S,
+        )
+        self.assertIsNotNone(config_decl)
+        self.assertIn("gain_d", config_decl.group("body"))
+        self.assertNotIn("filter", config_decl.group("body").lower())
+
     def test_debug_dac_command_is_live_only(self):
         body = function_body(self.arm, "CMD_97_WRITE_DPLL_DEBUG_CONFIG")
+        helper = function_body(self.arm, "debug_dac_commit_candidate")
         for name in (
             "DPLL_DEBUG_DAC_SOURCE_ADDR",
             "DPLL_DEBUG_DAC_FORMAT_ADDR",
             "DPLL_DEBUG_DAC_OFFSET_ADDR",
             "DPLL_DEBUG_DAC_GAIN_ADDR",
         ):
-            self.assertIn(name, body)
+            self.assertIn(name, helper)
+        self.assertIn("debug_dac_commit_candidate(&candidate)", body)
         self.assertIn("PC_HOST_Send_ASK_Only(0U);", body)
         self.assertNotIn("dpll_apply_config", body)
 
         preset = function_body(self.arm, "Control_Apply_Debug_DAC_Preset")
         self.assertNotIn("dpll_apply_config", preset)
         self.assertNotIn("control_apply_bank", preset)
-        self.assertLess(
-            preset.index("DPLL_DEBUG_DAC_OFFSET_ADDR"),
-            preset.index("DPLL_DEBUG_DAC_SOURCE_ADDR"),
-        )
+        self.assertIn("debug_dac_commit_candidate(config)", preset)
 
     def test_debug_dac_quick_presets_and_manual_api_coexist(self):
         self.assertIn("PC_CMD_READ_DPLL_DEBUG_CONFIG", self.arm)
@@ -217,8 +247,9 @@ class DpllArmControlContractTest(unittest.TestCase):
     def test_advanced_payload_includes_separate_measurement_timeout(self):
         self.assertRegex(self.arm, r"#define\s+DPLL_ADV_CONFIG_PAYLOAD_BYTES\s+90U")
         body = function_body(self.arm, "CMD_8F_WRITE_DPLL_ADV_CONFIG")
-        self.assertIn("DPLL_MEASUREMENT_TIMEOUT_Addr, pc_get_u32(46)", body)
-        self.assertIn("DPLL_HOLDOVER_TIMEOUT_Addr, pc_get_u32(36)", body)
+        self.assertIn("candidate.profile.measurement_timeout = pc_get_u32(46)", body)
+        self.assertIn("candidate.profile.holdover_timeout = pc_get_u32(36)", body)
+        self.assertIn("dpll_commit_candidate(&candidate)", body)
 
     def test_uart_parser_accepts_complete_advanced_config_frame(self):
         self.assertRegex(self.arm, r"#define\s+PC_HOST_MAX_FRAME_BYTES\s+128U")
@@ -229,23 +260,19 @@ class DpllArmControlContractTest(unittest.TestCase):
     def test_host_test_covers_required_driver_outcomes(self):
         for needle in (
             "test_abi_retry_and_enable",
-            "test_abi_mismatch_blocks_enable_and_apply",
-            "test_atomic_apply_and_active_verify",
-            "APPLY_REJECT",
-            "APPLY_STUCK",
-            "APPLY_VERIFY_MISMATCH",
-            "test_reset_invalidates_and_rechecks_abi",
+            "test_abi_mismatch_blocks_writes",
+            "test_direct_write_and_change_filtering",
+            "test_validation_and_profiles",
         ):
             self.assertIn(needle, self.host_test)
 
-    def test_register_contract_exposes_apply_and_active_identity(self):
+    def test_register_contract_exposes_reconfigure_and_identity(self):
         for name in (
-            "DPLL_CONFIG_APPLY_Addr",
-            "DPLL_CONFIG_REJECTED_MASK_Addr",
-            "DPLL_ACTIVE_CENTER_Addr",
-            "DPLL_ACTIVE_CIC_CONFIG_Addr",
-            "DPLL_ACTIVE_MUL_DIV_Addr",
-            "DPLL_APPLIED_ABI_VERSION_Addr",
+            "DPLL_RECONFIGURE_Addr",
+            "DPLL_RESERVED_0070_Addr",
+            "DPLL_RESERVED_011E_Addr",
+            "DPLL_ABI_VERSION_Addr",
+            "DPLL_FPGA_BUILD_ID_Addr",
         ):
             self.assertIn(name, self.periph)
 
@@ -253,11 +280,15 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertIn("(core_flags >> 13) & 0x0FU", self.arm)
         self.assertIn("(core_flags >> 9) & 0x0FU", self.arm)
 
-    def test_control_uart_and_output_range_match_mcu_contract(self):
+    def test_control_uart_and_center_range_match_mcu_contract(self):
         self.assertIn("format.BaudRate = 921600;", self.arm)
         self.assertIn("XUartPs_uart1.BaudRate = 1000000U;", self.arm)
-        self.assertIn("CTRL_DPLL_OUTPUT_MAX_DHZ", self.arm)
-        self.assertIn("control_output_ratio_valid", self.arm)
+        self.assertNotIn("CTRL_DPLL_OUTPUT_MAX_DHZ", self.arm)
+        self.assertNotIn("control_output_ratio_valid", self.arm)
+        self.assertRegex(
+            self.arm,
+            r"multiplier\s*==\s*0U\s*\|\|\s*divider\s*==\s*0U",
+        )
         self.assertIn("CTRL_FAST_INTERVAL_MAX_MS", self.arm)
 
     def test_center_range_and_extended_profile_reach_250_khz(self):
@@ -287,6 +318,14 @@ class DpllArmControlContractTest(unittest.TestCase):
         self.assertEqual(selected_rate(250_000), 16)
         self.assertTrue(all(selected_rate(frequency) is not None
                             for frequency in range(200_001, 250_001)))
+
+    def test_center_change_preserves_independent_post_iir_mode(self):
+        builder = function_body(self.arm, "dpll_build_control_candidate")
+        self.assertIn(
+            "candidate->profile.post_iir_mode =\n"
+            "\t\t\t\tDPLL_Committed_Config.profile.post_iir_mode;",
+            builder,
+        )
 
 
 if __name__ == "__main__":

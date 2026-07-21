@@ -945,8 +945,8 @@ Image Symbol Table
     y                                        0x08003dd0   Data           2  display.o(.constdata)
     .constdata                               0x08003dd4   Section       32  control.o(.constdata)
     POW10                                    0x08003dd4   Data          32  control.o(.constdata)
-    .constdata                               0x08003df4   Section     5960  lcd.o(.constdata)
-    .constdata                               0x0800553c   Section       10  encoder.o(.constdata)
+    .constdata                               0x08003df4   Section     5992  lcd.o(.constdata)
+    .constdata                               0x0800555c   Section       10  encoder.o(.constdata)
     .data                                    0x20000000   Section        1  display.o(.data)
     Display_UI_Page                          0x20000000   Data           1  display.o(.data)
     .data                                    0x20000004   Section       88  control.o(.data)
@@ -1213,14 +1213,14 @@ Image Symbol Table
     delay_us                                 0x080036b5   Thumb Code    74  delay.o(i.delay_us)
     main                                     0x08003d79   Thumb Code    72  main.o(i.main)
     asc2_0816                                0x08003df4   Data        1520  lcd.o(.constdata)
-    HanZi_Index                              0x080043e4   Data         105  lcd.o(.constdata)
-    HanZi_1616                               0x08004450   Data        1664  lcd.o(.constdata)
-    Icon_1616                                0x08004ad0   Data         512  lcd.o(.constdata)
-    asc2_0608                                0x08004cd0   Data         108  lcd.o(.constdata)
-    gImage_buaa_logo                         0x08004d3c   Data        2048  lcd.o(.constdata)
-    Key_GPIO_Pins                            0x0800553c   Data          10  encoder.o(.constdata)
-    Region$$Table$$Base                      0x08005548   Number         0  anon$$obj.o(Region$$Table)
-    Region$$Table$$Limit                     0x08005568   Number         0  anon$$obj.o(Region$$Table)
+    HanZi_Index                              0x080043e4   Data         107  lcd.o(.constdata)
+    HanZi_1616                               0x08004450   Data        1696  lcd.o(.constdata)
+    Icon_1616                                0x08004af0   Data         512  lcd.o(.constdata)
+    asc2_0608                                0x08004cf0   Data         108  lcd.o(.constdata)
+    gImage_buaa_logo                         0x08004d5c   Data        2048  lcd.o(.constdata)
+    Key_GPIO_Pins                            0x0800555c   Data          10  encoder.o(.constdata)
+    Region$$Table$$Base                      0x08005568   Number         0  anon$$obj.o(Region$$Table)
+    Region$$Table$$Limit                     0x08005588   Number         0  anon$$obj.o(Region$$Table)
     BACK_COLOR                               0x20000060   Data           2  lcd.o(.data)
     Key_GPIO_Ports                           0x20000064   Data          20  encoder.o(.data)
     Old_Encoder_Num                          0x20000078   Data           2  encoder.o(.data)
@@ -1251,9 +1251,9 @@ Memory Map of the image
 
   Image Entry point : 0x080000c1
 
-  Load Region LR_IROM1 (Base: 0x08000000, Size: 0x00005620, Max: 0x00008000, ABSOLUTE)
+  Load Region LR_IROM1 (Base: 0x08000000, Size: 0x00005640, Max: 0x00008000, ABSOLUTE)
 
-    Execution Region ER_IROM1 (Exec base: 0x08000000, Load base: 0x08000000, Size: 0x00005568, Max: 0x00008000, ABSOLUTE)
+    Execution Region ER_IROM1 (Exec base: 0x08000000, Load base: 0x08000000, Size: 0x00005588, Max: 0x00008000, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
@@ -1458,28 +1458,28 @@ Memory Map of the image
     0x08003dc0   0x08003dc0   0x00000012   Data   RO          111    .constdata          display.o
     0x08003dd2   0x08003dd2   0x00000002   PAD
     0x08003dd4   0x08003dd4   0x00000020   Data   RO          311    .constdata          control.o
-    0x08003df4   0x08003df4   0x00001748   Data   RO          497    .constdata          lcd.o
-    0x0800553c   0x0800553c   0x0000000a   Data   RO          678    .constdata          encoder.o
-    0x08005546   0x08005546   0x00000002   PAD
-    0x08005548   0x08005548   0x00000020   Data   RO         1243    Region$$Table       anon$$obj.o
+    0x08003df4   0x08003df4   0x00001768   Data   RO          497    .constdata          lcd.o
+    0x0800555c   0x0800555c   0x0000000a   Data   RO          678    .constdata          encoder.o
+    0x08005566   0x08005566   0x00000002   PAD
+    0x08005568   0x08005568   0x00000020   Data   RO         1243    Region$$Table       anon$$obj.o
 
 
-    Execution Region RW_IRAM1 (Exec base: 0x20000000, Load base: 0x08005568, Size: 0x00000880, Max: 0x00001000, ABSOLUTE)
+    Execution Region RW_IRAM1 (Exec base: 0x20000000, Load base: 0x08005588, Size: 0x00000880, Max: 0x00001000, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
-    0x20000000   0x08005568   0x00000001   Data   RW          112    .data               display.o
-    0x20000001   0x08005569   0x00000003   PAD
-    0x20000004   0x0800556c   0x00000058   Data   RW          312    .data               control.o
-    0x2000005c   0x080055c4   0x00000004   Data   RW          443    .data               delay.o
-    0x20000060   0x080055c8   0x00000002   Data   RW          498    .data               lcd.o
-    0x20000062   0x080055ca   0x00000002   PAD
-    0x20000064   0x080055cc   0x00000018   Data   RW          679    .data               encoder.o
-    0x2000007c   0x080055e4   0x00000003   Data   RW          795    .data               stm8slave.o
-    0x2000007f   0x080055e7   0x00000001   PAD
-    0x20000080   0x080055e8   0x00000021   Data   RW          931    .data               adc.o
-    0x200000a1   0x08005609   0x00000003   PAD
-    0x200000a4   0x0800560c   0x00000014   Data   RW         1028    .data               system_stm32f0xx.o
+    0x20000000   0x08005588   0x00000001   Data   RW          112    .data               display.o
+    0x20000001   0x08005589   0x00000003   PAD
+    0x20000004   0x0800558c   0x00000058   Data   RW          312    .data               control.o
+    0x2000005c   0x080055e4   0x00000004   Data   RW          443    .data               delay.o
+    0x20000060   0x080055e8   0x00000002   Data   RW          498    .data               lcd.o
+    0x20000062   0x080055ea   0x00000002   PAD
+    0x20000064   0x080055ec   0x00000018   Data   RW          679    .data               encoder.o
+    0x2000007c   0x08005604   0x00000003   Data   RW          795    .data               stm8slave.o
+    0x2000007f   0x08005607   0x00000001   PAD
+    0x20000080   0x08005608   0x00000021   Data   RW          931    .data               adc.o
+    0x200000a1   0x08005629   0x00000003   PAD
+    0x200000a4   0x0800562c   0x00000014   Data   RW         1028    .data               system_stm32f0xx.o
     0x200000b8        -       0x0000001e   Zero   RW          110    .bss                display.o
     0x200000d6        -       0x0000000a   Zero   RW          677    .bss                encoder.o
     0x200000e0        -       0x000000c0   Zero   RW          794    .bss                stm8slave.o
@@ -1503,7 +1503,7 @@ Image component sizes
       5066        540         18          1         30      22798   display.o
        572         62         10         24         10       2045   encoder.o
        950         76          0          0          0       6044   iic.o
-      2322        198       5960          2          0      12971   lcd.o
+      2322        198       5992          2          0      12971   lcd.o
         72          0          0          0          0     162631   main.o
        116         56        192          0       1536        648   startup_stm32f0xx.o
         12          0          0          0          0       2079   stm32f0xx_it.o
@@ -1512,7 +1512,7 @@ Image component sizes
        264         36          0          0          0       7148   tim16.o
 
     ----------------------------------------------------------------------
-     14740       1476       6248        184       1896     252487   Object Totals
+     14740       1476       6280        184       1896     252487   Object Totals
          0          0         32          0          0          0   (incl. Generated)
         14          0          4          9          0          0   (incl. Padding)
 
@@ -1563,15 +1563,15 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
 
-     15616       1492       6248        184       1992     247467   Grand Totals
-     15616       1492       6248        184       1992     247467   ELF Image Totals
-     15616       1492       6248        184          0          0   ROM Totals
+     15616       1492       6280        184       1992     247467   Grand Totals
+     15616       1492       6280        184       1992     247467   ELF Image Totals
+     15616       1492       6280        184          0          0   ROM Totals
 
 ==============================================================================
 
-    Total RO  Size (Code + RO Data)                21864 (  21.35kB)
+    Total RO  Size (Code + RO Data)                21896 (  21.38kB)
     Total RW  Size (RW Data + ZI Data)              2176 (   2.13kB)
-    Total ROM Size (Code + RO Data + RW Data)      22048 (  21.53kB)
+    Total ROM Size (Code + RO Data + RW Data)      22080 (  21.56kB)
 
 ==============================================================================
 

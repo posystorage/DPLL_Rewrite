@@ -11,7 +11,7 @@ arguments
     cfg struct = dpll_current_config()
 end
 
-input_data = load_input_mat(input_mat_path);
+input_data = load_input_mat(input_mat_path, cfg.io.input_sample_range);
 result = simulate_dpll(input_data, cfg);
 summary = analyze_dpll_result(result, true);
 if strlength(output_mat_path) > 0
@@ -20,6 +20,4 @@ end
 
 fprintf('DPLL replay complete: %d IQ events, TRACK=%d, phase RMS=%.6g rad\n', ...
     summary.trace_samples, summary.reached_track, summary.phase_rms_rad);
-fprintf('Pulse events=%d, interval identity max error=%.6g samples\n', ...
-    summary.pulse_event_count, summary.interval_identity_max_error_samples);
 end

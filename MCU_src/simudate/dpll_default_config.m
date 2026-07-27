@@ -77,9 +77,36 @@ cfg.pulse.output_multiplier = 2000;
 cfg.pulse.ideal_interval_samples = 226000;
 cfg.pulse.first_pulse_sample_index = [];
 
+cfg.startup.mode = 'prelocked';
+cfg.startup.frequency_estimation_duration_s = 0.020;
+cfg.startup.preroll_duration_s = 0.050;
+
+% 125 MHz event latencies audited from the stage-A RTL and configured IP.
+cfg.latency.mixer_to_post_cic_input_ticks = 5;
+cfg.latency.post_cic_ticks = 12;
+cfg.latency.post_iir_ticks = 21;
+cfg.latency.cordic_ticks = 26;
+cfg.latency.fll_to_tracking_word_ticks = 11;
+cfg.latency.tracking_dds_ticks = 9;
+
+root_dir = fileparts(mfilename('fullpath'));
+cfg.files.pll_input_mat = fullfile(root_dir, 'data', ...
+    'dat5_cc62M5_ch2_CIC_DCBlock_3M125.mat');
+cfg.files.peak_mat = fullfile(root_dir, 'data', ...
+    'dat5_cc62M5采样峰距离.mat');
+cfg.files.replay_output_mat = fullfile(root_dir, 'data', ...
+    'dat5_dpll_replay_result.mat');
+cfg.files.validation_output_mat = fullfile(root_dir, 'data', ...
+    'dat5_dpll_peak_validation.mat');
+
+cfg.io.input_sample_range = [1 Inf];
+cfg.io.source_raw_sample_rate_hz = 62500000;
+cfg.io.source_samples_per_input = 20;
+cfg.validation.slow_window_pulses = 21;
+
 cfg.options.loop_enable = true;
 cfg.options.store_iq = true;
-cfg.options.abstract_fixed_pipeline_latency = true;
+cfg.options.abstract_fixed_pipeline_latency = false;
 cfg.options.warn_on_saturation = true;
 end
 

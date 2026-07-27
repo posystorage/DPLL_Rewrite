@@ -1,127 +1,196 @@
 # MATLAB DPLL replay
 
-This directory replays FPGA-equivalent 3.125 MSPS input codes through the
-frequency-tracking part of the current DPLL. It stops at `tracking_word`; the
-output multiplier/divider, final output DDS, DAC, and 40 MHz clock electronics
-are intentionally outside the model.
+This directory replays the FPGA-equivalent 3.125 MSPS reference channel
+through the stage-A DPLL and restores pulse spacing on the original 62.5 MHz
+event timebase. The output MUL/DIV hardware and final DDS are outside the
+agreed model boundary; the core tracking word is multiplied by 2000
+numerically during validation.
 
-## Input contract
+## Configured data
 
-The MAT file must contain exactly the two required variables:
+`dpll_current_config(20000)` defaults to:
 
 ```matlab
-pll_input_codes   % N-by-1 int16 FPGA-equivalent codes
-sample_rate_hz    % scalar, exactly 3125000
+cfg.files.pll_input_mat = ...
+    'data/dat5_cc62M5_ch2_CIC_DCBlock_3M125.mat';
+cfg.files.peak_mat = ...
+    'data/dat5_cc62M5采样峰距离.mat';
 ```
 
-No DC blocker, resampling, normalization, amplitude calibration, or ADC model
-is applied. `pll_input_codes` is treated as the already converted 14-bit input
-sequence described for this experiment.
+Both paths are ordinary configuration fields and can be replaced for another
+capture. The PLL file may use either:
 
-## Run
+```matlab
+frontendOutput + metadata
+```
+
+or the legacy test contract:
+
+```matlab
+pll_input_codes + sample_rate_hz
+```
+
+`frontendOutput` is already the FPGA-equivalent pre-IQ CIC/DC-blocker output.
+No additional DC blocker, normalization, or resampling is applied.
+
+## Startup modes
+
+Prelocked startup is the default:
+
+```matlab
+cfg.startup.mode = 'prelocked';
+cfg.startup.frequency_estimation_duration_s = 0.020;
+cfg.startup.preroll_duration_s = 0.050;
+```
+
+Only the PLL reference prefix is used to estimate the initial NCO frequency
+and phase. The state starts in TRACK with consistent `tracking_word`,
+`freq_state`, NCO phase, TRACK IIR selection, FLL, and PI. The 50 ms preroll
+fills CIC/IIR/FLL state and is excluded from steady-state statistics.
+
+Cold-start regression remains available:
+
+```matlab
+cfg.startup.mode = 'cold';
+```
+
+It follows WARMUP, FLL acquisition, BLEND, and TRACK, but is not the primary
+steady-state metric.
+
+## Run without posterior data
+
+For one-click use, open `start_dpll_simulation.m`, edit the first parameter
+section, and click MATLAB Run. It leaves `cfg`, `result`, `summary`, `prior`,
+and `validation` in the workspace.
+
+The equivalent command-line workflow is:
 
 ```matlab
 cd('E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\MCU_src\simudate')
-cfg = dpll_current_config(20000);  % Kp=6,000,000; Ki=2,500,000
-[result, summary] = run_dpll_replay("capture.mat", "replay_result.mat", cfg);
+cfg = dpll_current_config(20000);
+[result, summary, prior] = run_real_data_replay(cfg, true);
 ```
 
-For the ARM profile value `Ki_track=180000`, use:
+For a shorter development window:
 
 ```matlab
-cfg = dpll_default_config(20000);
+cfg.io.input_sample_range = [1 round(0.20 * 3125000)];
+cfg.files.replay_output_mat = '';
 ```
 
-All stage parameters are ordinary fields in `cfg`. In particular:
+The main path calls `load_peak_prior`, which requests only:
+
+```matlab
+channel1SampleRate
+samplingPeakFirstLocation
+samplingPeakMeanDistance
+```
+
+It never requests `samplingPeakDistance`. The replay result records:
+
+```matlab
+result.metadata.posterior_interval_data_used = false;
+```
+
+Core outputs include `phase_error`, `freq_error`, `freq_state`,
+`freq_correction`, `tracking_word`, and `loop_state`. `result.trace` also
+contains validity flags, controller terms, saturation flags, analysis masks,
+and exact 125 MHz event ticks.
+
+Always inspect `summary.analysis_cic_saturation_rate` and
+`summary.analysis_cordic_out_of_range_rate`. A nonzero CORDIC range rate means
+the behavioral `atan2` phase cannot be treated as hardware-equivalent until
+the detector scaling/range problem is resolved.
+
+## RTL event timing
+
+The event model uses audited fixed latencies:
+
+| Stage | 125 MHz ticks |
+|---|---:|
+| Mixer to post-CIC input | 5 |
+| Post-IQ CIC output pipeline | 12 |
+| Two-section post-IIR transaction | 21 |
+| CORDIC adapter and IP | 26 |
+| FLL-valid to core tracking-word application | 11 |
+| Tracking DDS response after core word application | 9 |
+
+The FLL and CORDIC operate in parallel. A replayed FLL error therefore uses
+the most recently completed CORDIC phase, not the phase from the same IQ
+transaction. Tracking-word changes are scheduled on the 125 MHz timeline.
+
+## Separate posterior validation
+
+Freeze and save the replay before loading true peak distances. Then run:
+
+```matlab
+validation = run_peak_validation( ...
+    string(cfg.files.replay_output_mat), ...
+    string(cfg.files.peak_mat), ...
+    string(cfg.files.validation_output_mat), true);
+```
+
+Only this function loads `samplingPeakDistance`. It reconstructs all true peak
+positions on the original 62.5 MHz coordinate:
+
+```matlab
+peak_raw = first_peak + [0; cumsum(samplingPeakDistance)];
+```
+
+It then integrates the timestamped core tracking word at those physical peak
+times:
+
+```matlab
+output_cycles_per_62m5_step = 2 * 2000 * tracking_word / 2^48;
+```
+
+The factor two is the number of 125 MHz fabric ticks per 62.5 MHz sample. The
+primary validation outputs are:
+
+```matlab
+fixed_interval_raw_samples
+recovered_interval_output_cycles
+recovered_interval_error       % relative to 113*2000 = 226000
+sampling_phase_error_cycles
+```
+
+The fixed-clock interval and recovered interval use different units. The
+validator converts the fixed interval into output-cycle-equivalent error before
+subtracting or overlaying it:
+
+```matlab
+uncompensated_error = fixed_interval * 226000/mean(fixed_interval) - 226000;
+compensated_component = uncompensated_error - recovered_error;
+```
+
+`cfg.validation.slow_window_pulses` controls a validation-only moving-mean
+split. It affects plots/statistics only and never enters the PLL calculation.
+
+The true distance vector must not be used to select Kp, Ki, shifts, filters,
+or any other PLL parameter.
+
+## Gain experiments
+
+Current hardware preset:
 
 ```matlab
 cfg.gains.kp_track = int64(6000000);
 cfg.gains.ki_track = int64(2500000);
-cfg.shifts.p_product = 12;
-cfg.shifts.i_product = 18;
-cfg.shifts.fll_product = 16;
 ```
 
-The HDL coefficient ports are signed 24-bit, so a literal coefficient above
-`8388607` is not hardware-representable. To study a larger effective Kp before
-editing HDL, reduce `p_product`; for example, Kp 6,000,000 with shift 8 has 16
-times the proportional effect of the same coefficient with shift 12. Such a
-shift change is an offline hypothesis until the HDL parameter is changed.
-
-## Modeled chain
-
-The replay includes:
-
-1. 48-bit tracking NCO, advanced by 40 fabric clocks per input code.
-2. Signed DDS mixer and RTL `[30:13]` truncation.
-3. Three-stage post-IQ CIC with configured decimation, rounding, warmup, and
-   20-bit saturation.
-4. Two cascaded Q2.30 biquads, including acquire/track coefficient switching
-   and detector reset on the switch.
-5. CORDIC-equivalent 18-bit phase quantization.
-6. Cross/dot FLL with selectable delay, 16-sample blocks, and 16-sample replay.
-7. State manager and the real FLL-valid-gated FLL+PI control law.
-
-The approved core outputs are available both at the top level and in
-`result.trace`:
-
-```matlab
-phase_error
-freq_error
-freq_state
-freq_correction
-tracking_word
-loop_state
-```
-
-`result.trace` also contains valid/block-valid flags, I/Q, magnitude, FLL/I/P
-terms, saturation flags, input indices, and time stamps.
-
-## Pulse prediction
-
-The event model assumes 113 reference cycles per pulse and output multiplier
-2000. It reconstructs an unwrapped reference phase from tracking phase plus
-the modeled phase residual. With an optional anchor:
-
-```matlab
-cfg.pulse.first_pulse_sample_index = 123456;  % one approximate first peak
-```
-
-theoretical pulse events are placed relative to that input sample. Without an
-anchor the model still generates internally aligned events, but their absolute
-sequence origin is arbitrary.
-
-For adjacent events it evaluates both identities:
-
-```matlab
-interval_samples = 2000/(2*pi) * diff(tracking_phase_at_event);
-interval_error_from_phase = -2000/(2*pi) * diff(phase_error_at_event);
-```
-
-The nominal interval is 226000 output samples. Their numerical difference is
-reported in `result.events.identity_error_samples`.
-
-No measured peak-spacing/posterior result file is accepted or read anywhere
-in this construction. A later comparison must use measured spacing only for
-validation and plotting, never for fitting gains or selecting parameters.
-
-## Fidelity boundary
-
-Data-dependent CIC/IIR group delay, coefficient switching, quantization,
-controller update gating, and saturation are included. Constant pipeline
-latency inside the 125 MHz implementation is represented by event ordering,
-not by simulating every fabric clock. This is suitable for long captured-data
-sweeps and control diagnosis. Exact pipeline-cycle and rare divider boundary
-LSB comparisons remain the job of the Vivado RTL testbench.
+ARM default `Ki_track=180000` is available through `dpll_default_config`.
+The HDL coefficient port is signed 24-bit, so coefficients above 8388607 are
+not hardware-representable. Larger effective Kp can be explored offline by
+reducing `cfg.shifts.p_product`; an HDL parameter change is required before
+that result can be reproduced in hardware.
 
 ## Tests
 
 ```matlab
-cd('E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\MCU_src\simudate')
 addpath('tests')
 run_all_tests
 ```
 
-The smoke test requires a synthetic 20 kHz input to reach state 6 (`TRACK`),
-checks tracking direction, verifies the two interval formulas, and confirms
-that no posterior interval data was consumed.
+The suite covers fixed-point helpers, the hybrid controller, real MAT-file
+interfaces, prelocked startup, cold-start acquisition, timestamp ordering,
+and posterior-leakage flags.

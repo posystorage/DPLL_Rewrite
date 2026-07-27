@@ -81,6 +81,9 @@ __pycache__/
 Thumbs.db
 desktop.ini
 
+# Local MATLAB capture and replay datasets
+/MCU_src/simudate/data/
+
 # Build-generated FPGA/ARM identity headers are compiler inputs.
 # Do not ignore them, otherwise `git clean -X` removes the macros needed by
 # dpll_wrapper.v and the ARM firmware.

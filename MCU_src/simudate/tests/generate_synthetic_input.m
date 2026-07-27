@@ -14,4 +14,11 @@ codes = sign(amplitude_codes * sin(phase)) .* ...
 input_data.pll_input_codes = int16(codes);
 input_data.sample_rate_hz = sample_rate_hz;
 input_data.source_file = '<synthetic>';
+input_data.format = 'synthetic';
+input_data.input_start_index = 1;
+input_data.input_end_index = sample_count;
+input_data.source_raw_sample_rate_hz = sample_rate_hz;
+input_data.source_samples_per_input = 1;
+input_data.source_raw_start_index = 1;
+input_data.source_raw_total_count = sample_count;
 end

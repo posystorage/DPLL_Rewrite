@@ -1,0 +1,49 @@
+function [result, summary, prior] = run_real_data_replay(cfg, make_plot)
+%RUN_REAL_DATA_REPLAY Replay configured real data without posterior leakage.
+
+if nargin < 1
+    cfg = dpll_current_config(20000);
+end
+if nargin < 2
+    make_plot = true;
+end
+
+prior = load_peak_prior(string(cfg.files.peak_mat));
+input_data = load_input_mat(string(cfg.files.pll_input_mat), ...
+    cfg.io.input_sample_range);
+if input_data.source_raw_sample_rate_hz ~= prior.raw_sample_rate_hz
+    error('dpll:PeakTimebaseMismatch', ...
+        'Peak prior and PLL input source timebases do not match.');
+end
+
+result = simulate_dpll(input_data, cfg);
+result.prior = prior;
+result.prior.first_peak_input_index = 1 + ...
+    (prior.first_peak_raw_index - input_data.source_raw_start_index) / ...
+    input_data.source_samples_per_input;
+result.prior.mean_interval_input_samples = ...
+    prior.mean_interval_raw_samples / input_data.source_samples_per_input;
+summary = analyze_dpll_result(result, make_plot);
+
+if cfg.options.warn_on_saturation && ...
+        (result.status.cic_saturation_count > 0 || result.status.iir_saturation_count > 0)
+    warning('dpll:DetectorSaturation', ...
+        'Replay observed %d CIC and %d IIR saturation events.', ...
+        result.status.cic_saturation_count, result.status.iir_saturation_count);
+end
+if result.status.cordic_out_of_range_count > 0
+    warning('dpll:CordicInputOutOfRange', ...
+        ['Replay observed %d CORDIC input-range violations. Phase results ' ...
+         'are not hardware-trustworthy until detector scaling is corrected.'], ...
+        result.status.cordic_out_of_range_count);
+end
+
+if isfield(cfg.files, 'replay_output_mat') && ...
+        ~isempty(cfg.files.replay_output_mat)
+    save(cfg.files.replay_output_mat, 'result', 'summary', 'prior', '-v7.3');
+end
+fprintf(['Real-data replay complete: startup=%s, center=%.3f Hz, ' ...
+    'initial=%.3f Hz, analysis IQ events=%d.\n'], ...
+    result.metadata.startup_mode, cfg.center_frequency_hz, ...
+    result.metadata.initial_frequency_hz, nnz(result.trace.analysis_valid));
+end

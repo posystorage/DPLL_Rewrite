@@ -1,9 +1,11 @@
 function [state, i_out, q_out, saturated] = post_iir_step(state, i_in, q_in, coeff, cfg)
-%POST_IIR_STEP Two cascaded identical fixed-point Q2.30 biquads.
+%POST_IIR_STEP Configurable cascade of identical fixed-point Q2.30 biquads.
 
 if isempty(state)
-    state.i = zeros(2, 4, 'int64'); % [x1 x2 y1 y2] per section
-    state.q = zeros(2, 4, 'int64');
+    validateattributes(cfg.sections, {'numeric'}, ...
+        {'scalar', 'integer', '>=', 1, '<=', 2});
+    state.i = zeros(cfg.sections, 4, 'int64'); % [x1 x2 y1 y2]
+    state.q = zeros(cfg.sections, 4, 'int64');
 end
 [state.i, i_out, sat_i] = channel_step(state.i, int64(i_in), coeff, cfg);
 [state.q, q_out, sat_q] = channel_step(state.q, int64(q_in), coeff, cfg);
@@ -12,7 +14,7 @@ end
 
 function [history, y, saturated] = channel_step(history, x, coeff, cfg)
 saturated = false;
-for section = 1:2
+for section = 1:size(history, 1)
     h = history(section, :);
     accumulator = coeff.b0 * x + coeff.b1 * h(1) + coeff.b2 * h(2) ...
         - coeff.a1 * h(3) - coeff.a2 * h(4);

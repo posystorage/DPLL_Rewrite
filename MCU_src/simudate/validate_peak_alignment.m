@@ -43,7 +43,8 @@ fixed_interval = diff(peak_raw);
 ideal_interval = result.config.pulse.reference_cycles_per_pulse * ...
     result.config.pulse.output_multiplier;
 recovered_error = recovered_interval - ideal_interval;
-fixed_to_output_scale = ideal_interval / mean(fixed_interval);
+prior_mean_interval = double(raw.samplingPeakMeanDistance);
+fixed_to_output_scale = ideal_interval / prior_mean_interval;
 uncompensated_error = fixed_interval * fixed_to_output_scale - ideal_interval;
 compensated_component = uncompensated_error - recovered_error;
 unwrapped_sampling_phase_error = [0; cumsum(recovered_error)];
@@ -72,10 +73,13 @@ validation.metadata.output_multiplier = result.config.pulse.output_multiplier;
 validation.metadata.reference_cycles_per_pulse = ...
     result.config.pulse.reference_cycles_per_pulse;
 validation.metadata.ideal_output_interval = ideal_interval;
+validation.metadata.fixed_clock_scale_source = ...
+    'supplied samplingPeakMeanDistance prior';
+validation.metadata.prior_mean_interval_raw_samples = prior_mean_interval;
 validation.peak_raw_index = peak_raw;
 validation.peak_time_s = (peak_raw - 1) / double(raw.channel1SampleRate);
 validation.fixed_interval_raw_samples = fixed_interval;
-validation.fixed_interval_centered = fixed_interval - mean(fixed_interval);
+validation.fixed_interval_centered = fixed_interval - prior_mean_interval;
 validation.fixed_to_output_scale = fixed_to_output_scale;
 validation.uncompensated_interval_error_output_cycles = uncompensated_error;
 validation.output_cycles_at_peak = output_cycles;
@@ -95,6 +99,10 @@ validation.fast.recovered_error = fast_recovered;
 validation.summary.peak_count = numel(peak_raw);
 validation.summary.interval_count = numel(recovered_interval);
 validation.summary.fixed_interval_std_samples = std(fixed_interval);
+validation.summary.fixed_interval_mean_samples = mean(fixed_interval);
+validation.summary.prior_mean_interval_samples = prior_mean_interval;
+validation.summary.covered_mean_minus_prior_samples = ...
+    mean(fixed_interval) - prior_mean_interval;
 validation.summary.recovered_interval_mean = mean(recovered_interval);
 validation.summary.recovered_interval_rms_error = rms_plain(recovered_error);
 validation.summary.recovered_interval_std = std(recovered_interval);
@@ -126,43 +134,7 @@ validation.summary.trend_residual_ratio = ...
     safe_ratio(abs(recovered_trend(1)), abs(uncompensated_trend(1)));
 
 if make_plot
-    figure('Name', 'DPLL 62.5 MHz posterior validation', 'Color', 'w');
-    tiledlayout(4, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
-    interval_time = validation.peak_time_s(2:end);
-    nexttile;
-    plot(interval_time, validation.fixed_interval_centered, '.-');
-    ylabel('62.5M interval - mean'); grid on;
-    title('Posterior validation only: no gain fitting');
-    nexttile;
-    plot(interval_time, uncompensated_error, '.-', ...
-        'DisplayName', 'fixed-clock equivalent'); hold on;
-    plot(interval_time, recovered_error, '.-', ...
-        'DisplayName', 'PLL recovered');
-    yline(0, '--', 'HandleVisibility', 'off');
-    ylabel('interval error (output cycles)'); grid on;
-    legend('Location', 'best');
-    nexttile;
-    plot(interval_time, compensated_component, '.-');
-    yline(0, '--'); ylabel('removed error (output cycles)'); grid on;
-    nexttile;
-    plot(validation.peak_time_s, unwrapped_sampling_phase_error, '.-');
-    yline(0, '--');
-    xlabel('time (s)'); ylabel('cumulative phase error (cycles)'); grid on;
-
-    figure('Name', 'DPLL slow and fast tracking decomposition', 'Color', 'w');
-    tiledlayout(3, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
-    nexttile;
-    plot(interval_time, slow_uncompensated, 'DisplayName', 'uncompensated'); hold on;
-    plot(interval_time, slow_recovered, 'DisplayName', 'recovered');
-    ylabel('slow error (cycles)'); grid on; legend('Location', 'best');
-    title(sprintf('Validation-only moving mean: %d pulses', slow_window));
-    nexttile;
-    plot(interval_time, fast_uncompensated, 'DisplayName', 'uncompensated'); hold on;
-    plot(interval_time, fast_recovered, 'DisplayName', 'recovered');
-    ylabel('fast error (cycles)'); grid on; legend('Location', 'best');
-    nexttile;
-    plot(validation.peak_time_s, sampling_phase_error_cycles, '.-');
-    xlabel('time (s)'); ylabel('wrapped sampling phase (cycles)'); grid on;
+    plot_peak_alignment_validation(validation, 'on');
 end
 end
 

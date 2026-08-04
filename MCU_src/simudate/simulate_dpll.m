@@ -13,6 +13,15 @@ codes = input_data.pll_input_codes(:);
 sample_count = numel(codes);
 max_trace = ceil(sample_count / cfg.cic.rate) + 8;
 trace = allocate_trace(max_trace);
+phase_observation_mode = lower(string( ...
+    cfg.architecture.phase_observation_mode));
+oracle_enabled = phase_observation_mode ~= "rtl";
+if oracle_enabled
+    validate_oracle_input(input_data, sample_count, cfg);
+    nco_phase_at_input = zeros(sample_count, 1);
+else
+    nco_phase_at_input = zeros(0, 1);
+end
 
 [startup, manager_state, active_track] = initialize_startup(codes, input_data, cfg);
 commanded_word = startup.tracking_word;
@@ -46,6 +55,7 @@ fll_state = [];
 loop_filter_state.freq_state = freq_state;
 phase_error_hold = int64(0);
 freq_error = int64(0);
+freq_error_available = false;
 signal_present = false;
 active_bypass = cfg.iir.mode == 0;
 trace_count = 0;
@@ -68,6 +78,9 @@ for local_n = 1:sample_count
         nco_tick, nco_word, nco_count, cfg);
 
     nco_phase = double(phase_acc) / 2^cfg.word_width * (2 * pi);
+    if oracle_enabled
+        nco_phase_at_input(local_n) = phase_unwrapped;
+    end
     lo_cos = int64(round_away(32767 * cos(nco_phase)));
     lo_sin = int64(round_away(-32767 * sin(nco_phase)));
     i_mixer = mixer_truncate(int64(codes(local_n)) * lo_cos);
@@ -111,7 +124,10 @@ for local_n = 1:sample_count
 
     [phase_word, magnitude, cordic_out_of_range] = ...
         dpll.cordic_quantize(i_baseband, q_baseband, cfg);
-    new_phase_error = dpll.fixed_wrap(phase_word - cfg.phase_setpoint, cfg.phase_width);
+    rtl_phase_error = dpll.fixed_wrap( ...
+        phase_word - cfg.phase_setpoint, cfg.phase_width);
+    new_phase_error = select_phase_observation(rtl_phase_error, ...
+        input_data, nco_phase_at_input, local_n, cfg);
     status.cordic_out_of_range_count = status.cordic_out_of_range_count + ...
         double(cordic_out_of_range);
     if signal_present
@@ -124,16 +140,22 @@ for local_n = 1:sample_count
 
     % FLL and CORDIC run in parallel. The controller therefore consumes the
     % most recently completed CORDIC phase, not this IQ sample's phase.
-    control_phase_error = phase_error_hold;
+    raw_control_phase_error = phase_error_hold;
     [fll_state, freq_valid, block_valid, fll_value, ambiguous] = ...
         dpll.cross_dot_fll_step(fll_state, i_baseband, q_baseband, fll_cfg);
-    if freq_valid, freq_error = fll_value; end
+    if freq_valid && ~ambiguous
+        freq_error = fll_value;
+        freq_error_available = true;
+    end
+    control_phase_error = dpll.phase_lead_predict( ...
+        raw_control_phase_error, freq_error, cfg);
     status.fll_ambiguous_count = status.fll_ambiguous_count + double(ambiguous);
 
     controller_output = empty_controller_output(freq_state, freq_correction, commanded_word);
     tracking_apply_tick = int64(-1);
-    if freq_valid && ~ambiguous
-        control = dpll.control_for_state(manager_state, cfg);
+    [controller_update, control] = controller_schedule(manager_state, cfg, ...
+        freq_valid, block_valid, ambiguous, freq_error_available);
+    if controller_update
         [loop_filter_state, controller_output] = dpll.hybrid_loop_step( ...
             loop_filter_state, control_phase_error, freq_error, control, cfg);
         freq_state = controller_output.freq_state;
@@ -149,10 +171,23 @@ for local_n = 1:sample_count
             status.controller_saturation_high_count + double(controller_output.saturated_high);
         status.controller_saturation_low_count = ...
             status.controller_saturation_low_count + double(controller_output.saturated_low);
+        status.controller_update_count = status.controller_update_count + 1;
+        status.fll_integral_update_count = status.fll_integral_update_count + ...
+            double(control.enable_fll);
+        status.fll_feedforward_update_count = status.fll_feedforward_update_count + ...
+            double(control.enable_fll_feedforward);
+        status.phase_2p2z_update_count = status.phase_2p2z_update_count + ...
+            double(control.enable_phase_2p2z);
+        status.phase_2p2z_saturation_high_count = ...
+            status.phase_2p2z_saturation_high_count + ...
+            double(controller_output.phase_2p2z_saturated_high);
+        status.phase_2p2z_saturation_low_count = ...
+            status.phase_2p2z_saturation_low_count + ...
+            double(controller_output.phase_2p2z_saturated_low);
     end
 
     if block_valid && ~ambiguous
-        measurement.phase_error = control_phase_error;
+        measurement.phase_error = raw_control_phase_error;
         measurement.freq_error = freq_error;
         measurement.saturated_high = controller_output.saturated_high;
         measurement.saturated_low = controller_output.saturated_low;
@@ -167,7 +202,9 @@ for local_n = 1:sample_count
     trace.i_baseband(trace_count) = i_baseband;
     trace.q_baseband(trace_count) = q_baseband;
     trace.phase_error(trace_count) = new_phase_error;
+    trace.rtl_phase_error(trace_count) = rtl_phase_error;
     trace.control_phase_error(trace_count) = control_phase_error;
+    trace.raw_control_phase_error(trace_count) = raw_control_phase_error;
     trace.freq_error(trace_count) = freq_error;
     trace.freq_error_valid(trace_count) = freq_valid && ~ambiguous;
     trace.freq_error_block_valid(trace_count) = block_valid && ~ambiguous;
@@ -194,6 +231,18 @@ for local_n = 1:sample_count
     trace.fll_term(trace_count) = controller_output.fll_term;
     trace.i_term(trace_count) = controller_output.i_term;
     trace.p_term(trace_count) = controller_output.p_term;
+    trace.ff_term(trace_count) = controller_output.ff_term;
+    trace.phase_2p2z_term(trace_count) = controller_output.phase_2p2z_term;
+    trace.phase_2p2z_accumulator(trace_count) = ...
+        controller_output.phase_2p2z_accumulator;
+    trace.phase_2p2z_saturated_high(trace_count) = ...
+        controller_output.phase_2p2z_saturated_high;
+    trace.phase_2p2z_saturated_low(trace_count) = ...
+        controller_output.phase_2p2z_saturated_low;
+    trace.controller_updated(trace_count) = controller_update;
+    trace.fll_integral_applied(trace_count) = controller_update && control.enable_fll;
+    trace.fll_feedforward_applied(trace_count) = ...
+        controller_update && control.enable_fll_feedforward;
 end
 
 trace = trim_trace(trace, trace_count);
@@ -225,6 +274,9 @@ result.metadata.analysis_start_raw_index = input_data.source_raw_start_index + .
     input_data.source_samples_per_input;
 result.metadata.fixed_pipeline_latency_abstracted = false;
 result.metadata.posterior_interval_data_used = false;
+result.metadata.phase_observation_mode = char(phase_observation_mode);
+result.metadata.oracle_phase_delay_s = ...
+    double(cfg.architecture.oracle_phase_delay_s);
 result.config = cfg;
 result.trace = trace;
 result.status = status;
@@ -277,7 +329,9 @@ trace.time_s = zeros(count, 1);
 trace.i_baseband = zeros(count, 1, 'int64');
 trace.q_baseband = zeros(count, 1, 'int64');
 trace.phase_error = zeros(count, 1, 'int64');
+trace.rtl_phase_error = zeros(count, 1, 'int64');
 trace.control_phase_error = zeros(count, 1, 'int64');
+trace.raw_control_phase_error = zeros(count, 1, 'int64');
 trace.freq_error = zeros(count, 1, 'int64');
 trace.freq_error_valid = false(count, 1);
 trace.freq_error_block_valid = false(count, 1);
@@ -302,6 +356,14 @@ trace.controller_saturated_low = false(count, 1);
 trace.fll_term = zeros(count, 1, 'int64');
 trace.i_term = zeros(count, 1, 'int64');
 trace.p_term = zeros(count, 1, 'int64');
+trace.ff_term = zeros(count, 1, 'int64');
+trace.phase_2p2z_term = zeros(count, 1, 'int64');
+trace.phase_2p2z_accumulator = zeros(count, 1, 'int64');
+trace.phase_2p2z_saturated_high = false(count, 1);
+trace.phase_2p2z_saturated_low = false(count, 1);
+trace.controller_updated = false(count, 1);
+trace.fll_integral_applied = false(count, 1);
+trace.fll_feedforward_applied = false(count, 1);
 end
 
 function status = initialize_status()
@@ -312,6 +374,12 @@ status.controller_saturation_high_count = 0;
 status.controller_saturation_low_count = 0;
 status.iir_selection_reset_count = 0;
 status.fll_ambiguous_count = 0;
+status.controller_update_count = 0;
+status.fll_integral_update_count = 0;
+status.fll_feedforward_update_count = 0;
+status.phase_2p2z_update_count = 0;
+status.phase_2p2z_saturation_high_count = 0;
+status.phase_2p2z_saturation_low_count = 0;
 end
 
 function [phase_acc, phase_unwrapped, phase_tick, active_word, pending_tick, ...
@@ -374,8 +442,33 @@ output.tracking_word = tracking_word;
 output.fll_term = int64(0);
 output.i_term = int64(0);
 output.p_term = int64(0);
+output.ff_term = int64(0);
+output.phase_2p2z_term = int64(0);
+output.phase_2p2z_accumulator = int64(0);
+output.phase_2p2z_saturated_high = false;
+output.phase_2p2z_saturated_low = false;
 output.saturated_high = false;
 output.saturated_low = false;
+end
+
+function [update, control] = controller_schedule(manager_state, cfg, ...
+    freq_valid, block_valid, ambiguous, freq_error_available)
+control = dpll.control_for_state(manager_state, cfg);
+switch lower(cfg.architecture.controller_update_mode)
+    case 'fll_replay'
+        update = freq_valid && ~ambiguous;
+        control.enable_fll_feedforward = ...
+            control.enable_fll_feedforward && update;
+    case 'phase_each_fll_block_once'
+        update = true;
+        control.enable_fll = control.enable_fll && block_valid && ~ambiguous;
+        control.enable_fll_feedforward = control.enable_fll_feedforward && ...
+            freq_error_available && ~ambiguous;
+    otherwise
+        error('dpll:InvalidControllerUpdateMode', ...
+            'Unsupported controller_update_mode: %s', ...
+            cfg.architecture.controller_update_mode);
+end
 end
 
 function trace = trim_trace(trace, count)
@@ -386,4 +479,60 @@ end
 function source_file = get_source_file(input_data)
 if isfield(input_data, 'source_file'), source_file = input_data.source_file; ...
 else, source_file = '<in-memory>'; end
+end
+
+function validate_oracle_input(input_data, sample_count, cfg)
+valid_modes = ["oracle", "oracle_delayed"];
+mode = lower(string(cfg.architecture.phase_observation_mode));
+if ~any(mode == valid_modes)
+    error('dpll:InvalidPhaseObservationMode', ...
+        'phase_observation_mode must be rtl, oracle, or oracle_delayed.');
+end
+if ~isfield(input_data, 'oracle_reference_phase_rad') || ...
+        ~isvector(input_data.oracle_reference_phase_rad) || ...
+        numel(input_data.oracle_reference_phase_rad) ~= sample_count
+    error('dpll:MissingOraclePhase', ...
+        'Oracle observation requires one reference phase per input sample.');
+end
+if any(~isfinite(double(input_data.oracle_reference_phase_rad(:))))
+    error('dpll:InvalidOraclePhase', ...
+        'Oracle reference phase must be finite.');
+end
+validateattributes(cfg.architecture.oracle_phase_delay_s, {'numeric'}, ...
+    {'scalar', 'real', 'finite', 'nonnegative'});
+end
+
+function phase_error = select_phase_observation(rtl_phase_error, ...
+    input_data, nco_phase_at_input, local_n, cfg)
+mode = lower(string(cfg.architecture.phase_observation_mode));
+if mode == "rtl"
+    phase_error = rtl_phase_error;
+    return;
+end
+delay_samples = double(cfg.architecture.oracle_phase_delay_s) * ...
+    cfg.input_sample_rate_hz;
+if mode == "oracle"
+    delay_samples = 0;
+end
+query_index = local_n - delay_samples;
+if query_index < 1
+    phase_error = rtl_phase_error;
+    return;
+end
+lower_index = floor(query_index);
+upper_index = min(lower_index + 1, local_n);
+fraction = query_index - lower_index;
+reference_phase = interpolate_phase( ...
+    double(input_data.oracle_reference_phase_rad(:)), ...
+    lower_index, upper_index, fraction);
+nco_phase = interpolate_phase(nco_phase_at_input, ...
+    lower_index, upper_index, fraction);
+delta = mod(reference_phase - nco_phase + pi, 2 * pi) - pi;
+phase_error = dpll.fixed_wrap(int64(round_away( ...
+    delta / pi * 2^(cfg.phase_width - 1))), cfg.phase_width);
+end
+
+function value = interpolate_phase(values, lower_index, upper_index, fraction)
+value = values(lower_index) + fraction * ...
+    (values(upper_index) - values(lower_index));
 end

@@ -1,0 +1,1013 @@
+Phasemeter core for intersatellite laser heterodyne
+interferometry: modelling, simulations and
+experiments
+Oliver Gerberding, Benjamin Sheard, Iouri Bykov,
+Joachim Kullmann, Juan Jose Esteban Delgado,
+Karsten Danzmann and Gerhard Heinzel
+Max Planck Institute for Gravitational Physics, and Institute for Gravitational
+Physics of the Leibniz Universit¨ at Hannover, Callinstrasse 38, 30167 Hannover,
+Germany
+E-mail: oliver.gerberding@aei.mpg.de
+Abstract. Inter satellite laser interferometry is a central component of future
+space-borne gravity instruments like LISA, eLISA, NGO and future geodesy
+missions. The inherently small laser wavelength allows to measure distance
+variations with extremely high precision by interfering a reference beam with
+a measurement beam. The readout of such interferometers is often based on
+tracking phasemeters, able to measure the phase of an incoming beatnote with
+high precision over a wide range of frequencies. The implementation of such
+phasemeters is based on all digital phase-locked loops, hosted in FPGAs. Here we
+present a precise model of an all digital phase locked loop that allows to design
+such a readout algorithm and we support our analysis by numerical performance
+measurements and experiments with analog signals.
+PACS numbers: 04.80.Nn, 95.55.Ym, 07.87.+v, 06.30.Bp, 06.30.Gv, 42.62.Eh
+1. Introduction
+The Laser Interferometer Space Antenna (LISA) is a space borne observatory for
+gravitational waves in the frequency range of 0 .1 mHz to 1 Hz [1]. LISA will
+detect gravitational waves by measuring the variation of the light travel time
+between free-ﬂoating test-masses with millions kilometre separation. Heterodyne laser
+interferometry is used to convert the path length variations into phase shifts of the
+heterodyne beat note (2 ... 25 MHz), which is then detected by a photodiode and an
+electronic phasemeter. The measurement needs to be performed with a noise level of
+the order of µcycle/
+√
+Hz.
+The readout system, or phasemeter, for these interferometers is implemented by
+digitising the heterodyne signals and determining the phase using an IQ demodulation
+system [2, 3] implemented in an FPGA. Due to the high initial phase noise measured
+by each interferometer and also the continuously varying Doppler shifts in the LISA
+constellation, this digital IQ demodulation is embedded in a closed-loop phase and
+frequency tracking system, a phase-locked loop (PLL) or more speciﬁcally an all digital
+phase-locked loop (ADPLL). The phasemeter needs to be able to track signals between
+arXiv:1310.2486v1  [physics.ins-det]  9 Oct 2013
+Phasemeter core for intersatellite laser heterodyne interferometry 2
+Q
+I
+PA
+PI
+PLL
+ADC
+ LUT
+cosine
+sine
+NCO
+ foﬀ
+PIR
+Figure 1. The left side shows the basic phasemeter topology, where the incoming
+signal is digitised and then mixed in phase and in quadrature with a digital
+reference signal. The Quadrature information is ﬁltered and fed into a controller
+(PI), determining a frequency actuation signal in the so called phase increment
+register (PIR). The phase increment is then fed into a numerically controlled
+oscillator (NCO), where it is integrated in the phase accumulator (PA) and then
+converted to a sine and cosine in the look-up table (LUT). The right side shows a
+prototype LISA phasemeter [3]. The FPGA of such a system was used to perform
+the digital simulations.
+2 and 25 MHz with a precision of 2 πµrad/
+√
+Hz. An overview of the phasemeter
+structure and a prototype implementation is shown in ﬁgure 1.
+In this article we present a detailed analysis of the digital core of the phasemeter
+and the phase tracking algorithm, based on which one can design and optimize
+the readout for inter satellite interferometers like LISA or future geodesy missions
+like GRACE Follow-On [4]. Even tough the original LISA design is currently not
+considered any more, various variants of the concept are studied, including the
+currently proposed evolved LISA (eLISA) [5]. Since the original LISA design has
+comparable requirements for the phasemeter the analysis presented in this paper is
+aimed at this concept. Therefore the analysis can be easily adapted also for other
+LISA-like missions, to all of which we will refer to only as LISA in the following.
+For our analysis we use a combination of analytic modelling and numeric
+measurements, which are performed by directly using very high speed integrated
+circuit hardware description language (VHDL) code running on phasemeter
+prototypes. This also allows us to test the algorithm properties under realistic
+conditions, by either using the hardware to generate realistic signals or by directly
+measuring analog signals. The article includes a linearised model of the PLL, a model
+for noise introduced by quantization eﬀects, an estimate of the phasemeter linearity
+and the results of the digital signal measurements. In addition we present a test of
+the linearity performance of our prototypes using analog signals.
+2. ADPLL Model
+2.1. Scaling
+The PLL is implemented using integer arithmetic, where each value is represented by
+X bits and one can use diﬀerent scalings to map these to numbers. In this article we
+choose to scale each integer by 2 −X, which leads to the following ranges for signed
+Phasemeter core for intersatellite laser heterodyne interferometry 3
+PLL phase model
+κI
+z-1
+uf
+κP
+FPI(z)
+z-1
+FPA(z)
+ug
+up
+FLUT(z)
+FLF(z) ud +C
+FGain(z)
+z-1
+K+F+C
+ K+F+C
+K+F
++F
+uf,0
+M
+εi
+εo M
+N
+FPD(z)
+ueεe
+N+M
+up
+T
+~ uf
+~
+T
+ue
+~
+K
+εadd
+~ Q
+PIRPA
+Figure 2. Block diagram of the linearised PLL model. Included are bitlength
+indicators (N,M,K,F,C,T), possible truncation noise additions ( ˜ue, ˜uf , ˜up), input
+additive noise ˜εadd and markers for signal readout points(Q, PA, PIR). Not shown
+here are the amplitude readout and the additional computation delay transfer
+function. The controller and the low pass ﬁlter can be implemented according to
+signal and requirement speciﬁcations. The input and output of the LUT is kept
+at an equal bitlength in the linear design of the model. (A larger output does
+not lead to phase noise improvement, since the phase information is already lost
+before the LUT)
+and unsigned numbers:
+−0.5≤
+[−2X−1
+2X ≤ signed ≤ 2X−1− 1
+2X
+]
+< 0.5
+0≤
+[ 0
+2X ≤ unsigned≤ 2X− 1
+2X
+]
+< 1
+(1)
+Numbers with this scaling have no units, since they only represents values in the digital
+computation, only appropriate further scaling maps them to real physical quantities
+with units, as done in the following.
+2.2. Linearised model
+The speciﬁc linear model presented here is a modiﬁcation of well known ADPLL
+models described by Gardner [6]. Figure 2 shows the block diagram of the model,
+which considers phase as the quantity that is sensed and actuated. The signals and
+blocks shown are described in the following.
+Assuming an input signal with a peak amplitude Vin in Volts and a maximum
+peak-to-peak voltage range of the analog-to-digital converter of Vp-p, the digitized
+input signal i[n]‡ is
+i[n] = Vin
+Vp-p
+· sin (ω0n +εi[n]) =A· sin (ω0n +εi[n]),
+[i[n]] = 1; (−0.5≤i[n]< 0.5)
+[A] = 1; (0 ≤A< 0.5)
+(2)
+‡ In the following we specify for a quantity x also its unit [x] and range (min <x< max)
+Phasemeter core for intersatellite laser heterodyne interferometry 4
+withεi[n] as phase, the signal of interest, andω0 ([ω0] = cycle) as value corresponding
+to the beatnote frequency f0 ([f0] = Hz) in a digital system sampled by a sampling
+frequencyfs. This leads to time steps between two samples n andn + 1 ofτs = 1/fs.
+One should note here that ω0 is only necessary for the initial loop acquisition and
+not for the linear model, it is included here to keep the resemblance to the actual
+signals inside the PLL. Additional terms for additive noise and additional tones are
+not included here. The output of the numerically controlled oscillator o[n] is described
+as
+o[n] = 1
+2· cos (ω0n +εo[n]),
+[o[n]] = 1; (−0.5≤o[n]< 0.5)
+(3)
+with εo[n] as NCO output phase, the current PLL reference. The ideal error signal
+of the loop ( εe = εi[n]−εo[n]) is not directly accessible by arithmetic operations,
+therefore it is approximated by multiplying both signals to compute an error signal
+ue[n],
+ue[n] =i[n]·o[n]
+ue[n] =A
+4·
+[
+sin (εe[n]) + sin (2ω0n +εi[n] +εo[n])
+]
+.
+(4)
+At this point two linearisations are introduced to complete the linear model. First
+we assume a small phase error ( εe[n]≪ 1), which implies the loop is locked with
+suﬃcient loop gain, and second, we assume a suppression of the second harmonic
+term by appropriate ﬁltering (this also includes the suppression of additional tones).
+This simpliﬁes equation (4) to
+ue[n]≈ A
+4 (εi[n]−εo[n]) = A
+4 (εe[n]),
+[ue[n]] = rad.
+(5)
+The phase detector can now be described with a linear transfer function including the
+signal amplitude as part of its gain,
+FPD(z) = ue(z)
+εi(z)−εo(z) = ue(z)
+εe(z) = A
+4,
+[FPD(z)] = 1.
+(6)
+A generic low pass ﬁlter follows the phasedetector and provides the suppression of
+higher harmonics. The design and implementation of this ﬁlter depends on the exact
+loop design and should be adapted accordingly. A more detailed discussion is shown
+in the non-linearity section.
+FLF(z) = ud(z)
+ue(z),
+[FLF(z)] = 1.
+(7)
+The open-loop gain of the PLL is determined by a controller, for example a simple
+proportional-integral controller. For our implementation the full loop model shows
+that an overall gain reduction in the loop is necessary to achieve a stable condition.
+Phasemeter core for intersatellite laser heterodyne interferometry 5
+Therefore we include a constant gain reduction before the servo, to allow the system to
+operate at the correct range and to prevent any overﬂows in the digital accumulators,
+where the ﬁxed-point arithmetic is performed. For convenience we use bit shifting,
+adding a number of C bits from the left to the signal leads to
+FGain(z) = ug(z)
+ud(z) = 2−C,
+[FGain(z)] = 1.
+(8)
+In the servo ampliﬁer the desired bandwidth and loop response can then be set, by
+tuning the κp and κi values:
+FPI(z) = uf(z)
+ug(z) =κp +κi
+z−1
+1−z−1,
+[FPI(z)] = cycle
+s∗ rad.
+(9)
+The frequency signal uf is now representing the frequency of the NCO and, assuming
+the PLL is locked, also allows to determine the phase of the incoming signal. The
+register containing this value is also denoted as phase increment register (PIR). For
+lock acquisition, this value must be pre-set close to the incoming frequency.
+By accumulating the PIR value in a register called phase accumulator (PA) the
+phase driving the NCO is generated:
+FPA(z) = up(z)
+uf(z) = z−1
+1−z−1
+[FPA(z)] = s.
+(10)
+This phase is then fed into a sine and cosine look-up table to generate the local
+oscillator. In the loop, this operation is described by the transfer function
+FLUT = εo(z)
+up(z) = 2π
+[FLUT] = rad
+cycle.
+(11)
+One additional element not yet included are the delays of the signal processing. These
+delays become important for high bandwidth and they can directly be computed from
+the number of registers used in the loop logic. For a total delay of D clock cycles they
+are included as z−D. If parts of the loop are running at slower frequencies, the delays
+should be scaled according to the sampling rate of the signal.
+Continuing, the above results in an open loop transfer functionG(z), which allows
+to to determine loop stability, noise suppression and suppression of higher harmonics:
+G(z) = εo(z)
+εe(z) = Aπ
+2 ·FLF· 2−C· (κp +κi
+z−1
+1−z−1 )· ( z−1
+1−z−1 )·z−D· (12)
+The system transfer function H(z) and the error function E(z) = 1 −H(z), which
+describes the untracked parts of the input signal and therefore the tracking error, are
+derived from the open-loop transfer function.
+H(z) = G(z)
+1 +G(z) = εo
+εi
+, (13)
+Phasemeter core for intersatellite laser heterodyne interferometry 6
+10
+4
+10
+5
+10
+6
+10
+710
+−3
+10
+−2
+10
+−1
+10
+0
+10
+1
+10
+4
+10
+5
+10
+6
+10
+7−180
+−90
+0
+90
+180
+|Η(z)| 
+model
+simulation
+phase(Η(z)) [°]
+f [Hz]f [Hz]
+Figure 3. Example of a closed-loop PLL transfer function H(z) from a
+simulation and the linear model. Both curves are in very good agreement, save
+for the second harmonic, present at 20MHz.
+E(z) = 1
+1 +G(z) = εe
+εi
+. (14)
+We performed a loop gain measurement of one of our VHDL implementations by
+adding digital noise into the loop. The results in ﬁgure 3 show a very good agreement
+between the implementation and the simulation, with the exception of the peak
+corresponding to the second harmonic frequency (20MHz). One should keep in
+mind though that this model and all corresponding analysis is only valid
+in closed loop operations and only if the gain of the loop is suﬃcient to
+maintain the error point close to zero.
+2.3. Additive and phase noise
+We now extend the input signal (equation 2) by including additive noise ˜A (including
+shot noise, electronic noise and relative intensity noise) and phase noise ˜ε. Since the
+PLL can not distinguish between phase noise and phase signalεs both terms can again
+be described by a single term εi.
+i[n] = ˜A[n] +A· sin (ω0n + ˜εi +εs[n]) = ˜A[n] +A· sin (ω0n +εi[n]). (15)
+For phase noise the standard deviation of the residuals σphase can be computed by
+integrating the product of the noise with the loop error function E(z):
+σ2
+phase =
+∫ ∞
+0
+˜ε2
+i (z)×E(z)2df (16)
+This is a measure of untracked residual phase error.
+The standard deviation of the error generated by input additive noise σadd is
+computed by integrating the product of the eﬀective phase noise with the system
+transfer function H(z), since this transfer function describes how noise added to the
+error signal εe(z) is attenuated in a closed loop. Due to the mixing process the
+amplitude noise induced phase noise ˜εamp is also increased by
+√
+2 [17]
+σ2
+add =
+∫ ∞
+0
+(√
+2 ˜A
+A
+)2
+(z)×H2(z)df =
+∫ ∞
+0
+(˜εadd)2 (z)×H2(z)df. (17)
+The diﬀerent treatment of phase noise and additive noise, both of which are present
+in the input signal, can be understood if one considers phase as the quantity that
+propagates around the loop. Input phase noise directly represents that and an
+increased bandwidth allows to track this phase more precisely. Additive noise as
+such does not represent a phase error. It only gets converted into phase noise by the
+action of the mixer (phase detector) which is in the loop , hence the diﬀerent transfer
+function.
+Phasemeter core for intersatellite laser heterodyne interferometry 7
+2.4. Amplitude detection
+The detection of the amplitude A of the incoming signal is performed by multiplying
+i[n] with an in-phase output of the NCO I[n].
+I[n] = 1
+2· sin (ω0n +εo[n]),
+[I[n]] = 1.
+(18)
+The multiplication of i[n] and I[n] gives
+uI[n] = A
+4·
+[
+cos (εi[n]−εo[n])− cos (2ω0n +εi[n] +εo[n])
+]
+. (19)
+Assuming a locked PLL ( εi−εo = εe << 1) and a suﬃcient ﬁltering of the second
+harmonic, this can be reduced to
+uI[n] = A
+4 cos (εe[n])≈ A
+4. (20)
+Therefore the readout of uI (I) yields directly the amplitude A
+4 of the tracked tone,
+while DC oﬀsets and signals at suﬃciently diﬀerent frequencies average to zero.
+Knowledge of the signal amplitude is required to understand the loop bandwidth, to
+track changes in the interferometry, like in contrast and optical power, and to perform
+calculations involving the vector properties of the input signal, like for example stray
+light corrections [7].
+3. Readout
+3.1. Frequency readout
+The phase εi can be reconstructed by reading the frequency value uf (PIR) or the
+phase valueup (PA) of the PLL, which represent the frequency/phase of the incoming
+signal, respectively. For the PA:
+up[n]≈ (ω0n +εi[n])/2π (for εe[n]≪ 1).
+[up[n]] = cycle; (−π rad≤ (2π×up[n])<π rad). (21)
+Since the absolute system phase is a ramp, with the slope given by the current
+heterodyne frequency, a direct readout of up is not practical since this value will
+overﬂow very quickly. A decimation of such a sawtooth function is diﬃcult, and the
+dynamic range for a non overﬂowing value ofup is very large. The preferred possibility
+for the phase readout of a single loop is the frequency value uf.
+uf[n]≈ (ω0 + δεi
+δτs
+)/2π (for εe[n]≪ 1).
+[uf[n]] = cycle
+s ; (0 Hz ≤ (fs×uf[n])<f s).
+(22)
+This value is not overﬂowing and allows for standard decimation and ﬁltering
+algorithms to be implemented, though one has to keep in mind that this signal has a
+large dynamic range. Any requirements on decimation ﬁlters and bit length have to
+take into account that the signal of interest (phase) is not directly processed, but its
+derivative, which changes its spectral properties. The phase ﬂuctuations can easily be
+reconstructed afterwards by integration.
+Phasemeter core for intersatellite laser heterodyne interferometry 8
+3.2. PA readout
+If several channels track the same frequency and they only vary slightly in phase,
+the diﬀerences of the PLL phases (∆ up) can be read out directly by subtracting
+the PA values. The rapid ramp present in the individual loops is thereby completely
+subtracted and only the small signal of interest remains. This is ideal for implementing
+techniques like diﬀerential wave front sensing (DWS) [8].
+Even tough the small diﬀerences in phase can also be reconstructed from the PIR
+readout, the PA readout is preferred. This is because the PIR values need to be tracked
+continuously to reconstruct the correct absolute phase values. This means that any
+glitches or cycle slips will break the reconstruction. Even though the reconstruction
+can be restarted, a new initialization of the PLLs would be required. In contrast
+to that the PA readout does not break by such an event, (assuming in both cases
+that the PLLs stay in lock) but it would automatically return to the correct value
+after the event passed, making it more reliable. In addition the PA diﬀerence signals
+have a much smaller dynamic range, allowing to reduce the required bit lengths and
+computational eﬀorts in further processing of, for example, DWS data.
+3.3. Additional IQ readout
+If the residual phase error in the loop εe exceeds the acceptable noise level, because
+the loop reacts too slowly to track precisely the phase ﬂuctuations of the incoming
+signal (RMS [εe(> 1 Hz)] > 1 µcycle for LISA), an additional corrective readout can
+be performed [2]. This might be necessary if the required PLL bandwidth needs to be
+rather low to achieve stable operations (see section 5).
+Since the untracked signal in a PLL is a vector and not a scalar, the readout
+of both quadrature components I and Q is required for the additional phase
+reconstruction. For a loop locked near but not exactly on zero phase diﬀerence, they
+can be written as
+Q =ue[n] =A
+4 sin (εe[n])
+I =uI[n] =A
+4 cos (εe[n]).
+(23)
+The residual phase εe can be reconstructed by computing
+εe = arctan
+(ue[n]
+uI[n]
+)
+= arctan
+(Q
+I
+)
+. (24)
+Equally the amplitude A of the vector in this situation can be computed as
+A
+4 =
+√
+ue[n]2 +uI[n]2 =
+√
+Q2 +I2. (25)
+Which readout is required can be evaluated by comparing the PLL bandwidth with
+the dynamic range of the incoming signal. For the design shown here we used a
+controller that has suﬃcient signal suppression at low frequencies to reach the required
+performance without additional IQ readout. Nevertheless we still implemented it for
+diagnostic purposes.
+Phasemeter core for intersatellite laser heterodyne interferometry 9
+3.4. Decimation
+The signals of interest are decimated to a desired sampling rate (typically of the order
+of a few Hz) for storage and further computation. The decimation can be implemented
+in one or several steps and can make use of diﬀerent computation methods, based on
+the hardware used. Here we only describe the decimation taking place inside the
+FPGAs, which is normally restricted to use integer parallel processing.
+We found CIC ﬁlters [9] to be a good choice for the decimation inside FPGAs.
+Their implementation is simple (they only require accumulators and diﬀerentiators),
+they are easily modelled and they provide notches of suppression exactly at the most
+critical frequencies, the ones that would be aliased to very low frequencies. Which
+order of ﬁlter is required can be computed for each signal by comparing the sum of
+all frequencies ﬁltered and aliased into the signal band to the requirements. Since the
+suppression of CIC ﬁlters is increasing with frequency this calculation is, in the case
+of LISA like signals, completely dominated by the ﬁrst notch.
+The use of CIC ﬁlters also allowed us to implement an additional noise shaping
+technique [10]. This technique allows to reduce the readout bit length of some signals,
+since it reduces low-frequency truncation noise due to the CIC transfer functions.
+4. Quantization Noise Model
+4.1. Truncation Noise
+The digital integer numbers used in the FPGA implementation can only represent a
+ﬁnite number of distinct values with a constant, non-zero separation between them.
+An eﬀective implementation of an ADPLL will require the use of signal truncations
+inside the loop, to save resources and to ﬁt into ﬂight compatible FPGA devices. The
+modelling and implementation of such truncations is described in the following.
+It is well known that the truncation of a continuous signal to a digital number
+with N bits at a sampling rate fsamp can be modelled as an addition of uniformly
+distributed white noise with a linear power spectral density of
+˜xtrunc = q√
+6·fsamp
+= 2−N
+√
+6·fsamp
+.
+[˜xtrunc] = 1√
+Hz
+.
+(26)
+The same formula is also applied here for the truncation of digital signals, though
+the assumption of additive white noise is only valid for signals that move through a
+signiﬁcant range of digital values without any coherent relationship to the sampling
+frequency, like e.g. two or more sine waves at non-harmonic frequencies [11]. Otherwise
+the quantized signal will show artefacts and peaks from the coherent interaction with
+the truncation process.
+4.2. Dither
+To avoid such artefacts, an intentional noise ﬂoor is added to the signal before
+truncation, so calleddither, with triangular dither being the preferred implementation
+[11].
+Phasemeter core for intersatellite laser heterodyne interferometry 10
+Such a triangular dither generator was implemented by subtracting the outputs
+of two independent linear feedback shift registers with a repetition length longer than
+10000 s, to ensure that no artefacts will be visible in the LISA signal spectrum (0.1 mHz
+to 1 Hz).
+Based on simulation the eﬀective white noise introduced by a dithered truncation
+was found to be slightly higher with a value of
+˜xtrunc+dith = 2−N√
+3√
+6·fsamp
+= q
+√
+3√
+6·fsamp
+.
+[˜xtrunc] = 1√
+Hz
+.
+(27)
+The increase by a factor of
+√
+3 can be tolerated, since the introduction of spurious
+signals is now suppressed and anyway this noise can be arbitrarily reduced by using
+more bits.
+4.3. Rounding
+Truncation can also introduce small signal oﬀsets due to rounding errors. This
+is prevented by oﬀset-free rounding algorithms based on simple integer arithmetic.
+We designed speciﬁc VHDL rounding blocks for our implementation. These blocks
+truncate symmetrically around zero, and they are linear, keeping the amplitudes of
+signals constant. To generate the correct oﬀset for some truncation cases a dithered
+bit is used to determine the rounding direction.
+4.4. Noise shaping
+The linearised ADPLL model can now be used to understand the eﬀect of in-loop
+truncation noise on the phase tracking performance, by applying standard control
+theory. As an example we evaluate the inﬂuence of a truncation of the frequency
+valueuf(z), it shows a strong noise shaping and it also allows a strong reduction of
+readout bit rates.
+A naive PLL implementation would use a high number of bits at uf(z). This
+is because truncations at this point in an open-loop system are especially critical,
+since they introduce a white frequency noise, which leads to a 1 /f phase noise inside
+the PLL. The linear model shows, however, that this noise is suppressed directly
+by the loop error function E(z). Since the PLL includes a f2 suppression at low
+frequencies, the eﬀective phase noise is easily reduced below 1 µrad/
+√
+Hz in the LISA
+signal bandwidth.
+˜εuf (z) =
+√
+3 fs
+f
+2−T
+√6·fs
+∗E(z) rad. (28)
+We implemented such a truncation and were able to perform null measurements with
+a performance of 1µcycle between 0.1 mHz and 1 Hz in a 80MHz system with a 12 bit
+frequency value, which corresponds to an LSB frequency resolution of only ≈ 20 kHz.
+All of the following simulations include this truncation.
+The bit reduction of this speciﬁc signal is especially useful, since the readout
+of the PLL frequency requires the highest dynamic range of all PLL signals. The
+noise shaping allows to reduce the initial bits to be downsampled and potentially also
+reduces all bit lengths in further processing.
+Phasemeter core for intersatellite laser heterodyne interferometry 11
+5. Non-linearity and cycle slips
+The presented linear analysis of the phasemeter is valid for many applications.
+Phasemeters based on this analysis were already successfully tested and used in various
+laboratory experiments [12, 13].
+A phasemeter in a true inter-satellite interferometer will have to operate under
+rather extreme conditions, a low SNR of the input signal (due to additive noise) and a
+large dynamic range of the signal phase, due to frequency noise and signal dynamics.
+Therefore the PLL could reach a state where it becomes non-linear and cycle slips
+occur in the PLL tracking [14, 15].
+The resulting phase noise from R slips during a measurement period is given as
+[16]
+φslip(z) =
+√
+2
+√
+R
+f rad. (29)
+For LISA this means that any slip spoils the system performance completely and is
+therefore comparable to a loss of lock or another measurement disturbance. Earlier
+experimental investigations by Dick et. al. [16] and detailed modelling [14, 15] have
+shown that the relation between the bandwidth and the signal noise ﬂoor is the critical
+factor for the probability of cycle slips.
+Since the LISA Phasemeter needs to operate far outside any cycle slip region
+and therefore in the linear regime, we compiled a model to determine a suitable loop
+bandwidth for a given set of signal parameters, that should allow to minimize the
+cycle-slip probability and non-linear eﬀects of the phase tracking.
+The two most important reasons for non-linear behaviour are the sinusoidal
+response of the phase detector and the existence of second harmonics and other
+additional tones, like the side-band beatnotes for inter spacecraft clock transfer or
+an ADC pilot tone.
+5.1. Phasedetector
+The non-linear output of the phase detector, omitting the second harmonic, is
+ue[n] = A
+4· sin (εi[n]−εo[n]) = A
+4· sin (εe[n]). (30)
+The non linear response is also shown in the inset of ﬁgure 4 in direct comparison to
+the linear behaviour assumed before.
+For an error signal εe[n]≪ π/2 we can assume a quasi-linear behaviour of the
+phase detector. If the error signal exceeds π/2 the loop gain starts to reduce until it
+crosses zero and changes sign atεe[n] =π. At any of these points the loop is potentially
+unstable and the error signal eventually jumps by 2π or more, which results in a phase
+tracking error of the same amount.
+5.2. Optimal bandwidth
+Since the absolute error signal is directly related to the linearity of the PLL we can
+use the calculated standard deviations to evaluate the size of the error signal. We
+also include the second harmonic and digitisation noise from inside the PLL to get
+a complete picture. By evaluating this for diﬀerent loop bandwidths we can then
+Phasemeter core for intersatellite laser heterodyne interferometry 12
+10
+4
+10
+5
+10
+−2
+10
+−1
+Unity Gain [Hz]
+σ
+ 
+ 
+σsum
+σphase
+σadd (3.5 pW)
+σadd (25 pW)
+σtrunc
+A/4
+εe
+-A/4
+π/2
+−π/2
+ue
+Figure 4. Shown is the 1 σ standard deviation of the error point from additive
+noise (blue), phase noise (green), truncation noise (brown) and of their quadratic
+sum (grey). The additive noise is an example based on the laser shot noise
+expected in LISA with an eﬀective received power of 3 .5 pW (also shown for
+comparison is the additive noise for 25 pW eﬀective power). The phase noise used
+here is the laser frequency noise expected in LISA (see ˜ϵi in ﬁgure 5). The dots
+show the measured values of σ.
+The inset is a schematic of the linearised and real response of the phase
+detector in comparison to diﬀerent distributions of the error point signal. The
+green distributions illustrates a linear case, the yellow and the red curves show
+how the non-linearity becomes more prominent as σ increases.
+optimize the PLL to work in a regime closest to linear behaviour, minimizing non-
+linear eﬀects and cycle slips.
+The standard deviations for additive and phase noise have already been calculated
+in section 1. The internal quantization noise inﬂuences can be added quadratically
+(assuming uncorrelated noise sources). The comparison of the resulting standard
+deviations can be compared for diﬀerent bandwidth and phase margin (damping)
+conﬁgurations to ﬁnd an optimal design of the PLL. The standard deviations can be
+added quadratically to compute the resulting overall standard deviation σsum.
+Figure 4 shows the modelled standard deviations for example parameters
+(discussed in section 6) and their dependency on the loop gain. To verify our model
+we have measured the standard deviation of the PLL error signals for various noise
+inﬂuences and a range of stable bandwidth. We computed the standard deviations
+by ﬁtting the phase error of the PLL, which we read out at full sampling speed
+by subtracting the PA value of the PLL and an NCO used in our simulations.
+The measured standard deviations are shown as dots in ﬁgure 4 together with
+their respective modelled values. Our model shows excellent agreement between the
+predictions and the measured values, which veriﬁes that the linear model is appropriate
+for this range of operation.
+The optimal bandwidth for the here assumed noise sources is found at ≈ 40 kHz.
+Operating the PLL at this point should allow to minimize any non-linear phase
+artefacts and the probability of cycle slips. Though we can not deduce the exact
+probability, we can now test the system for stability and performance for given signal
+parameters.
+Phasemeter core for intersatellite laser heterodyne interferometry 13
+5.3. Second harmonic
+The second non-linear behaviour of the phase detector is the generation of a second
+harmonic of the input signal, as shown in equation 4.
+We can split the eﬀects of the second harmonic into two parts. The ﬁrst eﬀect
+creates parasitic phase noise in the signal band, which we describe in detail in the
+following. For convenience we therefore rewrite the second harmonic part of equation
+4 in the continuous time domain
+ue,2f(t) = A
+4· sin (2ω0t +εi(t) +εo(t)). (31)
+We simplify this equation by assuming the PLL to be tightly locked ( εo≈ εi) and
+by deﬁning an eﬀective phase value εeﬀ(t) = ω0t +εo(t), with an eﬀective frequency
+ωeff = δεeff
+δt . The second harmonic propagates through the PLL in a time τg and
+creates an eﬀective phase modulation. The output of the NCO at the time t can
+therefore be written as
+NCOout(t) = 1
+2 cos
+(
+εeﬀ(t) +m· sin (2εeﬀ(t−τg))
+)
+. (32)
+Here m is a modulation index given by the attenuation of the second harmonic by
+the open loop transfer function ( m =|G(2ωeﬀ)|), referred to the gain for the nominal
+low-frequency error signal, which in the signal range is ≈ 1. Using Bessel functions of
+the ﬁrst kind we can expand this to
+NCOout(t) =1
+2J0(m) cos(εeﬀ(t)) + 1
+2J1(m) sin(εeﬀ(t)) sin(2εeﬀ(t−τg)) +O(m2)
+=o(t) +o2f(t) +O(m2).
+(33)
+Assumingm≪ 1 one can approximate the ﬁrst two Bessel function byJ0(m)≈ 1 and
+J1(m)≈ m/2. This yields the original NCO output o(t), the term from the second
+harmonico2f(t) and higher termsO(m2), which we discard in the following. We now
+rewrite o2f and immediately discard the third harmonic term.
+o2f(t) =1
+2
+m
+4
+(
+cos(εeﬀ(t−τg))− cos(3εeﬀ(t−τg))
+)
+o2f(t)≈1
+2
+m
+4 cos(εeﬀ(t−τg))
+(34)
+The phase modulation side-band at ω− 2ω =−ω thus ends up at the same frequency
+as the nominal NCO output and results in a parasitic phase signal by the action of
+the mixer. The additional mixer output is
+i(t)×o2f(t)≈ A
+4
+m
+4 sin
+(
+εeﬀ(t)−εeﬀ(t−τg)
+)
+. (35)
+The eﬀective parasitic phase error εp,2f is therefore (see equation 5)
+εp,2f(t) = m
+4 sin
+(
+εeﬀ(t)−εeﬀ(t−τg)
+)
+. (36)
+Assuming a constant τg and an eﬀective frequency ωeﬀ that varies on time-scales
+smaller than τg one can approximate this to
+εp,2f(t)≈|G(2ωeﬀ)|
+4 sin
+(
+ωeﬀ(t)τg
+)
+. (37)
+Phasemeter core for intersatellite laser heterodyne interferometry 14
+This parasitic noise couples very non-linear and depends highly on the suppression
+of the second harmonic m , the group delay in the PLL τg and the dynamics of the
+input signal ωeﬀ(t). The coupling is at its maximum in the linear range of the sine.
+Assuming this operating condition we can calculate the maximum parasitic phase error
+in dependency of the signal frequency noise spectrum.
+˜εp,2f(f)≈|G(2ωeﬀ)|
+4 ˜ωeﬀ(f)τg. (38)
+The second eﬀect caused by the second harmonic is an additional instantaneous root-
+mean square value of the error signal. Even though this does not cause a phase error
+at low frequencies, it does increase the probability to leave the linear range of the
+phase detector. The maximum additional error is εe,2f(max) =|G(2ωeﬀ)|.
+The above equations allow to determine the necessary suppression by low pass
+ﬁlters for a given system, by calculating the error signal residuals and by comparing
+the signal dynamics with the required phase performance. Since the choice of low
+pass ﬁlter is also limited by logic resources, a trade-oﬀ is necessary. We have found
+IIR ﬁlters to be a good compromise between suppression and logic resources required.
+A second order IIR ﬁlter with a corner frequency of 300 kHz is used in the following
+simulations, a small residual parasitic phase is visible as the roll-up in the blue curve
+in ﬁgure 5. In critical cases, e.g. when the signal frequency can span a wide range, a
+more complex 2f-ﬁlter could be used, for example one that adapts its corner frequency
+to the signal frequency. One should also consider that this analysis is only valid if
+the second harmonic is below the Nyquist frequency ( fs/2). If this is not the case
+the second harmonic will be aliased to another frequency and potentially not cause a
+parasitic phase error.
+6. Digital measurements
+To evaluate the modelled performance and noise inﬂuence, we performed FPGA
+based measurements of the ADPLL performance. Similar to Shaddock et al.
+[2] we implemented a scheme based on a digital non-linearity test, where three
+independent noise sources are generated, combined and then fed into three numerically
+controlled oscillators. Tracking all three signals and combining their respective phase
+measurements allows to determine the phase noise performance for large signals, and
+under realistic conditions.
+A white gaussian noise, generated like the truncation dither, is shaped by a
+specially designed IIR ﬁlter, to simulate the laser frequency noise expected at the
+beatnote of the master satellite in the LISA conﬁguration. For our signals we
+choose the highest pre stabilised laser frequency noise spectrum proposed for LISA
+(800 Hz/
+√
+Hz in band) [17].
+An additional gaussian noise is used to introduce additive noise and to simulate
+a weak light environment, here with an eﬀective power of ≈ 3.5pW, corresponding to
+an SNR of 30 dBHz.
+The PLLs used to track these three beatnotes are optimised based on the
+described models and techniques. This includes the frequency truncation to 12 bits,
+the readout truncation, loop gain optimisation and suﬃcient second harmonic ﬁltering.
+We performed two of these measurements, one with weak light condition and one
+without, to test the PLL stability and the performance. The result of both are shown
+in ﬁgure 5.
+Phasemeter core for intersatellite laser heterodyne interferometry 15
+2
+4
+6
+8
+εi
+10
+−4
+10
+−3
+10
+−2
+10
+−1
+10
+0
+10
+1
+10
+2
+10
+3
+10
+4
+10
+5
+10
+6
+10
+−6
+10
+−4
+10
+−2
+10
+0
+10
+10
+10
+10  [rad Hz −1/2]
+Frequency  [Hz]
+ 
+ 
+εi      (model)
+εi      (simulated)
+εadd  (model)
+εuf
+    (model)~
+~
+~
+~
+~
+εadd
+~
+εuf ~
+1pm (LISA)
+A, B, C (initial)
+A+B−C
+A+B−C  (+A) ~
+Figure 5. (left) Shown are the results of two digital non-linearity measurements.
+The initially measured signals A, B and C are the same for both measurements
+and are therefore only plotted once. The ﬁrst measurement (dark blue) was
+performed without any additive noise, the correct combination of the input
+signals reveals the noise ﬂoor and linearity limits of the PLLs under test. It
+demonstrates the full performance of the PLL, only limited by numerical limits.
+The measurement also shows a dynamic range performance of the phasemeter of
+10 orders of magnitude at 0.01 Hz, necessary for the implementation of TDI. We
+observe a small roll-up at low frequencies, which we attribute to truncations in
+data post-processing and non-linearities in the PLL due to the second harmonic.
+The second measurement (light blue) used additional additive noise in all three
+signals with a SNR equivalent to 3 .5 pW eﬀective power in a LISA-like set-up.
+No cycle slips were observed under these extreme conditions and correct signal
+combination reveals the performance to be limited by a white noise ﬂoor.
+(right) Shown here is the high-frequency part of the phase noise used for the signal
+(a model in violet and a simulation in dashed blue), as well as the predicted noise
+ﬂoor for the additive noise (orange) and the expected phase noise due to the
+truncation to 12 bit at the PIR (yellow).
+For the weak light case the measurement shows a continuous tracking of all
+signals, without the occurrence of cycle slips. The achieved performance after signal
+recombination was limited by the additive noise, as expected.
+Without additional noise the measurement achieved a performance better then
+1µcycle/
+√
+Hz∗NSF in the whole signal range. This demonstrates that the underlying
+noise ﬂoor of the system is suﬃcient for LISA-like missions. We could thereby
+demonstrate a dynamic range of up to 10 12 at 1 mHz.
+7. Analog measurements
+The three signal test was also performed using analog signals. By mixing three GHz
+tones, we generated three MHz signals with similar properties as in the simulations.
+Those three signals were injected into a phasemeter prototype [2] and the measurement
+signals and combinations are shown on the right side of ﬁgure 6. The analog mixing
+is limited by low frequency phase noise generated in the mixers and can therefore
+not show the full system performance. The phasemeter noise performance, including
+Phasemeter core for intersatellite laser heterodyne interferometry 16
+10
+−4
+10
+−3
+10
+−2
+10
+−1
+10
+010
+−6
+10
+−4
+10
+−2
+10
+0
+10
+2
+10
+4
+10
+6
+  [rad Hz−1/2]
+Frequency  [Hz]
+ 
+ 
+1pm (LISA)
+A
+B
+C
+A+B-C cor.
+C-D
+C-D cor.
+1.400 GHz
+1.406 GHz
+1.415 GHz
+6 MHz
+9 MHz
+15 MHz
+CH A
+CH B
+CH C
+CH D
+Figure 6. (left) Shown is the set-up used for the analog three signal test,
+generating three signals with phases that can be combined to zero.
+(right) Shown are the measurement results achieved with this set-up. One of
+the signals is split after the mixing and fed into two channels to investigate
+the noise ﬂoor of the phasemeter prototype used. The initial noise ﬂoor of this
+reference measurement (orange) lies above the requirement for a wide range of
+the spectrum. The use of a pilot-tone correction allowed to reduce this noise
+below the requirements for the full range (dark blue). The readout of this null
+measurement was performed using the readout of the PIR and the PA (not
+shown), both results are indistinguishable in the required frequency range and
+show only slight variations at high frequencies, due to diﬀerent transfer functions
+and aliasing. The three signal combination (violet) reveals a noise ﬂoor above the
+requirement for almost all frequencies, not allowing us to fully test the linearity of
+our phasemeter channels. The cause of this excess noise was identiﬁed to be the
+mixers, that generate a low frequency phase noise that spoils the performance.
+digitisation noise and analog front-end noise, was demonstrated in parallel by a null
+measurement. The use of a pilot tone allowed to correct this measurement below
+the LISA requirement, showing that the front-end in the experiment performed as
+required.
+Though the full performance was not yet shown with analog signals, we already
+reached a dynamic range of up to 10 7 at 1 mHz.
+8. Conclusion
+We have demonstrated a full model of the phase readout system for future LISA like
+space borne gravity missions. We have used this model to design and optimize the
+system parameters and to predict the inﬂuence of truncations. Non-linearities were
+treated in three steps, ﬁrst by applying the linear model to ﬁnd the optimal bandwidth,
+second by testing the designed PLL in a realistic VHDL based measurement and third
+by using real analog signals with similar properties.
+Future plans include the testing of the phasemeter performance with analog and
+optical signals, to perform tests under more realistic conditions and to include further
+noise inﬂuences. An interesting idea for future work might be to further investigate
+the ratio between the standard deviation and the cycle slip probability. An automatic
+loop gain control will also potentially be necessary to stay in the linear system range.
+The phasemeter core will also be adapted for the use in an Breadboard Model of
+the LISA phasemeter currently built and tested in an ESA technology development
+activity [18].
+Phasemeter core for intersatellite laser heterodyne interferometry 17
+9. Acknowledgements
+We acknowledge funding by the European Space Agency (ESA) within the
+technology development project “LISA Metrology System”´. The authors also
+gratefully acknowledge support by the International Max-Planck Research School
+for Gravitational Wave Astronomy (IMPRS-GW), by the Centre for Quantum
+Engineering and Space-Time Research (QUEST) and by Deutsches Zentrum f¨ ur Luft-
+und Raumfahrt (DLR) with funding from the Bundesministerium f¨ ur Wirtschaft und
+Technologie (project reference 50 OQ 0601).
+References
+[1] Danzmann K. and R¨ udiger A. 2003, Class. Quantum Grav. 20 1-9
+[2] Shaddock D. et al. 2006, AIP Conf. Proc. 873 689-96
+[3] Bykov I. et al. 2009, Journal of Physics: Conference Series 154 012017
+[4] Sheard B. et al. 2012, Journal of Geodesy: Volume 86, Issue 12 , Page 1083-1095
+[5] Danzmann K. et al. 2013, ArXiv e-prints 1305.5720
+[6] Gardner F. M. 2005, 3rd ed. (New Jersey: John Wiley & Sons, Inc.)
+[7] Dehne M. et al. 2012, Opt. Express 20, No. 25, 27273
+[8] Schuldt T. et al. 2009, Class. Quantum Grav. 26 085008
+[9] Hogenhauer E. B. 1981, IEEE Trans. Acoust., Speech and Signal Proc. 29, No. 2 pp. 155,
+[10] Lehtinen V. et al. 2002, EUSIPCO, pp. 207-210
+[11] Widrow, B. and Kollar I. 2009 (New York: Cambridge University Press)
+[12] Mitryk S. J. et al. 2010, Class. Quantum Grav. 27 084012
+[13] Spero R. et al. 2011, Class. Quantum Grav. 28 094007
+[14] Ascheid G. 1982, IEEE Trans. Communic. Vol. Com-30, No. 10
+[15] Viterbi A. J. 1963, Proceedings of the IEEE 51 (12) 1737-1753
+[16] Dick G. J. et al. 2011, IPN Progress Report (42)
+[17] Sheard B. et al. 2010, Class. Quantum Grav. 27 84011
+[18] Gerberding O. et al. 2012, ASP Conference Series, 9th Int. LISA Symposium

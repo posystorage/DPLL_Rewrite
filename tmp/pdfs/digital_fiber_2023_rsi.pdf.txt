@@ -1,0 +1,614 @@
+Fully-digital platform for local ultra-stable optical frequency distribution
+Martina Matusko, 1 Ivan Ryger, 1 Gwenhaël Goavec-Merou, 1 Jacques Millo, 1 Clément Lacroûte, 1 Émile Carry, 1
+Jean-Michel Friedt, 1 and Marion Delehaye 1
+Université de Franche-Comté, SUPMICROTECH, CNRS, institut FEMTO-ST, F-25000 Besançon,
+France
+(Author to whom correspondence may be addressed: marion.delehaye@femto-st.fr)
+This article reports on the use of an FPGA platform for local ultra-stable optical frequency distribution through a 90 m-
+long fiber network. This platform is used to implement a fully digital treatment of the Doppler-cancellation scheme
+required by fiber links to be able to distribute ultra-stable frequencies. We present a novel protocol that uses aliased
+images of a digital synthesizer output to directly generate signals above the Nyquist frequency. This approach signif-
+icantly simplifies the set-up, making it easy to duplicate within a local fiber network. We demonstrate performances
+enabling the distribution of an optical signal with an instability below 10 −17 at one second at the receiver end. We
+also use the board to implement an original characterization method. It leads to an efficient characterization of the
+disturbance rejection of the system, that can be realized without accessing the remote output of the fiber link.
+I. INTRODUCTION
+Optical atomic oscillators can reach the 10 −19 level of in-
+stability after 10 5 s averaging time 1. Together with optical
+clocks uncertainties that can be below the 10 −18 level2, this
+paves the way to numerous applications, ranging from new
+GNSS architecture3 or improved geodesy4 to advances in fun-
+damental science, such as the measurement of the relativistic
+redshift5,6, or searches for dark matter7.
+Fibers links have proven to be the most robust 8,9 and effi-
+cient way to transfer ultra-stable signals over distances up to
+thousands of kilometers 10–18. Long-distance fiber networks
+now connect many European laboratories using dedicated in-
+frastructures17,19. Here, we focus on stable frequency dis-
+tribution within an institute, where several experiments dis-
+tant by typically tens to hundred meters may require access to
+ultra-stable optical signals. Fractional frequency instabilities
+that can be reached in research facilities range from 10−15 to
+10−17 at one second20,21. This sets the targeted frequency in-
+stability of the local distribution fiber network discussed in
+this paper. Fibers can guide an optical signal over distances
+with limited power loss, but the purity of the signals can be de-
+graded while propagating because of thermal and mechanical
+perturbations affecting the optical length of the fiber. Phase
+noise induced in fiber links is usually tracked and compen-
+sated for by Doppler cancellation techniques 22,23 in a phase-
+locked loop (PLL). These traditionally relied on analog elec-
+tronics for tracking and correcting the induced phase noise.
+Powerful alternatives to analog devices are digital electronics.
+They are very suited to ultra-stable frequency dissemination
+within an institute, as they are less sensitive to environmental
+perturbations and possess the advantages of versatility, recon-
+figurability, and easy duplication24–27.
+In this paper, we demonstrate a fully-digital and open-
+source Doppler cancellation platform based on a Red Pitaya
+SDRlab122−16 (RP16) board for a 90 m fiber link at 1542 nm
+(194 THz) for frequency dissemination within the FEMTO-
+ST institute. Longer links can also be compensated using
+this setup, at the price of a reduced lock bandwidth. We
+make use of the capabilities of the open-source FPGA plat-
+form oscimpDigital, available on github under the CeCILL
+licence28. First, we assess the performances of the newly
+available RP16 and compare them with the previous Red
+Pitaya STEMlab125 − 14 (RP14). We then explore the effects
+of a fully-digital signal treatment using the analog-to-digital
+(ADC) and digital-to-analog (DAC) converters of RP16. In
+particular, we make a novel use of aliasing at the output of
+a direct digital synthesizer (DDS) and characterize the delays
+due to different blocks of the set-up and their contribution to
+the PLL bandwidth. Lastly, we present an automatic method
+to measure the disturbance rejection of the PLL in order to
+reach the best noise-cancellation performances.
+II. DIGITAL PLATFORMS
+Ultra-stable frequency dissemination through fiber links
+has already been performed using an RP14 board and showed
+promising results 26,29,30. An RP16 board recently became
+available with a more powerful FPGA to embed more logi-
+cal functions and increase processing capabilities. It is ex-
+plicitly designed for radio frequency instrumentation, with an
+analog front-end design targeted towards using higher Nyquist
+zones and a readily accessible external reference input port.
+A schematic view of the constitutive blocks of RP16 is shown
+Fig. 1. Extra key characteristics of RP16 and RP14 are in-
+dicated in Table I, as well as critical resource use for the
+schemes used in this article.
+ZYNQ 7020
+2 ⨉ ARM A9
+LTC2185
+16 bits ADC
+AD9767
+14 bits DAC
+122.88 MHz
+FPGA PL
+PS
+balun
+balun
+balun
+balun
+AXI
+FIG. 1. Schematic description of the relevant blocks of RP16.
+To assess these boards for metrology purposes, we first
+measured their output phase noise at 10 MHz with either
+their internal (temperature-compensated crystal oscillator –
+TCXO) or an external (AD9915 DDS clocked by an active
+arXiv:2311.00722v1  [physics.ins-det]  30 Oct 2023
+2
+RP14 RP16
+ADC 14 bits 16 bits
+ADC effective
+number of bits 11.8 12.5
+Measurement
+bandwidth 52 MHza 550 MHz
+DAC 14 bits 14 bits
+FPGA Xilinx Zynq 7010 Xilinx Zynq 7020
+Resource use
+Dual PLL29 75 % of DSPb 27 % of DSP
+PLL with
+characterization
+(see Fig. 6)
+94 % of BRAMc 44 % of BRAM
+Quartz crystal
+(TCXO) FXO HC735-125 MHZ ABLNO-122.88MHz
+Clock frequency 125 MHz 122.88 MHz
+a The measurement bandwidth can be increased to reach the ADC
+track-and-hold bandwidth of 750 MHz by removing the anti-aliasing filter
+before the ADC.
+b Digital Signal Processing
+c Blocks of Random Access Memory
+TABLE I. Key characteristics of RP14 and RP16 boards
+hydrogen maser) clock reference. The results are shown in
+Fig. 2. In agreement with the specified "low-noise" character-
+istics of RP16 TCXO, its phase noise shows a 15 dB improve-
+ment close to 1 Hz with respect to RP14. However, below
+0.1 Hz, the phase noise of −10 dBrad2/Hz is similar for the
+two boards. Such performances of the boards in a Doppler-
+cancellation scheme for fiber links limit the relative instability
+of the frequency transfer to the 10 −15 range31, similar to the
+degradation of the signal stability we measured when prop-
+agating through 90 m-long optical fibers in a noisy environ-
+ment. Clocking the boards with a stable external reference
+is therefore mandatory for most metrological applications. It
+should be noted that both the RP14 and the RP16 present spu-
+rious signals at 80 and 170 kHz with an amplitude of about
+−91 dBrad2/Hz (see squared area Fig. 2). These are gener-
+ated by the DAC voltage regulators and cannot be removed
+easily32. When the boards are used within a PLL, they may
+induce oscillations at these frequencies.
+Regarding the physical board, the RP14 ADC has a low-
+pass, anti-aliasing filter that is not present on the RP16. This
+makes possible for the RP16 direct undersampled detection
+of signals at a frequency higher than fclock/2 (where fclock
+is the clock frequency, see Table I): an incoming signal at
+fin > fclock/2 is detected at a frequency f ′
+in = | fin −n × fclock|,
+where n is an integer such that 0 < f ′
+in < fclock/2.
+Undersampling has already been used in the context of fiber
+links29 with an RP14 that had to undergo ADC input circuit
+modification, while the use of an RP16 leads to a much sim-
+pler implementation.
+FIG. 2. Phase-noise of a 10 MHz signal generated by Red Pitaya
+boards when clocked by their internal TCXO oscillator or by an
+external reference derived from an active hydrogen maser. Green:
+RP16 with external reference. Red: RP 16 with internal TCXO.
+Purple: RP14 with external reference. Brown: RP14 with internal
+TCXO. Yellow: hydrogen maser. The squared area indicates the spu-
+rious signals coming from the DAC voltage regulators.
+III. FULLY-DIGITAL CANCELLATION OF FIBER LINKS
+NOISE
+We performed Doppler cancellation of the phase noise aris-
+ing from a 90 m-long fiber due to thermal and mechanical
+fluctuations. We first measured the phase noise of the system
+with and without the 90 m-long fiber and found that the pres-
+ence of the fiber leads to a noise increase in the 1 Hz−10 kHz
+range by up to 40 dB (at 1 Hz). Our Doppler-cancellation set-
+up is based on a heterodyne Michelson interferometer as de-
+picted in Fig. 3 and signal treatment is done with RP16. It is
+fully-fibered with single-mode non polarization-maintaining
+fibers. One arm of the interferometer is a short fiber ended
+by a Faraday mirror (FM1) and plays the role of a reference
+arm. The second arm is composed of a fiber-coupled acousto-
+optic modulator (AOM 33) driven at fAOM = 110 MHz fol-
+lowed by the fiber link and a second fiber-coupled Faraday
+mirror (FM2). We measure the noise arising from the fiber
+link by generating a beatnote between the signal reflected by
+FM1 and the signal reflected by FM2 that is twice frequency
+shifted by the AOM at fbeatnote = 2 × fAOM = 220 MHz. The
+resulting beatnote is then detected on a photodiode (PD1) for
+the aim of the external phase disturbance correction. For char-
+acterization purposes, the 90 m-long fiber does a round-trip,
+with the output of the link located within a few centimeters
+from its input. Part of the link output interferes with the signal
+coming directly from the master laser, and the resulting beat-
+note at 110 MHz is detected by a second photodiode (PD2)
+and carries the uncompensated noise (see Fig. 3).
+The 220 MHz beatnote that is detected and the 110 MHz
+correction signal that needs to be generated are outside the
+ADC and DAC baseband (between 0 and fclock/2). For the
+ADC, one can perform an analog treatment of the signal: us-
+ing a 200 MHz signal from a reference, the 220 MHz beat-
+note can be downconverted to 20 MHz (see Fig. 3.a) so that it
+is sampled by the ADC. Alternatively, it has been shown 29
+3
+FIG. 3. Doppler-cancellation set-up. OC: optical coupler; FM: Fara-
+day mirror; PD: photodiode; FC: frequency counter; input and output
+processing: see text. PD1 detects the 220 MHz beatnote resulting
+from the return trip through the AOM. PD2 detects a beatnote at 110
+MHz that is used to characterize the system.
+that the beatnote at 2 × fAOM can be sent directly to the
+ADC and undersampled within the second Nyquist band at
+f ′
+in = | fbeatnote − 2 fclock| = 25.76 MHz (see Fig. 3.b).
+For the DAC, one can similarly perform an analog treat-
+ment of the signal: a 55 MHz signal within the Red Pitaya
+baseband can be output and frequency doubled to drive the
+AOM at 110 MHz (see Fig. 3.a). Here, we propose to instead
+output a signal at fout = 12.88 MHz, and to use the aliased
+image of the fundamental at fclock − fout = 110 MHz = fAOM.
+As the 3 dB bandwidth of the AOM is 30 MHz and the nearest
+spectral component at the output is only 2× fout = 25.76 MHz
+away, we use a bandpass surface acoustic wave (SAW) filter34
+to select the 110 MHz spectral component (see Fig. 3.b). The
+filter was chosen despite its narrow bandwidth of 200 kHz
+for the very low thermal sensitivity of its group delay (mea-
+sured to be below 10 −7 K−1). It is not expected to impact
+the measurement in a laboratory environment, contrary to
+other larger-bandwidth existing SAW filters. The phase-noise
+of the 110 MHz signals obtained either by frequency dou-
+bling a 55 MHz signal or by selecting the aliased image of
+a 12.88 MHz signal are indicated in Fig. 4. Due to the sinc
+envelope of the DDS output, the amplitude of the signal at
+110 MHz is a factor 6 smaller than at 55 MHz, but we see
+no degradation of the phase-noise by using the aliased out-
+put configuration. The lower sensitivity to environmental per-
+turbations of digital electronics leads to an overall small im-
+provement (≲ 2) of the link fractional frequency stability for
+integration times below 2000 s. The lower phase-noise ob-
+tained for the aliased signal above 200 kHz results from the
+narrow bandwidth of the SAW filter. We observe at 110 MHz
+a larger influence of the 80 kHz and 170 kHz spurious signals
+already observed at 10 MHz. Noise peaks in the 5-100 Hz
+range are caused by high current drawn by the RP16, induc-
+ing voltage noise on its power supply.
+A summary of the frequency shifts we perform by aliasing
+FIG. 4. Phase-noise of the 110 MHz signal: (blue) obtained by se-
+lecting the aliased image of a 12.88 MHz signal or (yellow) obtained
+by frequency doubling a 55 MHz signal.
+at ADC and DAC is shown in Fig. 5.
+FIG. 5. Digital ADC and DAC signal processing. ADC sig-
+nal treatment relies on undersampling, where the signal with
+a frequency fbeatnote = 220 MHz outside the Nyquist baseband
+is sampled as a signal inside the baseband with a frequency
+f ′
+in = 2 fclock − fbeatnote = 25.76 MHz. Regarding the ADC signal
+treatment, the DDS generates a signal at fout = 12.88 MHz that
+carries the noise correction. It is aliased at n× fclock ± fout, with
+n an integer number. We use a SAW filter to select the fAOM =
+fclock − fout = 110 MHz spectral component that drives the AOM.
+The beatnote detected by the ADC is numerically multi-
+plied by a complex signal at fdemod (with fdemod = 20 MHz for
+the analog ADC treatment, and fdemod = 25.76 MHz for the
+digital ADC treatment). The phase information is obtained
+by extracting the real part of the product and filtering it by a
+finite impulse response (FIR) filter, realizing overall a cosine
+demodulation. It is then provided to a PI controller, the output
+of which drives a numerically controlled oscillator (NCO out)
+at fout, that carries the noise correction.
+The bandwidth of a PLL is ultimately limited by the delays
+of the system: for a given delay τ, perturbations with frequen-
+cies higher than 1 /2τ can not be corrected. Therefore, we
+set the maximum bandwidth of the system to 1 /4τ (such that
+2πτ fpert = π/2, where fpert is the perturbation frequency; this
+may still be close to the instability threshold, so a safer band-
+width of 1/8τ is sometimes used instead as an upper limit in
+4
+the literature). The delays and resulting cumulative bandwidth
+of our system are indicated in Table II. It shows that the ADC
+and DAC conversions induce an irreducible delay of 125 ns,
+which sets a hard limit to 2 MHz for locks operated with Red
+Pitaya boards. Other digital blocks (complex and real con-
+versions, multiplications, adjustments of the number of bits)
+increase the delay by about 345 ns, while analog components
+play a dominant role, with 1.3 µs delay due to the SAW fil-
+ter and 2.5 µs due to the AOM. The propagation delay itself
+for a retro-reflected 90 m-long fiber further reduces the 1 /4τ
+bandwidth by about 17%, down to 49 kHz. To emphasize the
+influence of each block, the phase shift it induces at 49 kHz is
+also indicated in Table II.
+For longer links, the propagation delay would play a more
+important role: for instance, a 500 m-long link would induce
+a delay of 2.5 µs, making it the dominant contribution to the
+total delay. Longer links are also noisier, and would bene-
+fit from an arctan demodulation to correct large perturbations
+inducing phase flips. Arctan demodulation is more demand-
+ing in terms of digital processing and would further increase
+digital delays to 565 ns.
+Delay
+τ
+Cumulative
+bandwidth
+Induced
+dephasing
+at 49 kHz
+Digital
+electronics
+ADC and DAC
+conversions 125 ns 2 MHz 0.01 π
+FIR and other
+digital blocks 345 ns 532 kHz 0.03 π
+Analog
+electronics
+SAW 1.3 µs 141 kHz 0.17 π
+AOM 2.5 µs 59 kHz 0.21 π
+Fiber 2 × 90 m 880 ns 49 kHz 0.07 π
+TABLE II. Delays, cumulative bandwidth and induced dephasing at
+49 kHz due to different components of the system. For each compo-
+nent, the cumulative bandwidth is obtained from 1 /4Στ, where the
+sum is performed on the delays of the component studied and of the
+components appearing above in the table.
+IV. AUTOMATIC CHARACTERIZATION
+To measure the noise rejection of an installed compensated
+fiber link, it is usually necessary that actually two links are
+set up in a reverse configuration, such that the output of the
+second link can be measured against the input of the first
+link. We propose here a direct digital noise-rejection evalu-
+ation method that does not require access to the remote end of
+the link. It can be used on an existing system or efficiently
+deployed on multiple installations within an institute. The
+idea is to measure the rejection of sinusoidal perturbations for
+given proportional-integral (PI) controller parameters. We use
+it to experimentally find PI parameters that lead to the highest
+bandwidth (corresponding to the 1 /4τ bandwidth discussed
+previously) without increasing the noise at high frequencies
+and then divide the PI gains arbitrarily by a factor of two to
+avoid loop instabilities.
+For this purpose, we induce a frequency modulation at fpert
+of the output signal: a sinusoidal perturbation at fpert is nu-
+merically added to the correction signal that drives NCO out.
+This simulates the effect of a frequency perturbation arising
+inside the fiber link. The disturbance rejection by the PLL is
+numerically measured right after the PI block. A scheme of
+the modified Red Pitaya architecture is indicated in Fig 6 and
+available at35.
+FIG. 6. Red Pitaya design adapted for disturbance rejection measure-
+ments: NCOpert adds a perturbation to the correction signal, and the
+cancellation of this perturbation is measured by D2Rcorr. D2R: data
+to ram acquisition, NCO: numerically controlled oscillator. FIR: fi-
+nite impulse response filter. C2R: complex to real conversion.
+fpert is swept between 3 kHz and 10 MHz for both open loop
+configuration (no PI gain) and closed loop configuration, with
+adjusted PI gains. The disturbance rejection (ratio of the per-
+turbation amplitudes in the closed and open loop configura-
+tions) measured with a 90 m-long link is shown in Fig. 7 with
+dashed lines for four sets of PI gains. It is modelled with solid
+lines using optical system transfer functions that were first de-
+scribed in works of 36,37. We chose an equivalent approach
+in the discrete time domain and used z-transforms formalism
+that takes into account analog, digital and optical propagation
+delays, with the global gain as the only free parameter. In the
+case of cosine demodulator the mixer conversion gain (rad/V)
+is dependent on the magnitude of the input signal. Thus it
+creates a scaling of the total loop gain, which is then depen-
+dent on the photodiode beatnote amplitude. The model does
+not take into account the spurious signals observed around
+80 and 170 kHz. At low frequencies there is a good agree-
+ment between the model and experimental disturbance rejec-
+tion curves. For perturbation frequencies above 200 kHz, the
+SAW filter acts as a very efficient low-pass filter, regardless of
+the PI gains. As it is then the ratio of two small quantities, the
+experimental disturbance rejection curve becomes noisy, but
+its value consistently averages to 0 dB. For all experimental
+curves, we observe a shift of the overshoot towards 80 kHz
+with respect to the model. We attribute this to the proximity
+of the 80 kHz instability mentioned previously (see Fig. 4).
+The highest bandwidth that can be reached with this system is
+about 40 kHz (see blue curve Fig. 7), consistent with Table II.
+This configuration is close to the instability threshold (where
+oscillations induce excess noise above 200 kHz), so we rather
+favored the global system stability and reduced these PI gains
+by a factor two, leading to a 3 dB bandwidth around 30 kHz
+(see green curve Fig. 7).
+We used this method to choose PI gains and then measured
+the resulting signal frequency instability of the monitoring
+110 MHz signal (see Fig. 3) for both open and closed loop in
+three situations: first, with a 1 m-long fiber link, then with a
+5
+FIG. 7. Disturbance rejection of the system with a 90 m-long fiber
+link. Dashed lines correspond to the experimental disturbance re-
+jection. Solid lines correspond to the modeled disturbance rejection.
+Red curves correspond to the lowest PI gains; purple curves corre-
+spond to PI gains 5 times larger, green curves to PI gains 10 times
+larger and blue curves to PI gains 20 times larger than the ones of the
+red curve.
+90 m-long fiber link, and last, for reference, without the phys-
+ical system constituted of the AOM and fibers. Results are
+indicated in Fig. 8 by open symbols for the open loop and full
+symbols for the closed loop.
+For the 1 m-long and the 90 m-long links (blue circles in
+Fig. 8 and red squares in Fig. 8, respectively), the plateau in
+stability for the 1 - 40 s range points towards flicker frequency
+noise, consistent with the 1/ f slope we observe in their power
+spectrum for frequencies higher than 10−2 Hz (not shown).
+For the 1 m-long link, the open and closed loop curves over-
+lap for the first 40 s of integration, indicating that for short in-
+tegration times the stability of the system is limited by the re-
+duction of the lock bandwidth due to the optical components
+(AOM, couplers, Faraday mirrors, photodiodes). For closed
+loop configuration, the fractional frequency instability is be-
+low 10−17 for all integration times and reaches 1 × 10−18 for
+integration times longer than 500 s.
+For the 90 m-long link, the open loop signal is degraded to
+the 10−16 range, illustrating the reduction of the signal stabil-
+ity due to the 90 m fiber. When the loop is closed, the signal
+shows the same instability as that of the 1 m-long fiber link,
+showing that we reached the limit of the system. With an in-
+stability at most in the 10 −18 range for all integration times
+and that averages down to 6 × 10−19 for 2000 s integration
+time, the set-up fully meets the requirements for frequency
+transfer within an institute.
+For reference, we removed the physical system containing
+the AOM and the optical fibers. The 110 MHz component
+selected by the SAW filter is split in two. One part is di-
+rectly sampled by the ADC of RP16 (with NCO demod set to
+12.88 MHz). The other part is sent to a frequency counter
+to measure the in-loop fractional frequency instability of the
+110 MHz signal. It is then scaled to optical frequencies and
+shown with green triangles in Fig. 8. The open and closed
+loop curves overlap for all integration times, indicating the
+limitations due to the RP16 board.
+FIG. 8. Fractional frequency instabilities of the optical signal at PD2
+for different experimental set-ups. The instability is measured on the
+110 MHz beatnote and scaled to the optical frequency of 194 THz
+with a leverage factor of 5 .7 × 10−7. Open symbols: free running
+system. Full symbols: closed loop measurement. Green triangles: no
+physical system (see text). Blue circles: with 1 m link. Red squares:
+with 90 m link. Purple line: Lower limit set by the hydrogen maser,
+given by the maser fractional frequency instability multiplied by the
+leverage factor. Lines are a guide to the eye. All measurements were
+taken without any specific shielding of the system.
+V. CONCLUSION
+We compared RP16 and RP14 boards for Doppler cancel-
+lation of fiber links using the fully open-source FPGA frame-
+work OscimpDigital28. With its design explicitly targeting ra-
+dio frequency instrumentation, RP16 proved more adapted for
+metrology applications. Here, we focused on the development
+of a local fiber network for ultra-stable signal distribution.
+The noise arising from the fiber links is compensated by
+a digital PLL hosted on the RP16 board with a novel sig-
+nal processing based on aliasing at the RP16 DAC and un-
+dersampling at the RP16 ADC. This alleviated the need for
+many environment-sensitive analog components and resulted
+in a compact set-up easy to duplicate. We have measured the
+delays of the system and estimated the resulting PLL band-
+width. The delay due to ADC and DAC conversions set an
+upper limit of the bandwidth for any Red Pitaya-based system
+at 2 MHz. Taking all the delays of the system into account
+brings the upper limitation of the PLL bandwidth to 49 kHz.
+For a 90 m-long link, propagation delay contributes to about
+17% of the total delay, therefore the total bandwidth is signif-
+icantly reduced for longer links.
+Lastly, we have developed an automatic measurement of the
+disturbance rejection for given PI gains of the PLL, therefore
+providing a rigorous method to measure the bandwidth. The
+maximum bandwidth we measured was in agreement with the
+calculated one, but the system was close to the instability
+threshold. For a 30% lower bandwidth, the system was sta-
+ble and we measured fractional frequency instabilities in the
+10−18 range for all timescales. Performances could in princi-
+ple be improved by the use of a second AOM at the remote
+end of the system to discriminate unwanted reflections 38, but
+the current system is already perfectly suitable for local ultra-
+stable frequency distribution within a metrology institute.
+6
+ACKNOWLEDGMENTS
+This work was supported by Agence Nationale de la
+Recherche (ANR-21-CE47-0006-01 CONSULA, ANR-10-
+LABX-48-01 First-TF, and ANR-11-EQPX-0033 Oscillator-
+IMP), the Région Bourgogne Franche-Comté and the EIPHI
+Graduate School (contract ANR-17-EURE-0002). The au-
+thors would like to thank Gonzalo Cabodevila for discus-
+sions on PLL characterization, Vincent Giordano for fruitful
+discussions and Claudio Calosso for careful reading of the
+manuscript.
+1W. McGrew, X. Zhang, R. Fasano, S. Schäffer, K. Beloy, D. Nicolodi,
+R. Brown, N. Hinkley, G. Milani, M. Schioppo, T. Yoon, and A. Ludlow,
+“Atomic clock performance enabling geodesy below the centimeter level,”
+Nature 564, 87—90 (2018).
+2S. M. Brewer, J.-S. Chen, A. M. Hankin, E. R. Clements, C. W. Chou, D. J.
+Wineland, D. B. Hume, and D. R. Leibrandt, “ 27Al+ quantum-logic clock
+with a systematic uncertainty below 10 −18,” Phys. Rev. Lett. 123 (2019),
+10.1103/PhysRevLett.123.033201.
+3T. Schuldt, M. Gohlke, M. Oswald, J. Wüst, T. Blomberg, K. Döring-
+shoff, A. Bawamia, A. Wicht, M. Lezius, K. V oss, M. Krutzik, S. Her-
+rmann, E. Kovalchuk, A. Peters, and C. Braxmaier, “Optical clock tech-
+nologies for global navigation satellite systems,” GPS Solutions 25 (2021),
+10.1007/s10291-021-01113-2.
+4N. Ohmae, M. Takamoto, Y . Takahashi, M. Kokubun, K. Araki, A. Hinton,
+I. Ushijima, T. Muramatsu, T. Furumiya, Y . Sakai, N. Moriya, N. Kamiya,
+K. Fujii, R. Muramatsu, T. Shiimado, and H. Katori, “Transportable stron-
+tium optical lattice clocks operated outside laboratory at the level of 10−18
+uncertainty,” Advanced Quantum Technologies4, 2170081 (2021).
+5N. K. Pavlis and M. A. Weiss, “The relativistic redshift with 3× 10−17 un-
+certainty at NIST, Boulder, Colorado, USA,” Metrologia40, 66–73 (2003).
+6C. W. Chou, D. B. Hume, T. Rosenband, and D. J. Wineland, “Optical
+clocks and relativity,” Science329, 1630–1633 (2010).
+7M. S. Safronova, D. Budker, D. DeMille, D. F. J. Kimball, A. Derevianko,
+and C. W. Clark, “Search for new physics with atoms and molecules,” Rev.
+Mod. Phys. 90, 025008 (2018).
+8F. Narbonneau, M. Lours, S. Bize, A. Clairon, G. Santarelli,
+O. Lopez, C. Daussy, A. Amy-Klein, and C. Chardonnet, “High res-
+olution frequency standard dissemination via optical fiber metropoli-
+tan network,” Review of Scientific Instruments 77, 064701 (2006),
+https://doi.org/10.1063/1.2205155.
+9E. Cantin, M. Tønnes, R. Le Targat, A. Amy-Klein, O. Lopez, and P.-E.
+Pottie, “An accurate and robust metrological network for coherent optical
+frequency dissemination,” New Journal of Physics23, 053027 (2021).
+10L. Ma, P. Jungner, J. Ye, and J. Hall, “Delivering the same optical frequency
+at two places: accurate cancellation of phase noise introduced by an optical
+fiber or other time-varying path,” Optics letters19, 1777–9 (1994).
+11K. Predehl, G. Grosche, S. M. F. Raupach, S. Droste, O. Terra, J. Alnis,
+T. Legero, T. Hänsch, T. Udem, R. Holzwarth, and H. Schnatz, “A 920-
+kilometer optical fiber link for frequency metrology at the 19th decimal
+place,” Science 336, 441 – 444 (2012).
+12N. R. Newbury, P. A. Williams, and W. C. Swann, “Coherent transfer of an
+optical carrier over 251 km,” Opt. Lett.32, 3056–3058 (2007).
+13G. Grosche, O. Terra, K. Predehl, R. Holzwarth, B. Lipphardt, F. V ogt,
+U. Sterr, and H. Schnatz, “Optical frequency transfer via 146 km fiber link
+with 10−19 relative accuracy,” Opt. Lett.34, 2270–2272 (2009).
+14M. Fujieda, M. Kumagai, S. Nagano, A. Yamaguchi, H. Hachisu, and
+T. Ido, “All-optical link for direct comparison of distant optical clocks,”
+Opt. Express 19, 16498–16507 (2011).
+15O. Lopez, A. Haboucha, B. Chanteau, C. Chardonnet, A. Amy-Klein, and
+G. Santarelli, “Ultra-stable long distance optical frequency distribution us-
+ing the internet fiber network,” Opt. Express20, 23518–23526 (2012).
+16D. Calonico, E. K. Bertacco, C. E. Calosso, C. Clivati, G. A. Costanzo,
+M. Frittelli, A. Godone, A. Mura, N. Poli, D. V . Sutyrin, G. Tino, M. E.
+Zucco, and F. Levi, “High-accuracy coherent optical frequency transfer
+over a doubled 642 km fiber link,” Applied Physics B117, 979–986 (2014).
+17C. Lisdat, G. Grosche, N. Quintin, C. Shi, S. Raupach, C. Grebing, D. Ni-
+colodi, F. Stefani, A. Al-Masoudi, S. Dörscher, S. Häfner, J.-L. Robyr,
+N. Chiodo, S. Bilicki, E. Bookjans, A. Koczwara, S. Koke, A. Kuhl,
+F. Wiotte, and P.-E. Pottie, “A clock network for geodesy and fundamental
+science,” Nature Communications 7, 12443 (2015).
+18D. Husmann, L.-G. Bernier, M. Bertrand, D. Calonico, K. Chaloulos,
+G. Clausen, C. Clivati, J. Faist, E. Heiri, U. Hollenstein, A. Johnson,
+F. Mauchle, Z. Meir, F. Merkt, A. Mura, G. Scalari, S. Scheidegger,
+H. Schmutz, M. Sinhal, S. Willitsch, and J. Morel, “SI-traceable frequency
+dissemination at 1572.06 nm in a stabilized fiber network with ring topol-
+ogy,” Opt. Express29, 24592–24605 (2021).
+19B. M. Roberts, P. Delva, A. Al-Masoudi, A. Amy-Klein, C. Bærentsen,
+C. F. A. Baynham, E. Benkler, S. Bilicki, S. Bize, W. Bowden, J. Calvert,
+V . Cambier, E. Cantin, E. A. Curtis, S. Dörscher, M. Favier, F. Frank,
+P. Gill, R. M. Godun, G. Grosche, C. Guo, A. Hees, I. R. Hill, R. Hob-
+son, N. Huntemann, J. Kronjäger, S. Koke, A. Kuhl, R. Lange, T. Leg-
+ero, B. Lipphardt, C. Lisdat, J. Lodewyck, O. Lopez, H. S. Margolis,
+H. Álvarez-Martínez, F. Meynadier, F. Ozimek, E. Peik, P.-E. Pottie,
+N. Quintin, C. Sanner, L. D. Sarlo, M. Schioppo, R. Schwarz, A. Silva,
+U. Sterr, C. Tamm, R. L. Targat, P. Tuckey, G. Vallet, T. Waterholter, D. Xu,
+and P. Wolf, “Search for transient variations of the fine structure constant
+and dark matter using fiber-linked optical atomic clocks,” New Journal of
+Physics 22, 093010 (2020).
+20“REFIMEVE project,” .
+21E. Oelker, R. B. Hutson, C. J. Kennedy, L. Sonderhouse, T. Bothwell,
+A. Goban, D. Kedar, C. Sanner, J. M. Robinson, G. E. Marti, D. G. Matei,
+T. Legero, M. Giunta, R. Holzwarth, F. Riehle, U. Sterr, and J. Ye, “Demon-
+stration of 4.8 × 10−17 stability at 1 s for two independent optical clocks,”
+Nature Photonics 13, 714–719 (2019).
+22P. A. Williams, W. C. Swann, and N. R. Newbury, “High-stability transfer
+of an optical frequency over long fiber-optic links,” J. Opt. Soc. Am. B 25,
+1284–1293 (2008).
+23C. E. Calosso, E. K. Bertacco, D. Calonico, C. Clivati, G. A. Costanzo,
+M. Frittelli, F. Levi, S. Micalizio, A. Mura, and A. Godone, “Doppler-
+stabilized fiber link with 6 dB noise improvement below the classical limit,”
+Opt. Lett. 40, 131–134 (2015).
+24B. Ning, D. Hou, T. Zheng, and J. Zhao, “Hybrid analog-digital fiber-based
+radio-frequency signal distribution,” IEEE Photonics Technology Letters
+25, 1551–1554 (2013).
+25K. G. H. Baldwin, Y . He, M. T. L. Hsu, M. J. Wouters, M. B. Gray, B. J.
+Orr, A. Luiten, S. Schediwy, J. Chow, D. A. Shaddock, G. Aben, P. T. H.
+Fisk, and R. B. Warrington, “Analog and all-digital frequency distribution
+via optical fiber links,” in Conference on Lasers and Electro-Optics 2012
+(Optica Publishing Group, 2012) p. CTh4A.2.
+26A. C. Cárdenas Olaya, S. Micalizio, M. Ortolano, C. E. Calosso, E. Rubi-
+ola, and J.-M. Friedt, “Digital electronics based on Red Pitaya platform for
+coherent fiber links,” in2016 European Frequency and Time Forum (EFTF)
+(2016) pp. 1–4.
+27A. Tourigny-Plante, V . Michaud-Belleau, N. Bourbeau Hébert, H. Berg-
+eron, J. Genest, and J.-D. Deschênes, “An open and flexible digital phase
+locked loop for optical metrology,” Review of Scientific Instruments 89
+(2018), 10.1063/1.5039344.
+28“Oscillator IMP project: https://github.com/oscimp/app, see directory red-
+pitaya/double_iq_pid_vco,” (2022).
+29S. Mukherjee, J. Millo, B. Marechal, S. Denis, G. Goavec-Mérou, J.-M.
+Friedt, Y . Kersalé, and C. Lacroûte, “Digital doppler-cancellation servo for
+ultrastable optical frequency dissemination over fiber,” IEEE Transactions
+on Ultrasonics, Ferroelectrics, and Frequency Control 69, 878–885 (2022).
+30A. C. Cárdenas-Olaya, A. Tampellini, E. Bertacco, C. Clivati, A. Mura,
+D. Calonico, S. Micalizio, and C. E. Calosso, “Digital instrumentation for
+phase-coherent frequency transfer over 300 km fiber link,” in 2019 Joint
+Conference of the IEEE International Frequency Control Symposium and
+European Frequency and Time Forum (EFTF/IFC)(2019) pp. 1–2.
+31E. Rubiola and F. Vernotte, “The companion of the Enrico’s chart for phase
+noise and two-sample variances,” (2022).
+32A low-noise version of Red Pitaya STEMlab 124-14 very recently became
+available, that claims improved linear voltage regulators.
+33Gooch & Housego T-M110-0.2C2J-3-F2S.
+34Golledge MP01327.
+7
+35“Oscillator IMP project, Digital PLL characterization:
+https://github.com/oscimp/digitalpllcharacterization,” (2022).
+36H. Jiang, Development of ultra-stable laser sources and long-distance op-
+tical link via telecommunication networks, Theses, Université Paris-Nord -
+Paris XIII (2010).
+37A. Bercy, Liens ultra-stables par fibres optiques : déploiement vers
+plusieurs utilisateurs distants, étude des limites fondamentales et tech-
+nologiques et nouvelles applications , Theses, Université Paris 13 - Sor-
+bonne Paris Cité (2015).
+38K. Manamanni, T. Steshchenko, F. Wiotte, R. L. Targat, M. Abgrall,
+O. Lopez, Étienne Cantin, P. Éric Pottie, A. Amy-Klein, V . Roncin, and
+F. Du-Burck, “Limitations due to residual interference in a fiber-based op-
+tical frequency reference at 1.55 µm,” (2022).

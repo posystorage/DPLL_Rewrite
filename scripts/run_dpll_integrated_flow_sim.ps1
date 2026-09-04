@@ -20,7 +20,7 @@ if ($LASTEXITCODE -ne 0) { throw 'generated DPLL build identity is stale' }
 
 Push-Location $RepoRoot
 try {
-    & $Vivado -mode gui -source $Tcl
+    & $Vivado -mode batch -source $Tcl
     if ($LASTEXITCODE -ne 0) { throw "Vivado simulation launch failed with exit code $LASTEXITCODE" }
 }
 finally {

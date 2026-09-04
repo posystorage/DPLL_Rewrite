@@ -18,6 +18,7 @@ arguments
     options.emulated_sample_rate_hz (1,1) double = 125e6
     options.cic_rate (1,1) double = 40
     options.source_chunk_length (1,1) double = 5e6
+    options.maximum_source_samples (1,1) double = inf
     options.source_sha256 (1,1) string = ""
     options.compute_source_sha256 (1,1) logical = true
 end
@@ -72,7 +73,8 @@ if data_bytes <= 0 || mod(data_bytes, bytes_per_time_sample) ~= 0
     error('reference_analysis:InvalidPciLength', ...
         'PCI data length does not match interleaved uint16 channels.');
 end
-source_count = data_bytes / bytes_per_time_sample;
+file_source_count = data_bytes / bytes_per_time_sample;
+source_count = min(file_source_count, floor(options.maximum_source_samples));
 expected_output_count = ceil(source_count / source_per_output);
 frontendOutput = zeros(expected_output_count, 1, 'int16');
 
@@ -169,6 +171,7 @@ metadata.datasetId = char(options.dataset_id);
 metadata.sourceFile = char(pci_path);
 metadata.sourceFileBytes = file_info.bytes;
 metadata.sourceChannel = options.channel_index;
+metadata.sourceFileTotalSampleCount = file_source_count;
 metadata.sourceSampleCount = source_count;
 metadata.sourceSampleRate = options.source_sample_rate_hz;
 metadata.sourceCodeFormat = '14-bit offset-binary, 0..16383';

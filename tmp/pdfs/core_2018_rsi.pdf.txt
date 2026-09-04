@@ -1,0 +1,620 @@
+An open and ﬂexible digital phase-locked loop for optical metrology
+This article may be downloaded for personal use only. Any other use requires prior permission of the author and AIP Publishing. This
+article appeared in Review of Scientiﬁc Instruments 89, 093103 (2018) and may be found at https://doi.org/10.1063/1.5039344
+An open and ﬂexible digital phase-locked loop for optical metrology
+Alex Tourigny-Plante,1 Vincent Michaud-Belleau, 1 Nicolas Bourbeau H´ ebert,1 Hugo Bergeron, 1
+J´ erˆ ome Genest,1, a) and Jean-Daniel Deschˆ enes1, 2, b)
+1)Centre d‘optique, photonique et laser, Universit´ e Laval, Qu´ ebec, QC, G1V 0A6,
+Canada
+2)OctoSig Inc. Qu´ ebec, Canada
+(Dated: 7 May 2018)
+This paper presents an open and ﬂexible digital phase lock loop optimized for laser stabi-
+lization systems. It is implemented on a cheap and easily accessible FPGA-based digital
+electronics platform (Red Pitaya) running a customizable open-source ﬁrmware. A PC-
+based software interface allows controlling the platform and optimizing the loop parameters
+remotely. Several tools are included to allow measurement of quantities of interest smoothly
+and rapidly. To demonstrate the platform’s capabilities, we built a ﬁber noise canceler over
+a 400 m ﬁber link. Noise cancellation was achieved over a 30 kHz bandwidth, a value limited
+mainly by the delays introduced by the actuator and by the round-trip propagation over
+the ﬁber link. We measured a total latency of 565 ns for the platform itself, limiting the
+theoretically achievable control bandwidth to approximately 225 kHz.
+I. INTRODUCTION
+The use of digital electronics for optical systems and
+servo loops is steadily gaining traction. For example,
+digital phase meters 1 are used for gravitational waves
+detection2–4 and digital phase-locked loops (DPLL) are
+deployed for frequency comb locking 5,6, Doppler cancel-
+lation in optical links7–9 as well as optical time transfer10.
+This is due to several advantages of digital servos such as
+software reconﬁgurability, easy replication and the pos-
+sibility of having advanced diagnostic tools 11.
+In applications where low latency and large control
+bandwidth are important, ﬁeld programmable gate ar-
+rays (FPGAs) appear as platforms of choice thanks to
+their intrinsically parallel and reconﬁgurable architec-
+ture. Digital platform can also directly track the phase
+of the signal instead of its trigonometric representation,
+which causes ambiguity (i.e. cos 2 π = cos 4π). This
+wider tracking possibility allows using tools to character-
+ize the external system even when the free running sys-
+tem has phase noise greater than the linear region of the
+trigonometric function. However, the complexities asso-
+ciated with designing and programming a mixed mode
+electronics board where fast analog signals are digitized,
+processed and re-generated in real time are however usu-
+ally not in a typical laser metrologist’s tool chest and
+the price of FPGA-based systems is often prohibitive.
+These constitute important entry barriers preventing de-
+ployment of powerful digital platforms to a wider set of
+optical applications.
+In this paper, we present an open DPLL platform built
+around the Red Pitaya, a cheap and easily accessible
+FPGA-based board12. The Red Pitaya can be purchased
+for a few hundred dollars, a fraction of what commer-
+cial analog lock boxes cost. The platform described here
+a)Electronic mail: jgenest@gel.ulaval.ca
+b)Electronic mail: octosigconsulting@gmail.com
+consists of a ﬁrmware installed on a Red Pitaya board as
+well as a Python-based PC graphical user interface (GUI)
+that remotely connects to boards in order to monitor
+and optimize the servo loop performance. The ﬁrmware
+and software are open-source and can be downloaded,
+along with the installation instructions and user guide,
+using the link in the references13. The software should be
+cross-platform, but the installation instructions are only
+provided for Windows and MacOSX.
+This work is based on the open-source design presented
+in5,14 now ported and adapted to Red Pitaya boards so
+that custom hardware is no longer required. An optional
+internal voltage-controlled oscillator (VCO) has also been
+added to facilitate the integration with common opti-
+cal components, for example the acousto-optic modula-
+tor (AOM) used to frequency-shift an optical ﬁeld in a
+ﬁber noise canceled link, as presented in section III. Al-
+though this platform is not limited to optical metrology,
+the tools described in section II were optimized with that
+application in mind since the residual phase is not as im-
+portant when dealing with much higher optical carrier
+frequencies (compared to RF signals) and since there is
+a stronger focus on lowering the cycle slip probability.
+For some applications, FPGA platforms can be highly
+optimized to perform a single task 7 while in other cases
+the goal is to oﬀer as many digital instruments as
+possible15,16. The platform presented here sits in be-
+tween these two extremes. The goal is to provide laser
+scientists with a straightforward access to a fast and ﬂexi-
+ble DPLL. With the design complexity tackled on generic
+oﬀ-the-shelf commercial electronics, the replication cost
+of this system is very low and the DPLL can easily be
+deployed in a variety of optical applications.
+II. FIRMWARE ARCHITECTURE
+Red Pitaya boards are based on a Xilinx Zynq 7010
+FPGA and are programmed using Vivado 2015.4 with
+a mix of VHDL and Verilog. The board is equipped
+arXiv:1804.01028v2  [eess.SP]  8 Jul 2019
+An open and ﬂexible digital phase-locked loop for optical metrology 2
+with two analog inputs and two analog outputs. The
+analog-to-digital and digital-to-analog converters (ADCs
+and DACs) have a resolution of 14 bits (a 10 bit version is
+also available and is compatible with the DPLL described
+here) and are, by default, driven by the same 125 MHz
+crystal that is clocking the FPGA. The Red Pitaya’s in-
+puts are equipped with 50 MHz low-pass anti-aliasing
+ﬁlters17. Each board can thus provide two DPLL that
+can be independent or interlinked, as described below.
+Figure 1 shows the complete representation of the
+DPLL architecture. For each channel, the signal is ac-
+quired by an ADC. Its in-phase and quadrature (I/Q)
+components are extracted via multiplication with the sine
+and the cosine of a reference signal whose frequency is de-
+ﬁned by a rational fraction on 48 bits chosen by the user
+(fref =k/248 ·fclk)18. The I/Q signals are low-pass ﬁl-
+tered digitally with a selectable bandwidth (3.75 MHz,
+15.5 MHz or 31 MHz). An arctangent operation is then
+used to extract the phase error and a diﬀerence of succes-
+sive phase measurements (numerical derivative) is used to
+alleviate dynamic range issues with the numerical repre-
+sentations in the FPGA since a phase ramp is unbounded
+while its derivative is bounded. The modulo [−π,π ] oper-
+ator handles the wrapping of the phase slope produced by
+the arctan. The phase increment signal is the input of the
+loop ﬁlter implementing a proportional/integral/double
+integral/derivative (PII2D) controller 19. The double in-
+tegrator term ensures a null static error even with the nu-
+merical phase derivative previously made. The resources
+usage for this platform is presented in table I.
+Resource Used Available
+Look-up table (LUT) 8449 17600
+LUT RAM 370 6000
+Flip-Flops (FF) 12505 35200
+Block RAM (BRAM) 53.50 60
+DSP Slices 69 80
+Global clock buﬀer (BUFG) 9 32
+Mixed-mode clock manager 1 2(MMCM)
+Phase-locked loop (PLL) 2 2
+TABLE I. Red Pitaya resources usage.
+The ADC chips used in the Red Pitaya have a nom-
+inal time-domain signal to noise ratio (SNR t) of 73 dB
+(compared to a theoretical 86 dB for 14 bits) but the
+overall performance of the Red Pitaya system with
+14 bits ADCs is a SNR t of 63 dB, corresponding to
+10.2 eﬀective number of bits (ENOB). The time domain
+SNRt is equivalent to the spectral SNR f in a band-
+width from 0 to fs/2. The spectral SNR f is the SNR
+seen with a bandwidth of BW Hz and is described by
+SNRf = SNRt + 10 log10( fs
+2BW ). For instance, when op-
+erating at a 125 MS/s sampling rate, this provides a SNR
+over 72 dB in a 7.5 MHz bandwidth, which is well above
+the SNR usually obtained in beats involving frequency
+combs20.
+The output of the loop ﬁlter is encoded into 16 bits.
+When the VCO is not connected, the 14 most signiﬁ-
+cant bits (MSBs) are directly sent to the 14-bit DAC
+and mapped to a voltage between −1 and +1 V at the
+SMA outputs. When the VCO is connected, the 16 bits
+are instead used to represent a frequency between 0 and
+the Nyquist frequency ( fs/2). The 16 bits are mapped
+such that 0 = 0 Hz and 2 16 − 1 = 62.5 MHz, correspond-
+ing to a gain of 31.25 MHz/V. Adding an oﬀset at the
+output via the control software allows adjusting the qui-
+escent frequency. The desired tone is generated using an
+internal direct digital synthesis (DDS) and this signal is
+sent to the DAC with a user selected amplitude and DC
+oﬀset.
+The addition of a dither signal allows for an easy char-
+acterization of the system to be controlled. The dither
+module generates a square wave with a selectable ampli-
+tude and frequency. This signal is added just after the
+loop ﬁlter’s output and thus it constantly excites the sys-
+tem being controlled. Lock-in detection 21 of this square
+wave at the input side of the module allows measuring
+the controlled system’s gain in Hz/V, including its sign.
+This gives the operator a constantly updated knowledge
+of the loop’s sign and is useful for performing loop tuning
+in relevant units.
+The loop ﬁlter parameters are user selectable in the
+GUI. The proportional gain ( kp) is deﬁned in dB rela-
+tive to the open-loop DC gain of the system ( kc), such
+that the linear gain is Kp = 10kp/20/kc. The integrator,
+double integrator and derivative are speciﬁed by their
+crossover frequencies,fi,fii andfd, respectively. The in-
+tegrator and the diﬀerentiator crossover frequencies can
+be deﬁned either by the 0 dB crossover or by the kp
+crossover. The double integrator crossover frequency is
+deﬁned by the intersection with the integrator. Finally,
+a ﬁrst-order ﬁlter implements a roll-oﬀ frequency for the
+diﬀerentiator (fd f). Table II presents the equations link-
+ing the loop ﬁlter gain values (Kp,Ki,Kii andKd) to the
+user settings and the system parameters. A factor 2 π/fs
+takes into account the fact that the numerical derivative
+and integrators are relative to the sampling frequency
+(fs).
+When including the previous numerical derivative, the
+PII2D controller in fact acts as a PIDD 2. For most
+systems being controlled, the double diﬀerentiator term
+would not be used and is normally turned oﬀ. However,
+this can be useful for example with a system containing
+two dominants ﬁrst order roll-oﬀs.
+Variable Relative to 0 dB Relative to Kp
+Kp 10k p/ 20 1
+k c
+Ki
+1
+k c
+fi
+2π
+f s
+Kp fi
+2π
+f s
+Kii Ki fii
+2π
+f s
+Kd
+1
+k c
+1
+f d
+f s
+2π Kp
+1
+f d
+f s
+2π
+D ﬁlter fdf
+2π
+f s
+TABLE II. Loop ﬁlter gain equations. kc: system open-loop
+DC gain, fs: sampling frequency (125 MHz)
+.
+Diagnostic information can be sent from the Red
+Pitaya to the PC-based control software. The spectrum
+An open and ﬂexible digital phase-locked loop for optical metrology 3
+FPGA
+Legend
+dθ
+ADC
+DifferentialPhaseExtraction
+Freq Counter Loop Filter  Dither  
+Mux
+Offset
+Mux
+ADC
+DAC
+VNA
+Differential Phase Extraction
+Arctan ModuloDiffθ
+I
+Q
+cos(2π t)fref
+sin(2π t)fref
+fref
+Loop Filter
+Mux
+K p
+K i
+s
+K d⋅s
+K ii
+s2
+Offset
+Mux
+Mux
+DAC
+Lock-in module 
+Dither
+VCO
+Freq counter 
+Offset
+ 
+Communicationfrom computer Communicationto computer Oscilloscope tocomputer 
+x
+x
+~
++
++
+++
+FIG. 1. Complete block diagram of the DPLL platform’s ﬁrmware. Red arrows represent the communication with the PC
+software and blue dots represent the test points at which signals can be shown in the PC software. The second channel is a
+duplicate of the ﬁrst. ADC: Analog-to-digital converter, MUX: Multiplexer, VNA: Vector network analyzer, VCO: Voltage-
+controlled oscillator, DAC: Digital-to-analog converter.
+of all signals represented by a blue dot in ﬁgure 1 can be
+computed and displayed in real-time in the GUI; tempo-
+ral representations are also available. Baseband compo-
+nents are represented in a conventional I/Q diagram for
+analysis at-a-glance while the phase and frequency noise
+power spectral density (PSD) and total integrated phase
+noise are also continuously updated. A zero dead-time
+frequency counter with a 1 second gate time allows mon-
+itoring and logging the lock’s long-term performance.
+A vector network analyzer (VNA) integrated to the
+platform makes the measurement of the system’s trans-
+fer function possible. Measurements of the magnitude
+and phase are displayed in the PC-based software, allow-
+ing for an easy tuning of the controllers, and data can
+also be exported for further analysis. When the internal
+VCO is used, its contribution is included in the measured
+VNA’s transfer function. Thus, the measured frequency
+response includes the contributions of the VCO, external
+setup and delays associated to the FPGA processing with
+an input calibrated in Hz and an output calibrated in V.
+Software controllable multiplexers allow using the
+FPGA in three diﬀerent control scenarios. First, the
+platform can operate as two independent control loops
+each using their own ADC, demodulation block, loop ﬁl-
+ter and DAC. For instance, one channel can be used to
+lock the carrier oﬀset of a frequency comb and the other
+to lock one comb tooth to a reference laser, as done by
+Sinclair et al. 5. A single Red Pitaya box can therefore
+fully reference a frequency comb. The only caveat in this
+mode is that only one VCO is available and thus only
+one of the channel can use it.
+The second control scenario consists in having two par-
+allel loops using only one input. In that case, both chan-
+nels share the same ADC and demodulation block. After
+the diﬀerential phase extraction, the error signal how-
+ever proceeds independently in the two distinct loop ﬁl-
+ters with potentially diﬀerent transfer functions. This
+allows controlling two diﬀerent actuators acting on the
+same system with diﬀerent frequency responses. For in-
+stance, one might want to close a loop with a fast but
+short-stroked piezoelectric actuator on one side and, on
+the other side, a slower actuator with longer stroke 5.
+In the third scenario, it is possible to seed the output
+of the ﬁrst channel to the input of the second ﬁlter loop.
+This conﬁguration can be used to maintain the output of
+the ﬁrst channel around a certain setpoint by controlling
+another actuator with the second channel. This method
+is used to stay in the active range of a fast actuator by
+relying on a slow actuator. For example, Sinclair et al.
+used a slow piezoelectric actuator to stay within the dy-
+namic range of a fast piezoelectric actuator 5.
+The whole system latency is τ = 407 ns (565 ns with
+the VCO), which limits the noise rejection bandwidth
+to approximately 1 /8τ = 300 kHz (225 kHz with the
+VCO). This estimation of the maximum bandwidth as-
+sumes that a loop is closed around a ﬁrst order system
+with π/4 of phase margin. Of the 407 ns latency, 207 ns
+comes from the demodulation process and the remaining
+comes from the loop-ﬁlter, ADC and DAC.
+The communication between the FPGA and the com-
+An open and ﬂexible digital phase-locked loop for optical metrology 4
+puter is made via a TCP connection controlled by the
+Python software. A notable feature of this updated ver-
+sion is the capability to disconnect the PC control soft-
+ware, allowing locks to operate in a standalone mode, and
+reconnect when supervision, data acquisition or modiﬁ-
+cations of the parameters are needed.
+III. FIBER NOISE CANCELER
+A ﬁber noise canceler (or Doppler canceler link) is a
+commonly used tool in optical frequency metrology7–9,22.
+Here, we used a Doppler cancellation link to validate the
+operation of the DPLL on the Red Pitaya platform and to
+demonstrate new features, such as the integrated VCO.
+Figure 2 shows the experimental setup used to achieve
+the stable transfer of a laser frequency to a remote loca-
+tion over a ﬁber link. In the chosen conﬁguration, part of
+the laser light reaching the remote site is reﬂected to the
+transmission site. This round-trip light thus experiences,
+at low frequencies, double the delay and double the phase
+ﬂuctuations imposed by the link on the transmitted sig-
+nal, as shown by Williams et al. 22. Compensation for the
+measured ﬂuctuations is done using an AOM fed by the
+Red Pitaya’s new feature, the VCO, which is controlled
+by the DPLL.
+Local site FPGA 
+Remote site
+Laser
+AOM 
+(+~27MHz) 
+98/2 
+Coupler
+90/10 
+Coupler
+50/50 
+Coupler
+Output 400m Delay
+PC
+ADC
+Differential 
+Phase
+Extraction
+Loop
+Filter
+VCODAC
+Ampliﬁer 
++ν0
+fref
+2
+Balanced
+photodetectorν0
+ν+fref0
+FIG. 2. Experimental setup for the ﬁber noise canceled
+link. Solid lines represent optical ﬁbers and dashed lines
+represent electrical interconnects. In our experimentation,
+fref = 54 M Hz. PC: polarization controller, AOM: acousto-
+optic modulator
+At the local site, the beat note between the local os-
+cillator (LO) and the reﬂected signal is fed to the DPLL.
+Its phase contains information about the ﬂuctuations in
+the link’s optical length that have to be corrected. As the
+nominal frequency of the AOM used here is 27 MHz, I/Q
+demodulation is performed with a reference frequency of
+54 MHz in order to extract the phase error. The out-
+put oﬀset is adjusted to set the quiescent frequency at
+27 MHz.
+In order to characterize the AOM used in the exper-
+iment, we measured its transfer function with a diﬀer-
+ent setup in which a beat between the input and output
+signals of the AOM was acquired. The resulting curve,
+displayed in blue in ﬁgure 3, represents the transfer func-
+106
+107
+108
+Gain [Hz/V]
+103 104 105 106
+Frequency [Hz]
+-40
+-30
+-20
+-10
+0
+Phase [rad]
+HAOM+VCO
+Hsys measured
+Hsys predicted
+FIG. 3. Transfer function of the AOM-VCO combination
+(blue) and the complete Doppler cancellation link (orange), as
+measured by the platform’s VNA. The AOM-VCO combina-
+tion transfer function (blue) is use to determine the complete
+theoretical transfer function (red). The complete experimen-
+tal transfer function (orange) matches the theoretical one.
+tion of the combination of AOM and VCO. The AOM’s
+latency, 1.5µs, was computed from the transfer function
+based on the approximation that it mainly acts as a delay
+in the frequency range of interest. Therefore, this delay is
+larger than the intrinsic FPGA’s latency and will always
+lead to a signiﬁcantly lower noise rejection bandwidth.
+Multiplying the AOM+VCO transfer function by the
+ﬁber optic delay and the cosine square shape of the dou-
+ble pass through the AOM leads to an excellent superpo-
+sition with the transfer function measured by the VNA
+for the system shown in ﬁgure 2. The ﬁrst zero of the
+cosine at 0.125 MHz is determined by the ﬁber link dif-
+ferential delay which is here 2.0µs (400 m). With a total
+eﬀective delay of 4.0µs (optical ﬁber 2.0µs, AOM 1.5µs
+and FPGA 0.5µs), the maximum achievable closed-loop
+bandwidth in this demonstration is thus 31 .25 kHz.
+When the lock is active, the VNA can still be used to
+output perturbations in the system in order to character-
+ize the closed-loop noise rejection, as shown in ﬁgure 4a).
+This ﬁgure displays the theoretical gain for uncorrelated
+distributed ﬁber noise at the remote link output, which is
+one of the noise our lock aims to cancel. To validate the
+model used to determine this transfer function, the ex-
+perimental and predicted transfer functions for the VCO
+noise at the local site are shown. This experimental curve
+was easier to obtain since it could be measured without
+the addition of external components as the VCO was the
+only actuator. However, one could use a diﬀerent chan-
+nel to control an actuator to introduce disturbance at
+another point in the system.
+A visual representation of the obtained PSD is given
+in ﬁgure 4b). This ﬁgure shows both closed-loop (purple
+curve) and open-loop (orange curve) PSDs at the remote
+site. In this ﬁgure, it is possible to observe that the sys-
+tem noise rejection bandwidth is around 30 kHz, which
+ﬁts with the expected maximum bandwidth. The PSDs
+presented here are the result of a beat between the laser
+and the remote signal. Therefore, the displayed interfer-
+ometric phase noise is necessarily lower than the laser’s
+An open and ﬂexible digital phase-locked loop for optical metrology 5
+phase noise below 1/(4τ)23. We can thus conclude that,
+after propagation in the Doppler-canceled link, the phase
+noise added by out-of-loop ﬁbers would be negligible with
+respect to laser phase noise.
+-100
+-80
+-60
+-40
+-20
+0
+20
+Gain [dB]
+(a)
+kp = -9.0 dB
+fi  =  1.5e3 Hz
+fii =  3.0e3 Hz
+fd =  
+∞ Hz
+Predicted fiber noise gain (remote)
+Predicted VCO noise gain (local)
+Measured VCO noise gain (local)
+101 102 103 104 105 106
+Frequency [Hz]
+10-12
+10-10
+10-8
+10-6
+10-4
+10-2
+Phase noise PSD [rad2/Hz]
+10-8
+10-6
+10-4
+10-2
+100
+Phase [rad]
+(b) Open-loop, estimated laser contribution
+Open-loop, measured
+Closed-loop, predicted from open-loop
+Closed-loop measured
+Estimated out-of-loop noise
+Closed-loop integrated phase noise
+FIG. 4. a) Predicted closed-loop transfer functions for various
+noises and disturbances present in the system. The built-in
+VNA was used to measure the noise rejection transfer function
+for noise injected at the local end of the link (yellow). The re-
+markable agreement with the prediction (orange) yields cred-
+ibility to other predictions based on the same set of estimated
+parameters. b) Comparison of the remote output phase noise
+PSD measured with an out-of-loop oscilloscope. The closed-
+loop prediction curve (yellow) is obtained by multiplying the
+open-loop phase noise PSD (orange) by the appropriate trans-
+fer functions, assuming that it is largely dominated by laser
+noise. A rough estimation of the out-of-loop noise (green)
+was performed by bypassing the 400 m delay to directly con-
+nect the AOM to the remote site. Obviously, this out-of-loop
+noise constitutes the main contribution to closed-loop noise
+below 1 kHz; since its level is lowered when we activate an
+anti-vibration table, we conclude that it is most likely due to
+residual building vibrations. The cumulative integrated phase
+noise (blue dots) is also shown.
+IV. CONCLUSION
+In summary, we have demonstrated the use of an
+open-source DPLL platform by performing an optical fre-
+quency transfer over a ﬁber noise canceled link. The tools
+available on this platform allow to simplify the analy-
+sis of the system by oﬀering an on-board VNA to mea-
+sure transfer functions and by providing various real-time
+quantities such as PSD, I/Q, spectrum, time signal, fre-
+quency error and loop ﬁlter’s transfer function. The dif-
+ferent tools and control scenarios allow the use of this
+cheap and accessible platform for several optical applica-
+tions. Since this platform is open source, we invite ev-
+eryone to contribute to its improvement, for example by
+minimizing the latency to increase the achievable locking
+bandwidth.
+V. ACKNOWLEDGEMENTS
+The authors want to thank the support from the
+Natural Sciences and Engineering Research Council of
+Canada(NSERC).
+1C. Wang and J. D. E. E.D. Burnham-Fay, Precision Engineering
+, 133 (2017).
+2D. Shaddock, B. Ware, P. G. Halverson, R. E. Spero, and
+B. Klipstein, AIP Conference Proceedings 873, 654 (2006),
+http://aip.scitation.org/doi/pdf/10.1063/1.2405113.
+3T. G. McRae, S. Ngo, D. A. Shaddock, M. T. L.
+Hsu, and M. B. Gray, Opt. Lett. 39, 1752 (2014),
+http://ol.osa.org/abstract.cfm?URI=ol-39-7-1752.
+4K.-S. Isleif, O. Gerberding, S. K¨ ohlenbeck, A. Sutton, B. Sheard,
+S. Goßler, D. Shaddock, G. Heinzel, and K. Danzmann, Opt.
+Express 22, 24689 (2014).
+5L. C. Sinclair, J.-D. Deschenes, L. Sonderhouse, W. C. Swann,
+I. H. Khader, E. Baumann, N. R. Newbury, and I. Cod-
+dington, Review of Scientiﬁc Instruments 86, 081301 (2015),
+http://dx.doi.org/10.1063/1.4928163.
+6M. Lezius, T. Wilken, C. Deutsch, M. Giunta, O. Mandel,
+A. Thaller, V. Schkolnik, M. Schiemangk, A. Dinkelaker, A. Ko-
+hfeldt, A. Wicht, M. Krutzik, A. Peters, O. Hellmig, H. Duncker,
+K. Sengstock, P. Windpassinger, K. Lampmann, T. H¨ ulsing,
+T. W. H¨ ansch, and R. Holzwarth, Optica 3, 1381 (2016).
+7A. C. C. Olaya, S. Micalizio, M. Ortolano, C. E. Calosso, E. Ru-
+biola, and J. M. Friedt, “Digital electronics based on red pitaya
+platform for coherent ﬁber links,” (2016).
+8S. Droste, F. Ozimek, T. Udem, K. Predehl, T. W. H¨ ansch,
+H. Schnatz, G. Grosche, and R. Holzwarth, Phys. Rev. Lett.
+111, 110801 (2013).
+9C. E. Calosso, C. Clivati, and S. Micalizio, IEEE Transactions
+on Ultrasonics, Ferroelectrics, and Frequency Control 63, 646
+(2016).
+10J.-D. Deschˆ enes, L. C. Sinclair, F. R. Giorgetta, W. C.
+Swann, E. Baumann, H. Bergeron, M. Cermak, I. Codding-
+ton, and N. R. Newbury, Phys. Rev. X 6, 021016 (2016),
+https://link.aps.org/doi/10.1103/PhysRevX.6.021016.
+11C. E. Calosso, E. Bertacco, D. Calonico, C. Clivati, G. A.
+Costanzo, M. Frittelli, F. Levi, A. Mura, and A. Godone, Opt.
+Lett. 39, 1177 (2014).
+12Instrumentation Technologies LLC, “Red Pitaya,” https://
+redpitaya.com/about-us/ ().
+13Jean-Daniel Deschenes, “Digital PLL code base,” https://
+github.com/jddes/Frequency-comb-DPLL.
+14J.-D. Deschenes, L. Sinclair, N. R. Newbury, and
+I. Coddington, “Fpga-based digital control box for phase
+stabilization of a frequency comb (NIST version),”
+https://www.nist.gov/services-resources/software/
+fpga-based-digital-control-box-phase-stabilization-
+frequency-comb.
+15Liquid Instruments, “Moku:Lab,” http://www.
+liquidinstruments.com/.
+16L. Neuhaus, R. Metzdorﬀ, S. Chua, T. Jacqmin, T. Briant,
+A. Heidmann, P. F. Cohadon, and S. Delglise, “Pyrpl (python
+red pitaya lockbox) x2014; an open-source software package for
+fpga-controlled quantum optics experiments,” (2017).
+17Instrumentation Technologies LLC, “Red Pitaya documenta-
+tion,” http://redpitaya.readthedocs.io/en/latest/ ().
+An open and ﬂexible digital phase-locked loop for optical metrology 6
+18J. A. Webb, “Digital quadrature demodulator,” (1978), uS
+Patent 4,090,145.
+19K. H. Ang, G. Chong, and Y. Li, IEEE transactions on control
+systems technology 13, 559 (2005).
+20J.-D. Deschˆ enes and J. Genest, Opt. Express23, 9295 (2015).
+21J. H. Scoﬁeld, American Journal of Physics 62, 129 (1994),
+https://doi.org/10.1119/1.17629.
+22P. A. Williams, W. C. Swann, and N. R. New-
+bury, J. Opt. Soc. Am. B 25, 1284 (2008),
+http://josab.osa.org/abstract.cfm?URI=josab-25-8-1284.
+23V. Michaud-Belleau, H. Bergeron, P. S. Light, N. B. Hbert, J. D.
+Deschnes, A. N. Luiten, and J. Genest, Metrologia 53, 1154
+(2016).

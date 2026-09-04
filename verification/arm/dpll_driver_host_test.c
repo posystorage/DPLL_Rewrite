@@ -245,14 +245,15 @@ static int test_validation_and_profiles(void)
         CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(centers[index]), &profile) ==
               DPLL_DRIVER_OK);
         CHECK(profile.cic_r >= 8U && profile.cic_r <= 16U);
-        CHECK(profile.track_cutoff_hz <= profile.acquire_cutoff_hz);
+        CHECK(profile.track_cutoff_hz > 0U);
     }
     CHECK(dpll_compute_filter_profile(center_word_hi_for_hz(22000U), &profile) ==
           DPLL_DRIVER_OK);
-    CHECK(profile.cic_r == 16U && profile.cic_shift == 8U);
+    CHECK(profile.cic_r == 16U && profile.cic_shift == 9U);
     CHECK(profile.kp_track == 6000000 && profile.ki_track == 180000);
+    CHECK(profile.kp_blend == 375000);
     CHECK((uint32_t)profile.acquire_b0 == 0x003E186BU);
-    CHECK((uint32_t)profile.track_a2 == 0x3A6F075AU);
+    CHECK((uint32_t)profile.track_a2 == 0x2C7A00DCU);
     return 0;
 }
 

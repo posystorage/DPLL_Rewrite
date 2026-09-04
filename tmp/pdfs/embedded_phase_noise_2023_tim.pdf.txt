@@ -1,0 +1,1356 @@
+1
+Embedded digital phase noise analyzer
+for optical frequency metrology
+Simone Donadello ∗, Elio K. Bertacco, Davide Calonico and Cecilia Clivati
+Abstract—Digital signal processing (DSP) is supporting novel
+in-field applications of optical interferometry, such as in laser
+ranging and distributed acoustic sensing. While the highest
+performances are achieved with field-programmable gated ar-
+rays (FPGAs), their complexity and cost are often too high
+for many tasks. Here, we describe an alternative solution for
+processing optical signals in real-time, based on a dual-core 32-bit
+microcontroller. We implemented in-phase and quadrature (IQ)
+demodulation of optical beat-notes resulting from the interference
+of independent laser sources, phase noise analysis of deployed
+optical fibers covering intercity distances, and synchronization
+of remote acquisitions via optical trigger signals. The embedded
+architecture can efficiently accomplish a large variety of tasks
+in the context of optical signal processing, being also easily
+configurable, compact and upgradable. These features make
+it attractive for applications that require long-term, remotely-
+operated, and field-deployed instrumentation.
+Index Terms—Digital signal processing (DSP), embedded sys-
+tem, frequency metrology, laser interferometry, lock-in amplifier,
+optical fiber sensing, phase measurement.
+I. I NTRODUCTION
+I
+N RECENT years, coherent optical technologies are finding
+a growing number of applications outside the laboratories
+where they were first developed: optical clocks emerged as
+promising quantum sensors for probing the gravitational po-
+tential [1], [2]; optically coherent frequency combs suitable
+for in-field operation have been developed [3], with applica-
+tions to environmental gas-sensing [4], high-resolution ranging
+[5], [6], and transportable clock comparison [7]; coherent
+interferometry of narrow-linewidth lasers on deployed optical
+cables proved to be a powerful tool for the remote distributed
+sensing of geophysical signals, opening new possibilities for
+the study of Earth dynamics [8], [9], with prospects of a future
+integration on data transmission networks [10], [11]; finally,
+highly coherent laser sources in trusted communication nodes
+could improve the performances of advanced, quantum-secure
+communication protocols [12].
+Many of these applications require high-resolution and
+coherent measurements of the optical signal phase. While this
+is an easy task in a laboratory equipped with commercial
+instruments like frequency counters or phase noise analyzers,
+the development of portable, reconfigurable, and scalable mea-
+surement setups equipped with remote control and alert sys-
+tems is critical for in-field applications. Digital electronics and
+software-defined radio (SDR) greatly support this challenge,
+The authors are with the Quantum Metrology and Nanotechnologies Divi-
+sion, at INRIM – Istituto Nazionale di Ricerca Metrologica, 10135 Torino,
+Italy.
+∗Corresponding author: Simone Donadello.
+Published version DOI: 10.1109/TIM.2023.3288255
+fulfilling sophisticated and time-critical tasks, and allowing
+preliminary signal processing onboard, before relevant data are
+transferred to remote control units at suitably reduced rates.
+So far, custom platforms based on field-programmable gate
+arrays (FPGAs) emerged as the best solutions for these tasks,
+with many applications in the context of optical frequency
+metrology [13], [14], [15]. Nevertheless, their high cost and the
+complexity associated to the board configuration makes them
+a not obvious nor optimal choice in many cases, especially
+when compared to more affordable and practical architectures
+[16], [17], [18].
+Here we describe another approach, that makes use of
+a microcontroller unit (MCU) to implement optical phase
+measurements, based on the heterodyne demodulation scheme
+inherited from digital lock-in amplifiers [19], [20], [21]. The
+platform is based on the affordable yet high-performance
+STM32H7 unit, with dual-core 32-bit ARM architecture and
+integrated analog-to-digital converters (ADCs). Custom elec-
+tronics and firmware were developed to realize a compact
+low-cost phase noise analyzer, with reconfigurable bandwidth
+and sampling rate. The optimized algorithm implements in-
+phase and quadrature (IQ) phase detection. Carrier frequency
+and amplitude of radio frequency (RF) signals can be mea-
+sured with high-resolution, at output data rates up to 20 kHz.
+The system is clocked with a stable quartz reference, and
+it includes synthesizers, digital-to-analog converters (DACs)
+and direct digital synthesizers (DDSs) for signal conditioning,
+resulting in a fully-embedded stand-alone remote measurement
+unit.
+Important features have been developed for the realiza-
+tion of long-term experiments with real-time acquisitions.
+In particular, we focused on developing a platform suitable
+for the frequency comparison of laser sources with spectral
+separation up to a few gigahertz, possibly varying over time,
+and the analysis of phase noise accumulated by a coherent
+signal as it travels a long-haul fiber. We implemented routines
+for synchronizing remote acquisitions within microseconds,
+suppressing common-mode noise processes. Our digital signal
+processing (DSP) solution addresses the typical challenges
+encountered in the processing of coherent optical signals,
+with proper handling of the amount of phase noise entering
+the demodulation steps, and combining high data rates with
+flexible and lightweight firmware algorithms.
+II. S YSTEM ARCHITECTURE
+A. Electronics and MCU
+Our digital phase analyzer is implemented on a dual-core
+MCU from the STM32 series (STM32H745, STMicroelectron-
+ics), based on ARM Cortex central processing units (CPUs)
+arXiv:2302.03599v2  [eess.SP]  5 Aug 2023
+2
+DMA
+PLL
+UARTSPI
+shared memory
+CPU2
+ARM Cortex M4
+peripheral management
+CPU1
+ARM Cortex M7
+demodulation and DSP
+DMA
+240 MHz
+480 MHz
+4 MHz
+microcontroller unit
+DDS
+synthesizer
+1 MHz
+OCXO
+voltage
+reference
+ADC DAC
+10 MHz
+10 MHz
+output data
+and control 
+ADC
+500 MHz
+DAC
+OCXO adjust
+input oﬀset
+input
+oﬀset
+× 15
+drift
+correction
+fdrift
+mixer local oscillator fLO
+fLO
+low-
+pass
+35 MHz / 4 GHz
+analog signal
+clock signal
+digital signal
+input
+RF signal
+CRC
+down-
+conversion
+mixer
+ampliﬁcation stage
+USB
+Fig. 1. Scheme of the acquisition system based on a dual-core microcontroller and its peripherals; the main elements of the input signal conditioning stage
+and other onboard components are also reported.
+with M7 and M4 32-bit architectures (CPU1 and CPU2 re-
+spectively). A custom printed circuit board (PCB) has been de-
+signed as a shield for the MCU development board NUCLEO-
+H745ZI-Q. The PCB includes the conditioning electronics for
+the input analog signals, as well as all the components required
+for the embedded system functioning. The electronic scheme
+of the microcontroller with its internal and external peripherals
+is sketched in Fig. 1.
+The MCU includes 3 multi-channel ADCs, having 16-bit
+nominal resolution and 12.2 effective number of bits (ENOB).
+The input signal is acquired using a fast ADC channel operated
+at 14-bit, which allows a maximum sampling rate of 5 MHz.
+To match the input bandwidth requirements, the signal to
+be measured is down-converted to the nominal frequency
+ν0 = 1 MHz using an external frequency mixer in combination
+with a low-pass filter (LPF) with 1.9 MHz cutoff. The RF
+signal is amplified and brought to the ADC voltage range
+of 0 V to 2.5 V using a bipolar operational amplifier in non-
+inverting configuration (AD8027, Analog Devices), with fixed
+gain 15, bandwidth from 0 MHz to 8 MHz, and configurable
+voltage offset. This ADC input amplification scheme allows
+to acquire signals with different polarizations and frequencies,
+useful for debugging and general-purpose applications. For
+instance, when the external mixer is removed, this scheme
+also supports low-noise direct-coupling (DC) measurements.
+The local oscillator (LO) signal for the frequency mixer
+is either generated by an embedded synthesizer (ADF4351,
+Analog Devices) in the range from 35 MHz to 4.4 GHz, or
+by a DDS (AD9912, Analog Devices) whose frequency is
+programmed with 48-bit resolution by the MCU via Serial
+Peripheral Interface (SPI). This ensures on one side a broad-
+band operating range for the input signal, and on the other
+the possibility of slowly tracking its low-frequency drifts by
+finely adjusting the DDS tuning word.
+A 10 MHz oven-controlled crystal oscillator (OCXO) is
+integrated on the custom shield as the master clock source
+for the MCU and the other components. A good clock source
+is crucial for a high-performance phase measurement system.
+The chosen OCXO (HCD660/FTFN, Golledge) is character-
+ized by 2 × 10−10 aging per day, short term stability better
+than 1 × 10−12 (Allan deviation at 1 s), and phase noise lower
+than −155 dBc/Hz above 1 kHz. The MCU clock signals
+are generated from the 10 MHz reference using the internal
+phase-locked loops (PLLs). These include the 480 MHz clock
+of CPU1 and the 240 MHz clock for CPU2. A synchronous
+4 MHz clock is generated by a MCU hardware timer, and used
+to trigger the ADC acquisition. The synthesizer at the input
+down-conversion stage is also referenced to the same OCXO,
+while the DDS is clocked at 500 MHz by the synthesizer.
+An external 10 MHz source can be provided for applications
+demanding a common clock architecture or higher accuracy,
+replacing the OCXO in all the above-mentioned tasks.
+A 16-bit DAC (AD5686, Analog Devices) is used to gener-
+ate the reconfigurable voltage offset for the signal conditioning
+stage, and to fine-adjust the OCXO frequency through its ded-
+icated tuning voltage input. The latter is used to compensate at
+the sub-mHz level the OCXO frequency offset and the quartz
+aging relatively to a reference oscillator.
+The board is powered with ±15 V and cooled with forced
+air flow. A low-noise precision voltage source at Vref = 2.5 V
+(MAX6225-AE, Maxim Integrated) is used as analog reference
+for the DAC and the MCU internal ADCs. Other sensors
+can be connected to the MCU shield by means of SPI, such
+as accelerometers and temperature sensors used to monitor
+the measurement environment conditions. Additional ADC
+channels can be used to acquire other experimental parameters
+at lower frequencies.
+The MCU firmware is programmed in C language, ex-
+3
+ploiting the STM32 HAL and Low-Layer libraries. The dual-
+core architecture of the microcontroller is organized with
+the high-speed CPU1 being used for the computationally-
+demanding DSP operations to be performed in real-time.
+These include ADC readout, IQ demodulation, digital filtering,
+and decimation to lower sampling rates. The computational
+cost is reduced by taking advantage of the direct memory
+access interface (DMA) for data transfer between the inter-
+nal peripherals, which can operate without consuming CPU
+resources. Moreover, the data and instruction cache embedded
+in the MCU, in conjunction with a careful optimization of
+the firmware loops, reduces the memory access time while
+processing data. Finally the 32-bit floating-point unit (FPU)
+allows faster calculations, with many floating-point operations
+being performed as single CPU cycles.
+After decimation, the processed data are transferred to
+CPU2 exploiting a shared memory region and hardware
+semaphores. That secondary processor is dedicated to the
+continuous data streaming toward a computer unit, used for
+data storage. The connection is obtained with a universal
+asynchronous receiver-transmitter (UART) serial interface via
+Universal Serial Bus (USB) at 4 Mbit s−1 baud rate. Data
+consistency is checked by means of the cyclic redundancy
+check (CRC) internal peripheral. CPU2 is dedicated also to the
+general system management: it parses the commands received
+from the computer to configure and control the acquisition,
+and it manages the external peripherals connected to the board
+via SPI. Operation priorities are managed by means of MCU
+hardware interrupts.
+B. Digital signal processing
+1) Phase demodulation: The input signal phase is pro-
+cessed exploiting the IQ demodulation technique. This is
+a common approach to phase detection in digital systems,
+typically implemented on FPGAs to process the RF signals
+acquired with fast ADCs [22], [23], [24]. However, some
+algorithm optimizations have to be considered to maintain
+good performances also on a resource-limited MCU such as
+in our case [25], [26], [27], [28].
+It is useful to first recap a few general concepts that will
+help to illustrate our DSP operation. First, consider the general
+case of a RF voltage signal V (t) at time t, characterized by
+nominal frequency ν0, and time-varying amplitude As(t) and
+phase ϕ(t), expressed as
+V (t) = As(t) sin(2πν0t + ϕ(t)) . (1)
+Time-dependent fluctuations of the signal phase give rise to
+deviations of the instantaneous carrier frequency ν(t) from the
+nominal value ν0, and are the primary information of interest
+in our context, thus
+∆ν(t) = ν(t) − ν0 = 1
+2π
+dϕ(t)
+dt . (2)
+The two notations will be indifferently adopted throughout the
+text.
+In a phase-sensitive detector, the input signal is demodulated
+by mixing to the in-phase and quadrature references rI(t) and
+rQ(t), here conveniently taken at frequencyν0 and with unitary
+amplitude
+rI(t) = cos(2πν0t) (3a)
+rQ(t) = sin(2πν0t) . (3b)
+The mixed signals are low-pass filtered with transfer function
+HLPF and cutoff frequency fBW, to extract the IQ components:
+I(t) = HLPF{rI(t)V (t)} = 1
+2 As(t) cos(ϕ(t)) (4a)
+Q(t) = HLPF{rQ(t)V (t)} = 1
+2 As(t) sin(ϕ(t)) . (4b)
+The filter suppresses the higher-order frequencies, and deter-
+mines the demodulation bandwidth. The signal amplitude and
+phase are then calculated as
+As(t) = 2
+p
+I2(t) + Q2(t) (5a)
+ϕ′(t) = arctan2(Q(t), I(t)) . (5b)
+It is worth to notice that ϕ′(t) is a wrapped version of the
+original phase ϕ(t), since the domain of the four-quadrant
+inverse tangent function is defined between −π and +π.
+These same steps are implemented in our MCU firmware,
+as shown in Fig. 2(a). When the signal V (t) is sampled by the
+ADC at frequency fsmp, the previous relations remain valid at
+discrete instants n/fsmp, with n integer, thus
+V [n] = As[n] sin(2πν0n/fsmp + ϕ[n]) . (6)
+The IQ references are generated numerically, hence driven by
+the OCXO clock and the MCU PLLs, such that
+rI[n] = cos(2πν0n/fsmp) (7a)
+rQ[n] = sin(2πν0n/fsmp) . (7b)
+The LPF with cutoff fBW has been implemented as a finite
+impulse response (FIR) filter. Although its higher computa-
+tional cost, only partially mitigated by the MCU cache and
+FPU, the choice of a FIR filter over a infinite impulse response
+(IIR) one is mainly justified by its linear phase response:
+this is a key feature for accurate phase measurements without
+distortion. Moreover, due to absence of feedback, the intrinsic
+stability of FIR filters makes them the optimal solution for
+reliable acquisitions, avoiding effects of self-oscillations and
+coefficient quantization errors.
+With a FIR implementation, the filtered signal becomes
+a weighted sum of N + 1 terms, with N the filter order,
+and the weight coefficients defining the frequency response.
+Consequently, the algorithm complexity can be reduced by
+exploiting the system linearity, specifically by combining
+the LPF transfer function HLPF with the reference mixing
+operation in (4). This means that the demodulation of the
+signal components I[n] and Q[n] can be performed with single
+4
+acquisition trigger
+and synchronization
+input RF signal
+carrier ν0: 1 MHz
+bandwith: 1.9 MHz
+incremental phase
+unwrapping
+maximum frequency
+deviation: fint/2
+IQ demodulation +
+LPF + decimation
+fint: 10 kHz / 200 kHz
+fBW: 1.25 kHz / 25 kHz
+output data
+transmission
+      resolution: 32-bit
+      resolution: 16-bit
+frequency drift 
+correction
+(a)
+ADC sampling
+rate fsmp: 4 MHz
+range: 0 V / 2.5 V
+resolution: 14-bit
+decimation
+fout: 500 Hz / 20 kHz
+signal phase 
+and amplitude
+resolution: 32-bit ﬂoat
+0
+2signal / V
+(b) sampling
+V (t)
+0 1 2 3 4
+time / ν−1
+0
+−1
+0
+1
+reference
+rI(t)
+rQ(t)
+0
+20φ / rad
+(c) phase unwrapping
+wrapped unwrapped ±π
+0 50 100 150 200
+time / f −1
+int
+−10
+0
+10
+δφ / rad
+Fig. 2. (a) Scheme of the main DSP steps implemented in the microcontroller firmware for signal demodulation. (b) Sketch of the sampled input signal,
+demodulated relatively to internal IQ references. (c) Sketch of phase unwrapping to reconstruct the original absolute phase.
+FIR filtering operations, having transfer functions HI and HQ
+respectively, such that
+I[n] = HI{V [n]}
+=
+NX
+i=0
+hI[i]V [n − i] = 1
+2 As[n] cos(ϕ[n]) (8a)
+Q[n] = HQ{V [n]}
+=
+NX
+i=0
+hQ[i]V [n − i] = 1
+2 As[n] sin(ϕ[n]) . (8b)
+Exploiting symmetry properties, the demodulation filter coef-
+ficients hI[i] and hQ[i] are calculated as the product between
+the LPF coefficients hLPF[i] and the references rI[i] and rQ[i],
+respectively:
+hI[i] = rI[i]hLPF[i] (9a)
+hQ[i] = rQ[i]hLPF[i] . (9b)
+It is worth to notice that, although sharing the same LPF co-
+efficients and frequency response, characterized by bandwidth
+fBW and center frequency ν0, the combination of filtering with
+IQ reference mixing allows to discriminate the two orthogonal
+signal components, shifted by fsmp/4ν0 samples. Compared to
+independent mixing and filtering, this demodulation approach
+requires fewer real-time computations for each sample.
+Considering that the IQ components are limited to a band-
+width fBW, they can be decimated without aliasing down to
+a reduced rate fint > 2fBW. Therefore only one sample every
+fsmp/fint needs to be processed, effectively reducing the data
+rate and CPU load. Amplitude As[n] and wrapped phase ϕ′[n]
+are then calculated at the intermediate rate fint using (5).
+The algorithm is further optimized by choosing
+fsmp = 4ν0 . (10)
+In fact, as it can be seen from (7) and Fig. 2(b), in this case half
+of the IQ coefficients are equal to zero. This means that the
+actual computational cost is halved, or that the filter order of
+HI and HQ can be doubled for a given CPU clock frequency.
+2) Phase unwrapping: Following the arctan2 function
+definition, ϕ′[n] wraps with ±2π jumps when the signal
+phase exceeds the ∓π domain bounds [29]. An unwrapping
+algorithm is required to recognize and compensate such phase
+discontinuities, recovering the continuous phase as sketched
+in Fig. 2(c).
+The processing is performed on the phase increments,
+calculated from the absolute phase values:
+δϕ′[n] = ϕ′[n] − ϕ′[n − 1] . (11)
+Phase wraps can be detected by searching for values of
+wrapped phase increments δϕ′[n] larger than ±π. Conse-
+quently, the unwrapped phase increments δϕ[n] can be recon-
+structed:
+
+
+
+δϕ′[n] > +π : δϕ[n] = δϕ′[n] − 2π
+−π ≤ δϕ′[n] ≤ +π : δϕ[n] = δϕ′[n]
+δϕ′[n] < −π : δϕ[n] = δϕ′[n] + 2π .
+(12)
+The absolute phase can be retrieved by integration as
+ϕ[n] =
+nX
+i=1
+δϕ[i] . (13)
+Nonetheless the samples are always treated in terms of phase
+increments during the whole DSP process, since the absolute
+5
+phase could accumulate rapidly to big values, and floating-
+point variables with 32-bit resolution would loose precision
+soon. On the contrary, phase increments are confined within
+the ±π interval.
+Considering that unwrapping is performed for each new
+value of δϕ′[n] at the intermediate frequency fint, from (2)
+it follows that the instantaneous frequency deviation from the
+nominal carrier ν0 is proportional to the unwrapped incremen-
+tal phase δϕ[n], thus
+∆ν[n] = ν[n] − ν0 = δϕ[n] fint
+2π . (14)
+In applications where optical signals are affected by phase
+noise processes, it is critical to preserve the coherence of
+the accumulated phase [30]. This can be broken by two
+distinct effects which are addressed in the following. First
+of all, big instantaneous frequency deviations, giving rise to
+|δϕ[n]| > π, can be mistakenly interpreted as phase wraps and
+cause aliasing. The maximum frequency deviation that can be
+unwrapped without ambiguity is
+∆νmax = ± fint
+2 . (15)
+Phase undersampling can be avoided by increasing fint. How-
+ever the intermediate frequency is typically limited by the
+computational power of the processing unit. A good demod-
+ulation filtering stage which attenuates the high frequency
+components can mitigate the aliasing effects.
+Another aspect that can cause phase unwrap failures is
+phase noise. In fact, high noise levels added to the original
+signal will cause wrong unwrap events. A solution would
+be a narrower demodulation bandwidth to suppress a wider
+part of the noise spectrum. On the other hand, fBW must
+be chosen depending on the actual signal dynamics: if the
+demodulation filter band is too narrow, the demodulated signal
+can be distorted. Moreover, narrower filtering requires higher
+filter orders: at finite computational power this can be achieved
+only at lower fint values. Therefore a compromise between this
+and the previous limits must be taken into account.
+3) Data decimation: Although phase unwrapping must be
+performed at high rate to avoid aliasing, the required output
+data rate and measurement bandwidth are typically much
+lower than fint, which can be of the order of several tens of
+kHz. Therefore, after demodulation and phase unwrapping,
+amplitude and incremental phase are further decimated to
+frequency fout by applying an anti-aliasing FIR filter, and by
+taking one sample every fint/fout. The decimated data are then
+packed into chunks of samples, and transmitted to the control
+computer. Time consistency of samples is guaranteed by the
+OCXO clock over all the DSP steps.
+4) Acquisition trigger: The MCU supports external trigger-
+ing through a digital input assigned to a hardware interrupt
+that starts the acquisition. Nevertheless some applications
+require synchronous acquisitions at remote locations, without
+a direct access to the trigger signal: to meet this requirement,
+we enabled the system to accept trigger signals encoded as
+specific modulation patterns onto the acquired signal. A dedi-
+cated firmware routine manages the acquisition start: initially
+the demodulation process is kept running in an idle state,
+where either amplitude or phase are continuously sampled
+and compared with the required trigger level at rate fint; the
+actual data transmission, hence the acquisition timescale, is
+started only when the trigger condition is met. Therefore,
+the acquisition timescales of independent boards measuring a
+common signal can be synchronized, with a maximum relative
+delay of ±1/fint given by the condition check rate.
+5) Drift correction: Our implementation of IQ demodu-
+lation operates with a digital heterodyne reference, fixed by
+the OCXO clock. If the carrier frequency of the input signal
+differs significantly from the nominal value ν0 or changes over
+time, namely by more than a quantity fBW, it can exceed
+the demodulation filter band, and the acquisition fails. To
+avoid this, a digital proportional-integral-derivative controller
+(PID) is implemented in the MCU firmware to track and
+compensate in real-time the slow carrier drifts. The PID takes
+as input the demodulated frequency deviation passed through
+an appropriate LPF, and it adjusts the DDS tuning word at
+frequency fdrift. This can be used as negative feedback to drive
+either the LO of the input down-conversion mixer or, e.g., an
+external modulator that actually shifts the carrier frequency.
+The original signal frequency can be reconstructed determin-
+istically in post-processing by combining the measurements
+with the recorded fdrift values.
+C. System configuration
+1) DSP parameters: The carrier center frequency is de-
+signed as ν0 = 1 MHz. This is a compromise between the
+maximum ADC sampling rate and the DSP capabilities on
+one hand, and the lower electronic noise affecting the high-
+frequency spectrum. Higher central frequencies also enable
+wider dynamic ranges to be correctly demodulated. Following
+(10), the ADC sampling is triggered by an internal hardware
+timer at fsmp = 4ν0 = 4 MHz.
+The demodulation FIR filter is obtained combining a low-
+pass Hamming window with the IQ references, skipping the
+samples corresponding to FIR coefficients equal to zero. An
+example is shown in Fig. 3(a). The filter order is limited by
+the MCU speed, with 8fsmp/fint filter coefficients. The filter
+bandwidth is designed as fBW = fint/8. Different configu-
+rations, corresponding to fint between 10 kHz and 200 kHz,
+are pre-loaded in the MCU memory, to allow on-the-fly
+reconfiguration of the demodulation stage via software. Ex-
+amples of filter magnitude responses are reported in Fig. 3(b).
+The optimal configuration in terms of dataflow processing
+stability and phase unwrap efficiency is typically obtained for
+fint = 100 kHz.
+The coefficients of the FIR LPF for the output data dec-
+imation to rate fout are calculated considering an Hamming
+window, with 12fint/fout coefficients, and bandwidth close to
+fout/3, optimized to reduce aliasing due to side-lobes of the
+filter transfer function. The coefficients are pre-calculated for
+fout between 500 Hz and 20 kHz.
+The LPF for the frequency drift correction is a first-order
+IIR kind. The filter and PID parameters can be configured
+by software, depending on the drift dynamics. The cutoff
+frequency is typically kept very low in order not to interfere
+with the signal high-frequency components of interest.
+6
+0 40 80 120 160
+coeﬃcient number
+−0.02
+−0.01
+0.00
+0.01
+0.02
+ﬁlter coeﬃcient
+fint = 200 kHz, fBW = 25 kHz
+(a)
+hI[i] in-phase
+hQ[i] quadrature
+Hamming window
+0.00 0.25 0.50 0.75 1.00 1.25 1.50 1.75 2.00
+frequency / MHz
+10−8
+10−6
+10−4
+10−2
+100
+magnitude response
+(b)
+fint = 200 kHz, fBW = 25 kHz
+fint = 10 kHz, fBW = 1.25 kHz
+Fig. 3. (a) Example of coefficients for IQ demodulation and filtering. (b)
+Frequency response of the demodulation filter for two intermediate frequency
+values.
+2) Synchronization: In the case of synchronization of re-
+mote systems, with the trigger event being encoded on the
+signal to be measured, the choice of fint impacts on the
+achievable synchronization resolution. Therefore during the
+triggering procedure fint is set at the highest possible value,
+i.e. fint = 200 kHz. In this configuration, the maximum jitter
+between independent trigger instances is ±5 µs. Assuming
+an uniform uncertainty distribution, the expected standard
+deviation over the initial timescale is σsync ∼ 3 µs.
+After the trigger event is detected, each board switches to
+the desired fint value and starts the acquisition. The loss of
+synchronization will depend solely on the frequency offset
+and drift for the independent clock sources, mostly due to
+temperature fluctuations and quartz aging. A firmware routine
+is dedicated to resynchronize the acquisitions on-the-fly, with
+a small latency of about 110 µs. The routine combines the
+trigger detection with a measurement of the relative delay ac-
+cumulated since the last resynchronization event. This allows
+to compensate for the oscillator frequency fluctuations, fine-
+tuning the OCXO adjust voltage on a daily timescale.
+The residual delay accumulated by the independent OCXOs
+can be estimated assuming a linear fractional frequency drift,
+which has been measured to be D ∼ 2 × 10−13 s−1. Accord-
+ingly, the time interval after which the cumulative clock delay
+reaches the time accuracy of σsync is
+p
+2σsync/D ∼ 5000 s.
+This means that performing a resynchronization procedure ev-
+ery hour is sufficient to maintain the timescales synchronized
+to within σsync.
+3) Numerical resolution: Before unwrapping, δϕ′
+m[n] is
+defined between −2π and +2π. This means that the numerical
+resolution for calculations with 32-bit floating-point variables
+is always better than 0.5 µrad. This corresponds to a frequency
+resolution of 8 mHz at the typical intermediate frequency
+fint = 100 kHz, stressing that this is a conservative estimation
+related to big ∆ν values. Amplitude is defined between 0 V
+and Vref/2 = 1.25 V, hence its 32-bit floating-point numerical
+resolution is better than 0.1 µV.
+For transmission bandwidth optimization, the phase and am-
+plitude samples are transmitted to the control unit as integers,
+with 32-bit and 16-bit resolution respectively, corresponding to
+1.5 nrad (or 23 µHz with fint = 100 kHz) and 19 µV. Effects
+of numerical truncation can be expected beyond these limits.
+D. Software control
+The acquired data are transmitted in real-time to a computer
+via USB connection. The decimated data are packed in chunks
+containing incremental phase, amplitude, frequency drift cor-
+rection, and other monitoring variables, with an output data
+rate up to 20 kHz. The data are received by a software written
+in Python, checked for CRC integrity and stored incrementally
+in HDF5 binary files, together with the system settings. The
+software controls the embedded system functions via serial
+commands, and allows to configure its parameters on-the-fly.
+III. E XPERIMENTAL CHARACTERIZATION
+Our measurement system has been characterized with RF
+signals generated by a commercial synthesizer (3352A, Agi-
+lent), externally referenced to a hydrogen maser. The board
+was also referenced to the same stable source, to exclude
+noise contributions due to the OCXO. The measurement noise
+was estimated by acquiring sinusoidal signals having 1 MHz
+nominal frequency. The acquisition was configured with fint =
+100 kHz and fout = 4 kHz. Fig. 4(a) shows the power spectral
+density (PSD) S∆ν(f), with f the Fourier frequency, of
+the frequency fluctuations ∆ν measured at different signal
+amplitudes, up to As = 1 V. The noise spectra is characterized
+by white phase noise, with a negligible additional noise in
+the low-frequency region. Weaker signals exhibit higher phase
+noise floors, due to the lower signal-to-noise ratio in the
+demodulation band: notably the noise power scales as 1/A2
+s .
+This is consistent with the ADC noise expected considering
+the resolution given by its ENOB.
+Fig. 4(b) shows the frequency instability calculated in
+terms of the overlapping Allan deviation σ∆ν(τa), with τa the
+averaging time, for a 1 MHz signal at amplitude 1 V, acquired
+for 2000 s with fint = 100 kHz and fout = 10 kHz . The
+curve exhibits the expected behavior for white-phase-limited
+measurements on a bandwidth of about 4 kHz. In particular,
+the impact of white phase noise on the Allan deviation could
+be reduced by reconfiguring the output filter to a lower mea-
+surement bandwidth. This considerably mitigates the aliasing
+7
+10−1 100 101 102 103
+f / Hz
+10−12
+10−10
+10−8
+10−6
+10−4
+10−2
+100
+S∆ν / (Hz 2/Hz)
+(a)
+As = 0.001 V
+As = 0.01 V
+As = 0.1 V
+As = 1 V
+10−4 10−3 10−2 10−1 100 101 102 103
+τa / s
+10−7
+10−6
+10−5
+10−4
+10−3
+10−2
+10−1
+σ∆ν / Hz
+(b)
+OCXO reference
+maser reference
+10−6 10−4 10−2 100 102 104 106
+input ∆ ν / Hz
+10−6
+10−4
+10−2
+100
+102
+104
+106
+measured ∆ ν / Hz
+∆νmax = fint/2 = 50 kHz
+(c)
+102 104
+10−2
+100
+meas. As / V
+10−4 10−3 10−2 10−1 100 101
+input As / V
+10−4
+10−3
+10−2
+10−1
+100
+101
+measured As / V
+Vref/2 = 1 .25 V
+(d)
+Fig. 4. (a) PSD of frequency signals acquired with the measurement board as a function of Fourier frequency; the signals are generated with 1 MHz carrier
+frequency and variable amplitude. (b) Allan deviation calculated for 1 MHz signals at 1 V amplitude as a function of averaging time, considering either maser
+or OCXO reference for the board clock. (c) Measured frequency as a function of nominal input frequency at 1 V amplitude; the dashed diagonal represents
+the expected correspondence; the inset shows the corresponding measured amplitude. (d) Amplitude measured as a function of nominal input amplitude for
+1 MHz signals; the dashed diagonal represents the expected correspondence.
+effects which are often encountered with frequency counters
+[31]. When the measurement is repeated with the acquisition
+system referenced to the onboard OCXO, the quartz drift
+becomes dominant for averaging times above ∼ 10 s.
+When fint = 100 kHz , the maximum frequency that can
+be measured without aliasing is fint/2 = 50 kHz ; actually,
+the demodulation filter has a cutoff of fBW = 12.5 kHz, and
+acts as anti-aliasing filter. To address the frequency response
+of the demodulation, signals at different carrier frequencies
+ν0 + ∆ν were acquired, with ∆ν between 5 µHz and 40 kHz,
+and amplitude fixed to 1 V. The measured frequency was
+averaged over 50 s at fout = 10 kHz , and compared to the
+nominal input frequency as shown in Fig. 4(c). A linear fit to
+the data allows quantifying the measurement linearity, as well
+as an assessment of the demodulation process accuracy over
+10 orders of magnitude. The linearity coefficient is 1 within
+2×10−8, while the intercept of about 20 µHz can be attributed
+to numerical resolution and truncation. The inset of Fig. 4(c)
+quantifies the signal amplitude attenuation as a function of the
+input frequency: it confirms that frequency components above
+30 kHz are strongly suppressed by the demodulation filter, by
+more than 20 dB. Aliasing effects at the phase unwrap stage
+are therefore negligible.
+We characterized the linearity in the amplitude demod-
+ulation by acquiring signals with fixed ∆ν = 0 Hz and
+variable amplitude, between 0.3 mV and 1.2 V. The maximum
+amplitude that can be measured without distortion is half of
+the ADC voltage reference, hence Vref/2 = 1.25 V. The results
+are shown in Fig. 4(d). The corresponding linearity coefficient
+depends on the knowledge of the input amplification gain,
+which is about 15. Nonetheless, the linearity relative uncer-
+tainty of 7 × 10−4 and the bias of 0.3 mV give figures for
+the corresponding amplitude resolution over almost 4 orders
+of magnitude. We also verified that cross-talks between phase
+and amplitude are negligible, as long as the signal carrier lays
+within the demodulation filter band.
+The mechanism of remote synchronization was tested by
+arming two different boards to wait for a trigger signal with
+8
+−10 0 10 20 30 40
+time / µs
+0
+1
+2
+3signal / V
+latency
+relative
+delay
+start ﬂag 1
+start ﬂag 2
+input signal
+Fig. 5. Signals related to the acquisition with two synchronized boards,
+acquired with an oscilloscope. A common input RF signal is split and sent to
+each system. The carrier frequency is shifted to 1 MHz at time 0 s, and each
+board, 1 and 2, starts the acquisition after a latency interval.
+amplitude greater than half the nominal amplitude. A common
+input signal was obtained through down-conversion using the
+DDS, split and sent to the two boards. The signal frequency
+was stepped between 1.25 MHz and 1 MHz, to bring it within
+the demodulation band and generate a rising amplitude edge,
+acting as trigger. The acquired signal was monitored with
+an oscilloscope, as shown in Fig. 5. The triggering instants
+on each board were detected by raising digital output flags
+when the acquisitions started. An average latency of 32 µs was
+measured between the instant at which the carrier is shifted
+into the demodulation band and the actual acquisition start.
+This latency depends only on the system architecture, since
+it is caused by the deterministic initialization time required
+for the MCU peripherals and by the DSP algorithm, e.g., the
+intrinsic FIR filter delay. The average relative delay between
+the two boards over 30 synchronized acquisitions showed a
+synchronization uncertainty given by a standard deviation of
+σsync = 2.9 µs, as expected for 1/fint = 5 µs and discussed in
+Section II-C2.
+IV. O PTICAL PHASE SENSING
+We now consider the case study of two ultrastable lasers
+placed in two distant locations, connected by a telecom fiber
+link established on a pair of unidirectional optical fibers,
+running parallel inside the same cable. At each location we
+interfere the laser signals, we measure the beat-note frequency,
+and we synchronize the respective acquisition platforms by
+encoding a trigger event on the ultrastable carriers. We com-
+pensate in real-time the slow frequency drifts of the beat-
+note, and we demonstrate the possibility of measuring both the
+fiber and laser noises by suitably combining the synchronized
+acquisitions.
+A. Optical setup
+We implemented an experimental layout that allows either
+the self-heterodyne interference of each laser source indepen-
+dently, exploiting the round-trip path in the fiber as a delay
+fdrift
+PD2
+L2
+L1
+PD1
+foﬀ
+(a)
+foﬀ
+fdrift
+PD2
+L2
+L1
+PD1
+(b)
+Fig. 6. Optical schemes for the comparison between two ultrastable lasers
+L1 and L2 through a fiber link. Fiber splitters are used to split and combine
+signals; AOMs are used to shift the carrier frequency by foff and fdrift. The
+laser signals interfere on photodiodes PD1 and PD2, and the beat-notes are
+acquired with independent systems to extract the relative laser noise ρ2 − ρ1
+and the fiber noise η. (a) Self-heterodyne detection. (b) Heterodyne detection.
+line, or the heterodyne interference of the two lasers on a two-
+way approach. The optical setup is shown in Fig. 6.
+Each laser source (L1 and L2) is a commercial external
+cavity diode laser with 1542 nm wavelength and intrinsic
+10 kHz linewidth, frequency stabilized to a 5 cm long, high-
+finesse cavity, using the Pound-Drever-Hall technique [32], on
+a bandwidth of 200 kHz. The resulting short-term stability is
+2 × 10−15, with a drift of the order of 0.5 Hz s−1.
+The diode lasers are injected into single-mode optical fibers.
+Starting from L1, 5 %of the laser light is split and used as local
+reference. The remainder 95 % is sent to the remote location
+through the fiber. The link is 36 km long and covers both city
+and country areas, with a one-way light travel time of τ ≃
+180 µs. At the remote location, the incoming light from L1 is
+split using a 50:50 coupler: half of the power is interfered with
+the L2 laser reference using a 50:50 coupler, the rest is routed
+back to the transmitting source, where it interferes with the
+L1 reference light. The light from L2 follows a symmetrical
+path.
+An acousto-optic modulator (AOM) driven at foff =
+40 MHz is introduced on the fiber connecting L1 and L2, close
+to L1. Another AOM, driven at adjustable frequency fdrift, is
+placed at the L2 output, and it will be used as actuator for the
+carrier frequency drift correction.
+The beat-notes are acquired on each side with high-speed
+photodiodes, PD1 and PD2. Two interference signals corre-
+sponding to two optical layouts are simultaneously present
+on each photodiode: self-heterodyne detection from the self-
+delayed interference of each laser, and heterodyne detec-
+tion from the interference between L1 and L2. In the self-
+heterodyne scheme the carrier frequency is determined by
+foff = 40 MHz . In the heterodyne configuration each pho-
+todiode detects the beat-note between the reference signal and
+the incoming light from the remote laser: in our experiment,
+this is about 1.1 GHz. Accordingly, thanks to the spectral sep-
+aration of the self-heterodyne and heterodyne beat-notes, the
+measurement scheme can be easily reconfigured to process one
+or the other by changing the LO frequency fLO at the down-
+conversion stages, i.e., to shift the RF signal of interest to the
+9
+nominal frequency ν0 = 1 MHz. The down-converted signals
+are acquired and demodulated by the respective measurement
+boards.
+The optical phase is mainly affected by two kinds of noise
+contributions: the intrinsic noise of the laser sources, ρ1 and ρ2
+respectively, and the noise accumulated along the optical fiber
+link η, typically introduced by seismic or anthropic vibrations,
+acoustic noise, physical deformations, strains, and temperature
+variations. The measurement of these noise signals for the
+two considered detection schemes will be discussed in the
+following paragraphs.
+B. Self-heterodyne detection
+Let us consider the self-heterodyne scheme of Fig. 6(a),
+where each laser interferes with its self-delayed light. The
+beat-notes at frequency foff are down-converted to ν0 using
+synthesizers set to fLO = 41 MHz. In this configuration the
+drift correction AOM is kept at fixed frequency, hence fdrift is
+neglected. The frequency fluctuations acquired by photodiodes
+PD1 and PD2 at the respective locations of L1 and L2 are
+∆ν1,A(t1) = ρ1(t1 − 2τ) − ρ1(t1)
++ η12|t1−τ
+t1−2τ + η21|t1
+t1−τ + ∆foff(t1 − 2τ) (16a)
+∆ν2,A(t2) = ρ2(t2 − 2τ) − ρ2(t2)
++ η21|t2−τ
+t2−2τ + η12|t2
+t2−τ + ∆foff(t2 − τ) . (16b)
+Here t1 and t2 represent the local timescales, which are
+natively independent, ρ1(t1) is the L1 laser frequency noise
+at time t1, η21|t1
+t1−τ is the one-way fiber frequency noise
+integrated over the path from L2 to L1 in the interval between
+t1 −τ and t1, and correspondingly for the other terms. ∆foff is
+the AOM frequency deviation from its nominal value 40 MHz.
+The acquisition timescales t1 and t2 are synchronized ex-
+ploiting the triggering mechanism described in Section II-C2.
+A step frequency shift is imprinted on foff, driven by the
+onboard synthesizer: the self-heterodyne beat-note at each
+terminal is momentarily shifted out of the detection band, and
+the resulting rising amplitude edge is used to trigger the two
+acquisitions. After the synchronization process, a fixed time-
+relation can be established between the remote boards. This
+is defined as t = t1 − τ = t2, where the relative delay τ
+accounts for the fact that the synchronizing pulse travels along
+the fiber before being detected at the other end. Variations of
+the propagation path delay are sufficiently smaller than the
+intrinsic synchronization uncertainty σsync, hence they can be
+ignored for the applications considered here. Therefore, after
+synchronization, the acquired signals are
+∆ν1,A(t) =ρ1(t − 2τ) − ρ1(t) + η12|t−τ
+t−2τ + η21|t
+t−τ (17a)
+∆ν2,A(t) =ρ2(t − 2τ) − ρ2(t) + η12|t
+t−τ + η21|t−τ
+t−2τ . (17b)
+The AOM frequency fluctuations after the synchronization
+routine are considered negligible with respect to the other
+terms, and neglected through the rest of the analysis.
+It can be assumed that, to a first approximation, the laser
+noise cancels out, hence ρ(t) ≈ ρ(t − 2τ), which is valid for
+frequency fluctuations with spectral components f ≪ 1/τ.
+With τ ≃ 180 µs, this is justified for spectral analysis below
+0 2 4 6
+time / s
+−8
+−4
+0
+4
+8
+∆ν / kHz
+(a)
+∆ν1,A
+∆ν2,A
+4.76 4.78 4.80
+time / s
+−4
+−2
+0
+2
+4
+10−2 10−1 100 101 102 103
+f / Hz
+10−7
+10−5
+10−3
+10−1
+101
+103
+105
+S∆ν / (Hz 2/Hz)
+(b)
+∆ν1,A
+∆ν2,A
+∆ν1,A − ∆ν2,A
+∆ν1,A delayed by τ
+Fig. 7. (a) Synchronized acquisitions of frequency fluctuations over the
+optical fiber link, in the self-heterodyne interference scheme; the tracks mostly
+overlap. (b) PSD of the acquired signals; the noise spectrum of their difference
+is also shown, compared with the noise expected for a synchronization delay
+τ ≃ 180 µs.
+1 kHz Fourier frequency. Moreover, the phase perturbations
+η12 and η21 are expected to be mostly correlated, as the noise
+of the two fibers, laying in the same cable, is common to the
+first order. It follows that the interference signals are mostly
+affected by the common fiber noise η ≈ η12 ≈ η21, and the
+round-trip frequency fluctuations can be approximated as
+∆ν1,A(t) ≃2η(t) (18a)
+∆ν2,A(t) ≃2η(t) . (18b)
+The degree of temporal correlation, as well as the quality of
+the synchronization process, can be appreciated from Fig. 7(a),
+showing the coincidence between frequency fluctuation signals
+acquired at 1 kHz by the two distant boards. Fig. 7(b) shows
+the PSD of the frequency noise for each of the two beat-notes,
+calculated for 50 min long acquisitions. The spectra mostly
+overlap, since from (18) they refer to the same physical signals.
+The measurements are consistent with the noise expected for
+an urban fiber link, where the phase perturbations generated
+by different anthropic, seismic, oscillatory, or acoustic sources
+accumulate along the fiber path. Indeed, the measured white
+frequency noise level is compatible with other land-deployed
+cables reported in literature [33], [34], [35], assuming a linear
+scaling of the noise PSD with the link length. Nevertheless,
+the actual scaling strongly depends on the specific deployment,
+10
+which can cross data centers, bridges, buildings and suspended
+fiber segments. The observation of daily fluctuations in the
+noise spectrum, 5 dB to 15 dB higher during the day compared
+to night, can be attributed to human activities, such as vehicle
+traffic along the roads adjacent to the fiber path. These aspects
+play an important role in applications where the dissemination
+of stable phase signals is required [36].
+The spectrum of the difference between the two synchro-
+nized acquisitions is also shown in Fig. 7(b). The residual
+noise level that is observed for ∆ν1,A − ∆ν2,A is consistent
+with the expectations for the difference between correlated,
+yet delayed, signals. Indeed, from (17), the acquisitions have
+a relative delay equal to the light travel time τ, given by
+the synchronization procedure, and [37], the spectrum of
+the round-trip fiber noise difference can be estimated as
+(2πτ f)2S∆ν1,A(f), with S∆ν1,A(f) the PSD of ∆ν1,A ≃ ∆ν1,B
+at Fourier frequency f. The measurement deviates from the
+expectations only at very low frequencies, where other effects
+emerge. We attribute this additional noise to optical length
+variations for the short fibers which are not common for the
+two path.
+C. Heterodyne detection
+In the heterodyne configuration, shown in Fig. 6(b), each
+local laser interferes with the light coming from the remote
+laser. The beat-notes between L1 and L2 are down-converted
+to ν0 by setting fLO to about 1.1 GHz. The AOM at foff is
+driven at fixed frequency, hence it is neglected in this scheme.
+The optical carrier of L2 is shifted exploiting the AOM driven
+at fdrift by the onboard DDS, centered at 40 MHz, to correct
+the slow beat-note drifts that are due to uncorrelated length
+variations of the two optical cavities. Similarly to the self-
+heterodyne case, in the heterodyne scheme the acquisitions
+are synchronized by imprinting a step frequency shift on fdrift,
+defining the common timescale t = t1 −τ = t2. The following
+frequency fluctuations are expected to affect the PD1 and PD2
+photodiode signals:
+∆ν1,B(t) =ρ2(t − τ) − ρ1(t)
++ ∆fdrift(t − τ) + η21|t
+t−τ
+(19a)
+∆ν2,B(t) =ρ1(t − τ) − ρ2(t)
+− ∆fdrift(t) + η12|t
+t−τ . (19b)
+The drift correction frequency results from the PID imple-
+mented in the MCU firmware, as described in Section II-B5.
+This tracks the low frequency components of ∆ν2,B, with a
+LPF cutoff of 0.01 Hz. In that spectral region the relative
+drift between the independent lasers L1 and L2 dominates,
+hence ∆fdrift mainly follows the low-frequency components
+of ρ1 − ρ2. Due to symmetry, any frequency offset cancels out
+for both ∆ν1,B and ∆ν2,B.
+Although in metrology the fiber link noise represents a
+limit for the comparison of optical frequency references and
+requires phase stabilization techniques [36], from a different
+perspective the fiber can be used as a sensor for earthquakes
+and other geophysical events occurring close to the fiber [9].
+With the heterodyne scheme, the reference laser and fiber
+noise contributions can be distinguished. Under the same
+0 400 800
+time / s
+−1.0
+−0.5
+0.0
+0.5
+1.0
+∆ν / kHz
+(a) without drift correction
+∆ν1,B
+∆ν2,B
+0 400 800
+time / s
+−1.0
+−0.5
+0.0
+0.5
+1.0
+with drift correction
+∆fdrift
+10−2 10−1 100 101 102 103
+f / Hz
+10−7
+10−5
+10−3
+10−1
+101
+103
+105
+S∆ν / (Hz 2/Hz)
+(b)
+∆ν1,B
+∆ν2,B
+∆ν1,B − ∆ν2,B − 2∆fdrift
+∆ν1,B + ∆ν2,B
+∆fdrift
+Fig. 8. (a) Synchronized acquisitions of frequency fluctuations over the optical
+fiber link, in the heterodyne interference scheme, without and with frequency
+drift correction; with drift correction the tracks mostly overlap. (b) PSD of
+the acquired signals, with drift correction; the noise spectra of their sum and
+difference are also reported. .
+assumptions introduced for (18), the approximated frequency
+fluctuations on the two photodiodes become
+∆ν1,B(t) ≃ρ2(t) − ρ1(t) + ∆fdrift(t) + η(t) (20a)
+∆ν2,B(t) ≃ρ1(t) − ρ2(t) − ∆fdrift(t) + η(t) . (20b)
+It follows that, from the combination of ∆ν1,B and ∆ν2,B, it
+is possible to extract the fiber noise
+∆ν1,B(t) + ∆ν2,B(t) ≃ 2η(t) (21)
+and the relative laser noise
+∆ν1,B(t) − ∆ν2,B(t) − 2∆fdrift(t) ≃ 2(ρ2(t) − ρ1(t)) . (22)
+The effects of frequency drifts can be seen from Fig. 8(a).
+Without activating the drift correction, ∆ν1,B and ∆ν2,B show
+significant offsets, variable in time. When the drift correction
+is enabled, the synchronized tracks are characterized by fast
+frequency fluctuations that lay around zero, with the low-
+frequency drift being tracked by ∆fdrift.
+The PSDs of the acquired signals are shown in Fig. 8(b),
+mostly overlapping except at low frequencies, where ∆fdrift
+dominates. ∆ν1,B and ∆ν2,B are combined to show either the
+fiber noise or the relative laser frequency noise using (21) and
+(22). It can be seen that the fiber noise represents the main
+contribution in the measurements for our setup, and that it is
+11
+similar to the self-heterodyne results presented in Fig. 7(b).
+The measured laser noise is consistent with the expectations
+for ultrastable sources [38], noting that the lasers are installed
+in suboptimal conditions, outside a laboratory and subject to
+environmental disturbances. For example, some acoustic spurs
+are present above 10 Hz, likely given by cooling fans close to
+the setups. The laser noise dominates at very low frequencies
+below 0.1 Hz, where the laser drift is compensated by the
+frequency drift correction.
+V. C ONCLUSION
+In the current work, a phase-sensitive detector has been
+designed and implemented on a MCU. Dedicated electronic
+and firmware platforms have been realized and characterized.
+Following the approach of digital lock-in amplifiers, the sys-
+tem implements efficient algorithms for phase and amplitude
+heterodyne demodulation of RF signals down-converted to
+1 MHz. An output data rate of 20 kHz can be achieved, with
+a reconfigurable demodulation bandwidth between 1.25 kHz
+and 12.5 kHz. The input frequency deviation from the 1 MHz
+carrier can be measured over almost 10 orders of magnitude,
+from a few µ Hz up to 50 kHz. The accepted input signal
+amplitude spans over more than 3 voltage decades. Frequency
+instability at 1 s is about 10 µHz, amplitude accuracy is better
+than 1 mV. A stable quartz oscillator is embedded as frequency
+reference for deployable operation.
+The acquisition system is mainly designed for the demod-
+ulation of phase signals from coherent optical interferometry,
+hence for measurements of the optical carrier frequency. Its
+characterization confirmed that the board performances are
+suitable for the analysis of optical frequency signals. Taking
+advantage of the optical-to-rf leveraging, the relative impact
+of the reported frequency measurement errors are of the
+order of 10−19 , which is appropriate for many applications
+that do not require optical-clock-level accuracy. Notably, the
+operation principle provides this platform with all the typical
+advantages of a phase analyzer over, e.g., frequency counters.
+These include, among others, high sampling rates, intrinsically
+dead-time-free measurements, and well-defined user-selectable
+bandwidth. Moreover the phase measurement is combined
+with amplitude demodulation as in lock-in amplifiers, allowing
+to monitor the dynamic evolution of the carrier strength and
+synchronization capabilities.
+An in-field demonstration of remote fiber sensing using
+distant ultrastable laser sources has been performed. The
+optical phase was acquired as carrier frequency fluctuations
+exploiting the self-heterodyne and heterodyne interferometric
+schemes, allowing to measure the relative noise of the laser
+sources and the fiber link noise.
+Compared to commercial benchtop systems or FPGAs, the
+presented system is characterized by higher flexibility, stand-
+alone operation, simpler architecture, compact footprint, and
+much lower costs. It allows for real-time and continuous
+monitoring applications, supporting wide ranges of amplitude
+and frequency of the input signal. The embedded triggering
+mechanism permits to synchronize distant boards at the level
+of a few µs without requiring additional channels or protocols,
+and allowing quantitative signal comparisons and correlation
+analysis. The DSP algorithm optimization enables high per-
+formances also on a cheap and reliable MCU. The platform
+represents an efficient possibility in deployable long-term
+experiments. Particularly interesting applications are related
+to fiber noise sensing, such as for earthquake monitoring, or
+metrological comparisons of distant laser sources using optical
+interferometry.
+ACKNOWLEDGMENT
+The authors thank Open Fiber, in particular Francesco
+Carpentieri, and Metallurgica Bresciana for their support in
+providing and using the fiber testbed in the framework of
+Project MEGLIO. This work is supported by the European
+Metrology Program for Innovation and Research (EMPIR)
+Project 20FUN08 Nextlasers, which has received funding from
+the EMPIR program co-financed by the Participating States
+and from the European Union’s Horizon 2020 research and
+innovation program.
+REFERENCES
+[1] M. Takamoto, I. Ushijima, N. Ohmae, T. Yahagi, K. Kokado, H. Shinkai,
+and H. Katori, “Test of general relativity by a pair of transportable
+optical lattice clocks,” Nature Photonics, vol. 14, no. 7, pp. 411–415,
+2020.
+[2] J. Grotti, S. Koller, S. V ogt, S. H ¨afner, U. Sterr, C. Lisdat, H. Denker,
+C. V oigt, L. Timmen, A. Rolland, F. N. Baynes, H. S. Margolis,
+M. Zampaolo, P. Thoumany, M. Pizzocaro, B. Rauf, F. Bregolin,
+A. Tampellini, P. Barbieri, M. Zucco, G. A. Costanzo, C. Clivati, F. Levi,
+and D. Calonico, “Geodesy and metrology with a transportable optical
+clock,” Nature Physics, vol. 14, no. 5, pp. 437–441, 2018.
+[3] L. C. Sinclair, I. Coddington, W. C. Swann, G. B. Rieker, A. Hati,
+K. Iwakuni, and N. R. Newbury, “Operation of an optically coherent
+frequency comb outside the metrology lab,” Optics Express , vol. 22,
+no. 6, pp. 6996–7006, 2014.
+[4] G. B. Rieker, F. R. Giorgetta, W. C. Swann, J. Kofler, A. M. Zolot, L. C.
+Sinclair, E. Baumann, C. Cromer, G. Petron, C. Sweeney, P. P. Tans,
+I. Coddington, and N. R. Newbury, “Frequency-comb-based remote
+sensing of greenhouse gases over kilometer air paths,” Optica, vol. 1,
+no. 5, pp. 290–298, 2014.
+[5] E. D. Caldwell, L. C. Sinclair, N. R. Newbury, and J.-D. Deschenes,
+“The time-programmable frequency comb and its use in quantum-limited
+ranging,” Nature, vol. 610, no. 7933, pp. 667–673, 2022.
+[6] H. Bergeron, L. C. Sinclair, W. C. Swann, I. Khader, K. C. Cossel,
+M. Cermak, J.-D. Desch ˆenes, and N. R. Newbury, “Femtosecond time
+synchronization of optical clocks off of a flying quadcopter,” Nature
+Communications, vol. 10, no. 1, p. 1819, 2019.
+[7] D. R. Gozzard, L. A. Howard, B. P. Dix-Matthews, S. F. E. Karpathakis,
+C. T. Gravestock, and S. W. Schediwy, “Ultrastable Free-Space Laser
+Links for a Global Network of Optical Atomic Clocks,” Physical Review
+Letters, vol. 128, no. 2, p. 020801, 2022.
+[8] G. Marra, C. Clivati, R. Luckett, A. Tampellini, J. Kronj ¨ager, L. Wright,
+A. Mura, F. Levi, S. Robinson, A. Xuereb, B. Baptie, and D. Calonico,
+“Ultrastable laser interferometry for earthquake detection with terrestrial
+and submarine cables,” Science, vol. 361, no. 6401, pp. 486–490, 2018.
+[9] G. Marra, D. M. Fairweather, V . Kamalov, P. Gaynor, M. Cantono,
+S. Mulholland, B. Baptie, J. C. Castellanos, G. Vagenas, J.-O. Gaudron,
+J. Kronj¨ager, I. R. Hill, M. Schioppo, I. Barbeito Edreira, K. A. Burrows,
+C. Clivati, D. Calonico, and A. Curtis, “Optical interferometry–based
+array of seafloor environmental sensors using a transoceanic submarine
+cable,” Science, vol. 376, no. 6595, pp. 874–879, 2022.
+[10] E. Ip, Y .-K. Huang, G. Wellbrock, T. Xia, M.-F. Huang, T. Wang, and
+Y . Aono, “Vibration Detection and Localization Using Modified Digital
+Coherent Telecom Transponders,” Journal of Lightwave Technology ,
+vol. 40, no. 5, pp. 1472–1482, 2022.
+[11] Z. Zhan, M. Cantono, V . Kamalov, A. Mecozzi, R. M ¨uller, S. Yin, and
+J. C. Castellanos, “Optical polarization–based seismic and water wave
+sensing on transoceanic cables,” Science, vol. 371, no. 6532, pp. 931–
+936, 2021.
+12
+[12] C. Clivati, A. Meda, S. Donadello, S. Virz `ı, M. Genovese, F. Levi,
+A. Mura, M. Pittaluga, Z. Yuan, A. J. Shields, M. Lucamarini, I. P.
+Degiovanni, and D. Calonico, “Coherent phase transfer for real-world
+twin-field quantum key distribution,” Nature Communications, vol. 13,
+no. 1, p. 157, 2022.
+[13] J. A. Sherman and R. J ¨ordens, “Oscillator metrology with software
+defined radio,”Review of Scientific Instruments, vol. 87, no. 5, p. 054711,
+2016.
+[14] S. Mukherjee, J. Millo, B. Marechal, S. Denis, G. Goavec-M ´erou, J.-M.
+Friedt, Y . Kersal´e, and C. Lacroˆute, “Digital Doppler-Cancellation Servo
+for Ultrastable Optical Frequency Dissemination Over Fiber,” IEEE
+Transactions on Ultrasonics, Ferroelectrics, and Frequency Control ,
+vol. 69, no. 2, pp. 878–885, 2022.
+[15] C. Clivati, P. Savio, S. Abrate, V . Curri, R. Gaudino, M. Pizzocaro,
+and D. Calonico, “Robust optical frequency dissemination with a dual-
+polarization coherent receiver,”Optics Express, vol. 28, no. 6, pp. 8494–
+8511, 2020.
+[16] A. Tourigny-Plante, V . Michaud-Belleau, N. Bourbeau H ´ebert, H. Berg-
+eron, J. Genest, and J.-D. Desch ˆenes, “An open and flexible digital
+phase-locked loop for optical metrology,” Review of Scientific Instru-
+ments, vol. 89, no. 9, p. 093103, 2018.
+[17] G. Yang, J. F. Barry, E. S. Shuman, M. H. Steinecker, and D. DeMille, “A
+low-cost, FPGA-based servo controller with lock-in amplifier,” Journal
+of Instrumentation, vol. 7, no. 10, p. P10026, 2012.
+[18] J. Elaskar, M. A. Luda, L. Tozzetti, J. Codnia, and C. J. Oton, “FPGA-
+Based High-Speed Optical Fiber Sensor Based on Multitone-Mixing In-
+terferometry,”IEEE Transactions on Instrumentation and Measurement ,
+vol. 71, pp. 1–11, 2022.
+[19] F. Barone, E. Calloni, L. DiFiore, A. Grado, L. Milano, and G. Russo,
+“High-performance modular digital lock-in amplifier,” Review of Scien-
+tific Instruments, vol. 66, no. 6, pp. 3697–3702, 1995.
+[20] K. Kishore and S. A. Akbar, “Evolution of Lock-In Amplifier as Portable
+Sensor Interface Platform: A Review,” IEEE Sensors Journal , vol. 20,
+no. 18, pp. 10 345–10 354, 2020.
+[21] C. Zhang, H. Liu, J. Ge, and H. Dong, “FPGA-Based Digital Lock-in
+Amplifier With High-Precision Automatic Frequency Tracking,” IEEE
+Access, vol. 8, pp. 123 114–123 122, 2020.
+[22] G. Gervasoni, M. Carminati, and G. Ferrari, “Switched ratiometric lock-
+in amplifier enabling sub-ppm measurements in a wide frequency range,”
+Review of Scientific Instruments , vol. 88, no. 10, p. 104704, 2017.
+[23] G. A. Stimpson, M. S. Skilbeck, R. L. Patel, B. L. Green, and G. W.
+Morley, “An open-source high-frequency lock-in amplifier,” Review of
+Scientific Instruments, vol. 90, no. 9, p. 094701, 2019.
+[24] Z. Wang, X. Shi, W. Wang, and W. Cai, “High-Performance Digi-
+tal Lock-in Amplifier Module based on an Open-Source Red Pitaya
+Platform: Implementation and Applications,” IEEE Transactions on
+Instrumentation and Measurement , pp. 1–1, 2022.
+[25] M. A. K. Nooruddin and S. Roy, “A simple digital phase-sensitive
+detector using A VR microcontroller,” American Journal of Physics ,
+vol. 88, no. 2, pp. 153–158, 2020.
+[26] A. Dorrington and R. Kunnemeyer, “A simple microcontroller based
+digital lock-in amplifier for the detection of low level optical signals,”
+in Proceedings First IEEE International Workshop on Electronic Design,
+Test and Applications ’2002, 2002, pp. 486–488.
+[27] J. Leis, P. Martin, and D. Buttsworth, “Simplified digital lock-in ampli-
+fier algorithm,” Electronics Letters, vol. 48, no. 5, pp. 259–261, 2012.
+[28] S. Zhang, G. Li, L. Lin, and J. Zhao, “Optimization of a digital
+lock-in algorithm with a square-wave reference for frequency-divided
+multi-channel sensor signal detection,” Review of Scientific Instruments,
+vol. 87, no. 8, p. 085102, 2016.
+[29] K. Itoh, “Analysis of the phase unwrapping algorithm,” Applied Optics,
+vol. 21, no. 14, pp. 2470–2470, 1982.
+[30] V . V . V olkov and Y . Zhu, “Deterministic phase unwrapping in the
+presence of noise,” Optics Letters, vol. 28, no. 22, pp. 2156–2158, 2003.
+[31] C. E. Calosso, C. Clivati, and S. Micalizio, “Avoiding Aliasing in
+Allan Variance: An Application to Fiber Link Data Analysis,” IEEE
+Transactions on Ultrasonics, Ferroelectrics, and Frequency Control ,
+vol. 63, no. 4, pp. 646–655, 2016.
+[32] E. D. Black, “An introduction to Pound–Drever–Hall laser frequency
+stabilization,” American Journal of Physics , vol. 69, no. 1, pp. 79–87,
+2001.
+[33] T. Akatsuka, H. Ono, K. Hayashida, K. Araki, M. Takamoto, T. Takano,
+and H. Katori, “30-km-long optical fiber link at 1397 nm for frequency
+comparison between distant strontium optical lattice clocks,” Japanese
+Journal of Applied Physics , vol. 53, no. 3, p. 032801, 2014.
+[34] T. Akatsuka, T. Goh, H. Imai, K. Oguri, A. Ishizawa, I. Ushijima,
+N. Ohmae, M. Takamoto, H. Katori, T. Hashimoto, H. Gotoh, and
+T. Sogawa, “Optical frequency distribution using laser repeater stations
+with planar lightwave circuits,” Optics Express, vol. 28, no. 7, p. 9186,
+2020.
+[35] O. Lopez, A. Haboucha, F. K ´ef´elian, H. Jiang, B. Chanteau, V . Roncin,
+C. Chardonnet, A. Amy-Klein, and G. Santarelli, “Cascaded multiplexed
+optical link on a telecommunication network for frequency dissemina-
+tion,” Optics Express, vol. 18, no. 16, pp. 16 849–16 857, 2010.
+[36] P. A. Williams, W. C. Swann, and N. R. Newbury, “High-stability
+transfer of an optical frequency over long fiber-optic links,” JOSA B ,
+vol. 25, no. 8, pp. 1284–1293, 2008.
+[37] C. E. Calosso, E. Bertacco, D. Calonico, C. Clivati, G. A. Costanzo,
+M. Frittelli, F. Levi, A. Mura, and A. Godone, “Frequency transfer via
+a two-way optical phase comparison on a multiplexed fiber network,”
+Optics Letters, vol. 39, no. 5, pp. 1177–1180, 2014.
+[38] C. Clivati, A. Mura, D. Calonico, F. Levi, G. A. Costanzo, C. E. Calosso,
+and A. Godone, “Planar-waveguide external cavity laser stabilization for
+an optical link with 10-19 frequency stability,” IEEE Transactions on
+Ultrasonics, Ferroelectrics, and Frequency Control, vol. 58, no. 12, pp.
+2582–2587, 2011.

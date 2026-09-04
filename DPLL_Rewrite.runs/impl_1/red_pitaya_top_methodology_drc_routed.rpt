@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jul 21 04:06:03 2026
+| Date         : Sun Aug  9 00:21:22 2026
 | Host         : DESKTOP-MRF396F running 64-bit major release  (build 9200)
 | Command      : report_methodology -file red_pitaya_top_methodology_drc_routed.rpt -pb red_pitaya_top_methodology_drc_routed.pb -rpx red_pitaya_top_methodology_drc_routed.rpx
 | Design       : red_pitaya_top
@@ -23,11 +23,12 @@ Table of Contents
           Floorplan: design_1
       Design limits: <entire design considered>
              Max violations: <unlimited>
-             Violations found: 90
+             Violations found: 91
 +-----------+----------+-------------------------------------------------+------------+
 | Rule      | Severity | Description                                     | Violations |
 +-----------+----------+-------------------------------------------------+------------+
 | SYNTH-11  | Warning  | DSP output not registered                       | 1          |
+| SYNTH-12  | Warning  | DSP input not registered                        | 1          |
 | SYNTH-14  | Warning  | DSP cannot absorb non-zero init register        | 15         |
 | TIMING-18 | Warning  | Missing input or output delay                   | 40         |
 | XDCB-5    | Warning  | Runtime inefficient way to find pin objects     | 2          |
@@ -40,6 +41,11 @@ Table of Contents
 SYNTH-11#1 Warning
 DSP output not registered  
 DSP instance dpll_wrapper_inst/debug_dac_formatter_inst/product_r30 is not fully pipelined on the output side. MREG/PREG are not used.
+Related violations: <none>
+
+SYNTH-12#1 Warning
+DSP input not registered  
+DSP instance dpll_wrapper_inst/VCO_inst0/ARG is not fully pipelined on the input side. AREG/BREG/CREG/DREG are not used.
 Related violations: <none>
 
 SYNTH-14#1 Warning

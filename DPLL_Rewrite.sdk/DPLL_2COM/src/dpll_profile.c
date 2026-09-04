@@ -10,7 +10,7 @@
 #define DPLL_PI                     3.14159265358979323846
 #define DPLL_SQRT2                  1.41421356237309504880
 #define DPLL_IMAGE_GUARD_RATIO      2.2
-#define DPLL_CORDIC_HEADROOM_BITS   1U
+#define DPLL_CORDIC_HEADROOM_BITS   2U
 #define DPLL_DEFAULT_LIMIT_DIVISOR  5U
 #define DPLL_MIN_CENTER_HZ          4000.0
 #define DPLL_MAX_CENTER_HZ        250000.0
@@ -32,7 +32,7 @@ typedef struct {
 static const dpll_filter_band_t dpll_filter_bands[] = {
     {   8000U,  1200U,  800U, DPLL_LOW_BAND_MEAS_TIMEOUT },
     {  15000U,  2000U, 1200U, 0U },
-    {  30000U,  4000U, 2000U, 0U },
+    {  30000U,  4000U, 8000U, 0U },
     {  60000U,  8000U, 3500U, 0U },
     { 100000U, 12000U, 5000U, 0U },
     { 150000U, 15000U, 7000U, 0U },
@@ -238,7 +238,7 @@ static void dpll_fill_common_loop_parameters(dpll_filter_profile_t *profile)
     profile->kf_acquire = 8000000;
     profile->kf_blend = 1500000;
     profile->kf_track = 250000;
-    profile->kp_blend = 6000000;
+    profile->kp_blend = 375000;
     profile->ki_blend = 468800;
     profile->phase_threshold = 5825U;
     profile->phase_setpoint = -65536;

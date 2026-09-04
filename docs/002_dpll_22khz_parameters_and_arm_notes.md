@@ -2,6 +2,26 @@
 
 更新日期：2026-07-11
 
+## 0. 2026-08-08 低频跟踪实验参数
+
+当前实验版本在约20--22 kHz下使用：
+
+```text
+post-CIC          = R=16, shift=9
+TRACK IIR         = 8 kHz, two cascaded sections
+P_PRODUCT_SHIFT   = 8
+Kp_blend          = 375000
+```
+
+Track PID不迁移STM8 EEPROM。实验前在面板设置：
+
+```text
+Kp_track = 6000000
+Ki_track = 2500000
+```
+
+下文保留2026-07-11的P12/R16-shift8/2 kHz历史基线，供修改前后对照。
+
 ## 1. 参数适用范围
 
 本文参数来自当前集成 TB 和 2026-07-10 的完整行为级仿真：

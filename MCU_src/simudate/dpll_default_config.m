@@ -28,7 +28,7 @@ cfg.positive_limit = int64(limit_hi * uint64(65536));
 cfg.negative_limit = -cfg.positive_limit;
 
 cfg.cic.rate = 16;
-cfg.cic.output_shift = 8;
+cfg.cic.output_shift = 9;
 cfg.cic.stages = 3;
 cfg.cic.acc_width = 44;
 cfg.cic.output_width = 20;
@@ -40,7 +40,7 @@ cfg.iir.data_width = 20;
 cfg.iir.sections = 2;
 post_cic_rate_hz = cfg.input_sample_rate_hz / cfg.cic.rate;
 cfg.iir.acquire_cutoff_hz = 4000;
-cfg.iir.track_cutoff_hz = 2000;
+cfg.iir.track_cutoff_hz = 8000;
 cfg.iir.acquire = dpll.design_biquad_q30( ...
     cfg.iir.acquire_cutoff_hz, post_cic_rate_hz);
 cfg.iir.track = dpll.design_biquad_q30( ...
@@ -56,12 +56,12 @@ cfg.gains.ki_track = int64(180000);
 cfg.gains.kf_acquire = int64(8000000);
 cfg.gains.kf_blend = int64(1500000);
 cfg.gains.kf_track = int64(250000);
-cfg.gains.kp_blend = int64(6000000);
+cfg.gains.kp_blend = int64(375000);
 cfg.gains.ki_blend = int64(468800);
 % Ideal frequency-word conversion for direct FLL feedforward is
 % freq_error * 6710886 >> 6 for the current 3.125/125 MHz clock ratio.
 cfg.gains.kff_track = int64(6710886);
-cfg.shifts.p_product = 12;
+cfg.shifts.p_product = 8;
 cfg.shifts.i_product = 18;
 cfg.shifts.fll_product = 16;
 cfg.shifts.ff_product = 6;

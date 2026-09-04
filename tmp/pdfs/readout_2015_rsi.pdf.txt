@@ -1,0 +1,933 @@
+Readout for intersatellite laser interferometry: Measuring low frequency phase
+ﬂuctuations of HF signals with microradian precision
+Oliver Gerberding, 1, a) Christian Diekmann, 1, b) Joachim Kullmann, 1 Michael Tr¨ obs,1
+Ioury Bykov, 1 Simon Barke,1 Nils Christopher Brause, 1 Juan Jos´ e Esteban Delgado,1
+Thomas S. Schwarze, 1 Jens Reiche, 1 Karsten Danzmann, 1 Torben Rasmussen,2 Torben
+Vendt Hansen, 2 Anders Engaard, 2 Søren Møller Pedersen, 3 Oliver Jennrich, 4 Martin
+Suess,4 Zoran Sodnik, 4 and Gerhard Heinzel 1
+1)Max Planck Institute for Gravitational Physics, and Institute for Gravitational
+Physics of the Leibniz Universit¨ at Hannover, Callinstrasse 38, 30167 Hannover,
+Germany
+2)Axcon ApS, Diplomvej 381, DK-2800 Kgs. Lyngby, Denmark
+3)DTU Space, National Space Institute, The Technical University of Denmark,
+Elektrovej 327, DK-2800 Kgs. Lyngby, Denmark
+4)European Space Research and Technology Centre, European Space Agency,
+Keplerlaan 1, 2200 AG Noordwijk, The Netherlands
+(Dated: 24 September 2018)
+1
+arXiv:1504.08266v1  [physics.ins-det]  30 Apr 2015
+Precision phase readout of optical beat note signals is one of the core techniques
+required for intersatellite laser interferometry. Future space based gravitational wave
+detectors like eLISA require such a readout over a wide range of MHz frequencies,
+due to orbit induced Doppler shifts, with a precision in the order of µrad/
+√
+Hz at
+frequencies between 0.1 mHz and 1 Hz. In this paper, we present phase readout sys-
+tems, so-called phasemeters, that are able to achieve such precisions and we discuss
+various means that have been employed to reduce noise in the analogue circuit do-
+main and during digitisation. We also discuss the inﬂuence of some non-linear noise
+sources in the analogue domain of such phasemeters. And ﬁnally, we present the
+performance that was achieved during testing of the elegant breadboard model of the
+LISA phasemeter, that was developed in the scope of an ESA technology development
+activity.
+Keywords: phase measurement, laser interferometry, instrumentation
+Submitted to Review of Scientiﬁc Instruments
+a)contact@olivergerberding.com; Present address: National Institute of Standards and Technology, Gaithers-
+burg, Maryland 20899, USA & Joint Quantum Institute, University of Maryland, College Park, Maryland
+20741, USA
+b)Present address: SpaceTech GmbH, Seelbachstraße, 88090 Immenstaad am Bodensee, Germany
+2
+I. INTRODUCTION
+Inter satellite laser interferometers are studied for space based gravitational wave detec-
+tors, like LISA, eLISA 1, and for satellite based geodesy missions, like GRACE Follow-On 2.
+The orbit conﬁgurations of these missions lead to relative velocities of the spacecrafts, in the
+order of 10 m/s, that cause Doppler shifts of the laser beams that are transmitted between
+any two satellites. To accommodate these, a heterodyne detection scheme using readout
+systems with suﬃciently large bandwidth, in the order of 25 MHz (at a laser wavelength
+of λ0 = 1064 nm) is the current baseline technique. Digital phase readout systems using
+all digital phase-locked loops (ADPLL), similar to GPS receivers, have been developed and
+utilised in various laboratories 3–8.
+The most critical aspect of these readout systems, also called phasemeters, is their phase
+noise performance over long time scales (1000 s), i.e. mHz Fourier frequencies. Especially
+the requirements for a future LISA like mission are very stringent. A noise ﬂoor below
+2πµ rad/
+√
+Hz has to be achieved at frequencies between 5 mHz and 1 Hz, with a relaxed per-
+formance requirement below 5 mHz (described by a noise shape function NSF(f) ). This cor-
+responds roughly to a precision of 1 ppm of the laser wavelength and translates to 1 pm/
+√
+Hz
+of eﬀective optical path length change noise ﬂoor.
+We have constructed a number of phasemeter prototypes that achieve such noise levels.
+This in particular includes a full breadboard model of the LISA phasemeter, developed in
+the scope of an ESA technology development activity 9,10, shown in Figure 1. Each of these
+prototypes utilises a distinct implementation of the analogue part of the phase readout
+chain, which is one of the most critical and challenging elements of the metrology. Due to
+our investigations we have gained detailed insight into the relevant eﬀects and in this article
+we report our current best understanding of them, together with experimental results that
+demonstrate the desired performance levels.
+A. Phase readout chain overview
+To set the stage for our investigation we describe here shortly the core metrology chain
+for the phase readout in intersatellite interferometry, sketched in Figure 2. For readabil-
+ity we omit an introduction of the optical set-ups, which can be found in various related
+3
+FIG. 1. Photograph of the assembled elegant breadboard model of the LISA phasemeter. The
+system consists of one main board, one clock module, one DAC module and up to ﬁve ADC
+modules9. A total of 20 readout channels, 4 analogue control outputs, eight FPGAs and an ultra-
+stable clock and pilot tone distribution are included.
+publications2,11,12.
+The starting point of our description is an optical beat note with a frequency between
+about 1 MHz and 25 MHz (the exact numbers depend on the individual mission and its
+design) that is sent to a photo diode (PD). The frequency and phase of this beat note contain
+the desired information about length and attitude ﬂuctuations (by diﬀerential wavefront
+sensing, DWS)13 sensed by the interferometer. The PD is usually integrated with a trans-
+impedance ampliﬁer (TIA), that converts the photo current into a voltage, and, together,
+they form an active photo receiver (PR) 14. These devices are placed either directly in the
+interferometer or close by. Their outputs are usually single-ended analogue signals that are
+fed through coaxial cables to the phasemeter.
+The phasemeter can, conceptually, be split into two parts: First, the signal condition-
+ing in the analogue front-end (AFE) and the signal digitisation in the analogue-to-digital
+converter (ADC). Second, the deterministic digital signal processing (DSP) performed in
+4
+FPGA+CPUPhasemeter
+ADCTIA
+PD
+cable
+AFE ADPLL
+ﬁlter
+IFO PR
+FIG. 2. Schematic overview of the phase readout chain. This article focuses on the elements marked
+green. The interferometer (IFO) signal is detected by a photo receiver (PR), which consists of a
+photo diode (PD) and a trans-impedance ampliﬁer (TIA). The phasemeter receives and conditions
+the incoming signals in the analogue-front end (AFE) and then digitises it in the analogue-to-
+digital converter (ADC). A combination of Field programmable gate arrays (FPGA)s and a central
+processing unit (CPU) extracts the signal phase via an all-digital phase-locked loop (ADPLL) and
+post processes the data for storage or further use.
+FPGAs and CPUs that consists mainly of ADPLLs, appropriate ﬁltering, decimation and
+signal combination.
+The DSP units inside the phasemeter have already been described and investigated in
+detail3,4 and will not be discussed further in this article. Based on this earlier work, we
+assume that the noise in the measurements shown below is not caused by artefacts in the
+DSP. However, for some of the later described, not-yet understood eﬀects, an inﬂuence of
+the DSP can not be fully excluded at the current time.
+The classiﬁcation of the AFE as part of the phasemeter is arbitrary. All of the components
+can, in principle, also be part of the photo receiver or any other separate element in between
+the actual photo diode and the analogue-to-digital converter. The described analogue circuit
+eﬀects are also present in the PR, however, they are often investigated separately, because PR
+are required in higher numbers, they have heritage from commercially available components
+and they operate in a diﬀerent environment, close or on the optical benches, with, for
+example, better thermal stability. The concept of building independent PRs, that send
+single-ended signals to the phasemeter through an impedance matched cable has been widely
+used and is the basis for the discussions in this article. Alternatives that use diﬀerential signal
+distribution, digitisation directly on the photo receiver, and stand-alone analogue-front-ends
+that are separated physically from the digital components of the phasemeter are possible
+5
+but were discarded so far, due to concerns regarding thermal design, power consumption
+and overall complexity. The strong inﬂuence of temperature ﬂuctuations, described later
+in this article, might lead to a revision of these design principles for future studies and
+implementations.
+B. Article structure
+We begin our review with a conceptual discussion of the signal digitisation in the ADC
+(Section II). This is necessary to understand the requirements that drive the design of the
+AFE. The derived structure of the AFE is described next, together with a set of known noise
+sources (Section III). We then discuss non-linear eﬀects in the AFE that can also limit the
+performance (Section IV).
+The standard test procedure and a set of experiments using a combination of commer-
+cial hardware, and in-house produced components is presented to demonstrate successful
+implementations that were, however, limited in input frequency range. (Section V).
+Next, we present the results of phase noise investigations of a breadboard model of the
+LISA phasemeter in Section VI, where realistic, LISA-like analogue input signals were used.
+This is accompanied with an overview of an active temperature stabilisation that was im-
+plemented to achieve, for the ﬁrst time, full performance for signal frequencies of up to
+25 MHz.
+II. ANALOGUE-TO-DIGITAL CONVERSION
+The interferometer signals need to be digitised with suﬃcient precision and rate. The two
+most critical sampling parameters are the sampling frequency fs and the ADC bit depth N.
+A. Truncation noise
+Quantisation noise induced by digitisation is often modelled as white additive noise, an
+assumption that, given the complex, noisy input signal characteristics expected in LISA like
+missions, is assumed to be appropriate15. The eﬀective phase noise level due the quantisation
+noise depends not only on the sampling parameters3,7, but also strongly on the ratio between
+6
+the signal peak amplitudevs and the maximum ADC input voltage rangevADC. The eﬀective
+phase noise ˜ϕtrunc, due to truncation, can be written as 4
+˜ϕtrunc = vADC
+vs
+2−N
+√3fs
+. (1)
+Here, the largest possible signal before the occurrence of clipping and lowest phase noise
+corresponds to vs = vADC/2. Truncation, therefore, induces the need for proper signal
+gain conditioning in the AFE. The eﬀective levels during digitisation should be as high as
+possible to minimise truncation noise inﬂuence, but they should also be small enough to
+avoid clipping. One should note, that the corresponding maximum signal calculation has to
+take additive input noise and additional tones into account.
+B. Aliasing
+During the sampling process any signals above the Nyquist frequency ( fs/2) are folded
+into the baseband. This does not only apply to coherent signals, but also to noise. This
+is a critical factor, since it means that additive noise sources, like, for example, photon
+shot noise, that have a bandwidth larger than fs/2, will accumulate after digitisation in
+the base band. However, these inﬂuences can be calculated and used to derive required
+suppressions of an anti-aliasing ﬁlter (AAF) in the AFE. A higher sampling rate reduces not
+only digitisation noise, but it also increases the band of frequencies that is not aliased into
+the signal bandwidth, simplifying the ﬁlter construction. Since faster sampling is usually
+accompanied by higher power consumption and other system design demands a trade-oﬀ
+has to be made. The response of the PR has to be taken into account as well, which will
+often already provide some level of suppression at higher frequencies.
+C. ADC sampling jitter and pilot tone
+During the digitisation the signal is sampled using the provided ADC clock. Any phase
+change in the distribution or application of this clock to the sampling process causes an
+eﬀective timing jitter and a corresponding phase change in the measured signals. The phase
+error amplitude spectral density ˜ϕ˜τ ([ ˜ϕ˜τ] = rad/
+√
+Hz) scales with the input signal frequency
+and the timing jitter spectral density ˜τ ([˜τ] = s/
+√
+Hz):
+˜ϕ˜τ = 2πfs· ˜τ. (2)
+7
+Experiments in the last decade have revealed that all suitable ADCs have an inherent 1 /f
+timing jitter noise that prevents phasemeters from directly achieving the desired performance
+levels. This noise is inherent to the ADCs themselves, and is present even with a perfect
+clock distribution.
+However, the timing jitter can be accounted for by utilising a reference tone 3, also called
+pilot tone, that is fed into all ADC channels. The phase deviations of this tone, whose
+frequency fp is well known, can be converted into an eﬀective measurement of the timing
+jitter. The corrected phase for each input channel ϕi,c is given by the combination of the
+signal phase measurement ϕi,s and the individual pilot tone measurement ϕi,p:
+ϕi,c =ϕi,s−ϕi,p
+fi,s
+fp
+. (3)
+To implement such a correction scheme the AFE needs to be able to distribute the pilot
+tone, to add it to each individual signal and to deliver both signals after appropriate signal
+conditioning to the ADC, without spoiling the phase noise performance of either tone. The
+requirement for the pilot depends on the frequency ratio.
+In a timing picture the pilot tone is the eﬀective, jitter free (reduced) reference clock.
+D. ADC analogue parameters
+So far we have focused on the sampling parameters of ADCs. However, the analogue
+eﬀects described in the following sections III and IV are also relevant for the ADCs. We have
+empirically tested candidate ADCs for compliance by directly performing pilot tone corrected
+phase noise measurements in relevant thermal environments, as described in Section V.
+III. ANALOGUE FRONT-END
+The signal conditioning for digitisation is done in the AFE. In addition to the above
+described functions the AFE also converts the single ended input signal into a diﬀeren-
+tial signal with a desired gain and impedance to match the following ADC. The separate
+functions required of the AFE are listed in the following:
+• Buﬀer: Receive PR signal from coaxial cable.
+• Ampliﬁer: Amplify signal with desired gain.
+8
+• Anti-aliasing ﬁlter: Reduce unwanted signal components above the Nyquist frequency.
+• Pilot tone distribution: Deliver the pilot tone to individual AFEs without introducing
+excess phase noise.
+• Adder: Add the pilot tone to the PR signal before digitisation.
+• Single-ended to diﬀerential converter: Prepare the signal for the ADC.
+The critical eﬀects in the AFE that contribute to phase noise are summarised below.
+A. Additive noise sources
+Any component in the AFE can contribute additive electronic noise. The induced cor-
+responding phase noise is simply given by the ratio of the noise and the root-mean-square
+(RMS) signal amplitude at the given point in the measurement chain 4. Hence, the most
+critical point for introducing noise is the one with the smallest signal. For LISA this is gen-
+erally the ﬁrst ampliﬁcation in the trans-impedance ampliﬁer of the photo receiver14. Signals
+sent to the phasemeter are assumed to be ampliﬁed to suﬃciently high levels, such that fun-
+damental noise from passive components, like Johnson noise from resistors, is suﬃciently
+small.
+Operational ampliﬁers and other active components used in the AFE can also intro-
+duce voltage noise in the MHz signal band. To achieve eﬀective phase noise levels below
+6µrad/
+√
+Hz these contributions should be below 600 nV/
+√
+Hz for typical minimal signal
+RMS amplitudes of 100 mV. Commercially available low-noise operational ampliﬁers achieve
+noise levels on the order of a few nV/
+√
+Hz, which makes this contribution non-critical for
+the circuits used in the AFE, like inverting-ampliﬁers with moderate levels of gain (the noise
+coupling of operational ampliﬁers is gain dependent 16).
+B. Phase noise
+Changes of the signal phase in the AFE directly spoil the measurement performance.
+Each component in the AFE can inﬂuence the phase of a transmitted signal and here we
+shortly describe two types of phase noise coupling that are relevant and occurred during our
+experiments.
+9
+1. Temperature coupling through ﬁnite phase response
+Components in the AFE have non-ﬂat transfer functionsT (f). Any frequency dependent
+phase response, as, for example, induced by a simple signal delay, inﬂuences the phase
+propagation through the measurement chain. Constant, linear frequency dependent phase
+response is not critical for LISA, because the signal frequency changes are happening at
+frequencies below the measurements band ( < 1 mHz). If signiﬁcant frequency drifts occur
+within the measurement band, like expected for GRACE Follow-On 2, the overall phase
+response either has to be suﬃciently ﬂat, or a correction in post-processing could be applied.
+Even for a constant input frequencyfs the phase response can cause signiﬁcant phase noise
+if its value, arg (T (fs)), is inﬂuenced by in-band ﬂuctuations of temperature, for example
+due to the change of a resistance or capacitance. Flat transfer functions are in general
+less susceptible to these ﬂuctuations, as the susceptibility to thermal variations depends
+on the absolute slope of the phase response. Accordingly, the phase of signals at higher
+frequencies is more susceptible to thermal changes in bandwidth limited circuits. A reduction
+of temperature ﬂuctuations is one way to mitigate the induced phase noise (as we present in
+Section VI), but limitations in size, power consumption and cost of the apparatus limit this
+approach. Performing detailed analysis of each components susceptibility to temperature
+changes is required to reduce the coupling itself. Choice of more stable components and
+thermal compensation are some of the methods that can be applied. A rule of thumb that
+we applied during our investigations is to use components with as large a bandwidth as
+possible. This approximates ﬂat transfer functions responses that minimise the coupling to
+thermal eﬀects.
+Due to this coupling the most critical component in the AFE is the anti-aliasing ﬁlter. It
+requires a large suppression above the Nyquist frequency to ensure shot-noise limited perfor-
+mance (see Section II), which strongly limits its bandwidth and phase response ﬂatness, and
+it has to have suﬃciently low coupling of thermal noise into phase noise. Our investigations
+presented here do not include a detailed analysis of, nor a design for, the AAF. Based on
+our later presented results it is assumed, however, that integrating the AAF into the PRs
+might be beneﬁcial, due to the better thermal stability.
+10
+2. Flicker phase noise
+Another source of phase noise is ﬂicker noise, that is, for example, induced by a 1 /f
+noise at DC in ampliﬁers that eﬀectively modulates the carrier phase 17. In our experiments
+we have avoided using components that contribute any such excess noise, by performing
+empirical tests. The investigation of such eﬀects is a separate topic that goes beyond the work
+presented here and we found no essential components that are limited by them. Frequency
+mixers are a prominent example of components limited by such noise and we have observed
+it in earlier studies 4.
+C. Pilot tone distribution
+The use of a pilot tone requires it to be distributed to each analogue measurement channel.
+This involves impedance matched signal splitting, signal routing, and, as discussed later in
+Section IV, isolation between channels. The phase noise analysis done for the AFE also
+has to be applied to the pilot tone distribution (PTD), being, however, slightly simpliﬁed
+because the pilot has a single, ﬁxed frequency.
+IV. NON-LINEAR EFFECTS
+The phase measurement eﬀects described above are critical for understanding and de-
+signing phasemeter systems. So far we have described the inﬂuence of processes that either
+cause an additive noise or a phase noise of the coherent signal. Both of these noise types
+cause an eﬀective phase noise (additive noise is converted into phase noise in the mixer in the
+ADPLL), whose underlying processes are linear with respect to the noise amplitude within
+the bandwidth of the ADPLL. But, other types of interactions can also limit the achievable
+performance. The one we consider here is the presence of additional, parasitic tones at the
+signal frequency or close by. The ADPLL does not distinguish between the actual signal
+tone and the parasitic one and will act as if a single disturbed tone is present (parasitic
+tones outside the ADPLL bandwidth are rejected).
+A simple way to determine the combined, disturbed tone is to describe both tones as
+phasors in the complex plane at the readout frequency. The two phasors, or 2-dimensional
+vectors, each deﬁned by an amplitude and a phase, are added, resulting in the eﬀective
+11
+0ϕ [rad]
+π
+π−ße
+Im
+s
+v
+vs
+vsϕ
+sϕvϕ
+errϕ
+∆ϕ
+errϕ
+FIG. 3. Illustration of small vector noise coupling. The left side shows a sketch of the vector
+addition responsible for the non-linear noise coupling in case of small vector noise. The right side
+shows a simulated time series of a small vector phase modulation for coherent modulations with
+diﬀerent DC oﬀsets and amplitudes and for white noise and 1 /f noise.
+phasor, with a corresponding phase and amplitude. The diﬀerence between the eﬀective
+phase and the phase of the signal tone is the phase error. The vector addition causes the
+coupling into the measurement of phase or amplitude changes of the parasitic tone relative
+to the signal tone to be highly non-linear. A parasitic tone that has a constant phase and
+amplitude ratio relative to the signal, will only result in a DC phase error, which is anyhow
+neglected for longitudinal displacement measurements (not for DWS though).
+The parasitic signals become more relevant when they have non-negligible dynamics rel-
+ative to the signal tone. Such unwanted, parasitic tones are made as small as possible in
+comparison to the signal in the system design. Their eﬀect is illustrated in Figure 3. In
+this case, a small phasor, or vector, ⃗ vv is added to the larger, dominating signal tone ⃗ vs.
+The phase noise caused in such a situation is often referred to as small-vector noise. The
+complex coupling of relative phase ﬂuctuations (ϕ∆ =ϕs−ϕv) into phase error ϕerr can be
+approximated for the small parasitic vector to
+ϕerr = vv
+vs
+sin (ϕs−ϕv). (4)
+Such non-linear noise couplings are well known in the gravitational wave community. A
+small vector noise has been observed and suppressed in LISA Pathﬁnder 18, and stray light
+and ghost beams, which are present in many laser interferometers, cause a very similar eﬀect
+12
+as well.
+In case of small relative phase dynamics ϕ∆, and DC phases close to the linear regimes
+of Equation 4, the induced phase noise is linear to the dynamics, and its amplitude is
+attenuated by the ratio vv
+vs
+. In the more general case of large dynamics and arbitrary phase
+relations, no simple method exists to predict the phase error from the relative dynamics.
+Some examples for this coupling are shown in simulated time series on the right of Figure
+3. Large low frequency changes can be unconverted to higher frequency errors, due to
+the non-linear coupling. An important feature of this noise coupling is, that the induced
+phase error has a maximum amplitude, which is also deﬁned by the ratio vv
+vs
+. This leads to
+a characteristic and often diagnostically useful time-domain signature of a constant width
+envelope. Small vector noise driven by low-frequency random processes with a 1/f spectrum,
+like, for example, temperature ﬂuctuations, often show a characteristic phase noise spectrum.
+Such a spectrum ﬂattens out to lower frequencies (due to the maximum error amplitude)
+and a characteristic noise shoulder is observed at the high frequency end of the generated
+noise bandwidth. If the readout bandwidth of the phasemeter is low in comparison to the
+generated noise, the drop-oﬀ to higher frequencies might not be observed. In this case a
+small vector noise can be misinterpreted as white readout noise and the underlying non-linear
+coupling makes eventual noise hunting more complex.
+A. Cross talk
+The most relevant parasitic tones in a multi channel phasemeter are cross talk components
+from other channels operating at the same, or nearby frequencies. The phase of these tones
+can be totally unrelated, potentially causing a very dynamic behaviour of ϕ∆. This is, for
+example, the case for the two test mass and reference interferometers on the two optical
+benches in a LISA satellite19. The parasitic voltage in the case of cross talk can be modelled
+by the product of the amplitude of the unrelated signal vu with a cross talk coupling factor
+C. Assuming a coupling as described in Equation 4, equal amplitudes for all input signals
+(vu =vs), and a performance requirement of better than 2πµ rad, a crosstalk suppression in
+the order of C =−105 dB is necessary. This level is determined from a simple maximum
+error calculation. Better estimates can be made by applying full models of the expected
+phase dynamics and using them to make a prediction of the behaviour of ϕ∆.
+13
+Cross talk can occur at every stage of the analogue signal processing, including, promi-
+nently, the PR20. Eﬀects like electro-magnetic interference, power supply or ground stability
+can limit the achievable cross talk suppression between individual channels. Mitigating these
+eﬀects requires detailed analysis and design of circuits, layouts, PCB stacks, component
+placements, electro-magnetic shielding and more. These investigations exceed the scope of
+this article. However, we will brieﬂy discuss the two most critical points in the AFE of our
+phasemeter systems where the achievable limit of cross talk suppression is determined by
+component choice and simple, schematic level circuit design.
+Multi channel ADCs have inherent cross talk, often with a coupling of about -90 dB,
+which is documented in their data sheets. Hence, using multi-channel ADCs for the readout
+of independent IFOs should be avoided to mitigate this problem. On the other hand, using
+them to read out the four signals of a quadrant photo diode is suitable, because these
+signals are already mixed due to the cross talk in the PR, and they are very similar. They
+are dominated by the DWS signal, keeping the value of ϕ∆ small and even well measured.
+The pilot tone distribution is a direct link that connects all input channels. Suﬃcient
+care has to be applied to ensure that no signiﬁcant portion of the signals is transmitted
+back through the PTD to other signals. The adder components in the AFE are critical,
+they should provide suﬃcient initial suppression of backwards reﬂected signals. Additional
+isolating components (buﬀers, ﬁlters, isolators) can also be introduced into the PTD, as long
+as they don’t contribute excess phase noise.
+B. Analogue reﬂections
+Small vector noise can also be caused by a tone that is contaminated with a small delayed
+version of itself. This can occur if signal reﬂections are present, for example due to impedance
+mismatches. Figure 4 shows a simple model of such an eﬀect. A signal is fed from the photo
+diode (the source with impedance Zs) through a cable (impedance Zc and length lc) to
+the phasemeter (the load with impedance Zl). The impedance mismatches give rise to two
+reﬂection coeﬃcients, here denoted as rin and rout. For small reﬂectivities the amplitude of
+the ﬁrst delayed signalv′
+s reaching the load (we discard multiple reﬂections) is attenuated by
+rin·rout. The amplitude of the actual signal vs is, however, almost undisturbed. The phase
+of v′
+s relative to vs is determined by its dynamics and by twice the delay τc, which is given
+14
+by the cable length and the eﬀective signal speed, in typical coaxial cables τc≈ lc/(2/3c).
+Using these relations and Equation 4 we can estimate the induced phase noise by such an
+analogue reﬂection:
+ϕerr≈rinrout sin (2dϕs
+dt τ)≈rinrout sin (3dϕs
+dt
+lc
+c ). (5)
+The expected signal dynamics for inter-satellite laser interferometry are quite large (they are
+dominated by laser frequency noise the level of which depends on the applied stabilisation
+scheme). Assuming the laser frequency noise ˜f is still small in comparison to the delay we
+can simplify the coupling,
+˜ϕerr(f)≈ 3rinrout ˜f(f)lc
+c . (6)
+Even for large levels of in-band laser frequency noise (3000 Hz/
+√
+Hz) and cable lengths on the
+order of 2 m this coupling only becomes relevant for large reﬂection coeﬃcients of more than
+10%. However, if laser frequency noise levels exceed the linear range, even at much lower
+frequencies, eﬀective noise levels can be upconverted to in-band Fourier frequencies, due to
+the non-linear coupling. Our presented model is largely simpliﬁed and aims to give insight
+into a possible explanation for an unexpected noise ﬂoor that we have observed in the later
+described measurements, which was found to be somewhat inﬂuenced by signal dynamics,
+cable lengths and impedance matching. Inﬂuences of our more complex signal networks,
+including the pilot tone distribution, and of frequency dependent impedance values have not
+yet been accounted for and might need to be analysed in future studies.
+V. PERFORMANCE INVESTIGATIONS USING PHASEMETER
+PROTOTYPES
+A standard technique for investigating the noise of phase readout systems is the so-called
+null or zero measurement. A single signal is split into two or more readout channels and the
+diﬀerences in the measurement phases are used to investigate the noise ﬂoor. Figure 5 shows
+this principle for a two channel measurement. Throughout our investigation we performed
+multi-channel measurements and we plot the noise for each channel ˜ϕi by computing the
+diﬀerence between its phase and the measured phase average:
+˜ϕi =ϕi,s− 1
+N
+N∑
+k=1
+ϕk,s. (7)
+15
+sZ
+cZ lZ
+inr outr sv
+s
+′v
+cl
+FIG. 4. Sketch for signal reﬂections occurring in the signal distribution from, for example, the
+photo diode to the analogue-front end. For small reﬂection coeﬃcients rx a dominating parasitic
+signal v′
+s is delayed by twice the cable length lc and contaminates the actual signal vs.
+Phasemeter
+ADCAFE
+ADCAFE
+sv
+pv
+,s1ϕ
+,s2ϕ
+,p2ϕ
+,p1ϕ
+FIG. 5. Sketch of a null or zero measurement with two channels. The signal is split in a signal
+splitter (marked in orange) and fed into two readout channels. A pilot tone is also fed to the
+phasemeter, split and distributed via the PTD (marked blue) and added. Two all-digital phase-
+locked loops are used to read out the phase of the signal and the pilot tone for each channel.
+This type of measurement is easily implemented and well suited to hunt critical noise sources.
+But, the subtraction of almost equal signals makes this scheme insensitive to common non-
+linear eﬀects4. Cross talk inﬂuence, for example, can not be measured well, since all channels
+already measure the exact same signal. Noise due to thermal ﬂuctuations is, if it is common
+16
+between all channels, also not detectable by such measurements. Common additive noise
+can, in the linear operating range of the ADPLL, not be detected either. The noise ﬂoor
+due to uncorrelated additive noise depends on the number of compared channels, as evident
+from Equation 7.
+An important ﬁrst result of our investigations is that some commercially available ADC
+circuits, using ampliﬁers for ADC signal conditioning, are capable of achieving the desired
+phase noise performance levels even in rather uncontrolled thermal environments. These
+systems only require the addition of a pilot tone to the input signals to enable the necessary
+timing jitter correction. We used this fact and combined an FPGA with a suitable ADC
+card (FMC107 from 4DSP 21) to evaluate the feasibility and performance of diﬀerent pilot
+tone distribution and adding schemes. For these measurement we used a rather stable
+input signal, produced by a commercial signal generator, and split and distributed it via a
+thermally isolated, resistive power splitter (also referred to as resistive tee). Thereby, we
+ensured that no signiﬁcant phase noise was introduced by the signal distribution.
+A. Active front-end
+We tested two schemes using an active pilot tone adder. High-bandwidth operation am-
+pliﬁers were used in simple inverting adder circuits (also referred to as summing ampliﬁers)
+to combine the signals and the pilot tone. The PTD was implemented in two ways, once
+using a resistive 50 Ω matched splitter, and once using commercial, transformer based power
+splitter (also referred to as hybrid coupler) with a ﬂat amplitude response in the signal
+bandwidth. Both options were integrated, together with the adders, on a separate circuit
+board, which was connected to the signal source and to the ADC card using coaxial cables.
+Sketches of the implemented schematics are shown in Figure 6, a) and b). A passive thermal
+isolation of the components was added by wrapping them in bubble wrap foil.
+The achieved phase noise performance levels are shown in Figure 7 for the resistive power
+splitter set-up, the levels are also representative for the once achieved with the set-up using
+transformer based power splitters. The dashed lines represent the spectral density of the
+diﬀerences of the phase errors for the uncorrected signals. The straight lines show the
+same signals corrected for pilot tone jitter. Interestingly, one of the channels (C) shows an
+increased phase noise before correction. This is, however, suﬃciently suppressed afterwards.
+17
++
+-
+TR
+TR
+TR
++
+-
+TR
+TR
+TR
+1s,v
+2s,v
+pv
++
+-
+TR
+TR
+TR
++
+-
+TR
+TR
+TR
+1s,v
+2s,v
+pv
+ pv
+1s,v
+2s,v
+PTDPTD PTD
+AFE
+AFE
+AFE
+ß) b) c)
+FIG. 6. Sketch of the schematics for the tested pilot tone addition schemes, each one is shown for
+two channels. a) Active pilot addition and distribution via resistive power splitter. b) Active pilot
+addition and distribution via transformer based power splitter and addition via inverting adder
+circuits. c) Passive pilot addition and distribution via transformer based power splitters. The
+orange arrows indicate signal leakage into the PTD that leads to cross talk.
+Both schemes were able to achieve the desired performance levels. This demonstrates that
+the operational ampliﬁer based adding circuits, as well as the pilot tone distribution via
+resistive network or commercial power splitters are suitable to perform at the desired noise
+levels for the speciﬁc set of frequencies used in each measurement.
+In terms of suppression of crosstalk via the PTD the power splitter implementation is
+considered favourable. A cross talk signal introduced into the PT chain in one of the adders
+is attenuated by the isolation of the power splitters (typically 30 dB) before it can reach
+another signal channel. A summing ampliﬁer circuit provides a strong isolation between
+inputs, due to the virtual ground at the inverting input, which gives a strong initial cross
+talk suppression. However, a reduction of the nominal cross talk coupling via the PT
+distribution to less than 105 dB requires additional components.
+B. Passive front-end
+Based on the positive results with the passive pilot tone distribution an eﬀort was started
+to test a fully passive PTD and adder that uses two types of commercial, transformer based
+18
+10
+-4
+10
+-3
+10
+-2
+10
+-1
+10
+010
+-7
+10
+-6
+10
+-5
+10
+-4
+10
+-3
+ϕ [rad/
+√
+Hz]
+ 
+ 
+f [Hz]
+Ch A
+Ch B
+Ch C
+Ch D
+NSF·radµ5.8
+FIG. 7. Performance of active pilot tone adder and resistive distribution. The signal frequency
+was at 11 MHz, the pilot tone at 33 MHz. Excess noise in C is not understood. The dashed lines
+show the performance without jitter correction.
+power splitters. The beneﬁt of such an implementation is that it consumes no power and
+thus generates very little heat, which simpliﬁes any thermal isolation schemes.
+We have constructed AFEs with two diﬀerent power splitters, one with a plastic housing
+(ADP-2-1, Mini-Circuits) and one in a metal housing (PSC-2-1, Mini-Circuits). Separate
+circuit boards containing the PT adder were, again, placed in passive thermal isolation
+and connected to the ADC card using impedance matched coaxial cables. A sketch of the
+schematics is shown in c) in Figure 6. We investigated the phase noise performance and
+found that both implementations were also able to achieve the desired levels for some speciﬁc
+set of signal frequencies. Figure 8 shows the performance for the set-up using the PSC-2-1,
+which is also representative for the performance achieved with the ADP-2-1.
+We investigated the described schemes only with the given temperature stability and for
+a small set of frequencies, because the prototypes were aimed at single frequency opera-
+tion. Choosing smaller (below ≈10 MHz) or higher (above≈20 MHz) input frequencies did,
+19
+10
+-4
+10
+-3
+10
+-2
+10
+-1
+10
+010
+-7
+10
+-6
+10
+-5
+10
+-4
+10
+-3
+ϕ [rad/
+√
+Hz]
+ 
+ 
+f [Hz]
+Ch A
+Ch B
+Ch C
+Ch D
+NSF·radµ5.8
+FIG. 8. Performance of passive pilot tone adder and distribution with PSC-2-1. The signal fre-
+quency was at 15 MHz, the pilot tone at 35 MHz. The dashed lines show the performance without
+jitter correction.
+however, indicate the presence of excess noise. This was expected due to the bandpass char-
+acteristic of the transformer based power splitter. Their non-ﬂat transfer function at lower
+and higher frequencies increases the coupling of temperature ﬂuctuations into phase. It is
+currently not known, if this could have been reduced by further improved thermal stability
+to acceptable levels.
+C. 16 channel prototype
+Based on the availability of a suitable PT adder scheme we designed an integrated
+phasemeter prototype that was aimed at achieving LISA performance levels at a single
+frequency with 16 channels. In terms of cross talk we decided to only aim for a suppression
+level of 60 dB. This was limited by the cross talk induced on the utilised commercial ADC
+card (FMC116 from 4DSP 22).
+20
+FIG. 9. Photographs of the 16 channel phasemeter built using commercially available components
+in combination with a passive pilot tone distribution and adder circuit.
+We chose the implementation relying only on the transformer based power splitter PSC-
+2-1. Two circuit boards with splitter networks were manufactured and mounted into a
+common housing with the FPGA board and ADC card, as shown in Figure 9.
+Using a signal distribution with one two-way resistive splitter, and two eight-way resistive
+splitters we fed the same input signal into all 16 channels. Again, we were able to achieve
+µrad performance with suﬃcient thermal isolation of the splitters and cables. However, the
+white noise levels in each channel showed varying levels, as shown in Figure 10, which were
+found to correspond to the cable length used for distributing the signals from the splitters
+to the phasemeter. Using cables with matched lengths allowed us to reduce this noise ﬂoor.
+At this point we were not able to fully identify this noise coupling. One speculation is
+that the white noise is actually caused by a small vector noise present in all channels, which
+21
+10
+-4
+10
+-3
+10
+-2
+10
+-1
+10
+010
+-ß
+10
+-5
+10
+-4
+ϕ [rad/
+√
+Hz]
+ 
+ 
+f [Hz]
+NSﬃ·radµ5.ﬂ
+2ﬁ0ﬀ
+0ﬁ7ﬀ
+1ﬁ0ﬀ
+0ﬁ5ﬀ
+FIG. 10. Performance measurement using the 16 channel phasemeter. The signal frequency was
+at 13 MHz, the pilot tone at 35.3 MHz. The inﬂuence of the diﬀerent cable lengths (colour coded)
+on the achieved noise ﬂoor is clearly visible.
+might be caused by impedance mismatches in the signal or PT distribution, by the cross talk
+between the channels, or a combination of these eﬀects, with the phase of the parasitic tone
+relative to the actual signal driven by the dynamics of the signal itself. The diﬀerent cable
+lengths change the eﬀective coupling in each channel, ultimately leading to the observed
+white noise ﬂoor given by the maximum amplitudes of the small vector noise. A similar
+eﬀect is observed in the experiment presented in the next section.
+VI. LISA PHASEMETER ELEGANT BREADBOARD
+In the scope of the LISA metrology system technology development project we built and
+tested a full breadboard of the LISA phasemeter 9,10 (see Figure 1). For this system we
+implemented an active AFE using operation ampliﬁers and a PTD using transformer based
+power splitters on the clock module and impedance matched distribution on the ADC cards.
+22
+FIG. 11. Shown are thermal and corresponding optical pictures of the elegant breadboard model,
+taken about 20 minutes after start-up in air. The left image shows a close-up of the AFE, showing
+the heat dissipated by the ADC, which causes a thermal gradient through the AFE. The middle
+image shows the bridge FPGA and the FFT FPGA 9, both with passive coolers attached to them,
+and one of the systems power supplies in the upper right corner. The FFT FPGA has about twice
+the amount of logic gates and, therefore, a higher power consumption. The right image shows the
+overall systems with three ADC modules and one DAC module. The DAC card generates signiﬁ-
+cantly more heat. The FPGA temperature also varies strongly on the ADC modules, depending
+on whether they have a passive cooler mounted or not.
+To determine the performance of our system we conducted a comprehensive measurement
+campaign using LISA like analogue input signals, which were generated by a dedicated signal
+simulator. These signals included a signal tone that had the dynamics of the expected laser
+frequency noise (the same conservative spectrum was used in our DSP study4) and a constant
+frequency drift. The synthesised signal also included two smaller side bands at ±1 MHz23, a
+weak 1.25 MHz modulation of pseudo-random noise24,25, and a white noise level with variable
+signal-to-noise ratio. We performed measurements at various signal frequencies, covering the
+range from 7 MHz up to 25 MHz. The input signal in each case was split using an 8-way
+resistive splitter and short cables of equal lengths. These were connected to two ADC
+cards, allowing us to investigate the noise between channels on a single card, and between
+23
+PeltierFan
+AFE
+FIG. 12. Sketch of the active temperature stabilisation scheme. The temperature of the air ﬂowing
+over the AFE is kept constant by actuating on the Peltier element current. Two large fans ensure
+the coupling of the inner and out volume to the Peltier and additional fans are monted on each
+ADC module to optimise the coupling of the airﬂow to the AFE. Passive heat exchangers are glued
+onto all ADCs and FPGAs.
+independent cards.
+The dense placement of the various components on the breadboard caused not only
+a strong heat dissipation, but also strong temperature ﬂuctuations. An overview of the
+heat sources is given in Figure 11. To achieve the desired performance levels we therefore
+implemented an active thermal stabilisation of the whole system. To this end, we designed
+a double-walled housing and integrated a Peltier element into the top, which was coupled to
+both heat baths via additional fans. A diagram of the stabilisation is shown in Figure 12.
+Using a temperature sensor placed close to the AFE, we implemented an active temperature
+stabilisation which actuated on the current through the Peltier element. Figure 13 shows
+the thermal spectra, measured with temperature sensors positioned close to the AFE, on
+each ADC card with the system open in air and with active stabilisation. We were able to
+suppress the temperature ﬂuctuations at the AFE to a level below 200 mK/
+√
+Hz at 1 mHz.
+24
+10
+-4
+10
+-3
+10
+-2
+10
+-1
+10
+0
+10
+-2
+10
+-1
+10
+0
+T ßK/
+√
+Hz]
+f ßHz]
+ 
+ 
+ADC3-U4
+ADC3-U5
+ADC4-U4
+ADC4-U5
+FIG. 13. Temperature spectral density measured with the sensors placed next to the AFE of the
+two ADC cards used during the measurement campaign. Shown are the values while operating the
+system in air (dashed lines), and while using the active temperature stabilisation in a dedicated
+housing (solid lines).
+Using that thermal stabilisation we were able to achieve full performance for all frequen-
+cies with input white noise corresponding to a SNR of 75 dBHz and 95 dBHz; as expected in
+intersatellite interferometers with long arms and low received optical power. Figure 14 shows
+the results of two measurements from our campaign. The ﬁrst measurement (dashed lines)
+was done using a standard signal generator, locked to the phasemeter clock, to generate a
+clean input signal while operating the system in air. The performance is limited in all chan-
+nels by some 1/f noise (due to thermal noise) and no excess white noise is present in any of
+the channels. The second measurement (solid lines) was done with the full LISA-like input
+signal at 75 dBHz SNR and with the active temperature stabilisation. For most channels we
+achieved the desired performance and all other measurements using higher SNR and lower
+signal frequencies showed even better performance. Similar to our earlier investigations with
+25
+10
+-4
+10
+-3
+10
+-2
+10
+-1
+10
+010
+-ß
+10
+-6
+10
+-5
+10
+-4
+10
+-3
+10
+-2
+ϕ [rad/
+√
+Hz]
+f [Hz]
+ 
+ 
+8.5 µrad
+3ﬃ
+3ﬂ
+3ﬁ
+3ﬀ
+4ﬃ
+4ﬂ
+4ﬁ
+4ﬀ
+FIG. 14. Phase spectral densities for two measurements at 25 MHz signal frequency, one with
+temperature stabilisation (solid lines) and one without (dashed lines).
+the 16 channel prototype we ﬁnd, again, a channel dependent white noise ﬂoor. From the
+diﬀerence to the ﬁrst measurement we can directly conclude that this eﬀect is driven by the
+signal dynamics, which were minimal in the ﬁrst measurement, leading to no excess white
+noise. We investigated the cause for observing this coupling without diﬀerent cable lengths
+only shortly. We found a dependency of this coupling on the resistor value matching in our
+resistive power splitter used to distribute the signal. Hence, we speculate that this noise
+is another example for a small vector noise that is related to the signal dynamics, which is
+either caused by impedance mismatches, cross talk, or a combination of these eﬀects.
+VII. CONCLUSION
+In this article we have presented a conceptual and experimental analysis of eﬀects in the
+analogue measurement chain that can spoil the performance of phase readout systems at low
+frequencies. We have performed various experimental investigations with prototype readout
+26
+systems and found a wide variety of set-ups that are suitable to achieve performance for
+certain frequencies. We were able to implement these prototypes with a mixture of com-
+mercially available hardware and additionally constructed analogue circuits for distributing
+and adding a pilot tone.
+The design of a full LISA phasemeter prototype, able to operate over the whole desired
+frequency range, was found to be more demanding, requiring, amongst other things, an active
+temperature stabilisation of the analogue front-end. With the LISA phasemeter prototype
+we have demonstrated full phase readout performance of better than
+√
+2· 2πµ rad/
+√
+Hz for
+a single channel with LISA like input signals in null-measurement schemes.
+Some of our measurements indicate the presence of non-linear noise couplings due to
+small vector signals. We have discussed the need to take such couplings into account and we
+described its inﬂuence in some detail. Due to the lack of sensitivity to many of these eﬀects,
+we argue that other types of performance tests have to be implemented in the future, that
+take such inﬂuences into account. Three signal tests involving the whole measurement chain
+are, in our perspective, the preferred method to do that.
+ACKNOWLEDGMENTS
+We acknowledge funding by the European Space Agency (ESA) within the technology de-
+velopment project “LISA Metrology System” and “Optical Bench Development for LISA”.
+The authors also gratefully acknowledge support by the International Max-Planck Research
+School for Gravitational Wave Astronomy (IMPRS-GW), by the Centre for Quantum En-
+gineering and Space-Time Research (QUEST) and by Deutsches Zentrum f¨ ur Luft- und
+Raumfahrt (DLR) with funding from the Bundesministerium f¨ ur Wirtschaft und Technolo-
+gie (project reference 50 OQ 0601).
+REFERENCES
+1K. Danzmann et al., “The Gravitational Universe: Whitepaper for the ESA L2/L3 selec-
+tion,” arXiv preprint arXiv:1305.5720 (2013).
+2B. S. Sheard, G. Heinzel, K. Danzmann, D. A. Shaddock, W. M. Klipstein, and W. M.
+Folkner, Journal of Geodesy 86, 1083 (2012).
+27
+3D. Shaddock, B. Ware, P. Halverson, R. E. Spero, and B. Klipstein, AIP Conf. Proc. 873,
+689 (2006).
+4O. Gerberding, B. Sheard, I. Bykov, J. Kullmann, J. J. E. Delgado, K. Danzmann, and
+G. Heinzel, Classical and Quantum Gravity 30, 235029 (2013).
+5S. P. Francis, T. T.-Y. Lam, K. McKenzie, A. J. Sutton, R. L. Ward, D. E. McClelland,
+and D. A. Shaddock, Opt. Lett. 39, 5251 (2014).
+6Y. Yu, S. Mitryk, and G. Mueller, Phys. Rev. D 90, 062005 (2014).
+7H.-S. Liu, Y.-H. Dong, Y.-Q. Li, Z.-R. Luo, and G. Jin, Review of Scientiﬁc Instruments
+85, 024503 (2014).
+8Y.-R. Liang, H.-Z. Duan, X.-L. Xiao, B.-B. Wei, and H.-C. Yeh, Review of Scientiﬁc
+Instruments 86, 016106 (2015).
+9O. Gerberding, S. Barke, I. Bykov, K. Danzmann, A. Enddaard, J. J. Esteban, A. Gianolio,
+T. V. Hansen, G. Heinzel, A. Hornstrup, O. Jennrich, J. Kullmann, S. M. Pedersen,
+T. Rasmussen, Z. Sodnik, and M. Suess, in ASP Conference Series; 9th LISA Symposium,
+ASP Conference Series, Vol. 467, edited by G. Auger, P. Binetruy, and E. Plagnol (2012)
+pp. 271 – 275.
+10S. Barke, N. Brause, I. Bykov, J. J. Esteban Delgado, A. Enggaard, O. Gerberding,
+G. Heinzel, J. Kullmann, S. M. Pedersen, and T. Rasmussen, “LISA metrology system-
+ﬁnal report,” online: http://hdl.handle.net/11858/00-001M-0000-0023-E266-6 (2014).
+11M. Tr¨ obs, L. dArcio, S. Barke, J. Bogenstahl, I. Bykov, M. Dehne, C. Diekmann, E. Fitzsi-
+mons, R. Fleddermann, O. Gerberding, et al., in Proceedings of the 9th International Con-
+ference on Space Optics, Ajaccio (2012).
+12R. Spero, B. Bachman, G. de Vine, J. Dickson, W. M. Klipstein, T. Ozawa, K. McKenzie,
+D. A. Shaddock, D. Robison, A. Sutton, and B. Ware, Class. Quantum Grav. 28, 094007
+(2011).
+13D. Sch¨ utze, G. Stede, V. M¨ uller, O. Gerberding, T. Bandikova, B. S. Sheard, G. Heinzel,
+and K. Danzmann, Opt. Express 22, 24117 (2014).
+14F. G. Cervantes, J. Livas, R. Silverberg, E. Buchanan, and R. Stebbins, Classical and
+Quantum Gravity 28, 094010 (2011).
+15R. A. Wannamaker, The theory of dithered quantization. (University of Waterloo, 2003).
+16B. Carter, Op Amps for everyone (Elsevier, 2003).
+17R. Boudot and E. Rubiola, Ultrasonics, Ferroelectrics and Frequency Control, IEEE Trans-
+28
+actions on 59, 2613 (2012).
+18G. Hechenblaikner, J. Opt. Soc. Am. A 30, 941 (2013).
+19M. Tr¨ obs, L. d’Arcio, S. Barke, J. Bogenstahl, C. Diekmann, E. Fitzsimons, O. Gerberding,
+J. Hennig, F. Hey, H. Hogenhuis, et al., in Astronomical Society of the Paciﬁc Conference
+Series, Vol. 467 (2013) p. 233.
+20A. Joshi, S. Datta, J. Rue, J. Livas, R. Silverberg, and F. Guzman Cervantes, in SPIE
+Astronomical Telescopes+ Instrumentation, Vol. 8453 (2012) pp. 84532G–84532G–10.
+214DSP, “FMC10x user manual,” http://www.4dsp.com/FMC107.php (2011).
+224DSP, “FMC116/FMC112 user manual,” http://www.4dsp.com/FMC116.php (2011).
+23G. Heinzel, J. J. Esteban, S. Barke, M. Otto, Y. Wang, A. F. Garcia Marin, and K. Danz-
+mann, Classical and Quantum Gravity 28, 094008 (2011).
+24J. J. E. Delgado, Laser ranging and data communication for the laser interferometer space
+antenna, Ph.D. thesis, Leibniz Universit¨ at Hannover (2012).
+25A. J. Sutton, K. McKenzie, B. Ware, G. de Vine, R. E. Spero, W. Klipstein, and D. A.
+Shaddock, Class. Quantum Grav. 30, 075008 (2013).
+29

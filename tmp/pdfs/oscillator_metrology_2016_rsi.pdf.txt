@@ -1,0 +1,883 @@
+Oscillator metrology with software deﬁned radio
+Jeﬀ A. Sherman 1, a) and Robert J¨ ordens1, b)
+National Institute of Standards and Technology, Division of Time and Frequency,
+Boulder, Colorado, USA
+(Dated: 6 August 2016)
+Analog electrical elements such as mixers, ﬁlters, transfer oscillators, isolating buﬀers,
+dividers, and even transmission lines contribute technical noise and unwanted envi-
+ronmental coupling in time and frequency measurements. Software deﬁned radio
+(SDR) techniques replace many of these analog components with digital signal pro-
+cessing (DSP) on rapidly sampled signals. We demonstrate that, generically, com-
+mercially available multi-channel SDRs are capable of time and frequency metrology,
+outperforming purpose-built devices by as much as an order-of-magnitude. For ex-
+ample, for signals at 10 MHz and 6 GHz, we observe SDR time deviation noise ﬂoors
+of about 20 fs and 1 fs, respectively, in under 10 ms of averaging. Examining the
+other complex signal component, we ﬁnd a relative amplitude measurement insta-
+bility of 3× 10−7 at 5 MHz. We discuss the scalability of a SDR-based system for
+simultaneous measurement of many clocks. SDR’s frequency agility allows for com-
+parison of oscillators at widely diﬀerent frequencies. We demonstrate a novel and
+extreme example with optical clock frequencies diﬀering by many terahertz: using a
+femtosecond-laser frequency comb and SDR, we show femtosecond-level time com-
+parisons of ultra-stable lasers with zero measurement dead-time.
+a)Electronic mail: jeﬀ.sherman@nist.gov
+b)Electronic mail: rj@m-labs.hk
+1
+arXiv:1605.03505v1  [physics.ins-det]  11 May 2016
+I. OVERVIEW
+Time is best measured by counting periods of natural or manmade oscillators 22. To
+maximize temporal resolution we must interpolate between integer periods, a task equivalent
+to determining an oscillator’s phase. Consider two oscillators with frequency f, the periods
+of which can be counted as clocks. Their phase oﬀset ∆ φ(tk) (in radians) at a measurement
+epoch tk can be interpreted as a time oﬀset 3,
+∆T (tk) = ∆φ(tk)
+2πf . (1)
+Resolving whether ∆T is stationary is the most sensitive method for detecting small fre-
+quency oﬀsets or ﬂuctuations between the oscillators and thus calibrating or characterizing
+them as clocks 26,49. For continuously running clocks, a linear drift in ∆ T deﬁnes a (frac-
+tional) frequency oﬀset between the oscillators y = [∆T (t2)− ∆T (t1)]/(t2−t1) consistent
+with the notion that frequency is the rate of change of phase.
+In this work, we brieﬂy review existing high-resolution techniques for measuring ∆ T of
+radio frequency oscillators. We introduce the software deﬁned radio (SDR) concept in the
+context of time and frequency metrology, and describe basic demonstration experiments valid
+for many SDR implementations. Finally, we explore SDR’s ability to compare oscillators at
+dissimilar frequencies and to scale to many-oscillator comparisons. One new SDR application
+is discussed in some detail: phase-coherent measurement of optical clocks via a femtosecond
+laser frequency comb.
+A. Radio techniques in oscillator metrology
+Though clock frequencies may be high, measurement bandwidth need not be for com-
+paring oscillators i and r that are similar in frequency, fi≈ fr. Since clock oscillators are
+typically very stable, a signal at fi−fr is both low in bandwidth and low in absolute fre-
+quency and therefore amenable to high-precision measurement. Such frequency translation
+is rooted in radio techniques—transmitters shift a signal of low- to moderate-bandwidth
+upwards to many megahertz or gigahertz for ease of wide-area propagation while receivers
+spectrally convert the signal back to its original band with no practical loss in information.
+The widely applied dual-mixer time-diﬀerence (DMTD) technique 3, illustrated in Fig-
+ure 1a, is an example of radio frequency translation applied to oscillator metrology. A
+2
+low-pass
+low-pass
+zero-cross 
+detector 
+mixer
+zero-cross 
+detector PLL 
+PLL
+Time interval counter 
+FPGA 
+accumulator 
+(frequency tuning word) 
+“start” 
+“stop” 
+transfer
+oscillator
+a)  Generic dual-mixer time-difference (DMTD) scheme
+b)  Software-defined radio (single channel)
+sample
+clock
+DSP
+NCO
+NCO
+DDC
+DDC
+DDC
+ clock
+ADC
+high-pass
+filter
+decimation 
+& filters 
+formatter &
+network interface 
+output 
+output 
+PLL
+FPGA 
+c)  Software-defined radio (dual channel)
+sample
+clock
+ADC1
+ADC2
+high-pass
+high-pass
+decimation 
+& filters 
+decimation 
+& filters 
+formatter & 
+network interface 
+outputs 
+d)  Example SDR output data processing chains 
+complex-
+divide
+(single channel vs. reference clock) (dual channel; common frequency)
+FIG. 1. Schematic comparison of a) generic dual-mixer time-diﬀerence (DMTD), and b) a software
+deﬁned radio (SDR) described here. Dashed-lines surround digital processing sections. In both
+concepts,fi is the frequency of an oscillator under test. A reference oscillatorfr disciplines a digital
+clock at fast frequency νm through a phase-locked-loop (PLL). Both methods gain resolution by
+spectrally shifting fi to a low frequency fb; in SDR, the mixer analogue is digital downconversion
+(DDC) with a synthesized numerically-controlled oscillator (NCO). c) Two oscillators fi and fj
+are compared in two channels of a single ADC, suppressing noise due to the νm PLL, its reference
+tonefr, and the ADC’s aperture jitter. d) While DMTD directly outputs time-oﬀset data; further
+processing is performed on the SDR sampled waveform z(tk) with a computer to determine time
+oﬀset. We illustrate two simpliﬁed processing chains for single- and dual-channel measurements;
+see text for details.
+3
+transfer oscillator is synthesized at fr−fb, slightly oﬀset from input and reference oscilla-
+tors fi and fr: (|fi−fr|≪ fb≪ fi,r). The transfer oscillator is mixed (multiplied) with
+bothfr andfi tones, creating two signals with frequencies nearfb after low-pass ﬁltering. A
+time-interval counter (TIC) counts periods of a fast timebase oscillator νm, also disciplined
+byfr, gated by high slew-rate zero-crossing detectors observing the two heterodyne products
+near fb.
+As a consequence of the spectral conversion, DMTD methods resolve ∆ T≤ 1 ps accu-
+rately, despite no component possessing a bandwidth approaching (1 ps)−1 = 1 THz. DMTD
+realizations often employ an oﬀset frequency 1 Hz ≤ fb≤ 10 Hz and heterodyne factors
+105≤fr/fb≤ 107, so a TIC must only accurately resolve ∆T∼ 1µs between the relatively
+slow oscillations near fb to discern (fr/fb)−1(1 µs)∼ 1 ps of oscillator time diﬀerence.
+While DMTD techniques are already highly reﬁned 48, ∆T of 1 ps can be mimicked or
+masked by ﬂuctuations of≈ 200 µm in electrical length or group delay, so even cables con-
+tribute to instability (the temperature dependence is of order 0.5 ps m −1 K−1). Analog
+components (including ‘digital’ mixers) can contribute ﬂicker-phase noise 31, amplitude-to-
+phase-modulation conversion 9, sensitivity to interference (e.g., channel crosstalk, ground
+loops, wideband ambient rf), and coupling to the environment (e.g., temperature, humid-
+ity). The TIC start- and stop-inputs require high-bandwidth, high slew-rate triggers, but
+the signals following the mixers are slow sinusoids. Zero-crossing detectors must therefore
+boost signal slew rates by ∼ 106 while accurately preserving phase 7. Without additional
+synthesis steps, DMTD requires fr and fi to be very similar, and among a small set of fre-
+quencies compatible with the analog processing components. Mixer and ﬁlter non-linearity
+and frequency-dependent group delay complicate maintaining a whole-system ∆ T calibra-
+tion over arbitrary signal frequencies. Finally, DMTD schemes cannot resolve ﬂuctuations
+over time scales shorter than 1/fb.
+B. Related work
+Some limitations in DMTD can be addressed by replacing certain analog processing steps
+with digital implementations. The TIC can be dramatically redesigned 34 with much higher
+eﬀective νm. One group 44 replaced the TIC by digitizing the mixed and ﬁltered signals at
+fb and later eliminated the mixers with high-speed direct sampling of the input signals 29.
+4
+Others have replaced mixer-based spectral down-conversion with aliasing through under-
+sampling36. Early consideration of a direct-sampling system 25 very similar to the present
+work showed plausible limits due to quantization eﬀects alone can be ∆T <1 fs (τ/1 s)−1/2
+for averaging intervalsτ. While high-speed samples can be processed entirely in software39 or
+with custom hardware17, this work explores oscillator metrology using an inexpensive, com-
+mercially available, unmodiﬁed software deﬁned radio (SDR). We note a similar approach for
+characterizing ADCs8. We employ an ADC noise cancelation technique in the time domain,
+which perhaps is analogous to cross-spectral analysis 38 in the frequency domain.
+II. SOFTWARE DEFINED RADIO
+A. “Sample ﬁrst, ask questions later”
+In SDR28, signals of interest are sampled by a fast, high-resolution analog-to-digital con-
+verter (ADC) with little or no analog processing, ampliﬁcation, or ﬁltering. A numerically-
+controlled oscillator (NCO), computed synchronously with ADC sampling, takes the place of
+the local oscillator tone in analog radio reception. A digital multiplication of the sampled sig-
+nal and NCO phasor performs the role of signal mixer. Filtering and sample rate decimation
+are also performed digitally, reducing noise bandwidth while conserving signal information.
+Here we focus on SDR receiver functions, but many SDRs are capable of transmission as
+well. Since the signal processing chain in SDR is highly-conﬁgurable, it has applications in
+radar, spread-spectrum and multiple-input multiple-output (MIMO) communication, and
+advanced protocol demodulation and simulation.
+SDR seems to suﬀer a signiﬁcant disadvantage: noise ﬁgures of high-speed ADCs are much
+worse than a collection of radio frequency ﬁlters, ampliﬁers, and mixers. On the other hand—
+especially in the context of precision metrology—analog components are subject to strict
+impedance matching requirements and exhibit long-term sensitivity to shock, vibration,
+supply voltage, temperature, humidity, aging, interference, and signal crosstalk. A low
+ADC signal-to-noise ratio (SNR) is at least amenable to averaging and process gain, while
+environmental sensitivities are more pernicious sources of stochastic noise and drift over long
+durations. In contrast, digital processing steps are stable, deterministic, and environmentally
+insensitive.
+5
+B. Technical details
+At the time of writing, the techniques presented here ought to apply to SDRs from at
+least ten manufacturers. While we attempt to consider SDR generically, Figure 1b illustrates
+relevant components in the SDR receiver studied here (an Ettus USRP N210 except where
+noted1). Field programmable gate array (FPGA) hardware description code and circuit
+schematics are available for inspection and customization 11,12. A receiver daughterboard
+couples a ground-referenced input signal (1 to 250 MHz) into a diﬀerential ADC via a
+transformer. The ADC (Texas Instruments ADS62P44) has an analog input bandwidth of
+450 MHz (−3dB), a full-scale range of±1 V, and 14-bit resolution. The ADC speciﬁcations
+include an aperture jitter tap = 150 fs, a signiﬁcant technical timing uncertainty between
+an idealized sample trigger and actuation of the converter’s sample-and-hold circuitry. The
+sample timebase, a voltage-controlled crystal oscillator (VCXO) at νm = 100 MHz, drives
+the ADC sampling trigger and the FPGA’s digital signal processing (DSP) pipeline. The
+SDR includes phase-locked loop (PLL, bandwidth ≈ 3 kHz) components, which we often
+use to discipline νm to a +14 dBm signal at fr = 10 MHz derived from an active hydrogen
+maser. In our conﬁguration, this SDR consumes about 10 W of dc power.
+SDR’s three important DSP tasks are frequency translation, ﬁltering, and data decima-
+tion. After a high-pass ﬁlter suppresses the ADC’s zero-oﬀset, the input signal undergoes
+digital down-conversion (DDC), or frequency translation by an NCO tuned to
+fa =νm× a
+232, (2)
+wherea is an integer 0≤a< 232. As in direct digital synthesis (DDS), a phase register accu-
+mulates the frequency-tuning word a upon every νm clock cycle, the most signiﬁcant bits of
+which are used to derive complex NCO phasor components. However, unlike many DDS im-
+plementations, SDR often does not use the phase register as an index in a large lookup table
+of precomputed trigonometric values. Instead, SDR often implements coordinate rotation
+digital computer (CORDIC)47 to compute NCO phasors in ﬁxed-point arithmetic. Exploit-
+ing the equivalence between angle rotation and phase accumulation, CORDIC is a succes-
+sive approximation algorithm built from logical operations well suited to a DSP pipeline:
+comparisons, bit shifts, and binary addition. After inspection of the two most signiﬁcant ac-
+cumulator bits ﬁxes the phase quadrant, this SDR implements K = 20 CORDIC iterations
+on 24-bit phase words for an approximate angle resolution of tan −1[
+2−(K−1)]
+= 1.9 µrad.
+6
+Signal (V) 
+-1 
+0
+1a) 
+Sample time (s)
+0 0.2 0.4 0.6 0.8 1
+Phase (rad.) 
+0
+c) 
+Residual 
+(mV) 
+0.5
+-0.5
+b) 
+FIG. 2. SDR measurement of a signal at fi = fr = 10 MHz, spectrally-shifted by DDC to
+fb = 10 MHz− (429, 496, 386× 2−32× 100 MHz)≈ 8 Hz. a) One second (10 6 buﬀered samples)
+of z(tk) =I(tk) +iQ(tk) data. b) The residual amplitude of I(tk) after removing a best-ﬁt single-
+tone. The noise is predominately white, but modulation related to fb and proportional to |I(tk)|
+is clearly observed. c) The instantaneous phase evolves as 2 πfbt; here we plot arg z(tk) wrapped
+into−π <argz(tk)≤π.
+CORDIC approximates resampling the real input signal into a complex frame rotating atfa,
+adding negligible quantization noise (approximately equivalent to σx(τ) = 0.3 fs (τ/1 s)−1/2
+at 10 MHz). The SDR ultimately truncates the resulting signal to 16 bits of resolution for
+each of the in-phase (I) and quadrature-phase (Q) components.
+Transmission and manipulation of output samples z(tk) =I(tk) +iQ(tk) at the physical
+sample rate νm would require ≈ 3 Gbps in network and storage resources. Fortunately,
+DDC shifts the signal of interest close to baseband, allowing aggressive low-pass ﬁltering
+and rate-decimation (by up to a factor of 512) in hardware. The SDR ﬁlters and decimates
+in three conﬁgurable steps. First, a cascaded integrator-comb ﬁlter 21 divides the sample
+rate by an integer 1 ≤ ncic≤ 128. This is followed by two optional half-band decimators 5,
+each accomplishing a rate division of 2 and antialias ﬁltering. Within their passbands these
+ﬁlters have a linear phase/frequency dependence and thus are shape-preserving in the time-
+domain. Figure 2 shows data acquired with typical settings, ncic = 25 and both half-band
+7
+ﬁlters enabled, which yields a decimation of ndec = 4ncic = 100 and νm/ndec = 106 samples
+per second, requiring 32 Mbps of network and buﬀering resources. ADC quantization noise
+power, which is nearly uniform in density (‘white’) over a Nyquist bandwidth of ±νm/2 is
+reduced, approximately byn−1
+dec (see Appendix B). The ﬁnal DSP section queues and formats
+z(tk) along with metadata such as hardware time-stamping and drives their transmission
+to a general-purpose data acquisition computer. Application programming interfaces are
+available for several languages, free tools like gnuradio15, and commercial data processing
+packages.
+III. DEMONSTRATION EXPERIMENTS
+We now outline our study of SDR’s suitability for oscillator metrology. We ﬁrst discuss
+phase measurements over intervals of a few seconds, the analysis of which includes informa-
+tion about fast ﬂuctuations up to νm/(2ndec) in frequency. Then, we consider measurement
+noise over several hours to days using methods which average over fast ﬂuctuations. We ﬁnd
+that over intervals greater than about 10 ms, ADC aperture jitter is likely a limiting tech-
+nical noise source. We demonstrate a promising solution available in many SDRs: a second,
+independent ADC channel is synchronously sampled such that aperture jitter and many
+other noises subtract in common-mode. We consider application of SDR in a many-clock
+inter-comparison, and to the problem of optical frequency and phase metrology. Finally,
+we brieﬂy describe measurement performance of a 6 GHz microwave tone beyond the ADC
+bandwidth, and the instability of amplitude measurements in two SDR models.
+A. Phase of ADC input vs. the sampling timebase
+Consider the arrangement in Figure 1b where fi is approximately known and stationary,
+and fr is treated as a frequency reference ( fi need not be similar to fr). We choose the
+integera sofa (see Eq. 2) is close to fi. Absent technical noise, νm = 10fr due to the master
+timebase’s PLL, making fa exactly computable. The SDR output samples, z(tk), represent
+the input signal spectrally shifted to a low frequency fb = fi−fa; the sample epochs are
+tk =k× (ndec/νm). The signal phase, arg z(tk)≡ tan−1 [Im z(tk)/Re z(tk)] (see Figure 2c)
+is a time-integral of angular frequency 2 πfb and so evolves in time as 2 πfbtk +φ0, where
+8
+a) 
+b) 
+Fourier frequency (Hz) 
+10 1 10 2 10 3 10 4 10 5
+Phase PSD (dBc/Hz) -160
+-140
+-120
+-100
+Free-running 
+VCXO
+ADC
+Maser
+c) 
+Time deviation           (s) 
+10 -5 10 -4 10 -3 10 -2 10 -1 10 0 10 1 10 2 10 3 10 410 -14
+10 -13
+10 -12
+Single ADC channel
+Dual ADC channels
+Averaging interval    (s) 
+0 0.2 0.4 0.6 0.8 1
+Phase (mrad.) -0.2
+0
+0.2
+Sample time  (s) 
+FIG. 3. a) Unwrapped phase signal argz(tk) whenfi andfr derive from the same 10 MHz oscillator
+(0.1 mrad corresponds to ∆ T ≈ 1.6 ps); a deterministic ramp caused by the choice of fa is
+removed. Here, ndec = 100. b) A Fourier transform of arg z(tk) (black data) yields a single-sided
+phase noise power spectral density (PSD). At high Fourier frequencies we observe a white noise of
+≈− 140 dBc/Hz (green dashed line), consistent with the ADC’s SNR, signal power, and decimation
+ﬁltering. At low Fourier frequencies we observe technical noise roughly tracking the rising noise
+density of theνm VCXO (red dashed line), which the PLL cannot fully suppress. A hydrogen maser
+noise speciﬁcation (black dot-dash) provides context. The relative PSD between two ADC channels
+(blue data) has much improved ﬂicker noise. c) Time deviation σx(τ) in one-channel (black) and
+two-channel (blue) modes; ndec = 500. Solid points derive from short streams of arg z(tk) samples
+without averaging. Open circles result from pre-averaging streams in 1 s chunks. White phase noise
+of 1.2 fs (τ/1 s)−1/2 (black dashed line) is equivalent to≈ 86 dB SNR (see Appendix A). The blue
+dashed line represents a further 6 dB improvement. A red dashed line marks the ADC’s aperture
+jittertap. For τ≫ 10 s, we expect environmental coupling to dominate both measurement modes.
+See text for further detail. 9
+φ0 includes technical oﬀsets such as cable delays. The tan −1 function is evaluated with
+independent numerator and denominator arguments, removing a phase-quadrant ambiguity.
+Generally, all SDRs are capable of this mode of measurement, though those without the
+ability to reference νm will suﬀer in accuracy.
+To analyze the phase noise ﬂoor of this conﬁguration, we split a single 10 MHz oscillator
+into the fi and fr inputs. The amplitude at the ADC is kept near half-scale to avoid
+distortion (typical input power was≈ 0 dBm). Ideally, when unwrapped, argz(tk) = 2π(1−
+10a/232)(kndec/10) (neglecting a ﬁxedφ0). In software, we subtract this deterministic trend,
+the magnitude of which is made small by an appropriate choice of a, and interpret residual
+ﬂuctuations as measurement noise. Figure 3a shows a typical residual phase signal, a Fourier
+transform of which yields the phase noise power spectral density (Figure 3b).
+The black curve in Figure 3c depicts a complementary statistical measure: the oscillator
+time deviation2,4 σx(τ) = τ√
+3mod σy(τ), where mod σy(τ) is the modiﬁed Allan deviation 35.
+Brieﬂy,σx(τ) characterizes the predictability of phase (in time units, see Eq. 1) as a function
+of averaging interval τ. Over roughly 20 µs < τ <200 µs we observe behavior consistent
+with white-phase noise, σx(τ)≈ 1.2 fs (τ/1 s)−1/2. Regrettably, σx(τ) stops decreasing with
+further averaging, and besides an oscillation peak (related to modulation at fb) appears lim-
+ited to a ﬂicker-ﬂoor roughly consistent with the ADC’s tap = 150 fs. Reducing input power
+increases the white-phase instability, but otherwise these performance limits persist over
+many instrument conﬁgurations: rf-coupling method (dc-coupled op-amp vs. transformer),
+choice of heterodyne fb, decimation factor ndec, stock vs. quiet linear power supply, etc.
+B. Phase of one ADC channel vs. another
+To do better we must reduce the inﬂuence of phase noise in νm and the ADC aperture
+jitter tap. Fortunately, many SDRs can process two independent ADC channels which are
+sampled synchronously (speciﬁcally, the two ADC channels exist on the same chip). To
+examine residual noise in this diﬀerential conﬁguration, we split the same oscillator into
+the three inputs (fi, fj, and fr) as shown in Figure 1c, though it is not crucial that the fr
+input be identical to either of the others. Since fi =fj, the same NCO frequency fa is used
+to DDC both channels, giving the same deterministic trend to both output phase signals.
+The phase signals should be unwrapped before subtraction because, due to noise and small
+10
+phase oﬀsets, 2π-discontinuities can appear at diﬀerent sample epochs. Example single- and
+dual-channel signal processing chains are illustrated for comparison in Figure 1d.
+Blue curves in Figures 3b and 3c show the signiﬁcant improvement in phase noise and time
+deviation from dual-channel operation. A ﬂicker-ﬂoor of σx≈ 20 fs now appears roughly
+an order-of-magnitude below tap and persists over 1 ms < τ <500 s. It also improves by
+an order-of-magnitude upon the typical noise ﬂoor of the DMTD instrument ( σx≈ 300 fs).
+While we lack detailed knowledge of the ADC, we posit that each channel’s sample-and-
+hold circuitry shares a trigger-input threshold-detector. After this element, circuit paths,
+component/process variation, and environmental non-uniformity on the ADC chip are likely
+minute. ADC voltage-reference ﬂuctuations and phase noise in theνm PLL (and its reference,
+fr) are also highly common to both sampled channels. Remaining non-common elements
+include oﬀ-chip transmission lines, coupling transformers, and on-chip ADC sampling cir-
+cuitry. We show later that similar common-mode suppression is present in a diﬀerent ADC
+with much larger tap = 1 ps.
+In this mode of operation, it is less important thatνm be locked to a high-quality oscillator
+because phase noise in νm will be highly-common between the two sampled inputs. Noise is
+not completely suppressed, however. We found slightly better performance, at the level of
+20 % inσx, whenνm was referenced to a hydrogen maser versus the SDR’s quartz oscillator.
+We hypothesize that parasitic coupling of the digital sample clock atνm is slightly imbalanced
+between the two ADC inputs. This feature is likely speciﬁc to the SDR model and circuit
+layout.
+C. Instability over long averaging intervals
+Maximum decimation in an SDR still results in several megabits per second of data per
+channel. As a practical matter for long-duration measurements, we reduce this data stream
+as it is acquired to one recorded ∆ T value per second. This step reduces measurement
+bandwidth to≈ 1 Hz. We tested two simple averaging methods with similar performance:
+uniform weight (‘rectangular window’) averaging of arg z(tk) over groups of N = νm/ndec
+samples per second, and the phase estimation routine discussed in Appendix A. Issues related
+to windowed averaging here are analogous to those in frequency meters 37.
+The SDR measurement stability does not degrade much over intervals of several hours, an
+11
+Time offset (ps) 
+-100 
+0
+100 
+200 
+300 
+400 
+SDR 1ch. + 50 ps 
+SDR 2ch. + 25 ps 
+Commercial DMTD 
+MJD - 57247 (days) 
+1 2 3 4 5 6
+Time offset (ps) 
+-10 
+-5 
+0
+5
+10 
+DMTD - SDR 1ch. 
+DMTD - SDR 2ch. 
+a) 
+b) 
+SDR “warm-up” 
+transient 
+Human activity 
+near apparatus 
+approx. 31 hours 
+FIG. 4. a) A comparison of two hydrogen masers over ﬁve days (MJD is the modiﬁed Julian date),
+using a commercial instrument based on DMTD (red) and the SDR described here (black/blue for
+single-/dual-channel mode, respectively). From each time series we subtract a linear phase trend
+corresponding to the masers’ frequency diﬀerence of y = 8.85× 10−14. We introduce 25 ps and
+50 ps oﬀsets for visual clarity. b) We show the diﬀerences of each SDR measurement with that
+of the DMTD. Some technical noise features are understood and annotated; it is not yet known
+whether the DMTD, SDR, or both systems contribute to the ∼ 31 h periodic modulation.
+important requirement for an atomic-clock measurement system26. We undertook no special
+environmental stabilization beyond standard laboratory conditions (ambient temperature
+control of≈ 0.5 K). The SDR operated in its original enclosure with a continuously active
+cooling fan. For these tests, matched cables were ﬂexible, double-shielded (RD-316), and
+SMA terminated. Open circles in Figure 3c show typical long-term performance of the one-
+and two-channel SDR techniques. In terms of frequency instability, the two-channel ADC
+residuals at 10 MHz typically average as ﬂicker-phase noise with σy(τ) = 7× 10−14(τ/1 s)−1
+through τ = 103 s.
+12
+Averaging duration    (s) 
+1 10 1 10 2 10 3 10 4 10 5
+Total Allan deviation 
+10 -17 
+10 -16 
+10 -15 
+10 -14 
+10 -13 
+Commercial DMTD (ST0014 vs. ST0010) 
+Commercial DMTD residuals 
+SDR 2-ch. (ST0014 vs. ST0010) 
+SDR 2-ch. residuals 
+SDR 1-ch. residuals 
+FIG. 5. Fractional frequency instability 16 σy(τ) of hydrogen masers (NIST masers ST0014 vs.
+ST0010) as measured by a DMTD commercial instrument (red, solid) and the SDR two-channel
+technique (blue, solid) described here. From τ≥ 200 s both techniques become identically limited
+by maser frequency ﬂuctuations. Open points show typical residual instabilities of the DMTD
+instrument (red), the single-channel SDR method (black), and the two-channel SDR method (blue).
+The blue dashed line is an eye guide placed at σy(τ) = 7× 10−14(τ/1 s)−1. Both DMTD and SDR
+methods yield one datum per second, but the eﬀective measurement bandwidth of the DMTD
+instrument is known to be ≫ 1 Hz.
+D. Clock comparison with software radio
+The tests described above demonstrate the low instability of the SDR technique; here
+we discuss time accuracy. Two 5 MHz signals, sourced by hydrogen masers (NIST masers
+ST0010 and ST0014), are input into the two SDR ADC channels. A non-linear frequency
+doubler converted one of these to create the fr = 10 MHz PLL reference. The maser signals
+were measured simultaneously by a commercial system based on DMTD. Figure 4a shows
+excellent agreement between the methods. The time-series of the diﬀerence between the
+13
+data sets (Figure 4b) reveals technical noise in one or both measurement systems, some
+details of which are not yet understood. An initial transient of about 15 ps in magnitude is
+a repeatable ‘warm-up’ SDR characteristic lasting several minutes. Key component temper-
+atures, measured with platinum resistive thermometers attached with thermally conductive
+epoxy, increase by 5 K to 10 K in these ﬁrst several minutes of operation. We also observe
+a periodic variation (of roughly 31 h) with an amplitude of order 5 ps. Such a variation
+would contribute < 10−16 to fractional frequency instability, which is of marginal signiﬁ-
+cance in the inter-comparison of maser clocks. Figure 5 shows the frequency instability of
+the maser comparisons and typical SDR and DMTD residual instabilities. At averaging
+intervals of τ≈ 103 s, the single-channel SDR technique is comparable with the commer-
+cial DMTD instrument; the two-channel SDR technique outperforms both by almost an
+order-of-magnitude.
+E. Multi-channel operation
+Some commercial DMTD instruments accept 16 or more input oscillators, where one
+channel is permanently assigned a special role as reference for the TIC timebase νm. The
+two-channel SDR scheme presented here is scalable to an unlimited number of channels,
+and it is possible but not necessary that one oscillator be assigned a special role. Figure 6a
+sketches a scheme whereby multiple SDR instruments are arranged in a ‘ring,’ immune to any
+single oscillator or SDR fault. A ‘hub’ model (Figure 6b), where one oscillator is distributed
+to all measurement nodes is also possible. Simultaneous implementation of the one-channel
+SDR technique using a distinct fr oscillator provides a ‘backup hub’ mode of operation
+with degraded performance. In a scaled deployment, it may be desirable to increase the
+decimation performed in hardware, perform the phase computation and averaging itself
+in the FPGA, and/or distribute the software data processing among multiple connected
+computers. We estimate that, per measurement channel, the material cost of a SDR solution
+is a factor of two or more below competitive multi-channel DMTD instruments.
+14
+SDR 0 
+0 1 2 3 m 0
+SDR 1 SDR 2 
+... 
+... 
+SDR m 
+a)  Multiple SDRs: ring configuration 
+b)  Multiple SDRs: hub configuration with backup 
+SDR 0 
+0
+SDR 1 SDR 2 
+... 
+... 
+SDR m-1 
+12 3 m
+FIG. 6. Multiple SDRs can scale for coherent many-oscillator comparisons in ﬂexible arrangements,
+the choice of which will depend on which failure modes are judged most likely. a) For example, in
+a ‘ring’ conﬁguration, each SDR node produces the two-channel diﬀerential signal fj−fi, a one-
+channel signalfi−fr and unique one-channel residualfj−fr. Phase data collection for all oscillators
+is uninterrupted with any single node failure. b) In a ‘hub’ conﬁguration, the oscillator indexed ‘0’
+is distributed to an ADC channel in each node as part of a two-channel diﬀerential measurement.
+To protect the network against failure of oscillator ‘0’, oscillator ‘1’ provides a shared PLL reference
+to all nodes, enabling one-channel measurements of all oscillators as a ‘degraded backup’. Here,
+junctions imply distinct distribution ampliﬁer channels; diﬀerential ampliﬁer and cable delays must
+be accounted for when comparing oscillator phase diﬀerences.
+F. Optical oscillator measurement
+Optical atomic frequency references now exceed the performance of oﬃcial primary stan-
+dards based on microwave frequencies by factors of 1000 in stability 20 and potentially 100
+in accuracy 6,19,46. Generally, optical frequency references operate by disciplining a pre-
+stabilized laser oscillator to an atomic resonance in neutral atoms or single trapped ions 32.
+Direct phase and frequency comparisons between two lasers at fα and fβ are only possi-
+ble if they are suﬃciently close to create a heterodyne beatnote on a photodiode or other
+transducer. Otherwise, a now standard technique employs a broadband femtosecond laser
+frequency comb (FLFC, or comb) as a common heterodyne oscillator spanning hundreds of
+15
+Amplitude (mV) 
+-50 
+0
+50 
+Sample time (ms) 
+0 20 40 60 80 100 -50 
+0
+50 
+Sample time (s) 
+0 1 2 3 4 5
+Time offset (fs) -5 
+0
+5
+a) 
+b) 
+c) 
+FIG. 7. Tracking optical phase with SDR (see text for details). a) The SDR down-converts a
+heterodyne between a femtosecond laser frequency comb (FLFC) stabilized to reference laser fα,
+and laser fβ to an audio tone of ≈ 140 Hz. We plot the complex components of the SDR output
+z(tk). b) Laser β is transmitted to the FLFC heterodyne via an uncompensated ﬁber optic link.
+By shaking the ﬁber, we observe and can coherently track resulting phase ﬂuctuations. c) Dividing
+argz(tk) by 2 πfβ, we cast phase ﬂuctuations as time instability of the optical oscillator β. A
+constant phase and frequency oﬀset are suppressed in the plot.
+terahertz30,45. A FLFC spectrum consists of many optical modes, whose absolute frequen-
+cies can be expressed as fn = nfrep +fceo for many thousands of consecutive integers n.
+The comb’s pulse repetition rate, frep, scales inversely with the laser resonator length, and
+|fceo| < frep depends on the details of the intra-cavity dispersion. For our purposes, it is
+suﬃcient to note that both degrees of freedom correspond to radio frequencies controllable
+by phase-lock techniques.
+We measured and tracked phase ﬂuctuations between two laser oscillators using a FLFC
+and the SDR. A Ti:sapphire FLFC 13 with frep≈ 1 GHz was stabilized by locking a comb
+mode 640 MHz oﬀset from an ultra-stable optical frequency fα≈ 259 THz. We used self-
+referencing interferometry 10 to stabilize fceo. A second ultra-stable laser 14, fβ≈ 282 THz,
+interfered with another comb mode to make a heterodyne tone fo near 160 MHz on an
+ampliﬁed photodiode. Independent characterizations have determined frequency instability
+16
+ﬂoors of ≤ 2× 10−16 for laser α and 1 × 10−15 for laser β. Due to the comb’s phase
+locks, ﬂuctuations of fo are directly related to the ﬂuctuations between the α and β laser
+oscillators; the required comb mode integers for absolute determinations can be obtained by
+low-resolution wavemeter measurements of fα and fβ.
+Traditionally, only gated frequency measurements are made offo, discarding information
+about phase ﬂuctuations. A DMTD scheme to track phase is impractical: generally, fo can
+appear at any frequency up to frep/2 depending on FLFC preparation, and fo ﬂuctuations
+and drift are typically too large. In contrast, the SDR has a high input bandwidth, a tunable
+NCO for down-converting arbitraryfo, and tracks phase information over very short intervals
+νm/ndec≤ 5 µs with no dead time.
+Since the ADC sample clock νm = 100 MHz, fo≈ 160 MHz appears in the third ±νm/2
+Nyquist zone, aliased to−40.005 860 MHz. We set the NCOfa =−40.006 000 MHz in order
+to obtain an audio beat note |fb|≈ 140 Hz. Figure 7a shows the output sample data under
+normal conditions; Figure 7b shows directly observable phase noise created by vigorously
+shaking the uncompensated 27 ﬁber optics coupling laser β to the comb. It is important
+to appreciate that a radian of optical phase remains unscaled by mixing with the comb to
+makefo, nor is it scaled by the DDC process fo→fb in the SDR. So, treating laser α as a
+reference, we can derive the time ﬂuctuations of laser β by unwrapping and dividing the fb
+phase argz(tk) by a factor 2π× 282 THz, following Eq. 1. Figure 7c shows the result: well-
+resolved femtosecond-level temporal instability between two would-be optical clocks, lasers
+α and β. In measurement of optical heterodyne tones, the SDR noise ﬂoor is negligible.
+A multi-channel SDR arrangement monitoring several FLFC heterodyne beat notes could
+form the measurement basis for an optical time scale , meaning an ensemble of optical os-
+cillators statistically weighted to produce a robust and reliable ‘average clock’ 26,43. Related
+technology is approaching a high level of readiness, including robust ﬁber-FLFC designs 40,
+stabilized ‘ﬂywheel’ lasers18,24 with frequency instabilitiesσy≤ 1×10−16, and optical atomic
+standards characterized at the 10−18 uncertainty level6.
+G. Microwave frequencies
+Microwave frequencies far beyond the ADC input bandwidth are measurable by SDR
+models that incorporate an analog mixer and microwave local-oscillator (LO) synthesizer ref-
+17
+a) b) 
+5 MHz 
+5 MHz 6 GHz 
+6 GHz 
+FIG. 8. a) Time deviation of diﬀerential phase measurements of 5 MHz and 6 GHz signals. For
+5 MHz, the SDR featured a 12-bit ADC with 1 ps aperture jitter. The instability ﬂoor is more than
+two orders of magnitude lower thantap, indicating excellent common-mode suppression of technical
+noise. For 6 GHz, the SDR featured a LO synthesizer and analog mixer front-end to translate the
+signal into the ADC bandwidth. Though phase-noise performance is made worse by these elements,
+the high signal frequency leads to a time stability ﬂoor of 1 fs, roughly an order-of-magnitude better
+than the results at 10 MHz (Figure 3c). b) We also investigated amplitude measurement instability
+(normalized to input amplitude) of two-channel signals in these SDR models. In both plots, data
+at longer τ are obtained by additional software decimation by a factor of 2500 prior to storage.
+These data were acquired in an unstabilized oﬃce environment and with the sample clock νm
+un-referenced. Shaded bands indicate standard statistical uncertainties.
+erenced to the same source asνm. In a separate investigation, we tested a SDR (Ettus USRP
+B210) featuring such a front-end (Analog Devices AD9361) capable of down-converting two
+≤ 6 GHz signals before sampling them at 12-bit resolution. To characterize its phase-noise
+performance, we input a 6 GHz (−22 dBm) signal and set the SDR’s programmable ampli-
+ﬁers to 49 dB to use the full ADC range. νm was set to 30.72 MHz, and ndec to 32. Due
+to the mixer front-end, we observed signiﬁcantly higher phase noise than the results in sec-
+tion III B: a white noise ﬂoor at −123 dBc/Hz and ﬂicker noise of−90 dBc/Hz (f/1 Hz)−1.
+However, given the much higher carrier frequency, the equivalent time deviation limits were
+σx(τ) = 20 as (τ/1 s)−1/2 over short intervals and a ﬂicker ﬂoor of 1 fs, as shown in Figure 8a.
+18
+H. Amplitude metrology
+Though we have so far ignored it, the amplitude of a complex sampled SDR signal is
+also available as
+√
+I 2(tk) +Q2(tk). In a separate investigation, we studied the relative
+amplitude instability limit of signals input into two ADC channels. We tested a SDR (Ettus
+USRP B100) with a 12-bit ADC (Analog Devices AD9862), νm = 64 MHz, ndec = 64, and
+fi =fj = 5 MHz. As shown in Figure 8b, we observed a relative amplitude instability ﬂoor
+of 3×10−7 over the averaging interval 0.1 s≤τ≤ 100 s. The 6 GHz conﬁguration, described
+in section III G, achieved an amplitude instability ﬂoor of 5 × 10−5.
+IV. CONCLUSIONS
+Generally, SDR receivers are little more than high-speed signal samplers followed by a
+series of digital ﬁlters designed to reduce data rate and noise bandwidth. However, these few
+ingredients are suﬃcient for several recipes in high-precision time and frequency metrology.
+Phase/time-oﬀset measurements using unmodiﬁed SDR hardware can exceed the stability
+performance of a commercially-available instrument based on the classic DMTD design while
+oﬀering increased ﬂexibility. SDR measurement of phase using two input channels diﬀeren-
+tially reduces the inﬂuence of technical timing noise and has demonstrated a maser clock
+frequency resolution σy≤ 10−16 within 10 3 s of averaging. Over several days of continuous
+hydrogen maser measurement, the SDR technique appears highly accurate, with relatively
+low environmental noise coupling in a typical laboratory environment. SDR hardware is
+scalable to coherently measure any number of oscillators at almost any radio or microwave
+frequency. We have shown the SDR can resolve relative oscillator amplitude ﬂuctuations
+below the part-per-million level. Finally, we have demonstrated that SDR can be usefully
+employed in the comparison of ultra-stable optical clocks and oscillators by measuring het-
+erodyne products of clocks with a femtosecond laser frequency comb.
+Useful extensions of this work could include a long-term frequency comparison of atomic-
+clocks’ output signals at multiple frequencies (e.g., 5 MHz and 100 MHz), and integration
+of a many-channel fast ADC into an SDR architecture for better multi-channel scalability.
+Alternatively, the transmission functions of the SDR could be employed in active phase-noise
+compensation in optical or FLFC interferometry applications.
+19
+NIST’s Time and Frequency Division funded this investigation. The work is a contribu-
+tion of NIST and not subject to U.S. copyright. The authors thank Judah Levine for helpful
+discussions, Joshua Savory (maser comparisons), Franklyn Quinlan (FLFC measurements),
+and Roger Brown for careful reading of the manuscript.
+Appendix A: Spectral estimation of frequency and phase
+In the single-channel setup of Figure 1b, a fi known only to within a Nyquist bandwidth
+νm/2 can be quickly acquired by seeking high spectral power while scanning the NCOfa over
+its full range. Without loss of generality, we suppose fi < νm/2 and choose the calculable
+NCO frequencyfa such that|fi−fa|≪ νm/ndec; in other words, the DDC frequency must be
+within the decimated Nyquist zone. The sign of the sampled ‘beatnote’ fb =fi−fa is ﬁxed
+by the sense of temporal phase rotation inz(tk), or equivalently, the phase relationship of its
+real and imaginary components. The problem of high resolution determination of fi reduces
+to spectral estimation on groups of N samples of z(tk) to estimate fb. Though no closed-
+form solution exists generally for spectral estimation 23, our circumstances are unusually
+favorable: z(tk) consists of a single, low-frequency tonefb, with high SNR and little harmonic
+distortion. Though computationally intensive, an optimal un-biased frequency estimator
+given these assumptions is the argument ˆfb maximizing the basic periodogram function 41
+|P (f)|2, where
+P (f) = 1
+N
+N−1∑
+k=0
+z(tk)e−i2πft k. (A1)
+For signals like ours,|P (f)| is well-approximated by a quadratic polynomial near its maxi-
+mum. We therefore implemented Brent’s method of one-dimension parabolic interpolation33
+to eﬃciently search for ˆfb. A lower resolution FFT-based spectral estimator seeds this non-
+linear search with an initial guess. Unlike such FFT-based methods, no windowing function
+or zero-padding must be applied to the sampled data prior to |P (f)|2 maximization, and
+there is no need to makeN a power-of-2. The search also yields an optimal estimator for the
+single-tone amplitude, ˆAb =|P ( ˆfb)|. In the limit of high SNR and spectrally-uniform uncor-
+related (‘white’) noise, periodogram maximizing spectral estimates converge with maximum
+likelihood and non-linear least-squares ﬁt results.
+Figure 5 (black open circles) shows measured frequency instability of a fi =fr = 10 MHz
+20
+signal, which surpasses that of a commercial frequency meter of comparable cost. Impor-
+tantly, note that the SDR measurement instability decreases as τ−1, compared to many
+frequency meters’ instability∝τ−1/2. This diﬀerence is attributable to non-zero dead-time
+and frequency quantization in commercial meter readings. The interval N(νm/ndec)−1 is
+analogous to a ‘gate interval’ of a traditional frequency meter. With SDR, this parameter
+may be chosen during or after data acquisition since z(tk) data can be stored. Barring
+interruption in data transmission, this method of frequency analysis has zero ‘dead-time’
+intervals during which the input oscillations are unmeasured.
+We continue the spectral estimation method to determine phase oﬀset measurements from
+sets of N complex waveform samplesz(tk). If unknown, we ﬁrst ﬁnd the ˆfb maximizing the
+periodogram function|P (f)|2 from Eq. A1. Then, the optimal estimate of the signal’s phase
+is
+ˆφb = tan−1
+[
+Im P ( ˆfb)
+Re P ( ˆfb)
+]
+. (A2)
+Successive estimates of phase on continuously sampled data will evolve as
+ˆφb(tk) =φ0 + 2πfbtk (A3)
+=φ0 + 2π(fi−fr)tk + 2πfr
+(
+1− νm
+fr
+a
+232
+)
+tk, (A4)
+where φ0 is the initial phase oﬀset and, for the SDR described in section II B, νm/fr = 10.
+The ﬁnal term, the result of our choosing a heterodyne oﬀset frequency, is exactly computable
+in terms of fr and is removable in post-processing. Subtracting it using complex phase
+rotation neatly avoids 2π discontinuities, leaving us only with a phase growing linearly with
+the frequency diﬀerence of interest fi−fr. Phase discontinuities must still be expected and
+handled over time intervals τ ≥ 2π/(fi−fr). The variance of a single ˆφb estimate using
+N≫ 1 samples is bounded by 23
+var
+(
+ˆφb
+)
+≥ 1
+SNR
+2
+N. (A5)
+As SNR∝ 1/N itself (due to process gain), the bound for variance in the phase estimator
+is independent of the sample density N under optimal noise conditions, remaining inversely
+proportional to the SNR and total observation duration. Combining this result with Eq. 1,
+the resulting theoretical bound on time deviation 42 is
+σx(τ) = 1
+2πfi
+√
+var( ˆφb)≥ 1.2× 10−15 s (τ/1 s)−1/2, (A6)
+21
+TABLE I. Decimating low-pass ﬁlters in the SDR ideally improve SNR proportionally to the
+decimation factor ndec. We a slightly worse empirical scaling ∝ n0.8
+dec. Here we compare the
+measured SNR for a constant, half-scale, fi =fr = 10 MHz maser-referenced tone under diﬀerent
+decimation settings. fb≈ 8 Hz; other choices yielded similar results.
+ndec Expected SNR (dB) Observed SNR (dB) Excess noise (dB)
+20 81.5 74.5 7.0
+40 84.5 76.7 7.8
+100 88.5 79.8 8.7
+200 91.5 82.1 9.4
+500 95.5 85.2 10.3
+where fi = 10 MHz, N = 10 6 samples per second, and the eﬀective SNR ≈ 86 dB (see
+Appendix B). Observations in Figure 3 (black solid points) are consistent with this noise
+limit over short averaging intervals.
+Appendix B: Decimation ﬁdelity in practice
+Ideally, in the presence of uniform Gaussian noise, the SNR of ADC samples should be
+improved by a factor of the decimation ratio ndec since the CIC and half-band decimating
+ﬁlters approximate an ideal low-pass ﬁlter. Alternatively, with SNR is expressed in dB,
+SNR(ideally observed) = SNRADC + 10 logndec. (B1)
+However, ﬁnite precision in the numerical ﬁlters, and the presence of non-Gaussian noise,
+such as spurs and input noise near the sample clockνm, result in slightly worse performance.
+We observe an approximate n0.8
+dec improvement with 20≤ndec≤ 500 as shown in Table I.
+REFERENCES
+1Certain commercial equipment, instruments, or materials are identiﬁed in this paper for
+informational purposes only. Such identiﬁcation does not imply recommendation or en-
+dorsement by the National Institute of Standards and Technology, nor does it imply that
+the materials or equipment identiﬁed are necessarily the best available for the purpose.
+22
+2David W Allan and James Barnes. A modiﬁed ‘Allan Variance’ with increased oscillator
+characterization ability. InThirty Fifth Annual Frequency Control Symposium. 1981, pages
+470–475. IEEE, 1981.
+3David W Allan and Howard Daams. Picosecond time diﬀerence measurement system. In
+29th Annual Symposium on Frequency Control , volume 1, pages 404–411, 1975.
+4DW Allan and H Hellwig. Time deviation and time prediction error for clock speciﬁca-
+tion, characterization, and application. In IEEE 1978 Position Location and Navigation
+Symposium, volume 1, pages 29–36, 1978.
+5Maurice G Bellanger, Jacques L Daguet, and Guy P Lepagnol. Interpolation, extrapola-
+tion, and reduction of computation speed in digital ﬁlters. Acoustics, Speech and Signal
+Processing, IEEE Transactions on, 22(4):231–235, 1974.
+6BJ Bloom, TL Nicholson, JR Williams, SL Campbell, M Bishof, X Zhang, W Zhang,
+SL Bromley, and J Ye. An optical lattice clock with accuracy and stability at the 10 −18
+level. Nature, 506(7486):71–75, 2014.
+7G Brida. High resolution frequency stability measurement system. Review of Scientiﬁc
+Instruments, 73(5):2171–2174, 2002.
+8Andrea C Cardenas-Olaya, Enrico Rubiola, Jean-M Friedt, Massimo Ortolano, Salvatore
+Micalizio, and Claudio E Calosso. Simple method for ADC characterization under the
+frame of digital PM and AM noise measurement. In Frequency Control Symposium &
+the European Frequency and Time Forum (FCS), 2015 Joint Conference of the IEEE
+International, pages 676–680. IEEE, 2015.
+9Gilles Cibiel, Myrianne R´ egis, Eric Tournier, and Oliver Llopis. AM noise impact on low
+level phase noise measurements. Ultrasonics, Ferroelectrics, and Frequency Control, IEEE
+Transactions on, 49(6):784–788, 2002.
+10Steven T Cundiﬀ and Jun Ye. Colloquium: Femtosecond optical frequency combs.Reviews
+of Modern Physics , 75(1):325, 2003.
+11Ettus Research circuit schematics and technical information. http://files.ettus.com/.
+12Ettus Research code repository. https://github.com/EttusResearch/uhd.
+13Tara M Fortier, Albrecht Bartels, and Scott A Diddams. Octave-spanning Ti:Sapphire
+laser with a repetition rate> 1 GHz for optical frequency measurements and comparisons.
+Optics Letters, 31(7):1011–1013, 2006.
+23
+14TM Fortier, A Rolland, F Quinlan, FN Baynes, AJ Metcalf, A Hati, A Ludlow, N Hinkley,
+M Shimizu, T Ishibashi, et al. Digital-photonic synthesis of ultra-low noise tunable signals
+from RF to 100 GHz. arXiv preprint arXiv:1506.03095 , 2015.
+15GNURadio team. GNURadio: the free and open software radio ecosystem. http://
+gnuradio.org/.
+16Charles Greenhall, Dave Howe, and Donald B Percival. Total variance, an estimator of
+long-term frequency stability. Ultrasonics, Ferroelectrics, and Frequency Control, IEEE
+Transactions on, 46(5):1183–1191, 1999.
+17J Grove, J Hein, J Retta, P Schweiger, W Solbrig, and SR Stein. Direct-digital phase-noise
+measurement. In Frequency Control Symposium and Exposition, 2004. Proceedings of the
+2004 IEEE International , pages 287–291. IEEE, 2004.
+18Sebastian H¨ afner, Stephan Falke, Christian Grebing, Stefan Vogt, Thomas Legero, Mikko
+Merimaa, Christian Lisdat, and Uwe Sterr. 8×10−17 fractional laser frequency instability
+with a long room-temperature cavity. Optics Letters, 40(9):2112–2115, 2015.
+19Thomas P Heavner, Elizabeth A Donley, Filippo Levi, Giovanni Costanzo, Thomas E
+Parker, Jon H Shirley, Neil Ashby, Stephan Barlow, and SR Jeﬀerts. First accuracy
+evaluation of NIST-F2. Metrologia, 51(3):174, 2014.
+20N Hinkley, JA Sherman, NB Phillips, M Schioppo, ND Lemke, K Beloy, M Pizzo-
+caro, CW Oates, and AD Ludlow. An atomic clock with 10 −18 instability. Science,
+341(6151):1215–1218, 2013.
+21Eugene Hogenauer. An economical class of digital ﬁlters for decimation and interpolation.
+Acoustics, Speech and Signal Processing, IEEE Transactions on , 29(2):155–162, 1981.
+22James Jespersen and Jane Fitz-Randolph. From sundials to atomic clocks: understanding
+time and frequency. Courier Corporation, 1999.
+23SM Kay. Modern spectral estimation: theory and application. 1988 . Prentice Hall, 1999.
+24T Kessler, C Hagemann, C Grebing, T Legero, U Sterr, F Riehle, MJ Martin, L Chen,
+and J Ye. A sub-40-mhz-linewidth laser based on a silicon single-crystal optical cavity.
+Nature Photonics, 6(10):687–692, 2012.
+25G Paul Landis, Ivan Galysh, and Thomas Petsopoulos. A new digital phase measurement
+system. Technical report, DTIC Document, 2001.
+26Judah Levine. Invited review article: The statistical modeling of atomic clocks and the
+design of time scales. Review of Scientiﬁc Instruments , 83(2):021101, 2012.
+24
+27Long-Sheng Ma, Peter Jungner, Jun Ye, and John L Hall. Delivering the same optical
+frequency at two places: accurate cancellation of phase noise introduced by an optical ﬁber
+or other time-varying path. Optics Letters, 19(21):1777–1779, 1994.
+28Joe Mitola. The software radio architecture. Communications Magazine, IEEE, 33(5):26–
+38, 1995.
+29Ken Mochizuki, Masaharu Uchino, and Takao Morikawa. Frequency-stability measure-
+ment system using high-speed ADCs and digital signal processing. Instrumentation and
+Measurement, IEEE Transactions on, 56(5):1887–1893, 2007.
+30Nathan R Newbury. Searching for applications with a ﬁne-tooth comb. Nature Photonics,
+5(4):186–188, 2011.
+31Joel Phillips and Ken Kundert. Noise in mixers, oscillators, samplers, and logic an intro-
+duction to cyclostationary noise. In Custom Integrated Circuits Conference, 2000. CICC.
+Proceedings of the IEEE 2000 , pages 431–438. IEEE, 2000.
+32N Poli, CW Oates, P Gill, and GM Tino. Optical atomic clocks. Rivista del Nuovo
+Cimento, 36(12), 2013.
+33William H Press, Saul A Teukolsky, William T Vetterling, and Brian P Flannery. Numer-
+ical recipes in C, volume 2. Cambridge university press, 1996.
+34Ivan Prochazka, Petr Panek, and Jan Kodet. Note: Precise phase and frequency com-
+parator based on direct phase-time measurements. Review of Scientiﬁc Instruments ,
+85(12):126110, 2014.
+35WJ Riley. Handbook of frequency stability analysis. Technical report, 2008.
+36Stefania R¨ omisch, Steven R Jeﬀerts, and Thomas E Parker. A digital time scale at the
+National Institute for Standards and Technology. In General Assembly and Scientiﬁc
+Symposium, 2011 XXXth URSI , pages 1–4. IEEE, 2011.
+37Enrico Rubiola. On the measurement of frequency and of its sample variance with high-
+resolution counters. Review of Scientiﬁc Instruments , 76(5):4703, 2005.
+38Enrico Rubiola and Fran¸ cois Vernotte. The cross-spectrum experimental method. arXiv
+preprint arXiv:1003.0113, 2010.
+39Laura B Ruppalt, David R McKinstry, Keir C Lauritzen, Albert K Wu, Shawn Phillips,
+Salvador H Talisa, et al. Simultaneous digital measurement of phase and amplitude noise.
+In Frequency Control Symposium (FCS), 2010 IEEE International , pages 97–102. IEEE,
+2010.
+25
+40Laura C Sinclair, Ian Coddington, William C Swann, Greg B Rieker, Archita Hati, Kana
+Iwakuni, and Nathan R Newbury. Operation of an optically coherent frequency comb
+outside the metrology lab. Optics Express, 22(6):6996–7006, 2014.
+41Petre Stoica and Randolph L Moses. Spectral analysis of signals . Pearson/Prentice Hall
+Upper Saddle River, NJ, 2005.
+42Donald Barrett Sullivan, David W Allan, David A Howe, and Fred L Walls. Charac-
+terization of clocks and oscillators . US Department of Commerce, National Institute of
+Standards and Technology, 1990.
+43Patrizia Tavella and Claudine Thomas. Comparative study of time scale algorithms.
+Metrologia, 28(2):57, 1991.
+44Masaharu Uchino and Ken Mochizuki. Frequency stability measuring technique using
+digital signal processing. Electronics and Communications in Japan (Part I: Communica-
+tions), 87(1):21–33, 2004.
+45Th Udem, Ronald Holzwarth, and Theodor W H¨ ansch. Optical frequency metrology.
+Nature, 416(6877):233–237, 2002.
+46Ichiro Ushijima, Masao Takamoto, Manoj Das, Takuya Ohkubo, and Hidetoshi Katori.
+Cryogenic optical lattice clocks. Nature Photonics, 9(3):185–189, 2015.
+47Jack E Volder. The CORDIC trigonometric computing technique. Electronic Computers,
+IRE Transactions on, EC-8(3):330–334, 1959.
+48L ˇSojdr, J ˇCerm´ ak, and R Barillet. Optimization of dual-mixer time-diﬀerence multiplier.
+In Frequency and Time Forum, 2004. EFTF 2004. 18th European , pages 588–594. IET,
+2004.
+49Fred L Walls and David W Allan. Measurements of frequency stability. Proceedings of the
+IEEE, 74(1):162–168, 1986.
+26

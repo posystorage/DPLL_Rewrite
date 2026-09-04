@@ -148,7 +148,7 @@ if numel(crossing_index) < 8
         'Fewer than eight positive reference crossings were detected.');
 end
 crossing_cycle = (0:numel(crossing_index) - 1).';
-fit_value = polyfit(crossing_cycle, crossing_index, 1);
-frequency_hz = sample_rate_hz / fit_value(1);
+frequency_hz = sample_rate_hz * (numel(crossing_index) - 1) / ...
+    (crossing_index(end) - crossing_index(1));
 spacing_std = std(diff(crossing_index));
 end

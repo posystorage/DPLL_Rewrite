@@ -15,11 +15,11 @@ ACQUIRE_22K = (
 )
 
 TRACK_22K = (
-    0x00103681,
-    0x00206D02,
-    0x00103681,
-    0x85D1D2A9,
-    0x3A6F075A,
+    0x00E4A5DB,
+    0x01C94BB6,
+    0x00E4A5DB,
+    0x97189691,
+    0x2C7A00DC,
 )
 
 
@@ -50,9 +50,9 @@ class DpllIirProfileTests(unittest.TestCase):
         self.assertGreater(cascade_gain_db(ACQUIRE_22K, 500.0), -0.1)
         self.assertGreater(cascade_gain_db(ACQUIRE_22K, 2_000.0), -1.0)
 
-    def test_22k_track_bank_is_not_ultra_narrow(self):
+    def test_22k_track_bank_uses_8khz_cutoff(self):
         self.assertGreater(cascade_gain_db(TRACK_22K, 500.0), -0.2)
-        self.assertAlmostEqual(cascade_gain_db(TRACK_22K, 2_000.0), -6.02,
+        self.assertAlmostEqual(cascade_gain_db(TRACK_22K, 8_000.0), -6.02,
                                delta=0.15)
 
 

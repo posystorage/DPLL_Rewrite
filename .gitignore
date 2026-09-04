@@ -86,6 +86,10 @@ desktop.ini
 
 # Regenerable MATLAB simulation and validation artifacts
 /MCU_src/simudate/results/
+/MCU_src/simudate/results_*/
+
+# Local SDK source archive; sources are tracked directly in the project
+/DPLL_Rewrite.sdk/src.7z
 
 # Build-generated FPGA/ARM identity headers are compiler inputs.
 # Do not ignore them, otherwise `git clean -X` removes the macros needed by

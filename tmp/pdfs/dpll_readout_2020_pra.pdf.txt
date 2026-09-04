@@ -1,0 +1,1248 @@
+Tracking length and diﬀerential wavefront sensing signals from quadrant photodiodes in
+heterodyne interferometers with digital phase-locked loop readout
+Gerhard Heinzel,1,∗ Miguel Dovale ´Alvarez,1,† Alvise Pizzella,1 Nils Brause,1 and Juan Jos´e Esteban Delgado1
+1Albert-Einstein Institut (Max-Planck Institut f¨ ur Gravitationsphysik),
+Callinstrasse 38, D-30167 Hannover , Germany
+We propose a method to track signals from quadrant photodiodes (QPD) in heterodyne laser interferometers
+that employ digital phase-locked loops for phase readout. Instead of separately tracking the four segments
+from the QPD and then combining the results into length and Di ﬀerential Wavefront Sensing (DWS) signals,
+this method employs a set of coupled tracking loops that operate directly on the combined length and angular
+signals. Beneﬁts are increased signal-to-noise ratio in the loops and the possibility to adapt the loop bandwidths
+to the diﬀerent dynamical behavior of the signals being tracked, which now correspond to physically meaningful
+observables. We demonstrate an improvement of up to 6 dB over single-segment tracking, which makes this
+scheme an attractive solution for applications in precision inter-satellite laser interferometry in ultra-low-light
+conditions.
+Phys. Rev. Applied 14, 054013 − 6 November 2020
+DOI:10.1103/PhysRevApplied.14.054013
+I. INTRODUCTION
+Laser interferometry is a powerful method to measure tiny
+distance variations as changes of optical pathlengths. When
+the optical pathlengths cannot be kept constant to within a
+small fraction of a wavelength, heterodyne interferometry is
+frequently applied, i.e., by interfering two laser beams that
+have a ﬁnite frequency di ﬀerence. The interference pattern
+is recorded with a photodiode, which produces a photocurrent
+with a sinusoidal component at the heterodyne frequency. Dif-
+ferential changes of optical pathlength are then converted into
+phase changes of that sinusoidal beatnote, which are measured
+with a phasemeter instrument. Heterodyne laser interferome-
+ters have been employed with great success in space-based
+gravity missions [1, 2], which require high precision displace-
+ment sensors with a large dynamic range.
+Several techniques exist to perform this phase measure-
+ment with sub-picometer precision in the millihertz frequency
+band as required for applications in gravimetry, gradiome-
+try, and gravitational-wave detection [3–12]. When the het-
+erodyne frequency changes with time, as e.g., over inter-
+spacecraft optical links such as the LISA mission [13, 14] or
+the Laser Ranging Interferometer (LRI) on GRACE Follow-
+On [15, 16], the usual technique is to employ a Digital Phase-
+Locked Loop (DPLL) [7–12, 17] architecture to track the am-
+plitude, frequency and phase of the beatnote, even when the
+received beam is sensed at sub-picowatt power level due to the
+beam divergence over the large propagation distances typical
+of inter-satellite laser links.
+In many applications of laser interferometers, such as in
+gravitational reference sensors [18], spacecraft attitude con-
+∗ gerhard.heinzel@aei.mpg.de
+† miguel.dovale@aei.mpg.de
+CD
+BA Time
+Photocurrent
+CD
+BA Time
+Photocurrent
+CD
+BA Time
+Photocurrent
+CD
+BA Time
+Photocurrent
+Photocurrent
+Time
+QPD
+FIG. 1. Illustration of the Di ﬀerential Wavefront Sensing method.
+Two waves impinge on the surface of a quadrant photodiode (QPD)
+at an angle. The upper and lower segments of the QPD thus measure
+diﬀerent phase oﬀsets between the interfering wavefronts. In the case
+of heterodyne interference, this angular misalignment between wave-
+fronts manifests as shifts of the phase of the measured photocurrent
+beatnote signals.
+trol [19], or precision laser beam pointing to remote space-
+craft [20], it is beneﬁcial or even essential to determine not
+only the relative optical pathlength change between the two
+interfering beams, but also the angle between their wave-
+fronts, since the latter is a very sensitive measurement of mis-
+alignments in the optical system. The standard technique to
+achieve this angular measurement is Di ﬀerential Wavefront
+Sensing (DWS) [21, 22], which uses a quadrant photodiode
+(QPD) to detect the interference pattern. The average phase
+over the four segments represents the length signal, while the
+diﬀerence between left and right or top and bottom represent
+horizontal and vertical misalignments, respectively (see Fig-
+ure 1).
+In previous implementations, the phase measurement is ap-
+plied separately to each segment of the diode, and the results
+are then combined. This paper describes a method to track
+the phases of the beatnotes from the four segments of a quad-
+rant photodiode with DPLLs. In Section II, the function of
+a DPLL as a phasemeter core is summarized. The standard
+application of four independent DPLLs to the segments of
+a QPD is described in Section III, and the proposed scheme
+in Section IV. A noise analysis of the new technique, with
+a comparison against the conventional method, is reported in
+Section V, followed by a conclusion in Section VI.
+arXiv:2005.00003v2  [physics.ins-det]  14 Nov 2020
+2
+II. PHASE MEASUREMENT WITH DIGITAL
+PHASE-LOCKED LOOPS
+The principle of a DPLL is to generate a digital sine wave
+in a Numerically Controlled Oscillator (NCO), and to make
+it track the incoming sinusoidal beatnote signal in frequency
+and phase. After appropriate signal conditioning, the incom-
+ing signal is ﬁrst digitized in an Analog-to-Digital converter
+(ADC), and all remaining processing happens in the digital
+domain, typically implemented in a Field-Programmable Gate
+Array (FPGA) for the tracking part, see Figure 2.
+The NCO consists of a Phase Increment Register (PIR) that
+represents the instantaneous signal frequency, a Phase Accu-
+mulator (PA) which holds the integral of the frequency, i.e. the
+instantaneous phase, and a Look-Up-Table (LUT) that con-
+verts the phase into a sine wave and optionally also a co-
+sine wave. The ADC and all digital blocks are driven syn-
+chronously from a common clock, which sets the reference
+for any single phase measurement.
+In order to make the NCO sine signal track the incoming
+signal, both are mixed in a multiplier that acts as phase de-
+tector, and the phase deviation thus measured is used as error
+signal in a servo loop. When the loop is closed and locked,
+both the incoming and the NCO sine signal have the same fre-
+quency, and their phase is shifted by 90◦, such that their prod-
+uct, the error signal, has zero average. Incoming and NCO
+sine signal are said to be “in Quadrature” (denoted by ‘Q’). An
+optional second branch multiplies the incoming signal with a
+digital cosine signal, which is then “In Phase” (‘I’) and which
+can be used to measure the amplitude of the incoming signal.
+Lowpass ﬁlters after the mixers suppress the second harmonic
+of the signal frequency (‘2 f ’), a by-product of the multiplica-
+tion, in order to prevent it from circulating around the loop in
+an undesired non-linear process. The primary achievement of
+such a DPLL is that frequency and phase now exist in digi-
+tal form in the PIR and PA registers, respectively, within the
+NCO from where they can be directly read out.
+More speciﬁcally, the PIR holds the instantaneous sig-
+nal frequency ω in units of cycles per clock period, with
+0 < ω < 0.5. It slowly varies as the input signal frequency
+changes. It is integrated in the PA which always has a frac-
+tional part ϕ, with 0 ≤ ϕ < 1 cycles, which is used by the
+LUTs. It follows a rapid sawtooth function. In most cases, the
+integer number of cycles (wavelengths) must also be tracked.
+This can be achieved by including extra bits in the PA that rep-
+resent the integer number of cycles. We denote that extended
+PA by Φ, with
+ϕ = Φ mod 1 (1)
+simply being the fractional part of Φ. The total phase Φ is
+an ever increasing ramp. Instead of using extra bits in the
+PA, the total phase can in principle also be reconstructed by
+integrating ω externally.
+Among the many performance parameters of a DPLL, most
+important here is the ability to continuously track the input
+signal without cycle slips, i.e. integer errors in Φ caused by
+excess noise in the input signal. That robustness can be op-
+Multiplier
+2f ﬁlter
+PA PIRFractional
+sine
+LUT
+cosine
+LUT
+Servo
+Q
+Input from ADC
+PA
+I
+PIR
+(PI control)
+Numerically controlled oscillator
+ω 
+ϕ 
+ᵠ
+FIG. 2. Functional blocks of a Digital Phase-Locked Loop (DPLL).
+The input signal from the ADC is separately mixed with a sine and
+a cosine delivered by the numerically controlled oscillator (NCO),
+yielding the ‘in Quadrature’ Q and an ‘in Phase’ I signals. The sec-
+ond harmonic of the beatnote frequency 2f is suppressed by low-pass
+ﬁltering these signals. The Q signal is then used as error signal for
+the servo. The output of the PI controller gives the instantaneous sig-
+nal frequency, and is stored in the Phase Increment Register (PIR).
+This is then integrated and stored in the Phase Accumulator (PA),
+which is fed to the sine and cosine look up tables (LUT) that close
+the loop.
+timized by carefully adapting the servo gain to the signal dy-
+namics and enhancing the signal-to-noise ratio (SNR) of the
+input signal [11, 17, 23].
+III. DIFFERENTIAL W A VEFRONT SENSING WITH DPLL
+PHASEMETERS
+If a QPD is used in order to implement DWS, the standard
+procedure is to connect four independent DPLLs to the four
+segments A, B, C and D of the QPD. We call their error sig-
+nals EA. . .ED, their PA register contents ΦA . . .ΦD, and the
+fractional parts of the latter ϕA . . . ϕD. They are combined to
+form the output signals:
+x = ΦA + ΦB + ΦC + ΦD
+4 , (2)
+α = ϕA− ϕB + ϕC− ϕD
+2 , (3)
+β = ϕA + ϕB− ϕC− ϕD
+2 , (4)
+where x represents the length signal in units of the
+laser wavelength, and α, β, reduced to the range
+−0.5 cycles≤ α, β≤ +0.5 cycles, represent the horizontal and
+vertical tilt angles between the wavefronts, scaled by a huge
+factor that depends on the beam geometry [24]. One more in-
+dependent linear combination of the segment phases can be
+3
+PIR
+LUT
+PIR
+LUT
+PIR
+LUT
+PIR
+LUT
+PAPAPAPA
+EBEA EC ED
+ϕA
+ᵠA ᵠB ᵠC ᵠD
+ϕB ϕC ϕD
+ADC A ADC B ADC C ADC D
+x α β ε
+Mixing
+matrix
+FIG. 3. Conventional readout scheme for a quadrant photodiode.
+Each DPLL processes 1/4 of the total signal power which neverthe-
+less has the full dynamics and noise of the length signal.
+formed, which we call the ellipticity. It is rarely used but we
+include it here in anticipation of the next steps:
+ε = ϕA− ϕB− ϕC + ϕD
+2 , (5)
+The realization of this scheme is illustrated in Figure 3.
+Combining the signals according to Equations (2). . . (4) is
+not the only possibility [25]. In the LISA Pathﬁnder mis-
+sion [1, 4, 18], for example, x was computed as the argument
+of a complex vector formed by adding the complex ampli-
+tudes from the four segments. This di ﬀers from Equation (2)
+in that the segment contributions are weighted with their re-
+spective beatnote amplitude. It is still a subject of investiga-
+tion which of these methods is preferable with respect to, e.g.,
+tilt-to-length cross-coupling. If the segment amplitudes are,
+however, also measured with the ‘I’ branch of the DPLL and
+recorded, the results can be converted into each other in post-
+processing.
+This standard scheme has been successfully used in many
+applications, notably for the continuous active beam pointing
+over 200 km separation of the inter-satellite interferometer in
+the LRI on GRACE Follow-On [16]. There, and in other ap-
+plications such as LISA, it is, however, not an optimal method:
+• The beam divergence over the long distance together
+with the ﬁnite aperture of the receiving telescope results
+in a received beam with extremely low power (in the
+order of 100 pW to a few nW), and consequently in
+poor Signal-to-Noise ratio in the heterodyne beatnote
+to be tracked, which limits the achievable robustness of
+the tracking loops, each of which uses only 1 /4 of the
+total signal power.
+• The length signal x has a much higher dynamic range
+than the angular signals. The former contains the
+Doppler shift due to the relative spacecraft motion (typ-
+ically moving at speeds of around some meters per sec-
+ond, corresponding to some MHz Doppler shifts for a
+wavelength of about 1 µm), as well as common-mode
+noise sources such as laser frequency noise, which
+largely cancel in the other three angular signals α, β
+and ε.
+• Nevertheless each of the four standard tracking loops
+contains the full length signal which sets stringent re-
+quirements on their loop bandwidths. The resulting
+open-loop gains are in general not optimal for the much
+quieter angular signals. The same holds for the 2 f ﬁl-
+ters.
+• The integer number of cycles, which physically exists
+only once for each pair of interfering beams, is repre-
+sented four times in ΦA . . .ΦD. They should represent
+the same number of integer cycles and di ﬀer only by
+the small quantities α, β and ε. If, however, a cycle slip
+occurs in only some of the four segments, the length
+signal x computed by Equation (2) is easily messed up,
+and therefore the measurement degraded.
+IV . ALTERNA TIVE ARCHITECTURE FOR TRACKING
+LENGTH AND DWS SIGNALS WITH DPLL
+PHASEMETERS
+In order to overcome the above limitations, we propose here
+an alternative loop topology, where the four servo loops do not
+act on the four segments, but on x, α, β and ε instead. Error
+signals for these loops can be obtained from Equations similar
+to (2) to (5):
+Ex = EA + EB + EC + ED
+4 , (6)
+Eα = EA− EB + EC− ED
+2 , (7)
+Eβ = EA + EB− EC− ED
+2 , (8)
+Eε = EA− EB− EC + ED
+2 . (9)
+The ﬁnal registers of the four loops track x, α, β and ε, which
+directly represent the desired ﬁnal output of the phasemeter.
+The segment phases, which are still needed for the multiplica-
+tive phase detectors, can be easily obtained by inverting Equa-
+4
+tions (2) to (5):
+ϕA = x + α + β + ε
+2 , (10)
+ϕB = x +−α + β− ε
+2 , (11)
+ϕC = x + α− β− ε
+2 , (12)
+ϕD = x +−α− β + ε
+2 , (13)
+where only the fractional part of x needs to be used and the
+results are reduced to the range 0 . . .1 cycles. The realization
+of this scheme is illustrated in Figure 4.
+Only Ex carries the burden of the large dynamic range of the
+length signal, e.g., due to the Doppler eﬀect in the orbital mo-
+tion. It uses the combined signal from all four segments, each
+of which has been coherently demodulated with individually
+optimized phases. For noise sources that are uncorrelated
+among QPD segments, such as shot noise or electronic noise,
+this yields a 6 dB improvement in the SNR, which makes the
+loop more robust against cycle slips. Now there is only one
+full NCO in the system, which produces the phase ramp Φ
+and its sawtooth-like fractional part ϕ, and in particular only
+one register Φ that keeps track of the integer number of cy-
+cles, which better maps the physical reality than having four
+registers ΦA . . .ΦD.
+The signals in Eα, Eβ and Eε, on the other hand, have
+a much smaller dynamic range, since both the length sig-
+nal as well as many correlated noise contributions, such as
+laser frequency noise or residual intensity noise, largely can-
+cel out. Moreover, angular degrees of freedom typically
+change much slower than, e.g., spacecraft separation in ap-
+plications such as the LISA mission or the GRACE Follow-
+On mission. The outputs of their servo loops are slowly
+varying numbers with a range that can be limited to e.g.
+−0.5 cycles≤ α, β, ε≤ +0.5 cycles. If physical constraints ex-
+ist, e.g. from the optical layout, that further limit their actually
+achievable range, such constraints can easily be implemented
+by restricting the range of values that the respective registers
+are allowed to assume, further increasing the robustness. In
+particular the ellipticity ε will be almost constant in many
+cases, since it mainly depends on geometrical imperfections
+of the laser beams.
+Each loop can now be individually optimized for the dy-
+namical behaviour and noise characteristics of the correspond-
+ing signal. This concerns not only the servo loop bandwidths,
+but also the 2 f ﬁlters, which can now be made more eﬃcient
+for the α, β and ε loops.
+Going one step further, one could even think of using an
+optimized Kalman-type estimator for α, β and ϵ instead of a
+simple PI controller. The angles α and β typically represent
+pitch and yaw of either the spacecraft or a testmass, and their
+dynamics consists of noise and commanded actuator signals.
+The latter are known and could even be used in a feedforward
+path to further reduce the burden on these ﬁlters.
+At ﬁrst glance it may seem that this optical readout system
+could produce fundamentally diﬀerent outputs, since the mix-
+ᵠA ᵠB ᵠC ᵠD
+LUTLUTLUTLUT EBEA EC ED
+ADC A ADC B ADC C ADC D
+PIR
+ε register
+β register
+α registerPAx α β ε
+Ex Eα Eβ Eε
+Unmixing
+matrix
+Low 
+dynamic
+range
+signals
+FIG. 4. Proposed DPLL readout scheme for a quadrant photodiode.
+The error signals from the four QPD segments EA . . . ED are used to
+compute DWS error signalsEx . . . Eε. These are then fed to four ded-
+icated DPLLs. The four outputs x . . . ε, now corresponding to phys-
+ically meaningful observables, are then reverted back into the phase
+signals ϕA . . . ϕD and used for closing the loop. Only one DPLL deals
+with the length signal, while the the other three loops handle signals
+of much smaller dynamic range (encircled). Each servo can hence be
+individually tuned to the particular dynamical behavior of the signal
+being tracked.
+ing matrix that implements Equations (6). . . (9) acts on the er-
+ror signals, which are weighted with the signal amplitudes in
+the individual segments A. . . D, whereas Equations (2). . . (5)
+act on the phases which have been stripped of the amplitude
+information. Further analysis shows, however, that this is not
+the case and that the proposed system produces the same out-
+puts as the conventional one, at least if the servo loops have
+enough gain and integrator stages to keep all error signals
+close to zero. In that case, Equations (6). . . (9) imply that the
+segment error signals EA . . . ED are zero as well, which leads
+to the same outputs as in the conventional architecture.
+The proposed architecture has been veriﬁed to produce
+the same outputs as the conventional scheme by means of
+computer simulations and electrical tests [26]. For example,
+using a dynamical DPLL model implemented in MATLAB
+Simulink we show that, in the absence of noise, and with
+identical loop parameters, the conventional and the proposed
+architectures are mathematically equivalent (Figure 5).
+Initial tests of the proposed architecture using optical sig-
+nals have been performed in a simple Mach-Zehnder Interfer-
+ometer. The light sources were two Nd:Y AG NPRO lasers
+5
+Single-segment tracking
+Combined-signal tracking
+Input
+Segment A
+Segment B
+Phase (rad)
+−100
+−50
+0
+50
+100
+Simulation time (s)
+0 0.005 0.010
+FIG. 5. Simulation of the conventional (single-segment tracking) and
+the proposed (combined-signal tracking) diﬀerential wavefront sens-
+ing architectures with DPLL readout, showing the successful track-
+ing of two segments of a quadrant photodiode. Given the same input
+with no noise, and identical loop parameters, the two architectures
+produce the same output.
+phase-locked to each other with 9 MHz o ﬀset with sepa-
+rate electronics. The signals were recorded with an InGaAs
+QPD of 1 mm diameter and were converted to voltages with
+op-amp based transimpedance ampliﬁers with 20 MHz band-
+width. The phasemeter operated at 80 MHz clock frequency
+and used the hardware which is described in [17, Ch. 9]. Other
+than implementing the mixing matrices shown in Figure 4,
+the loop parameters were not changed between the conven-
+tional and the proposed schemes. The initial measurements
+conﬁrmed that the scheme works functionally and is able to
+determine correct length and DWS signals. The length loop
+in the proposed scheme can indeed handle signals of roughly
+half the amplitude (−6 dB) compared to the standard scheme,
+both in acquiring the signal and in tracking without cycle slip-
+ping, when the artiﬁcially increased noise ﬂoor remains un-
+changed, or with the same signal amplitude and 6 dB more
+noise. Further experiments are being prepared using a LISA-
+representative testbed [27].
+V . NOISE INVESTIGA TIONS
+We analyze the proposed technique in the context of a
+heterodyne interferometer in the presence of relative inten-
+sity noise (RIN) from the laser sources, which is uncorre-
+lated among the interfering laser beams, but correlated among
+QPD segments; and photon shot noise, which is uncorre-
+lated among QPD segments. This analysis can be easily
+scaled to include any number of correlated and uncorrelated
+noise sources. Let P jk denote the optical power impinging
+in segment k∈{ A, B, C, D} of the photodiode located in port
+j∈{ A, B} of the interferometer consisting of a pair of QPDs
+mounted at the output ports of a beam combiner (BS), and let
+E1 and E2 denote the on-axis complex amplitudes of the in-
+terfering ﬁelds (Figure 6). Upon combination, the superposed
+ﬁelds have complex amplitudes given by
+Port A : EA = ρE1 + τE2, (14)
+Port B : EB = ρE1 + τeiπE2 = ρE1− τE2, (15)
+where ρ and τ are the beamsplitter’s amplitude reﬂection and
+transmission coeﬃcients respectively. The photodiode signal
+in the quadrant labeled by{ j, k} ={port, segment} is given by
+C jk = c jkP jk, where c jk is a constant determined by the analog
+processing of the signal. The optical power P jk is calculated
+as
+P jk =
+" ⏐⏐⏐E j
+⏐⏐⏐2
+dS jk, (16)
+where dS jk is a surface element in segment k of the photodi-
+ode in port j. For example, for a segment in port A we have
+PAk =ρ2
+"
+|E1|2dS Ak + τ2
+"
+|E2|2dS Ak
++ ρτ
+("
+E1E∗
+2dS Ak +
+"
+E∗
+1E2dS Ak
+)
+. (17)
+Here we introduce the deﬁnition of the overlap integral as
+√η jkeiφ jk≡
+!
+E1E∗
+2dS jk
+(!
+|E1|2dS jk
+!
+|E2|2dS jk
+)1
+2
+, (18)
+where η jk is the heterodyne eﬃciency and φ jk = 2π fhett−ψ jk is
+the phase of the superposed optical ﬁelds, withfhet the hetero-
+dyne frequency (i.e., the beatnote frequency between E1 and
+E2), and ψ jk the interferometric phase. Recasting Equation 17
+E2
+E1
+BS
+Port A
+Port B
+ρE1−τE2
+ρE1+τE2
+AB
+CD
+Segments
+QPD
+FIG. 6. Diagram showing the interferometer being considered. E1
+and E2 interfere at a beamsplitter (BS), and a quadrant photodiode is
+placed at each of the output ports.
+6
+in terms of ηAk and φAk yields
+PAk = 1
+4
+(
+ρ2P1 + τ2P2 + ρτ
+√
+ηAkP1P2
+[
+eiφAk + e−iφAk
+])
+= 1
+4
+(
+ρ2P1 + τ2P2 + 2ρτ
+√
+ηAkP1P2 cos φAk
+)
+, (19)
+where P1 and P2 represent the instantaneous power in the in-
+terfering beams, and we made the assumption that the beams
+are well-centered in the detectors such that the power is
+equally distributed over the four QPD segments. This is a rea-
+sonable assumption for well aligned interferometers, as well
+as for interferometers employing imaging systems to mini-
+mize beam walk at the detectors. RIN is a multiplicative noise
+source, and it can be modeled as
+P1 = ¯P1 + δP1 = ¯P1(1 + r1), (20)
+P2 = ¯P2 + δP2 = ¯P2(1 + r2), (21)
+where ¯P1 and ¯P2 represent the average power in the interfering
+ﬁelds, and RIN is deﬁned as the power noise normalized to
+the average power, ri = δPi/ ¯Pi with i ={1, 2}. By making the
+appropriate substitutions in Equation 19, we obtain
+PAk = 1
+4 ρ2 ¯P1(1 + r1) + 1
+4 τ2 ¯P2(1 + r2)
++ 1
+2 ρτ
+√
+ηAk ¯P1 ¯P2(1 + r1)(1 + r2) cosφAk,
+≈ 1
+4
+(
+ρ2 ¯P1 + τ2 ¯P2 + ρ2 ¯P1r1 + τ2 ¯P2r2
+)
++ 1
+2 ρτ
+(
+1 + r1 + r2
+2
+) √
+ηAk ¯P1 ¯P2 cos φAk (22)
+where we have used
+√
+1 + r≈ 1 + r/2, and we have neglected
+the small cross term r1r2. The term 1
+4(ρ2 ¯P1 + τ2 ¯P2) is the
+DC coupling, and the term 1
+4(ρ2 ¯P1r1 + τ2 ¯P2r2) is known as
+1 f -RIN and is additive noise. The beatnote signal is mixed
+with 2 f -RIN proportional to ( r1 + r2)/2. The 2 f -RIN cou-
+pling to the interferometric phase is independent of the beam
+powers and the heterodyne e ﬃciency, and it is maximum for
+¯P1 = ¯P2, where the 2 f -RIN coupling is 1 /2 that of the
+corresponding 1 f -RIN coupling. Since the total RIN cou-
+pling is the root sum square of the two contributions, neglect-
+ing 2 f -RIN induces only a small relative error of maximum
+1− 1/
+√
+1 + (1/2)2≈ 10%, which becomes much less signif-
+icant if the beams have di ﬀerent power (e.g., it is less than
+3% for ¯P1/ ¯P2 = 10). To simplify our analysis, we disregard
+this small term. The photodiode segment signals can then be
+written as the combination of three terms,
+C jk = c jkP jk = DC jk + r jk + b jk, (23)
+where DC jk is the DC coupling of segment k in port j, r jk
+is the 1 f -RIN coupling, and b jk is the beatnote signal. For
+example, for port A,
+DCAk = 1
+4 cAk
+(
+ρ2 ¯P1 + τ2 ¯P2
+)
+, (24)
+rAk = 1
+4 cAk
+(
+ρ2 ¯P1r1 + τ2 ¯P2r2
+)
+, (25)
+b jk = 1
+2 ρτc jk
+√
+η jk ¯P1 ¯P2 cos φ jk. (26)
+To characterize the resulting interferometric phase error, we
+calculate the inverse carrier-to-noise density
+˜ψ jk = Noise ASD in C jk
+Signal RMS in C jk
+=
+˜∆C jk
+RMS
+{
+b jk
+} , (27)
+where ˜ψ jk denotes the amplitude spectral density (ASD) of
+the interferometric phase, RMS{b jk} is the root mean square
+(RMS) of the beatnote signal, and ˜∆C jk is the ASD of the
+noise in the photodiode segment signal,
+˜∆C jk =
+√
+˜s2
+jk + ˜r2
+jk, (28)
+where ˜s jk is the ASD of the shot noise coupling, and ˜r jk is the
+ASD of the 1 f -RIN coupling. Shot noise of the photodetec-
+tion is white noise aﬀecting all frequencies, and typically it is
+the limiting noise source at high frequency. The ASD of shot
+noise is given for each detector segment as
+˜s jk =
+√
+2qeDC jk, (29)
+where qe is the electron charge. Shot noise adds quadratically
+with 1 f -RIN to the total phase noise. The 1 f -RIN coupling
+ASD for a segment in port A is given by
+˜rAk = 1
+4 cAk
+(
+ρ2 ¯P1˜r1 + τ2 ¯P2˜r2
+)
+. (30)
+The addition in Equation 30 is performed linearly if the RIN
+in E1 and E2 is correlated, and quadratically otherwise. The
+RMS value of the signal is
+RMS
+{
+b jk
+}
+= 1
+4 ρτc jk
+√
+2η jk ¯P1 ¯P2, (31)
+where we have used the deﬁnition of the RMS value of a func-
+tion of period T,
+RMS{ f (t)} =
+√
+1
+T
+∫ T
+0
+[ f (t)]2 dt. (32)
+The phase noise for a segment in port A considering 1 f -RIN
+coupling only is given by
+˜ψAk = ρ2 ¯P1˜r1 + τ2 ¯P2˜r2
+ρτ
+√
+2ηAk ¯P1 ¯P2
+. (33)
+7
+The phase noise due to shot noise only is given by
+˜ψAk = 2
+ρτ
+√
+qe
+(
+ρ2 ¯P1 + τ2 ¯P2
+)
+cAkηAk ¯P1 ¯P2
+. (34)
+Each QPD segment “sees” 1 /4 of the signal, and 1 /4 of the
+1 f -RIN, and hence has the same phase error associated with
+1 f -RIN coupling as a single element photodiode (SEPD) with
+four times the surface area. However, each segment sees up to
+1/2 of the shot noise as the SEPD, resulting in up to twice the
+phase error associated with shot noise, or with any source of
+noise that is uncorrelated among segments, as the SEPD. The
+total phase noise in port A of the interferometer is given by
+˜ψAk =
+√
+˜s2
+Ak + ˜r2
+Ak
+1
+4 ρτcAk
+√
+2ηAk ¯P1 ¯P2
+, (35)
+where we have assumed that the RIN noise in E1 and E2 is
+uncorrelated, so that ˜r1 and ˜r2 add quadratically. In the con-
+ventional DWS architecture, the PLL acts on the signals C jk
+of the individual QPD segments, and thus the performance is
+limited by the phase noise given in Equation 35. In the pro-
+posed DWS architecture, the C jk signals are ﬁrst combined
+linearly, and the PLL acts on the linear combinations. The
+shot noise is uncorrelated among segments and adds quadrat-
+ically, whereas 1f -RIN is correlated and adds linearly.
+For example, for tracking the length signal, we combine the
+four QPD quadrants in port A as
+CA(A+B+C+D) =
+D∑
+k=A
+CAk =
+D∑
+k=A
+DCAk +
+D∑
+k=A
+rAk +
+D∑
+k=A
+bAk. (36)
+We omit the factor 1 /4 in the signal combination (see Equa-
+tion 6), since it a ﬀects equally the noise ASD and the beat-
+note signal RMS of the combined signal, and therefore has
+no impact on the SNR of the tracked signal. Note that in this
+case the PLL does not track the phase of the beatnote signal
+EA = ρE1 + τE2, but instead tracks the phase of the beatnote
+signal that results from adding the four QPD segments A, B,
+C, and D. The noise ASD of the combined signal is given by
+˜∆CA(A+B+C+D) =
+
+D∑
+k=A
+˜s2
+Ak +
+
+D∑
+k=A
+˜rAk
+
+2
+1
+2
+, (37)
+and the RMS value of the signal is given by
+RMS
+
+D∑
+k=A
+bAk
+ = ρτ
+√¯P1 ¯P2
+2
+√
+2
+
+D∑
+k1,k2=A
+cAk1 cAk2
+√ηAk1 ηAk2
+
+1
+2
+= ρτ
+√¯P1 ¯P2
+2
+√
+2
+
+D∑
+k=A
+c2
+AkηAk + 2
+∑
+A≤k1<k2≤D
+cAk1 cAk2
+√ηAk1 ηAk2
+
+1
+2
+. (38)
+where k1, k2∈{A, B, C, D}. Equations 37 and 38 can be sub-
+stituted into Equation 27 to obtain the total noise of the com-
+bined signal of the four QPD segments. The resulting expres-
+sion is quite long. By assuming identical analog signal pro-
+cessing cAk1 = cAk2 = cA, and segment heterodyne eﬃciencies
+ηAk1 = ηAk2 = ηA, we obtain the much simpler expression
+˜EA(A+B+C+D)≈ 1
+ρτ
+√
+2qe(ρ2 ¯P1 + τ2 ¯P2) + cA(ρ4 ¯P2
+1˜r2
+1 + τ4 ¯P2˜r2
+2)
+2cAηA ¯P1 ¯P2
+.
+(39)
+The combined signal has the same level of 1 f -RIN coupling
+as in the single-segment case (Equation 33), but lower shot
+noise coupling. Shot noise in Equation 39 is 1 /2 that of the
+single-segment case (Equation 34).
+Equation 35 (i.e., the phase noise in single-segment track-
+ing) and Equation 39 can be compared to assess the improve-
+ment of the proposed technique:
+˜EA(A+B+C+D)
+˜ψAA
+≈
+√
+1−
+12qe
+(¯P1 + ¯P2
+)
+16qe
+(¯P1 + ¯P2
+)
++ cA
+(¯P2
+1˜r2
+1 + ¯P2
+2˜r2
+2
+).
+(40)
+It can now be readily seen that the proposed technique pro-
+vides a maximum improvement of 6 dB over the traditional
+scheme,
+20· log
+
+˜EA(A+B+C+D)
+˜ψAA
+≈ 20· log
+
+√
+1− 3
+4
+≈− 6 dB. (41)
+When tracking the interferometric phase signal from a single
+segment of a QPD, the PLL “sees” 1 /4 of the signal RMS,
+and 1/4 of the 1 f -RIN, but up to 1 /2 of the shot noise, as a
+SEPD. This results in up to twice the shot noise induced phase
+error as when tracking the phase signal of the SEPD. To take
+full advantage of the QPD, in the proposed architecture the
+PLL is applied not to the individual QPD segments, but to the
+linear combinations of these signals (Equations 6-9). In this
+way, the tracked signals will have the same level of correlated
+noise coupling such as 1 f -RIN as in single-segment tracking,
+but up to 2 times less uncorrelated noise coupling, such as
+shot noise, resulting in an overall similar noise performance
+as when tracking the signal from a SEPD of the same size as
+the QPD. This is in addition to other advantages such as being
+able to adjust the loop gains and ﬁlter parameters individually
+for length and angular signals.
+In the LISA long-arm interferometer, one ﬁeld is much
+stronger than the other. In this case we may simplify further
+8
+P1 = 5.19×10−10 W
+P2 = 0.003 W
+r1 = 3×10−8 Hz-1/2
+20·log10 [ΨAA / EA(A+B+C+D) ] (dB)
+0.001
+0.01
+0.1
+1
+10
+r2 (Hz-1/2)
+10−10 10−9 10−8 10−7 10−6
+FIG. 7. Improvement of the proposed scheme over single-segment
+tracking as a function of the RIN level in the strong ﬁeld, for an
+interferometer resembling the LISA long-arm interferometer.
+(i.e., ¯P2≫ ¯P1, ¯P2
+2˜r2
+2≫ ¯P2
+1˜r2
+1),
+˜EA(A+B+C+D)
+˜ψAA
+≈
+√
+1− 12qe ¯P2
+16qe ¯P2 + ca ¯P2
+2˜r2
+2
+. (42)
+Figure 7 shows the improvement as a function of the RIN level
+in the strong ﬁeld in an interferometer with parameters akin to
+the LISA long-arm interferometer.
+A major advantage of the increased SNR in the proposed
+architecture is the enhanced robustness against alignment er-
+rors of the interferometer. This is an issue of great concern in
+the development of long-baseline space-based observatories,
+such as LISA, where the unavoidable angular motion of the
+spacecraft translates into alignment jitter in the interferome-
+ter, and therefore in a degradation of heterodyne e ﬃciency
+and a cross-coupling in the longitudinal pathlength measure-
+ments known as tilt-to-length (TTL) coupling. Imaging sys-
+tems can be used to reduce TTL-coupling in the interferome-
+ter to a great extent [27, 28]. The imaging systems suppress
+beam walk in the detector plane, thus leading to the reduction
+in TTL-coupling, but in turn they magnify the beam tilt an-
+gle. The angular magniﬁcation provided by the imaging sys-
+tems, in conjunction with the one provided by the receiving
+telescope, means that the phasemeter should be able to track
+signals with relatively poor heterodyne eﬃciency.
+To quantify the improvement of the proposed technique un-
+der alignment errors of the interferometer, we develop a com-
+puter model of the interferometer using Ifocad. Ifocad is a col-
+lection of C++ libraries that provides proven methods for sim-
+ulating two-beam laser interferometers [24, 29]. We simulate
+the interference between a Gaussian reference beam with typ-
+ical parameters (LO beam), and a Gaussian beam with a very
+large waist located at the position of a QPD such that, at this
+Single-segment tracking
+Combined-signal tracking
+Inverted C/N density (dBHz)
+−95
+−90
+−85
+−80
+−75
+−70
+θ  (μrad)
+0 250 500 750 1000 1250 1500
+FIG. 8. Inverted carrier-to-noise density of the signals being tracked
+by the PLL in the conventional (single-segment tracking) and the
+proposed (combined-signal tracking) architectures, resulting from a
+Monte-Carlo simulation of a misaligned interferometer where the
+beam tilt angle, as sensed by the detector, is sampled from a uniform
+distribution with amplitude θ, and the beam tilt direction is sampled
+from a uniform distribution spanning the entire plane transverse to
+the optical axis. The beam tilts with respect to the center of the de-
+tector as if it were being imaged to that point by an imaging system.
+In single-segment tracking, all four QPD segments are taken into
+consideration in the statistical analysis. The solid lines represent the
+maxima and minima of the resulting inverted C /N density distribu-
+tions. The dark-shade regions delimited by dashed lines represent
+one standard deviation from the mean.
+TABLE I. Simulation parameters. The model assumes identical ana-
+log processing of the QPD segments.
+Property Value
+¯P1 519 pW
+¯P2 3 mW
+˜r1 10−8/
+√
+Hz
+˜r2 10−8/
+√
+Hz
+ρ = τ 1/
+√
+2
+QPD active area diameter 1 mm
+QPD slit width 20 µm
+Reference beam waist radius 0.5 mm
+Measurement beam waist radius 10 mm
+position, it resembles the ﬂat-top beam received by a LISA
+spacecraft (Rx beam). This particular simulation method has
+been veriﬁed experimentally in a testbed featuring ﬂat-top
+beam on Gaussian beam interference [27].
+We perform a Monte-Carlo analysis in which the program
+computes the heterodyne eﬃciencies for each of the four seg-
+ments of the QPD, as the Rx beam is rotated with respect
+to the center of the detector, so as to mimic the e ﬀect of an
+9
+imaging system that has been aligned perfectly and is there-
+fore suppressing the Rx beam walk in the detector plane. The
+beam tilt angle is sampled from a uniform distribution with
+increasing amplitude, and the tilt direction is sampled from
+a uniform distribution spanning the entire plane transverse to
+the optical axis. The program then uses the computed het-
+erodyne eﬃciencies to calculate the estimated signal error in
+the conventional (single-segment tracking, Equation 35) and
+the proposed (combined-signal tracking, Equations 38 and 37)
+architectures. The simulation parameters are gathered in Ta-
+ble I.
+As expected, the proposed technique oﬀers improved SNR
+throughout the tilt range (Figure 8). It is therefore able to
+handle worse absolute beam misalignments and higher resid-
+ual beam pointing jitter. This improvement is crucial for a
+enhanced tolerance of spacecraft attitude control instabilities
+prior to acquiring a stable phase locking of a slave laser to
+a weak received beam, as required for the establishment of
+an inter-spacecraft laser link in a laser transponder conﬁgura-
+tion. This improved SNR is then specially relevant through-
+out the initial beatnote acquisition states and re-acquisition
+sequences [30, 31], providing more robust control loops for
+sensing the optical link dynamics.
+It is important to note that the noise improvement is
+achieved in the signals being tracked by each separate PLL
+instance, and not on the length and angular signals. In the con-
+ventional scheme, the individual QPD segment signals tracked
+by four PLLs are combined in the next stage to yield length
+and angular signals with the same level of noise as in the pro-
+posed scheme. The advantage of the proposed architecture
+lies in the enhancement of the tracking loops: the PLLs track
+signals with greater SNR, which results in more robust locks
+with lower probability of cycle slipping, and the added beneﬁt
+of being able to tune each PLL instance to optimally track its
+corresponding length or angular signal channel.
+VI. CONCLUSION
+We have proposed a scheme to process the heterodyne beat-
+notes from the four segments of a quadrant photodiode in het-
+erodyne interferometers that use DPLL-based phasemeters. It
+acts on the length signal x and angular signals α, β and ε,
+which directly correspond to physically meaningful parame-
+ters. The proposed scheme has advantages in terms of robust-
+ness against cycle slips. It allows to individually optimize the
+loop gains and ﬁlter parameters for length and angular signals,
+which may also lead to lower noise in these outputs. A noise
+analysis of the proposed architecture has been carried out in
+the context of a heterodyne interferometer in the presence
+of shot noise and relative intensity noise. Then, a computer
+model was used to analyze the degradation of the tracked sig-
+nals in a misaligned interferometer. The proposed technique
+has been compared against the conventional one to demon-
+strate a maximum improvement of 6 dB. We expect that this
+scheme may be an attractive alternative for applications like
+LISA or future GRACE Follow-On-like geodesy missions. It
+can also ﬁnd applications across multiple disciplines where
+high precision length and angular measurements are desired,
+notably in inertial sensing of test masses, with applications in
+ﬁelds such as vibration isolation [32], and tests of fundamen-
+tal physics [33–35].
+VII. ACKNOWLEDGEMENTS
+The authors acknowledge the support of the German Space
+Agency, DLR (FKZ 50OQ1801); Clusters of Excellence
+“QuantumFrontiers: Light and Matter at the Quantum Fron-
+tier: Foundations and Applications in Metrology” (EXC-
+2123, project number: 390837967); PhoenixD: “Photon-
+ics, Optics, and Engineering—Innovation Across Disciplines”
+(EXC-2122, project number: 390833453).
+VIII. REFERENCES
+[1] M. Armano, H. Audley, J. Baird, P. Binetruy, M. Born, D. Bor-
+toluzzi, E. Castelli, A. Cavalleri, A. Cesarini, A. M. Cruise,
+K. Danzmann, M. de Deus Silva, I. Diepholz, G. Dixon,
+R. Dolesi, L. Ferraioli, V . Ferroni, E. D. Fitzsimons, M. Fres-
+chi, L. Gesa, F. Gibert, D. Giardini, R. Giusteri, C. Gri-
+mani, J. Grzymisch, I. Harrison, G. Heinzel, M. Hewitson,
+D. Hollington, D. Hoyland, M. Hueller, H. Inchauspe, O. Jen-
+nrich, P. Jetzer, N. Karnesis, B. Kaune, N. Korsakova, C. J.
+Killow, J. A. Lobo, I. Lloro, L. Liu, J. P. Lopez-Zaragoza,
+R. Maarschalkerweerd, D. Mance, N. Meshksar, V . Mar-
+tin, L. Martin-Polo, J. Martino, F. Martin-Porqueras, I. Ma-
+teos, P. W. McNamara, J. Mendes, L. Mendes, M. Nofrarias,
+S. Paczkowski, M. Perreur-Lloyd, A. Petiteau, P. Pivato,
+E. Plagnol, J. Ramos-Castro, J. Reiche, D. I. Robertson, F. Ri-
+vas, G. Russano, J. Slutsky, C. F. Sopuerta, T. Sumner, D. Tex-
+ier, J. I. Thorpe, D. Vetrugno, S. Vitale, G. Wanner, H. Ward,
+P. J. Wass, W. J. Weber, L. Wissel, A. Wittchen, and P. Zweifel,
+“Beyond the required lisa free-fall performance: New lisa
+pathﬁnder results down to 20 µhz,” Physical Review Letters
+120, 10.1103/PhysRevLett.120.061101.
+[2] Klaus Abich, Alexander Abramovici, Bengie Amparan, An-
+dreas Baatzsch, Brian Bachman Okihiro, David C. Barr,
+Maxime P. Bize, Christina Bogan, Claus Braxmaier, Michael J.
+Burke, Ken C. Clark, Christian Dahl, Katrin Dahl, Karsten
+Danzmann, Mike A. Davis, Glenn de Vine, Je ﬀrey A. Dick-
+son, Serge Dubovitsky, Andreas Eckardt, Thomas Ester,
+Germ´an Fern´andez Barranco, Reinhold Flatscher, Frank Flecht-
+ner, William M. Folkner, Samuel Francis, Martin S. Gilbert,
+10
+Frank Gilles, Martin Gohlke, Nicolas Grossard, Burghardt
+Guenther, Philipp Hager, Jerome Hauden, Frank Heine, Ger-
+hard Heinzel, Mark Herding, Martin Hinz, James Howell,
+Mark Katsumura, Marina Kaufer, William Klipstein, Alexan-
+der Koch, Micah Kruger, Kameron Larsen, Anton Lebeda,
+Arnold Lebeda, Thomas Leikert, Carl Christian Liebe, Je-
+hhal Liu, Lynette Lobmeyer, Christoph Mahrdt, Thomas Man-
+goldt, Kirk McKenzie, Malte Misfeldt, Phillip R. Morton, Vitali
+M¨uller, Alexander T. Murray, Don J. Nguyen, Kolja Nicklaus,
+Robert Pierce, Joshua A. Ravich, Gretchen Reavis, Jens Re-
+iche, Josep Sanjuan, Daniel Sch ¨utze, Christoph Seiter, Daniel
+Shaddock, Benjamin Sheard, Michael Sileo, Robert Spero,
+Gary Spiers, Gunnar Stede, Michelle Stephens, Andrew Sutton,
+Joseph Trinh, Kai V oss, Duo Wang, Rabi T. Wang, Brent Ware,
+Henry Wegener, Steve Windisch, Christopher Woodruﬀ, Bernd
+Zender, and Marcus Zimmermann, “In-orbit performance of
+the grace follow-on laser ranging interferometer,” Phys. Rev.
+Lett. 123, 031101 (2019).
+[3] A. M. Cruise, D. Hoyland, and S. M. Aston, “Implementation
+of the phasemeter for lisa ltp,” Classical and Quantum Gravity
+22, S165–S169 (2005).
+[4] G. Heinzel, V . Wand, A. Garcia, O. P. Jennrich, C. Brax-
+maier, D. Robertson, K. Middleton, D. Hoyland, A. Rudiger,
+R. Schilling, U. Johann, and K. Danzmann, “The ltp inter-
+ferometer and phasemeter,” Classical and Quantum Gravity21,
+S581–S587 (2004).
+[5] Yu-Rong Liang, Hui-Zong Duan, Hsien-Chi Yeh, and Jun Luo,
+“Fundamental limits on the digital phase measurement method
+based on cross-correlation analysis,” Review of Scientiﬁc In-
+struments 83 (2012), 10.1063/1.4751867.
+[6] S. E. Pollack and R. T. Stebbins, “Demonstration of the zero-
+crossing phasemeter with a lisa test-bed interferometer,” Clas-
+sical and Quantum Gravity 23, 4189–4200 (2006).
+[7] Vinzenz Wand, Felipe Guzman, Gerhard Heinzel, and Karsten
+Danzmann, “Lisa phasemeter development,” in Laser Interfer-
+ometer Space Antenna, AIP Conference Proceedings, V ol. 873,
+edited by S. M. Merkowitz and J. C. Livas (2006) pp. 689–+.
+[8] D. Shaddock, B. Ware, P. G. Halverson, R. E. Spero, and
+B. Klipstein, “Overview of the lisa phasemeter,” in Laser In-
+terferometer Space Antenna, AIP Conference Proceedings, V ol.
+873, edited by S. M. Merkowitz and J. C. Livas (2006) pp. 654–
++.
+[9] Malcolm B. Gray, Terry McRae, Magnus T. L. Hsu, Jan Her-
+rmann, and Daniel A. Shaddock, “A digital phasemeter for
+precision length measurements,” in 2012 Conference on Lasers
+and Electro-Optics, Conference on Lasers and Electro-Optics
+(2012).
+[10] Oliver Gerberding, Benjamin Sheard, Iouri Bykov, Joachim
+Kullmann, Juan Jose Esteban Delgado, Karsten Danzmann,
+and Gerhard Heinzel, “Phasemeter core for intersatellite
+laser heterodyne interferometry: modelling, simulations and
+experiments,” Classical and Quantum Gravity 30 (2013),
+10.1088/0264-9381/30/23/235029.
+[11] Samuel P. Francis, Timothy T. Y . Lam, Kirk McKenzie, An-
+drew J. Sutton, Robert L. Ward, David E. McClelland, and
+Daniel A. Shaddock, “Weak-light phase tracking with a low cy-
+cle slip rate,” Optics Letters 39, 5251–5254 (2014).
+[12] B. Bachman, G. de Vine, J. Dickson, S. Dubovitsky, J. Liu,
+W. Klipstein, K. McKenzie, R. Spero, A. Sutton, B. Ware, and
+C. Woodruﬀ, “Flight phasemeter on the laser ranging interfer-
+ometer on the grace follow-on mission,” in 11th International
+LISA Symposium , Journal of Physics Conference Series, V ol.
+840 (2017).
+[13] Karsten Danzmann, Lisa Pathﬁnder Team, and eLisa Consor-
+tium, “Lisa and its pathﬁnder,” Nature Physics 11, 613–615
+(2015).
+[14] “LISA mission L3 proposal,” .
+[15] B. S. Sheard, G. Heinzel, K. Danzmann, D. A. Shaddock, W. M.
+Klipstein, and W. M. Folkner, “Intersatellite laser ranging in-
+strument for the grace follow-on mission,” Journal of Geodesy
+86, 1083–1095 (2012).
+[16] “Joint press release by AEI and NASA /JPL, July 02, 2018; pa-
+per in preparation,”.
+[17] Oliver Gerberding, Phase readout for satellite interferometry ,
+Ph.D. thesis, Leibniz Universit¨at Hannover (2014).
+[18] M. Armano, H. Audley, G. Auger, J. T. Baird, M. Bassan, P. Bi-
+netruy, M. Born, D. Bortoluzzi, N. Brandt, M. Caleno, L. Car-
+bone, A. Cavalleri, A. Cesarini, G. Ciani, G. Congedo, A. M.
+Cruise, K. Danzmann, M. de Deus Silva, R. De Rosa, M. Diaz-
+Aguilo, L. Di Fiore, I. Diepholz, G. Dixon, R. Dolesi, N. Dun-
+bar, L. Ferraioli, V . Ferroni, W. Fichter, E. D. Fitzsimons,
+R. Flatscher, M. Freschi, A. F. Garcia Marin, C. Garcia Marir-
+rodriga, R. Gerndt, L. Gesa, F. Gibert, D. Giardini, R. Giusteri,
+F. Guzman, A. Grado, C. Grimani, A. Grynagier, J. Grzymisch,
+I. Harrison, G. Heinzel, M. Hewitson, D. Hollington, D. Hoy-
+land, M. Hueller, H. Inchauspe, O. Jennrich, P. Jetzer, U. Jo-
+hann, B. Johlander, N. Karnesis, B. Kaune, N. Korsakova, C. J.
+Killow, J. A. Lobo, I. Lloro, L. Liu, J. P. Lopez-Zaragoza,
+R. Maarschalkerweerd, D. Mance, V . Martin, L. Martin-Polo,
+J. Martino, F. Martin-Porqueras, S. Madden, I. Mateos, P. W.
+McNamara, J. Mendes, L. Mendes, A. Monsky, D. Nicolodi,
+M. Nofrarias, S. Paczkowski, M. Perreur-Lloyd, A. Petiteau,
+P. Pivato, E. Plagnol, P. Prat, U. Ragnit, B. Rais, J. Ramos-
+Castro, J. Reiche, D. I. Robertson, H. Rozemeijer, F. Rivas,
+G. Russano, J. Sanjuan, P. Sarra, A. Schleicher, D. Shaul,
+J. Slutsky, C. F. Sopuerta, R. Stanga, F. Steier, T. Sumner,
+D. Texier, et al. , “Sub-femto-g free fall for space-based grav-
+itational wave observatories: Lisa pathﬁnder results,” Physical
+Review Letters 116 (2016), 10.1103/PhysRevLett.116.231101.
+[19] M. Armano, H. Audley, J. Baird, P. Binetruy, M. Born, D. Bor-
+toluzzi, E. Castelli, A. Cavalleri, A. Cesarini, A. M. Cruise,
+K. Danzmann, M. de Deus Silva, I. Diepholz, G. Dixon,
+R. Dolesi, L. Ferraioli, V . Ferroni, E. D. Fitzsimons, M. Fres-
+chi, L. Gesa, F. Gibert, D. Giardini, R. Giusteri, C. Gri-
+mani, J. Grzymisch, I. Harrison, G. Heinzel, M. Hewitson,
+D. Hollington, D. Hoyland, M. Hueller, H. Inchausp ´e, O. Jen-
+nrich, P. Jetzer, N. Karnesis, B. Kaune, N. Korsakova, C. J.
+Killow, J. A. Lobo, I. Lloro, L. Liu, J. P. L ´opez-Zaragoza,
+R. Maarschalkerweerd, D. Mance, N. Meshksar, V . Mart ´ın,
+L. Martin-Polo, J. Martino, F. Martin-Porqueras, I. Mateos,
+P. W. McNamara, J. Mendes, L. Mendes, M. Nofrarias,
+S. Paczkowski, M. Perreur-Lloyd, A. Petiteau, P. Pivato,
+E. Plagnol, J. Ramos-Castro, J. Reiche, D. I. Robertson, F. Ri-
+vas, G. Russano, J. Slutsky, C. F. Sopuerta, T. Sumner, D. Tex-
+ier, J. I. Thorpe, D. Vetrugno, S. Vitale, G. Wanner, H. Ward,
+P. J. Wass, W. J. Weber, L. Wissel, A. Wittchen, and P. Zweifel
+(LISA Pathﬁnder Collaboration), “Lisa pathﬁnder platform sta-
+bility and drag-free performance,” Phys. Rev. D 99, 082001
+(2019).
+[20] Alexander Koch, Josep Sanjuan, Martin Gohlke, Christoph
+Mahrdt, Nils Brause, Claus Braxmaier, and Gerhard Heinzel,
+“Line of sight calibration for the laser ranging interferometer
+on-board the grace follow-on mission: on-ground experimental
+validation,” Optics Express 26, 25892 (2018).
+[21] E. Morrison, B. J. Meers, D. I. Robertson, and H. Ward, “Auto-
+matic alignment of optical interferometers,” Applied Optics33,
+5041–5049 (1994).
+11
+[22] E. Morrison, B. J. Meers, D. I. Robertson, and H. Ward, “Ex-
+perimental demonstration of an automatic alignment system for
+optical interferometers,” Applied Optics33, 5037–5040 (1994).
+[23] Floyd M. Gardner, Phaselock Techniques (John Wiley & Sons,
+New York, 2005).
+[24] Gudrun Wanner, Gerhard Heinzel, Evgenia Kochkina,
+Christoph Mahrdt, Benjamin S. Sheard, Soenke Schuster,
+and Karsten Danzmann, “Methods for simulating the readout
+of lengths and angles in laser interferometers with gaussian
+beams,” Optics Communications 285, 4831–4839 (2012).
+[25] Gudrun Wanner, Soenke Schuster, Michael Troebs, and Ger-
+hard Heinzel, “A brief comparison of optical pathlength di ﬀer-
+ence and various deﬁnitions for the interferometric phase,” in
+10th International LISA Symposium , Journal of Physics Con-
+ference Series, V ol. 610 (2015).
+[26] Nils Christopher Brause, Auxiliary function development for the
+LISA metrology system , Ph.D. thesis, Leibniz Universit ¨at Han-
+nover (2018).
+[27] M. Chwalla, K. Danzmann, M. Dovale ´Alvarez, J.J. Esteban
+Delgado, G. Fern ´andez Barranco, E. Fitzsimons, O. Gerberd-
+ing, G. Heinzel, C.J. Killow, M. Lieser, M. Perreur-Lloyd, D.I.
+Robertson, J.M. Rohr, S. Schuster, T.S. Schwarze, M. Tr ¨obs,
+G. Wanner, and H. Ward, “Optical suppression of tilt-to-length
+coupling in the LISA long-arm interferometer,” Physical Re-
+view Applied 14 (2020), 10.1103/physrevapplied.14.014030.
+[28] M Tr ¨obs, S Schuster, M Lieser, M Zwetz, M Chwalla, K Danz-
+mann, G Fern ´andez Barr´anco, E D Fitzsimons, O Gerberding,
+G Heinzel, C J Killow, M Perreur-Lloyd, D I Robertson, T S
+Schwarze, G Wanner, and H Ward, “Reducing tilt-to-length
+coupling for the LISA test mass interferometer,” Classical and
+Quantum Gravity 35, 105001–22 (2018).
+[29] IfoCAD, “http: //www.lisa.aei-hannover.de/ifocad/,” .
+[30] Danielle M. R. Wuchenich, Christoph Mahrdt, Benjamin S.
+Sheard, Samuel P. Francis, Robert E. Spero, John Miller,
+Conor M. Mow-Lowry, Robert L. Ward, William M. Klipstein,
+Gerhard Heinzel, Karsten Danzmann, David E. McClelland,
+and Daniel A. Shaddock, “Laser link acquisition demonstra-
+tion for the grace follow-on mission,” Opt. Express 22, 11351–
+11366 (2014).
+[31] Alexander Koch, Link Acquisition and Optimization for Inter-
+satellite Laser Interferometry, Ph.D. thesis, Leibniz Universit¨at
+Hannover (2020).
+[32] C M Mow-Lowry and D Martynov, “A 6d interferometric in-
+ertial isolation system,” Classical and Quantum Gravity 36,
+245006 (2019).
+[33] S. Schlamminger, K.-Y . Choi, T. A. Wagner, J. H. Gundlach,
+and E. G. Adelberger, “Test of the equivalence principle using a
+rotating torsion balance,” Physical Review Letters 100 (2008),
+10.1103/physrevlett.100.041101.
+[34] Jun Luo, Qi Liu, Liang-Cheng Tu, Cheng-Gang Shao, Lin-
+Xia Liu, Shan-Qing Yang, Qing Li, and Ya-Ting Zhang,
+“Determination of the newtonian gravitational ConstantGwith
+time-of-swing method,” Physical Review Letters 102 (2009),
+10.1103/physrevlett.102.240801.
+[35] Qing Li, Chao Xue, Jian-Ping Liu, Jun-Fei Wu, Shan-Qing
+Yang, Cheng-Gang Shao, Li-Di Quan, Wen-Hai Tan, Liang-
+Cheng Tu, Qi Liu, Hao Xu, Lin-Xia Liu, Qing-Lan Wang,
+Zhong-Kun Hu, Ze-Bing Zhou, Peng-Shun Luo, Shu-Chao Wu,
+Vadim Milyukov, and Jun Luo, “Measurements of the gravita-
+tional constant using two independent methods,” Nature 560,
+582–588 (2018).

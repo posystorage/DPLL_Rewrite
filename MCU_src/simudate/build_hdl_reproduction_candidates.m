@@ -13,8 +13,8 @@ template = struct('id', '', 'label_cn', '', 'role_cn', '', ...
     'parameter_source_cn', '');
 candidates = repmat(template, 4, 1);
 
-% Case 1: literal wrapper detector reset values, combined with the current
-% test Kp/Ki so this is not the trivial 4/2 coefficient power-on state.
+% Case 1: literal wrapper detector reset values with the historical P12
+% shift, combined with the current test Kp/Ki instead of power-on 4/2.
 cfg = dpll_current_config(center_frequency_hz);
 cfg.model_name = 'HDL wrapper reset detector with current test gains';
 cfg.cic.rate = 31;
@@ -34,19 +34,26 @@ cfg = disable_2p2z(cfg);
 candidates(1) = make_candidate('rtl_reset_detector_p12', ...
     'RTL复位检测链 + P12', ...
     '源码字面负对照，不冒充ARM运行profile', cfg, ...
-    ['dpll_wrapper.v: R31/shift10/15k+8k; ' ...
-    'dpll_single_clock_core_stage_a.v: P12; Kp/Ki采用当前测试6M/2.5M']);
+    ['dpll_wrapper.v: R31/shift10/15k+8k; historical P12; ' ...
+    'Kp/Ki采用当前测试6M/2.5M']);
 
-% Case 2: parameters generated and committed by the current ARM 20 kHz
-% profile. dpll_default_config mirrors dpll_profile.c for this band.
+% Case 2: pre-update ARM 20 kHz profile retained as a historical negative
+% control after the P8 hardware update.
 cfg = dpll_default_config(center_frequency_hz);
-cfg.model_name = 'Committed ARM operating profile with fixed P12 RTL';
+cfg.model_name = 'Pre-update ARM operating profile with fixed P12 RTL';
+cfg.cic.output_shift = 8;
+cfg.iir.track_cutoff_hz = 2000;
+post_cic_rate_hz = cfg.input_sample_rate_hz / cfg.cic.rate;
+cfg.iir.track = dpll.design_biquad_q30( ...
+    cfg.iir.track_cutoff_hz, post_cic_rate_hz);
+cfg.shifts.p_product = 12;
+cfg.gains.kp_blend = int64(6000000);
 cfg = disable_2p2z(cfg);
 candidates(2) = make_candidate('arm_operating_profile_p12', ...
-    'ARM当前工作profile + P12', ...
-    '实机软件加载后的旧工作配置', cfg, ...
+    '更新前ARM工作profile + P12', ...
+    '更新前实机软件工作配置', cfg, ...
     ['dpll_profile.c: R16/shift8/acquire4k/track2k, ' ...
-    'Kp=6M, Ki=180k; fixed RTL P12']);
+    'Kp=6M, Ki=180k; historical fixed RTL P12']);
 
 % Case 3: every register-controlled improvement is enabled, while the RTL
 % P shift remains 12. This is the strongest negative control for whether a

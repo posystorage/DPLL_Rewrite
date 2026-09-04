@@ -1,0 +1,988 @@
+sensors
+Communication
+High-Resolution Multi-Channel Frequency Standard Comparator
+Using Digital Frequency Measurement
+Bo Xiao 1,2,3 , Ya Liu 1,2,3, *, Xiaohui Li 1,2,3 , Zhifeng Deng 1,2,3 and Yanrong Xue 1,2,3
+/gid00030/gid00035/gid00032/gid00030/gid00038/gid00001/gid00033/gid00042/gid00045/gid00001
+/gid00048/gid00043/gid00031/gid00028/gid00047/gid00032/gid00046
+Citation: Xiao, B.; Liu, Y.; Li, X.;
+Deng, Z.; Xue, Y. High-Resolution
+Multi-Channel Frequency Standard
+Comparator Using Digital Frequency
+Measurement. Sensors 2021, 21, 5626.
+https://doi.org/10.3390/s21165626
+Academic Editor: Kelum A.
+A. Gamage
+Received: 9 July 2021
+Accepted: 16 August 2021
+Published: 20 August 2021
+Publisher’s Note: MDPI stays neutral
+with regard to jurisdictional claims in
+published maps and institutional afﬁl-
+iations.
+Copyright: © 2021 by the authors.
+Licensee MDPI, Basel, Switzerland.
+This article is an open access article
+distributed under the terms and
+conditions of the Creative Commons
+Attribution (CC BY) license (https://
+creativecommons.org/licenses/by/
+4.0/).
+1 National Time Service Center, Chinese Academy of Sciences, East Shu Yuan Road, Xi’an 710600, China;
+xiaobo@ntsc.ac.cn (B.X.); xiaohui@ntsc.ac.cn (X.L.); dengzhifeng18@mails.ucas.ac.cn (Z.D.);
+xueyanrong@ntsc.ac.cn (Y.X.)
+2 Key Laboratory of Time and Frequency Primary Standards, Chinese Academy of Sciences, Xi’an 710600, China
+3 School of Astronomy and Space Science, University of Chinese Academy of Sciences, Yu Quan Road,
+Beijing 100049, China
+* Correspondence: liuya@ntsc.ac.cn; Tel.: +86-18629247323
+Abstract: The rapid improvement accuracy of the atomic frequency standard puts forward higher
+requirements for the measurement resolution of the atomic frequency standard comparison system.
+To overcome the defect that the single zero-crossing point detection is sensitive to noise in the tradi-
+tional dual mixer time difference measurement method, a digital frequency measurement method is
+proposed. This method combines sinusoidal beat technology, multi-channel synchronous acquisition
+technology, and digital frequency measurement technology, and uses differential compensation of
+system error to realize the precision measurement of atomic frequency standard. The frequency
+measurement accuracy is less than 2.5× 10−14 and the noise ﬂoor is better than 6.5× 10−15/τ = 1 s.
+The system has a high frequency measurement accuracy and a low noise ﬂoor, which can realize the
+precise measurement of a highly stable frequency source.
+Keywords: multichannel; frequency standard comparison; digital frequency measurement
+1. Introduction
+Precise atomic frequency standard has provided time-frequency reference for modern
+communications, deep space exploration, satellite navigation [1,2]. However, due to the
+factors such as the aging of components and changes in the operating environment, the
+atomic frequency standard has a long-term drift during operation [3–5]. To achieve the state
+monitoring and performance evaluation of the atomic frequency standard, the development
+of the atomic frequency standard measurement and analysis system is of great signiﬁcance.
+Besides, with the development of science and technology, the performance of atomic
+frequency standards is constantly improving [6]. For example, the accuracy of a new type
+of atomic frequency standard can reach 1× 10−15, the uncertainty of the optical clock can
+even reach 1× 10−18/d, and the stability of an ultra-stable crystal oscillator can reach
+1× 10−14/τ = 1 s [7–9], which puts forward higher requirements for the measurement
+resolution of atomic frequency standard measurement and analysis equipment.
+High-precision frequency standard comparison methods usually use phase compari-
+son technology. Among them, the dual mixer time difference (DMTD) method is widely
+used for atomic frequency standard comparison, and many precision frequency measure-
+ment equipments have been developed based on this method. For example, to provide
+time-frequency reference laboratories with real-time monitoring and performance testing
+of atomic clocks, TimeTech has developed a Phase-Comp [10]. The Phase-Comp uses two
+time interval counters to measure the time interval between zero-crossing points through
+coarse and ﬁne measurements. To meet the needs of deep space exploration, NASA Jet
+Propulsion Experiment (JPL) has developed a multi-channel Frequency Standard Stability
+Analyzer (FSSA) [11,12]. When the beat signal triggers the zero-crossing event, the FSSA
+Sensors 2021, 21, 5626. https://doi.org/10.3390/s21165626 https://www.mdpi.com/journal/sensors
+Sensors 2021, 21, 5626 2 of 13
+uses the event counter to mark the time stamp to obtain the phase difference between
+the zero-crossing points. In addition, there is a Software Deﬁned Radio (SDR) frequency
+standard comparator, which is a fully digital DMTD [13]. There is the TSC-5125A phase
+noise tester from MICROSEMI of the United States and the VCH-323 phase comparison
+analyzer from VREMYA-CH of Russia [14,15], which use a fully digital dual mixer time
+difference method to perform analog-to-digital conversion on the input signal directly.
+Through digital signal processing, the phase difference between the signal under test and
+the reference signal is measured. The performance parameters of each frequency standard
+comparison equipment are shown in Table 1.
+Table 1. The performance parameters of each frequency standard comparison equipment.
+Equipment Number of Channels Noise Floor (ADEV τ = 1 s)
+Phase-Comp 6~16 2.5× 10−14(@10 MHz)
+FSSA 8 2.0× 10−15(@100 MHz)
+TSC-5125A 2 3.0× 10−15(@10 MHz)
+VCH-323 3 7.0× 10−15
+To overcome the defect that the single zero-crossing point detection is sensitive to noise
+in the traditional dual mixer time difference measurement method, this paper proposes a
+digital frequency measurement method. Different from fully digital DMTD in Software
+Deﬁned Radio such as TSC-5125A or VCH-323, the method performs A/D sampling on the
+analog sinusoidal beat signal and uses a digital signal processing method to measure the
+frequency of the sinusoidal beat signal. This article proposes two frequency measurement
+methods: the cross-correlation decimal frequency measurement method and the three-point
+integer frequency measurement method. The paper [16] also mentioned the same method,
+but it uses the acquisition card of National Instrument (NI) to sample the sinusoidal beat
+signal. On the one hand, the data acquisition card requires initial calibration, and the
+calibration results may affect the accuracy of the signal measurement results. On the other
+hand, the data acquisition card is difﬁcult to expand the channel. This paper presents
+a hardware implementation scheme of data acquisition and analysis based on ZYNQ-
+7020. The scheme has a low design cost and is easy to expand the channel. This scheme
+also has lower design costs and better frequency comparison performance than the data
+acquisition card.
+To study the high-resolution atomic frequency standard comparison method, this
+paper ﬁrst analyzes the basic principle of the DMTD method and factors affecting the
+measurement resolution. Then the frequency measurement algorithm is introduced in
+detail. Further, a hardware implementation is given. Simultaneously, an experimental
+test platform is created, the frequency measurement accuracy and noise ﬂoor of the mea-
+surement system based on the two methods are analyzed. Ultimately, we analyze the test
+results, and the discussion is given.
+2. The Principle of DMTD Method
+The DMTD method is a high-precision phase comparison technique that can be used
+to evaluate signal stability [17–19]. As can be seen from Figure 1, the test signal v1(t) with
+the nominal frequency f0 and reference signal v2(t) with the same nominal frequency
+shown in the following formula is connected to the input port of the DMTD measurement
+system for time difference measurement.
+vi(t) = Ai(t) sin{2π( f0 + ∆ fi(t))t + θi}, i = 1, 2 (1)
+where Ai(t) is the amplitude of each signal. θi is the initial phase. ∆ fi(t) is a smooth real
+function, which reﬂects the phase noise of the signal.
+Sensors 2021, 21, 5626 3 of 13
+Sensors 2021, 21, x FOR PEER REVIEW 3 of 14 
+ 
+ 
+where ()iA t  is the amplitude of each signal. iθ  is the initial phase. ()if tΔ  is a 
+smooth real function, which reflects the phase noise of the signal. 
+ 
+Figure 1. A schematic diagram of the DMTD method. 
+In the DMTD method, a frequency offset generator (FOG) is used as shown in Figure 
+1. The FOG outputs the frequency offset signal ()3vt  with the frequency cf , which has 
+a frequency offset beatf  compared to 0f . The frequency offset signal ()3vt  can be ex-
+pressed by the formula as below: 
+() () () (){}33 3 sin 2 ccvt At f ftt πθ=+ Δ +  (2)
+The test signal and reference signal are mixed with the frequency offset signal 
+through a double-balanced mixer. The signals output from the two double-balanced mix-
+ers are processed by a low-pass filter to generate the sinusoidal beat signals ()_beat ivt . 
+() () () (){}_ sin 2beat i i beat i cvB t f t f t f t t π=+ Δ − Δ   (3)
+where () 0iBt >  is the amplitude of each beat signal. beatf  is a nominal frequency of 
+the sinusoidal beat signal. 
+After two beat signals are detected at the zero-crossing detector, it is provided as the 
+start signal and stop signal to the time interval counter (TIC) for time difference measure-
+ment. 
+Assuming that kt , kt′  respectively denotes the time when the beat signals 
+()_1beatvt  and ()_2beatvt  cross zero for the k-th time, then the following formulas are 
+obtained: 
+() ()1beat k k c k kkf t f t f t t=+ Δ − Δ   (4)
+() ()2beat k k c k kkf t f t f tt′′ ′ ′=+ Δ − Δ   (5)
+Therefore, the time interval between two beating signals measured by TIC is 
+'
+kk ktt tΔ= − . 
+() () () ()12 kk kk ckk ckk
+k
+beat beat
+f t tf t t f t tf t t
+t ff
+′′ ′′Δ− Δ Δ− Δ
+Δ= +  (6)
+The first term of the above formula denotes the effect of frequency fluctuation of the 
+test signal and reference signal on the time interval between two beat signals. The second 
+term shows that although the symmetric structure of DMTD can eliminate most of the 
+Figure 1. A schematic diagram of the DMTD method.
+In the DMTD method, a frequency offset generator (FOG) is used as shown inFigure 1.
+The FOG outputs the frequency offset signal v3(t) with the frequency fc, which has a
+frequency offset fbeat compared to f0. The frequency offset signal v3(t) can be expressed by
+the formula as below:
+v3(t) = A3(t) sin{2π( fc + ∆ fc(t))t + θ3} (2)
+The test signal and reference signal are mixed with the frequency offset signal through
+a double-balanced mixer. The signals output from the two double-balanced mixers are
+processed by a low-pass ﬁlter to generate the sinusoidal beat signals vbeat_i(t).
+vbeat_i = Bi(t) sin{2π( fbeat t + [∆ fi(t)− ∆ fc(t)]t)} (3)
+where Bi(t) > 0 is the amplitude of each beat signal. fbeat is a nominal frequency of the
+sinusoidal beat signal.
+After two beat signals are detected at the zero-crossing detector, it is provided as the start
+signal and stop signal to the time interval counter (TIC) for time difference measurement.
+Assuming that tk, t′
+k respectively denotes the time when the beat signals vbeat_1(t) and
+vbeat_2(t) cross zero for the k-th time, then the following formulas are obtained:
+k = fbeat tk + [∆ f1(tk)− ∆ fc(tk)]tk (4)
+k = fbeat t′
+k +
+[
+∆ f2
+(
+t′
+k
+)
+− ∆ fc
+(
+t′
+k
+)]
+t′
+k (5)
+Therefore, the time interval between two beating signals measured by TIC is∆tk = tk− t′
+k.
+∆tk = ∆ f1(tk)tk− ∆ f2
+(
+t′
+k
+)
+t′
+k
+fbeat
++ ∆ fc
+(
+t′
+k
+)
+t′
+k− ∆ fc(tk)tk
+fbeat
+(6)
+The ﬁrst term of the above formula denotes the effect of frequency ﬂuctuation of the
+test signal and reference signal on the time interval between two beat signals. The second
+term shows that although the symmetric structure of DMTD can eliminate most of the noise
+from the frequency offset signal, it still contains the residual amount of the noise from the
+frequency offset signal [20,21]. To reduce the inﬂuence of noise as much as possible, a phase
+shifter is added to the reference signal channel to reduce the phase difference between the
+reference signal and the test signal. Then, the ∆tk can be approximately expressed as:
+∆tk≈
+∆ f1(tk)tk−∆ f2(t′
+k)t′
+k
+fbeat
+≈ f0
+fbeat
+·
+∆ f1(tk)tk−∆ f2(t′
+k)t′
+k
+f0
+(7)
+The second term of the multiplier factor in Equation (7) denotes the time difference
+∆T between the test signal and the reference signal. It also shows that the measurement
+resolution ∆T is enhanced by a factor of f0/ fbeat .
+Sensors 2021, 21, 5626 4 of 13
+In addition to noise from the frequency offset signal, there is also random noise
+generated by each device in the DMTD system [22]. Since the zero-crossing point detection
+is sensitive to noise, it is easy to lead to misjudgment of the zero-crossing point and
+cause measurement errors, which limit the improvement of the measurement resolution of
+DMTD method.
+3. Method of Digital Frequency Measurement
+To reduce the inﬂuence of noise superimposed on a single zero-crossing point, a
+multi-channel digital frequency measurement method is proposed [16]. Compared with
+the DMTD method, the proposed method performs analog-to-digital conversion on the
+sinusoidal beat signal output by the low-pass ﬁlter instead of zero-crossing detection. Multi-
+point sampling (including zero-crossing point) of the beat signal can reduce the inﬂuence
+of noise on the measurement result more than single-point zero-crossing detection [ 23].
+In addition, the design of multi-channel ensures that the signals of each channel can be
+measured synchronously, to calibrate the error of the measurement results. On the other
+hand, it can also meet the needs of simultaneous measurement of multiple test signals. The
+multi-channel digital frequency measurement system is displayed in Figure 2.
+Sensors 2021, 21, x FOR PEER REVIEW 4 of 14 
+ 
+ 
+noise from the frequency offset signal, it still contains the residual amount of the noise 
+from the frequency offset signal [20,21]. To reduce the influence of noise as much as pos-
+sible, a phase shifter is added to the reference signal channel to reduce the phase difference 
+between the reference signal and the test signal. Then, the ktΔ  can be approximately 
+expressed as: 
+() ()
+() ()
+12
+120
+0
+kk kk
+k
+beat
+kk kk
+beat
+ft t f t t
+t f
+ft t f t tf
+ff
+′′
+′′
+Δ− Δ
+Δ≈
+Δ− Δ
+≈⋅
+ (7)
+The second term of the multiplier factor in  Equation (7) denotes the time difference 
+TΔ  between the test signal and the reference signal. It also shows that the measurement 
+resolution TΔ  is enhanced by a factor of 0 / beatf f . 
+In addition to noise from the frequency offset signal, there is also random noise gen-
+erated by each device in the DMTD system [22]. Since the zero-crossing point detection is 
+sensitive to noise, it is easy to lead to misjudgment of the zero-crossing point and cause 
+measurement errors, which limit the improv ement of the measurement resolution of 
+DMTD method. 
+3. Method of Digital Frequency Measurement 
+To reduce the influence of noise superimposed on a single zero-crossing point, a 
+multi-channel digital frequency measurement method is proposed [16]. Compared with 
+the DMTD method, the proposed method perfor ms analog-to-digital conversion on the 
+sinusoidal beat signal output by the low-pass filter instead of zero-crossing detection. 
+Multi-point sampling (including zero-crossing point) of the beat signal can reduce the in-
+fluence of noise on the measurement result more than single-point zero-crossing detection 
+[23]. In addition, the design of multi-channel ensures that the signals of each channel can 
+b e  m e a s u r e d  s y n c h r o n o u s l y ,  t o  c a l i b r a t e  t he error of the measurement results. On the 
+other hand, it can also meet the needs of si multaneous measurement of multiple test sig-
+nals. The multi-channel digital frequency measurement system is displayed in Figure 2. 
+ 
+Figure 2. A schematic diagram of the multi-channel digital frequency measurement system. 
+The multi-channel digital frequency measurement system consists of one calibration 
+channel and seven measuring channels, and th e number of measuring channels can be 
+Figure 2. A schematic diagram of the multi-channel digital frequency measurement system.
+The multi-channel digital frequency measurement system consists of one calibration
+channel and seven measuring channels, and the number of measuring channels can be
+arbitrarily extended. The circuit structure of the calibration channel is consistent with each
+measurement channel. In the process of data acquisition, the Analog-Digital Converter
+of each channel should use a common sampling clock to ensure that the frequency mea-
+surement results are simultaneous, it also ensures the strong correlation of the noise of
+each channel.
+Different from the measurement channel, the input signal of the calibration channel
+is also a reference input of the frequency offset generator. Due to the consistency of
+circuit structure and strong correlation of noise, the measurement error of the beat signal
+frequency of the calibration channel can represent the systematic error. Then the frequency
+measurement results of each measurement channel can be subtracted from that of the
+calibration channel to eliminate the inﬂuence of additional measurement noise.
+The calculation of frequency adopts digital signal processing methods, including cross-
+correlation decimal frequency measurement and three-point integerfrequency measurement.
+The discrete sinusoidal beat signal of each channel is shown in the following formula:
+vi(n) = Vi sin
+(
+2π fbeat + ∆ fi
+fs
+n + ϕi
+)
++ Ni(n) (8)
+Sensors 2021, 21, 5626 5 of 13
+where Vi is the amplitude of the beat signal of channel i. fbeat is the nominal frequency of
+the digital beat signal. ∆ fi is the frequency deviation of the input signal of channel i. The
+frequency deviation includes the integer component ∆ fint and fractional component ∆ fdec,
+i.e., ∆ fi = ∆ fint_i + ∆ fdec_i. fs is the sampling clock rate. ϕi is the initial phase of the beat
+signal of channel i. n is the discrete time. ϕi is the total noise of channel i.
+3.1. Cross-Correlation Decimal Frequency Measurement
+To calculate the decimal frequency deviation of the beat signal, the cross-correlation
+frequency measurement method extracts two groups of continuous sampling data with
+the length of fs from each channel for cross-correlation operation. It takes two seconds of
+sampled data to calculate ∆ fdec_i, therefore the calculated ∆ fdec_i is the average decimal
+frequency deviation within the time interval of 2 s. The signals at the j and j + 1 second of
+channel i are expressed as follows:
+vi,j(n) = Vi,j sin
+(
+ωi,jn + ϕi,j
+)
++ Ni,j(n) (9)
+vi,j+1(n) = Vi,j+1 sin
+(
+ωi,jn + ϕi,j+1
+)
++ Ni,j+1(n) (10)
+where, ωi,j = 2π
+fbeat +∆ fi,j
+fs , ∆ fi,j denotes the average frequency deviation between the j and
+j+1 second of channel i. Vi,j and Vi,j+1 are the amplitude of the beat signal.
+The cross-correlation result of vi,j(n) and vi,j+1(n) can be expressed by:
+Rvi,j,vi,j+1 (τ) = 1
+fs
+fs−1
+∑
+n=0
+vi,j(n)vi,j+1(n + τ)
+= 1
+2 Vi,jVi,j+1 cos
+(
+2πωi,j· τ + Φi,j
+)
++Rvi,j,Ni,j+1 + Rvi,j+1,Ni,j + RNi,j,Ni,j+1
+(11)
+where τ is the delay time between vi,j(n) and vi,j+1(n). Φi,j is the initial phase difference
+between vi,j(n) and vi,j+1(n) in the range of [−π, π], and Φi,j = ϕi,j+1− ϕi,j. Rvi,j,Ni,j+1 and
+Rvi,j+1,Ni,j denote the cross-correlation value between digital sinusoidal beat signal and
+noise. RNi,j,Ni,j+1 denotes the cross-correlation value between noises. Statistically, the signal
+is not correlated with noise, i.e., Rvi,j,Ni,j+1 = 0, Rvi,j+1,Ni,j = 0. There is also no correlation
+between the noises or the correlation is very small enough to be ignored, i.e., RNi,j,Ni,j+1≈ 0.
+When τ = 0 Equation (11) can be expressed as:
+Rvi,j,vi,j+1 (0) = 1
+2 Vi,jVi,j+1 cos
+(
+Φi,j
+)
+(12)
+If vi,j(n) and vi,j+1(n) performs cross-correlation operation with themselves respec-
+tively, Vi,j and Vi,j+1 can be expressed by:
+Vi,j =
+√
+2Rvi,j,vi,j (0) (13)
+Vi,j+1 =
+√
+2Rvi,j+1,vi,j+1 (0) (14)
+According to the Formula (12)–(14), the Φi,j can be expressed as follows:
+Φi,j =±arccos
+
+ Rvi,j,vi,j+1 (0)
+√
+Rvi,j,vi,j (0)· Rvi,j+1,vi,j+1 (0)
+
+ (15)
+Sensors 2021, 21, 5626 6 of 13
+Since vi,j(n) and vi,j+1(n) are two groups of continuous sampling data, the initial
+phase vi,j+1(n) is equal to the phase of vi,j(n) at n = fs. As shown in the follows:
+ϕi,j+1 = ϕi,j + 2π
+( fbeat + ∆ fi,j
+fs
+· fs
+)
+(16)
+fbeat is an integer, and ∆ fi,j = ∆ fint_i,j + ∆ fdec_i,j, the initial phase difference Φi,j can
+be expressed as:
+Φi,j = ϕi,j+1− ϕi,j = 2π· ∆ fdec_i,j (17)
+Combining Formulas (15) and (17), ∆ fdec_i,j can be expressed as:
+⏐⏐⏐∆ fdec_i,j
+⏐⏐⏐ = 1
+2π arccos
+
+ Rvi,j,vi,j+1 (0)
+√
+Rvi,j,vi,j (0)· Rvi,j+1,vi,j+1 (0)
+
+ (18)
+The fractional part of frequency deviation can be measured by the cross-correlation
+decimal frequency measurement method. There is only multiplication and addition in the
+cross-correlation algorithm, so the method is simple and easy to implement with Field
+Programmable Gate Array (FPGA), which not only meets the requirements of algorithm
+implementation, but it also supports multi-channel parallel measurement. The numerical
+range of ∆ fdec_i,j is [−0.5, 0.5]. As for the determination of the sign ∆ fdec_i,j, a detailed
+description will be given later.
+3.2. Three-Point Integer Frequency Measurement
+Three-point integer frequency measurement can measure the integer part of beat
+signal frequency, including nominal frequency fbeat and integer frequency deviation ∆ fint.
+According to the trigonometric identities, the beating signal of channel i at j seconds
+expressed by Formula (9) has the following relationship:
+vi,j(n) = 2 cos
+(
+ωi,j
+)
+· vi,j(n− 1)− vi,j(n− 2) (19)
+where ωi,j = 2π
+fbeat +∆ fi,j
+fs , ∆ fi,j = ∆ fint_i + ∆ fdec_i denotes the average frequency deviation
+at j second.
+Therefore, the frequency of the beat signal can be expressed as follows:
+fbeat + ∆ fi,j = fs
+2π arccos
+(
+vi,j(n) + vi,j(n− 2)
+2· vi,j(n− 1)
+)
+(20)
+Generally, the frequency value of the digital beat signal can be calculated as long as
+three consecutive sampling points are obtained. However, in the process of sampling and
+digitizing, there will be cases where the sampling data is zero. The above methods need to
+be improved.
+If the sampling data vi,j(n− 1) and vi,j(n− 2) are used to estimate the data vi,j(n)
+according to Formula (2), the estimated value ˆvi,j(n) can be expressed as:
+ˆvi,j(n) = c· vi,j(n− 1)− vi,j(n− 2) (21)
+where c = 2 cos
+(
+2π
+ˆfbeat +∆ ˆfi,j
+fs
+)
+, ˆfbeat + ∆ ˆfi,j is the estimated frequency of the beat signal.
+Then the estimation error can be expressed as:
+ei,j(n) = vi,j(n)− ˆvi,j(n)
+= vi,j(n)− c· vi,j(n− 1)− vi,j(n− 2) (22)
+Sensors 2021, 21, 5626 7 of 13
+When the estimation error ei,j(n) is minimum, it means that ˆfbeat + ∆ ˆfi,j is the optimal
+estimated frequency of the beat signal. Then the following equation holds:
+∂E
+(⏐⏐ei,j(n)
+⏐⏐2)
+∂c = 0 (23)
+According to Formula (23), the estimated frequency can be calculated as follows:
+c = ∑N
+3
+[
+vi,j(n) + vi,j(n− 2)
+]
+vi,j(n− 1)
+∑N
+3 vi,j(n− 1)vi,j(n− 1)
+(24)
+ˆfbeat + ∆ ˆfi,j = fs
+2π arccos
+(c
+2
+)
+(25)
+where N denotes the number of sample data participating in the operation. The integer
+frequency of the beat signal can be expressed as follows:
+fint_i,j = I NT
+[
+ˆfbeat + ∆ ˆfi,j
+]
+(26)
+where I NT[∗] is the rounding function.
+The integral part of frequency deviation can be measured by the three-point integer
+frequency measurement method. The multiplication and addition operation in this method
+is easy to implement with FPGA. The numerical range of fint_i,j is [0, fs/2]. Since the
+frequency measurement resolution is related to fs. Care should be taken to select the
+appropriate fs to ensure the accuracy of integer measurement.
+3.3. Frequency Measurement of the Digital Beat Signal
+In practice, the digital beat signal has a positive or negative decimal frequency de-
+viation, but the cross-correlation decimal frequency measurement can only calculate the
+absolute value of decimal frequency deviation. The sign of the value of ∆ fdec_i,j can be
+judged with the help of a three-point integer frequency measurement result, and the
+frequency of the digital beat signal is ﬁnally expressed below as:
+case (i): if I NT
+[
+ˆfbeat + ∆ ˆfi,j
+]
+< I NT
+[
+ˆfbeat + ∆ ˆfi,j + 0.5
+]
+,
+then fbeat_i,j = fint_i,j−
+⏐⏐⏐∆ fdec_i,j
+⏐⏐⏐ + 1.
+case (ii): if I NT
+[
+ˆfbeat + ∆ ˆfi,j
+]
+= I NT
+[
+ˆfbeat + ∆ ˆfi,j + 0.5
+]
+,
+then fbeat_i,j = fint_i,j +
+⏐⏐⏐∆ fdec_i,j
+⏐⏐⏐.
+According to the measured frequency value of the digital beat signal of each channel,
+the frequency deviation of the sinusoidal beat signal between each measurement channel
+and reference channel can be obtained. The result of dividing the frequency deviation of
+the sinusoidal beat signal by the factor f0
+fbeat
+is the relative frequency deviation between the
+measured signal and the reference signal.
+4. Hardware Implementation
+A multi-channel digital frequency measurement method is proposed in Section 3. The
+speciﬁc hardware design of this method will be introduced in this section. We adopt a
+modular design to divide the hardware circuit into three parts: frequency offset generator,
+sinusoidal beat device, and multi-channel data acquisition and analysis module. A detailed
+description of each module is given below.
+4.1. Frequency Offset Generator Module
+As shown in Figure 3, the frequency offset generation module uses direct digital
+synthesis technology to generate frequency offset signals through AD9956. The reference
+signal with the frequency of 10 MHz passes through the×10 frequency multiplier, and
+Sensors 2021, 21, 5626 8 of 13
+the 100 MHz sinusoidal signal generated by the frequency multiplier provides the system
+clock to AD9956. Then the AD9956 generates a frequency offset signal with a frequency
+10MHz− fbeat , Usually the value of fbeat is 1 Hz, 10 Hz, or 100 Hz. The crystal ﬁlter
+is a bandpass ﬁlter with a center frequency of 10 MHz and a passband range of 1 kHz.
+The in-band ﬂuctuation of the ﬁlter is less than 1 dB. The ampliﬁer uses the LMH6702
+operational ampliﬁer circuit to amplify the power of the frequency offset signal and divides
+one signal into 8 channels for output.
+Sensors 2021, 21, x FOR PEER REVIEW 9 of 14 
+ 
+ 
+ 
+Figure 3. A block diagram of the frequency offset generator. 
+4.2. Sinusoidal Beat Device Module 
+In the sinusoidal beat device, an SYPD-1 + phase detector with high sensitivity to 
+phase fluctuation is selected as the double-balanced mixer, The measured signal is mixed 
+with the frequency offset signal by SYPD-1+, and the primary amplification circuit com-
+posed of OP1177 amplifies the mixed signal. The bipolar multiple feedback active filter 
+circuit composed of OP117 filters the mixed signal to select the low-frequency sinusoidal 
+beat signal. The circuit structure of the sinusoidal beat device module is shown in Figure 
+4. 
+ 
+Figure 4. The circuit structure of the sinusoidal beat device module. 
+4.3. Multi-Channel Data Acquisition and Analysis Module 
+As shown in Figure 5, the analog-to-digital data acquisition system (DAS) is realized 
+by AD7606, which supports 8 synchronous sampling inputs. The resolution of AD7606 is 
+16 bits, and the sampling rate of all channels is 200kSPS. The processor adopts Xilinx 
+ZYNQ-7020 System-on-Chip (SoC) with a dual-core ARM Cortex-A9 processor and 
+FPGA, which is divided into programmable logic (PL) and processor system (PS). The PL 
+of ZYNQ-7020 drives AD7606 to realize data acquisition, and the collected data is trans-
+mitted to DDR3 SDRAM through direct memory access (DMA). In addition, the PL also 
+performs multiplication and addition operations in the frequency measurement algorithm 
+on the collected data. The PS of ZYNQ-7020. The PS of ZYNQ-7020 performs division and 
+inverse cosine operation on the multiplication and addition result, and finally calculates 
+the frequency deviation of sinusoidal beat signal between each measurement channel and 
+reference channel.  
+ 
+Figure 5. A block diagram of multi-channel data acquisition and analysis module. 
+5. Experimental Testing  
+To evaluate the performance of the mult i-channel digital frequency measurement 
+method proposed in this article, a multi-channel digital frequency standard comparison 
+prototype has been developed. The prototype consists of one calibration channel and 
+seven measurement channels. The nominal frequency of the sinusoidal beat signal is 1 Hz, 
+Figure 3. A block diagram of the frequency offset generator.
+4.2. Sinusoidal Beat Device Module
+In the sinusoidal beat device, an SYPD-1+ phase detector with high sensitivity to phase
+ﬂuctuation is selected as the double-balanced mixer, The measured signal is mixed with
+the frequency offset signal by SYPD-1+, and the primary ampliﬁcation circuit composed
+of OP1177 ampliﬁes the mixed signal. The bipolar multiple feedback active ﬁlter circuit
+composed of OP117 ﬁlters the mixed signal to select the low-frequency sinusoidal beat
+signal. The circuit structure of the sinusoidal beat device module is shown in Figure 4.
+Sensors 2021, 21, x FOR PEER REVIEW 9 of 14 
+ 
+ 
+ 
+Figure 3. A block diagram of the frequency offset generator. 
+4.2. Sinusoidal Beat Device Module 
+In the sinusoidal beat device, an SYPD-1 + phase detector with high sensitivity to 
+phase fluctuation is selected as the double-balanced mixer, The measured signal is mixed 
+with the frequency offset signal by SYPD-1+, and the primary amplification circuit com-
+posed of OP1177 amplifies the mixed signal. The bipolar multiple feedback active filter 
+circuit composed of OP117 filters the mixed signal to select the low-frequency sinusoidal 
+beat signal. The circuit structure of the sinusoidal beat device module is shown in Figure 
+4. 
+ 
+Figure 4. The circuit structure of the sinusoidal beat device module. 
+4.3. Multi-Channel Data Acquisition and Analysis Module 
+As shown in Figure 5, the analog-to-digital data acquisition system (DAS) is realized 
+by AD7606, which supports 8 synchronous sampling inputs. The resolution of AD7606 is 
+16 bits, and the sampling rate of all channels is 200kSPS. The processor adopts Xilinx 
+ZYNQ-7020 System-on-Chip (SoC) with a dual-core ARM Cortex-A9 processor and 
+FPGA, which is divided into programmable logic (PL) and processor system (PS). The PL 
+of ZYNQ-7020 drives AD7606 to realize data acquisition, and the collected data is trans-
+mitted to DDR3 SDRAM through direct memory access (DMA). In addition, the PL also 
+performs multiplication and addition operations in the frequency measurement algorithm 
+on the collected data. The PS of ZYNQ-7020. The PS of ZYNQ-7020 performs division and 
+inverse cosine operation on the multiplication and addition result, and finally calculates 
+the frequency deviation of sinusoidal beat signal between each measurement channel and 
+reference channel.  
+ 
+Figure 5. A block diagram of multi-channel data acquisition and analysis module. 
+5. Experimental Testing  
+To evaluate the performance of the mult i-channel digital frequency measurement 
+method proposed in this article, a multi-channel digital frequency standard comparison 
+prototype has been developed. The prototype consists of one calibration channel and 
+seven measurement channels. The nominal frequency of the sinusoidal beat signal is 1 Hz, 
+Figure 4. The circuit structure of the sinusoidal beat device module.
+4.3. Multi-Channel Data Acquisition and Analysis Module
+As shown in Figure 5, the analog-to-digital data acquisition system (DAS) is realized
+by AD7606, which supports 8 synchronous sampling inputs. The resolution of AD7606
+is 16 bits, and the sampling rate of all channels is 200kSPS. The processor adopts Xilinx
+ZYNQ-7020 System-on-Chip (SoC) with a dual-core ARM Cortex-A9 processor and FPGA,
+which is divided into programmable logic (PL) and processor system (PS). The PL of
+ZYNQ-7020 drives AD7606 to realize data acquisition, and the collected data is transmitted
+to DDR3 SDRAM through direct memory access (DMA). In addition, the PL also performs
+multiplication and addition operations in the frequency measurement algorithm on the
+collected data. The PS of ZYNQ-7020. The PS of ZYNQ-7020 performs division and
+inverse cosine operation on the multiplication and addition result, and ﬁnally calculates
+the frequency deviation of sinusoidal beat signal between each measurement channel and
+reference channel.
+Sensors 2021, 21, x FOR PEER REVIEW 9 of 14 
+ 
+ 
+ 
+Figure 3. A block diagram of the frequency offset generator. 
+4.2. Sinusoidal Beat Device Module 
+In the sinusoidal beat device, an SYPD-1 + phase detector with high sensitivity to 
+phase fluctuation is selected as the double-balanced mixer, The measured signal is mixed 
+with the frequency offset signal by SYPD-1+, and the primary amplification circuit com-
+posed of OP1177 amplifies the mixed signal. The bipolar multiple feedback active filter 
+circuit composed of OP117 filters the mixed signal to select the low-frequency sinusoidal 
+beat signal. The circuit structure of the sinusoidal beat device module is shown in Figure 
+4. 
+ 
+Figure 4. The circuit structure of the sinusoidal beat device module. 
+4.3. Multi-Channel Data Acquisition and Analysis Module 
+As shown in Figure 5, the analog-to-digital data acquisition system (DAS) is realized 
+by AD7606, which supports 8 synchronous sampling inputs. The resolution of AD7606 is 
+16 bits, and the sampling rate of all channels is 200kSPS. The processor adopts Xilinx 
+ZYNQ-7020 System-on-Chip (SoC) with a dual-core ARM Cortex-A9 processor and 
+FPGA, which is divided into programmable logic (PL) and processor system (PS). The PL 
+of ZYNQ-7020 drives AD7606 to realize data acquisition, and the collected data is trans-
+mitted to DDR3 SDRAM through direct memory access (DMA). In addition, the PL also 
+performs multiplication and addition operations in the frequency measurement algorithm 
+on the collected data. The PS of ZYNQ-7020. The PS of ZYNQ-7020 performs division and 
+inverse cosine operation on the multiplication and addition result, and finally calculates 
+the frequency deviation of sinusoidal beat signal between each measurement channel and 
+reference channel.  
+ 
+Figure 5. A block diagram of multi-channel data acquisition and analysis module. 
+5. Experimental Testing  
+To evaluate the performance of the mult i-channel digital frequency measurement 
+method proposed in this article, a multi-channel digital frequency standard comparison 
+prototype has been developed. The prototype consists of one calibration channel and 
+seven measurement channels. The nominal frequency of the sinusoidal beat signal is 1 Hz, 
+Figure 5. A block diagram of multi-channel data acquisition and analysis module.
+Sensors 2021, 21, 5626 9 of 13
+5. Experimental Testing
+To evaluate the performance of the multi-channel digital frequency measurement
+method proposed in this article, a multi-channel digital frequency standard comparison
+prototype has been developed. The prototype consists of one calibration channel and seven
+measurement channels. The nominal frequency of the sinusoidal beat signal is 1 Hz, and
+the sampling clock of ADC is 200 kHz. Figure 6 presents the structure of the multi-channel
+digital frequency standard comparison prototype.
+Sensors 2021, 21, x FOR PEER REVIEW 10 of 14 
+ 
+ 
+and the sampling clock of ADC is 200 kHz. Fi gure 6 presents the structure of the multi-
+channel digital frequency standard comparison prototype. 
+ 
+Figure 6. The structure of the multi-channel digital frequency standard comparison. 
+We have also established an experimental test platform to evaluate the frequency 
+measurement accuracy and noise floor of the prototype. Figure 7 presents the experi-
+mental test platform diagram. A sinusoidal signal generated by an active hydrogen maser 
+with a nominal frequency of 10 MHz is distributed to four channels by the frequency dis-
+tribution amplifier. Then four sinusoidal signals are connected to the input port of one 
+calibration channel and three measurement channels respectively. A Personal Computer 
+(PC) is used to send commands to the prototype and receive the data of frequency calcu-
+lation results. 
+ 
+Figure 7. A diagram of the experimental test platform. 
+5.1. Measurement Accuracy 
+The accuracy can be used to evaluate th e measurement ability of the multi-channel 
+digital frequency standard comparison prototype, which can be characterized by relative 
+error. The relative error can be measured by  the quotient of the measurement error and 
+the nominal value. Table 2 lists the frequency measurement average and relative error of 
+CH1 in different time intervals. Figure 8 shows the relative error of the frequency during 
+the continuous measurement of 10,000 s by Stable32 software. Table 2 and Figure 8 show 
+that the relative error of frequency measur ement of the prototype is less than 2.5 × 10 −14, 
+the error is very small, and the measurement accuracy is high, which can meet the needs 
+of high-precision measurement. 
+ 
+ 
+Figure 6. The structure of the multi-channel digital frequency standard comparison.
+We have also established an experimental test platform to evaluate the frequency
+measurement accuracy and noise ﬂoor of the prototype. Figure 7 presents the experimental
+test platform diagram. A sinusoidal signal generated by an active hydrogen maser with a
+nominal frequency of 10 MHz is distributed to four channels by the frequency distribution
+ampliﬁer. Then four sinusoidal signals are connected to the input port of one calibration
+channel and three measurement channels respectively. A Personal Computer (PC) is used
+to send commands to the prototype and receive the data of frequency calculation results.
+Sensors 2021, 21, x FOR PEER REVIEW 10 of 14 
+ 
+ 
+and the sampling clock of ADC is 200 kHz. Fi gure 6 presents the structure of the multi-
+channel digital frequency standard comparison prototype. 
+ 
+Figure 6. The structure of the multi-channel digital frequency standard comparison. 
+We have also established an experimental test platform to evaluate the frequency 
+measurement accuracy and noise floor of the prototype. Figure 7 presents the experi-
+mental test platform diagram. A sinusoidal signal generated by an active hydrogen maser 
+with a nominal frequency of 10 MHz is distributed to four channels by the frequency dis-
+tribution amplifier. Then four sinusoidal signals are connected to the input port of one 
+calibration channel and three measurement channels respectively. A Personal Computer 
+(PC) is used to send commands to the prototype and receive the data of frequency calcu-
+lation results. 
+ 
+Figure 7. A diagram of the experimental test platform. 
+5.1. Measurement Accuracy 
+The accuracy can be used to evaluate th e measurement ability of the multi-channel 
+digital frequency standard comparison prototype, which can be characterized by relative 
+error. The relative error can be measured by  the quotient of the measurement error and 
+the nominal value. Table 2 lists the frequency measurement average and relative error of 
+CH1 in different time intervals. Figure 8 shows the relative error of the frequency during 
+the continuous measurement of 10,000 s by Stable32 software. Table 2 and Figure 8 show 
+that the relative error of frequency measur ement of the prototype is less than 2.5 × 10 −14, 
+the error is very small, and the measurement accuracy is high, which can meet the needs 
+of high-precision measurement. 
+ 
+ 
+Figure 7. A diagram of the experimental test platform.
+5.1. Measurement Accuracy
+The accuracy can be used to evaluate the measurement ability of the multi-channel
+digital frequency standard comparison prototype, which can be characterized by relative
+error. The relative error can be measured by the quotient of the measurement error and the
+nominal value. Table 2 lists the frequency measurement average and relative error of CH1
+in different time intervals. Figure 8 shows the relative error of the frequency during the
+continuous measurement of 10,000 s by Stable32 software. Table 2 and Figure 8 show that
+the relative error of frequency measurement of the prototype is less than 2.5× 10−14, the
+Sensors 2021, 21, 5626 10 of 13
+error is very small, and the measurement accuracy is high, which can meet the needs of
+high-precision measurement.
+Table 2. The requency measurement average and relative error.
+Time (s) Frequency (Hz) Relative Error
+1 9,999,999.999999756 −2.44× 10−14
+3 9,999,999.999999785 −2.15× 10−14
+10 9,999,999.999999798 −2.02× 10−14
+30 9,999,999.999999803 −1.97× 10−14
+100 9,999,999.999999809 −1.91× 10−14
+300 9,999,999.999999803 −1.97× 10−14
+1000 9,999,999.999999806 −1.94× 10−14
+3000 9,999,999.999999805 −1.95× 10−14
+10,000 9,999,999.999999804 −1.96× 10−14
+Sensors 2021, 21, x FOR PEER REVIEW 11 of 14 
+ 
+ 
+Table 2. The requency measurement average and relative error. 
+Time (s) Frequency (Hz) Relative Error 
+1 9,999,999.999999756 −2.44 × 10−14 
+3 9,999,999.999999785 −2.15 × 10−14 
+10 9,999,999.999999798 −2.02 × 10−14 
+30 9,999,999.999999803 −1.97 × 10−14 
+100 9,999,999.999999809 −1.91 × 10−14 
+300 9 ,999,999.999999803 −1.97 × 10−14 
+1000 9,999,999.999999806 −1.94 × 10−14 
+3000 9,999,999.999999805 −1.95 × 10−14 
+10,000 9,999,999.999999804 −1.96 × 10−14 
+ 
+Figure 8. The frequency relative error during the continuous measurement of 10,000 s. 
+5.2. Noise Floor 
+Noise Floor refers to the additional noise of the measuring equipment itself except 
+the useful signal, which is usually characterized by Allan variance at 1 s in the field of 
+time and frequency. Figure 9 shows the frequency stability of three measurement channels 
+with systematic error elimination. For an input signal with the frequency 10 MHz, the 
+noise floor test results of the three measurement channels of the prototype are 6.26 × 10
+−15/τ 
+= 1 s, 6.19 × 10−15/τ = 1 s, and 6.10 × 10−15/τ = 1 s. Compared with Figure 10, the measurement 
+results of the measurement channel are subtra cted from the calibr ation channel, which 
+eliminates the influence of noise from the device and improves the performance of 
+frequency standard comparison. The noise floor of the prototype is low enough to be used 
+to evaluate the ultra-stable frequency so urce with frequency stability of 1 × 10 −14/τ = 1 s. 
+Simultaneously, the Allan variance curves of the three channels are approximately 
+coincident, which also shows that there is a high consistency between the channels. 
+Figure 8. The frequency relative error during the continuous measurement of 10,000 s.
+5.2. Noise Floor
+Noise Floor refers to the additional noise of the measuring equipment itself except the
+useful signal, which is usually characterized by Allan variance at 1 s in the ﬁeld of time
+and frequency. Figure 9 shows the frequency stability of three measurement channels with
+systematic error elimination. For an input signal with the frequency10 MHz, the noise ﬂoor
+test results of the three measurement channels of the prototype are 6.26× 10−15/τ = 1 s,
+6.19× 10−15/τ = 1 s, and 6.10× 10−15/τ = 1 s. Compared with Figure 10, the measurement
+results of the measurement channel are subtracted from the calibration channel, which
+eliminates the inﬂuence of noise from the device and improves the performance of fre-
+quency standard comparison. The noise ﬂoor of the prototype is low enough to be used to
+evaluate the ultra-stable frequency source with frequency stability of 1× 10−14/τ = 1 s. Si-
+multaneously, the Allan variance curves of the three channels are approximately coincident,
+which also shows that there is a high consistency between the channels.
+Sensors 2021, 21, 5626 11 of 13
+Sensors 2021, 21, x FOR PEER REVIEW 12 of 14 
+ 
+ 
+100 101 102 103
+10-16 10-15 10-14 Frequency Stability
+Allan Deviation
+Averaging Time,Second
+ CH1
+ CH2
+ CH3
+(1,6.26×10-15)
+(1,6.19×10-15)
+(1,6.10×10-15)
+ 
+Figure 9. The frequency stability of three measurement channels with systematic error elimination. 
+100 101 102 103
+10-15 10-14 10-13 Frequency Stability
+Allan Deviation
+Averaging Time,Second
+ CH1
+ CH2
+ CH3
+(1,3.03×10-14)
+(1,3.04×10-14)
+(1,3.03×10-14)
+ 
+Figure 10. The frequency stability of three measurement channels without systematic error elimi-
+nation. 
+6. Conclusions and Discussion 
+The fast-developing high-precision clock so urces are an important part of the time-
+frequency system. The Atomic clock usually provides time-frequency references for time-
+keeping systems in the form of clock groups, and it is of great practical significance to 
+evaluate their frequency stability. In this study, a digital frequency measurement method 
+is proposed. The performance of this method has been rigorously assessed. 
+In the prototype test, the relative error can reach 10 −14 Hz. This is due to the multi-
+channel synchronous sampling of the prototype,  which ensures that the system error of 
+each channel has a strong correlation. Theref ore, the system error of the calibration 
+channel, whose structure is consistent with  the measurement channel, can be used to 
+compensate for the measurement results from the measurement channel. 
+The noise floor of the prototype is equivalent to that of existing products, and it can 
+also support multi-channel simultaneous testing. Since the prototype only supports the 
+signal with a nominal frequency of 10 MHz, it is necessary to increase the frequency 
+Figure 9. The frequency stability of three measurement channels with systematic error elimination.
+Sensors 2021, 21, x FOR PEER REVIEW 12 of 14 
+ 
+ 
+100 101 102 103
+10-16 10-15 10-14 Frequency Stability
+Allan Deviation
+Averaging Time,Second
+ CH1
+ CH2
+ CH3
+(1,6.26×10-15)
+(1,6.19×10-15)
+(1,6.10×10-15)
+ 
+Figure 9. The frequency stability of three measurement channels with systematic error elimination. 
+100 101 102 103
+10-15 10-14 10-13 Frequency Stability
+Allan Deviation
+Averaging Time,Second
+ CH1
+ CH2
+ CH3
+(1,3.03×10-14)
+(1,3.04×10-14)
+(1,3.03×10-14)
+ 
+Figure 10. The frequency stability of three measurement channels without systematic error elimi-
+nation. 
+6. Conclusions and Discussion 
+The fast-developing high-precision clock so urces are an important part of the time-
+frequency system. The Atomic clock usually provides time-frequency references for time-
+keeping systems in the form of clock groups, and it is of great practical significance to 
+evaluate their frequency stability. In this study, a digital frequency measurement method 
+is proposed. The performance of this method has been rigorously assessed. 
+In the prototype test, the relative error can reach 10 −14 Hz. This is due to the multi-
+channel synchronous sampling of the prototype,  which ensures that the system error of 
+each channel has a strong correlation. Theref ore, the system error of the calibration 
+channel, whose structure is consistent with  the measurement channel, can be used to 
+compensate for the measurement results from the measurement channel. 
+The noise floor of the prototype is equivalent to that of existing products, and it can 
+also support multi-channel simultaneous testing. Since the prototype only supports the 
+signal with a nominal frequency of 10 MHz, it is necessary to increase the frequency 
+Figure 10. The frequency stability of three measurement channels without systematic error elimination.
+6. Conclusions and Discussion
+The fast-developing high-precision clock sources are an important part of the time-
+frequency system. The Atomic clock usually provides time-frequency references for time-
+keeping systems in the form of clock groups, and it is of great practical signiﬁcance to
+evaluate their frequency stability. In this study, a digital frequency measurement method is
+proposed. The performance of this method has been rigorously assessed.
+In the prototype test, the relative error can reach 10−14 Hz. This is due to the multi-
+channel synchronous sampling of the prototype, which ensures that the system error of
+each channel has a strong correlation. Therefore, the system error of the calibration channel,
+whose structure is consistent with the measurement channel, can be used to compensate
+for the measurement results from the measurement channel.
+The noise ﬂoor of the prototype is equivalent to that of existing products, and it can also
+support multi-channel simultaneous testing. Since the prototype only supports the signal
+with a nominal frequency of 10 MHz, it is necessary to increase the frequency measurement
+bandwidth of the system to expand the application range in subsequent work.
+Sensors 2021, 21, 5626 12 of 13
+Author Contributions: Conceptualization, B.X. and Y.L.; methodology, B.X. and Y.L.; software, Z.D.;
+validation, Y.L. and X.L.; formal analysis, Y.L.; investigation, B.X.; data curation, B.X.; writing—
+original draft preparation, B.X.; review and editing, Y.L. and X.L.; supervision, Y.L. and X.L.; project
+administration, Y.X.; funding acquisition, Y.L. All authors have read and agreed to the published
+version of the manuscript.
+Funding: This work is funded by the National Natural Science Funds of China (Grant No: U2031125).
+Institutional Review Board Statement: Not applicable.
+Informed Consent Statement: Not applicable.
+Data Availability Statement: Not applicable.
+Acknowledgments: Many thanks are due to the Time-frequency Reference Laboratory of the Na-
+tional Time Service Center (NTSC) for providing the test signal.
+Conﬂicts of Interest: The authors declare no conﬂict of interest.
+References
+1. Prestage, J.D.; Weaver, G.L. Atomic Clocks and Oscillators for Deep-Space Navigation and Radio Science.Proc. IEEE 2007, 95,
+2235–2247. [CrossRef]
+2. Stein, S.R. The design of atomic frequency standards and their performance in speciﬁc applications. Prog. Quantum Electron. 1984,
+8, 129–137. [CrossRef]
+3. Parker, T.E. Environmental factors and hydrogen maser frequency stability.IEEE T rans. Ultrason. Ferroelectr. Freq. Control 1999, 46,
+745–751. [CrossRef] [PubMed]
+4. Shuzhou, L.I.; Wang, M.; Xiao, S. Frequency Stability of Hydrogen Maser Affected by Environment Temperature.Mod. Navig.
+2017, 118–121.
+5. Zhai, Z.C. Systematic effects analysis of affecting hydrogen maser long-term frequency stability. J. Astronaut. Metrol. Meas. 2008,
+28, 9–15.
+6. Zhou, W.; Bai, L.; Su, X.; Yu, J.; Ma, J.; Yu, G. The high stability of device resolution based precise phase difference measurement.
+In Proceedings of the 2014 IEEE International Frequency Control Symposium (FCS), Taipei, Taiwan, 19–22 May 2014.
+7. Hong, F.L. Optical frequency standards for time and length applications. Meas. Sci. T echnol. 2016, 28, 012002. [CrossRef]
+8. Cermak, J.; Kuna, A.; Sojdr, L.; Salzenstein, P . Short-Term Frequency Stability Measurement of BVA Oscillators. In Proceedings of
+the 2007 IEEE International Frequency Control Symposium Joint with the 21st European Frequency and Time Forum, Geneva,
+Switzerland, 29 May–1 June 2007.
+9. Salzenstein, P .; Kuna, A.; Sojdr, L.; Sthal, F.; Cholley, N.; Lefebvre, F. Frequency stability measurements of ultrastable BVA
+resonators and oscillators. Electron. Lett. 2010, 46, 686–688. [CrossRef]
+10. TimeTech GmbH. Phase Comparator 6 Channels, 100 MHz with 5/10 MHz Option ; TimeTech GmbH Corporation: Stuttgart,
+Germany, 2006.
+11. Greenhall, C.A.; Kirk, A.; Stevens, G.L. A multichannel dual-mixer stability analayzer: Progress report. In Proceedings of the 33th
+Annual Precise Time and Time Interval Systems and Applications Meeting, Long Beach, CA, USA, 27–29 November 2001.
+12. Greenhall, C.A.; Kirk, A.; Tjoelker, R.L. Frequency standards stability analyzer for the deep space network. Interplanet. Netw. Prog.
+Rep. 2007, 42–169. Available online: https://ipnpr.jpl.nasa.gov/progress_report/42-169/169B.pdf (accessed on 15 August 2021).
+13. Sherman, J.A.; Jrdens, R. Oscillator metrology with software deﬁned radio. Rev. Sci. Instrum. 2016, 87, 470–475. [CrossRef]
+[PubMed]
+14. Microsemi. High-Performance Extend-Range Phase Noise and Allan Deviation T est Set; Microsemi Corporation: Culver City, CA, USA.
+15. VREMYA-CH. PHASE COMP ARATOR-ANALYZER VCH-323 Operational Manual; VREMYA-CH Joint Stock Company: Nizhniy
+Novgorod, Russia, 2018.
+16. Liu, Y.; Li, X.H.; Wang, Y.L. Multi-channel frequency measurement system based on digital signal processing.Chin. J. Sci. Instrum.
+2009, 30, 1963–1968.
+17. Nakagawa, F.; Imae, M.; Hanado, Y.; Aida, M. Development of Multi Channel Dual Mixier Time Difference System. In Proceedings
+of the 2004 Conference on Precision Electromagnetic Measurements, London, UK, 27 June–2 July 2004.
+18. Mochizuki, K.; Uchino, M.; Morikawa, T. Frequency-stability measurement system using high-speed adcs and digital signal
+processing. IEEE T rans. Instrum. Meas. 2007, 56, 1887–1893. [CrossRef]
+19. Uchino, M.; Mochizuki, K. Frequency stability measuring technique using digital signal processing. Electron. Commun. Jpn. Part I
+Commun. 2004, 87, 21–33. [CrossRef]
+20. Greenhall, C.A. Common-Source Phase Error of a Dual-Mixer Stability Analyzer. Interplanet. Netw. Prog. Rep. 2000, 42, 42–143.
+21. Sze-Ming, L. Inﬂuence of noise of common oscillator in dual-mixer time-difference measurement system. Instrum. Meas. 1986, 4,
+648–651. [CrossRef]
+Sensors 2021, 21, 5626 13 of 13
+22. Sojdr, L.; Cermak, J.; Barillet, R. Optimization of Dual-Mixer Time-Difference Multiplier; Frequency & Time Forum, Eftf European IET:
+London, UK, 2004.
+23. Liu, Y.; Li, X.H.; Wang, D.N.; Wang, W.L.; Li, J.X. Analysis and comparison of performance of frequency standard measurement
+systems based on beat-frequency method. In Proceedings of the IEEE International Frequency Control Symposium, Honolulu,
+HI, USA, 19–21 May 2008.

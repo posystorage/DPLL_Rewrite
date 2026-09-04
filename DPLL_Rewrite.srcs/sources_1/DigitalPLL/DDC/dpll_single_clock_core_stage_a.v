@@ -618,7 +618,7 @@ module dpll_single_clock_core_stage_a #(
         .STATE_WIDTH(STATE_WIDTH),
         .WORD_WIDTH(WORD_WIDTH),
         .FLL_PRODUCT_SHIFT(16),
-        .P_PRODUCT_SHIFT(12),
+        .P_PRODUCT_SHIFT(8),
         .PRODUCT_SHIFT(18)
     ) hybrid_loop_inst (
         .clk_125m(clk_125m),

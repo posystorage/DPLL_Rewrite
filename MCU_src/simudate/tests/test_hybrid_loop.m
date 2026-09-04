@@ -11,7 +11,8 @@ control.ki = int64(2500000);
 control.kp = int64(6000000);
 [state, output] = dpll.hybrid_loop_step([], int64(1000), int64(0), control, cfg);
 assert(output.i_term == dpll.arshift(int64(1000) * control.ki, 18));
-assert(output.p_term == dpll.arshift(int64(1000) * control.kp, 12));
+assert(output.p_term == dpll.arshift( ...
+    int64(1000) * control.kp, cfg.shifts.p_product));
 assert(state.freq_state > 0);
 assert(output.tracking_word > cfg.center_word);
 

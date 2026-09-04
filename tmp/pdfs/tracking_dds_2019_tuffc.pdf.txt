@@ -1,0 +1,1060 @@
+1
+Frequency Stability Measurement of Cryogenic
+Sapphire Oscillators with a Multichannel Tracking
+DDS and the Two-Sample Covariance
+Claudio E. Calosso∇, François Vernotte∃, Vincent Giordano∃,
+Christophe Fluhr⊗, Benoît Dubois⊗, Enrico Rubiola∃∇∀
+Abstract—This article shows the ﬁrst measurement of three 100
+MHz signals exhibiting ﬂuctuations from 2×10−16 to parts in
+10−15 for integration time τ between 1 s and 1 day. Such stable
+signals are provided by three Cryogenic Sapphire Oscillators
+(CSOs) operating at about 10 GHz, also delivering the 100 MHz
+output via a dedicated synthesizer. The measurement is made
+possible by a 6-channel Tracking DDS (TDDS) and the two-
+sample covariance tool, used to estimate the Allan variance. The
+use of two TDDS channels per CSO enables high rejection of
+the instrument background noise. The covariance outperforms
+the Three-Cornered Hat (TCH) method in that the background
+converges to zero “out of the box,” with no need of the hypothesis
+that the instrument channels are equally noisy, nor of more
+sophisticated techniques to estimate the background noise of each
+channel. Thanks to correlation and averaging, the instrument
+background (A V AR) rolls off with a slope 1/√m, the number
+of measurements, down to 10−18 atτ = 10 4 s. For consistency
+check, we compare the results to the traditional TCH method
+beating the 10 GHz outputs down to the MHz region. Given the
+ﬂexibility of the TDDS, our methods ﬁnd immediate application
+to the measurement of the 250 MHz output of the FS combs.
+I. I NTRODUCTION
+This article is made possible by the simultaneous availability
+in the same place of three Cryogenic Sapphire Oscillators
+(CSOs), a 6-channel Tracking DDS (TDDS) for the measure-
+ment of time ﬂuctuations, and the know-how of clock statistics.
+We demonstrate the ﬁrst frequency-stability measurement
+of the three CSOs, taken simultaneously at the 10 GHz
+frequency of the oscillator loop and at the 100 MHz output
+of the dedicated synthesizer. The CSOs exhibit short-term
+ﬂuctuations from 2×10−16 to parts in 10−15 (Allan deviation,
+ADEV) for measurement time τ between 1 s and 1 day.
+The synthesizer introduces a very small degradation to the
+purity of the microwave signal, and only for shortest τ, one
+minute or less. Thus, the CSO exceeds by two orders of
+magnitude the short-term stability of H masers and other
+commercial atomic standards. The measurement of such CSOs
+is a challenging task because the target is signiﬁcantly lower
+than the background noise of commercial instruments, and
+∇ Physics Metrology Division, Istituto Nazionale di Ricerca Metrologica
+INRiM, Torino, Italy.
+∃ FEMTO-ST Institute, Dept. of Time and Frequency, Université de
+Bourgogne and Franche-Comté (UBFC), and CNRS. Address: ENSMM, 26
+Rue de l’Epitaphe, Besançon, France.
+⊗ FEMTO Engineering, Besançon, France.
+∀ ER is the reference author. E-mail: rubiola@femto-st.fr, home page
+http://rubiola.org.
+possible only by comparing three similar units. For this reason,
+the measurement was until now done by beating the microwave
+outputs, with no synthesizer [1], [2]. The use of ≈1–10 MHz
+beat notes relaxes the noise requirement for the instrument
+by 60–80 dB. In this work, we demonstrate the direct ADEV
+measurement of the individual CSO at 100 MHz, with no need
+for the beat note method.
+A reliable and stable signal is of paramount importance
+in strategic facilities, where the short-term stability (up to
+a few hours) of the Hydrogen maser is not sufﬁcient. For
+example, the accuracy of VLBI [3], [4], [5] would be improved
+with the use of the CSO. The CSOs have been developed
+at JPL for the Cassini mission [6], and used by ESA in the
+space station in Malargüe, Argentina [7]. The CSO proved
+to be the best ﬂywheel for the Cesium fountains in a time
+scale [8], [9], [10], and the beneﬁt for the ground stations
+of the Global Navigation Satellite System is just obvious. A
+100 MHz reference is easy to distribute with regular low-
+temperature-coefﬁcient Heliax cables (1 ppm/◦C). Attenuation
+(2.7 dB/100 m at 100 MHz for 1/2” cables) limits the range
+to a few hundred meters. By contrast, microwave and optical
+signals are complex to distribute, and at the present time do
+not ﬁt the general requirements for a continuously running
+facility. The femtosecond laser locked to a Fabry-Perot cavity
+can provide a VHF signal with stability in competition with
+the CSO. However the laser technology will probably win in
+the long run thanks to the optical clocks, reliability is still far
+from the requirements mentioned.
+The TDDS [11] is a radically new concept in frequency
+metrology. In short, six DDSs are each PLL-ed to one input
+signal, extracting the phase information from the phase-control
+word. At once, this eliminates the complexity of the dual-mixer
+system [12], [13], [14], mitigates the thermal instability by
+using only wide band components and ﬁltering numerically at
+the output, and enables the simultaneous measurement of the
+six inputs at quite different frequencies scattered in a wide
+range (presently, 5–400 MHz). Our TDDS [15] exhibits a
+background noise of 1.5×10−14/τ (ADEV) per channel at
+100 MHz.
+The most common approach for phase measurement with
+digital methods starts from sampling and digitizing the input
+signal [16], [17], [18], [19], [20]. The TDDS is superior to
+this approach because the phase noise of ADCs is higher
+than that of a DDS [21], [22], [23] and because the digital
+signal processing is done at the speed of the phase ﬂuctuations,
+arXiv:1808.09843v1  [physics.ins-det]  29 Aug 2018
+2
+instead of at the carrier frequency.
+It is worth mentioning that the general literature on the
+measurement of the Allan variance, and on the comparison
+of multiple clocks, is surprisingly old. The digital methods
+are recent because of the availability of fast ADCs, and still
+limited by the ﬂicker noise of the ADCs, which is of the
+order of−110 dBrad2 (power spectral density at 1 Hz) in the
+best cases [22], [23]. This is 20–30 dB higher than a double-
+balanced mixer. Given the very small number of labs that have
+the technology of the CSO, the measurement at the 100 MHz
+output is a rather new problem.
+We use the two-sample covariance [24] to reject the TDDS
+noise averaging on a large number of measures. The covari-
+ance is superior to the TCH in that the background noise
+converges to zero by theorem, thus there is no need for sophis-
+ticated analysis to estimate and compensate the background
+noise. Finally, we compare the results to the traditional TCH
+with the beat note method.
+In the following Sections we go through the three tools,
+CSO, TDDS and covariance, we describe the experiment, and
+we discuss the results.
+II. T HE CRYOGENIC SAPPHIRE OSCILLATOR
+The Cryogenic Sapphire Oscillator (CSO) is a long-term
+project started in Besançon 25 years ago. A few laboratory
+prototypes have been built, demonstrating a stability (over-
+lapped ADEV , drift removed) of parts in 10−16 ﬂoor, parts in
+10−15 for τ up to 1 day, and a sufﬁcient reliability for 1–2
+years of unattended operation. The complete machine consists
+of the oscillator (in strict sense), the refrigerator, a dedicated
+synthesizer, and control equipment [25]. See also [26] for a
+general review. The CSO is based on the following ideas.
+The sapphire ( Al2O3) monocrystal is an ideal material
+for dielectric resonators because of its low loss, and good
+mechanical and chemical properties. It is hard (9 Mohs, by def-
+inition), stiff and stable, and suitable to precision machining.
+Our 10-GHz Whispering-Gallery-Mode (WGM) resonators
+achieve routinely Q of the order of two billions at liquid-He
+temperature. The value depends on the electromagnetic mode,
+on the crystal size, and on the specimen.
+Certain modes exhibit a natural turning point of the resonant
+frequency at 5–8 K, just above the He boiling point [27]. This
+is due to the presence of paramagnetic Cr3+, Fe3+ and Mo3+
+impurities. The growth process provides the right amount of
+such impurities, with very similar results over at least two
+growth technologies and manufacturers [28]. The WGH15,0,0
+mode of a cylinder of 54 mm diameter and 30 mm height
+resonates close to 10 GHz. The electromagnetic energy is
+conﬁned in≈1/10 of the volume in the outer perimeter, indeed
+in a volume large enough to keep the resonator in highly linear
+regime, and to provide high stability.
+The resonator is cooled by a two-stage pulse-tube refriger-
+ator [29], and temperature stabilized by heating to the turning
+point within 100 µK. The refrigerator is a special design
+exhibiting low vibes (< 1 µmpp).
+The oscillator is a Pound-Galani, shown on Fig. 1. The
+Pound scheme [30] makes use of an auxiliary oscillator
+control
+ƒm
+out
+oscillator loop
+power
+detector
+ν0 , Q
+v ~ ν–ν0
+PM
+sustaining
+ampliﬁer
+≈85 kHz
+lock-in ampliﬁer
+tuning
+cryogenic environment
+IF
+≈9.99
+GHz
+ƒm
+DC
+PM
+Pound
+resonator
+Fig. 1. Block diagram of the Pound-Galani cryogenic oscillator.
+9.99 GHz
+from CSO
+10±5
+MHz
+DC
+DDS
+IF
+2.5 GHz
+DRO
+× 4
+÷ 4
+10 GHz
+locked
+250 MHz
+clock
+IF
+÷ 10
+1 GHz
+10 GHz  PLL
+÷ 10
+÷ 20
+10 GHz
+microwave
+output
+100 MHz
+control
+word
+control
+PI
+vco in
+HF/VHF
+outputs
+5 MHz
+input
+Fig. 2. Block diagram of the dedicated synthesizer.
+frequency-stabilzed to the main resonator. The resonator is
+used in reﬂection mode, with phase modulation sidebands out
+of the resonator bandwidth. The main vertues are the reduction
+of ﬂicker and drift thanks to the AC modulation, and the
+inherent rejection of the ﬂuctuations in the electrical path
+from the resonator to the detector. The Galani version [31]
+implements the auxiliary oscillator using the same resonator,
+in transmission mode. This solution provides higher Q and
+better resonator stability, as compared to an external VCO.
+Additionally, the Galani version is suitable to simple and
+effective design of the frequency control thanks to a pole-zero
+cancellation in the loop function, which results from using
+the same resonator in both oscillator and control. A power
+control, not shown on Fig. 1, keeps the power constant within
+3 ppm, preventing the ﬂuctuations from degrading the stability
+via radiation pressure [32] and self heating.
+The choice of the oscillation frequency is a key point
+of the design. Modeling and machining the sapphire limits
+the initial accuracy to ≈1 MHz, and we prefer not to go
+through measurement-and-trimming iterations to achieve a
+more accurate value. Such tolerances are useful in that they
+3
+DDS
+ADC5–400
+MHz
+FPGA
+control
+input DCIF
+external 
+PC 
+5–400 MHz
+VoCore
+Linux1 GHz
+clock
+Ethernet
+Tracking DDS, one channel
+phase-control
+word
+Fig. 3. Block diagram of the Tracking DDS. The complete machine consists
+of 6 equal channels. The grey blocks are shared by the 6 channels.
+Fig. 4. Photo of the instrument.
+prevent electromagnetic interference between oscillators. So,
+we machine the sapphire for ν0 = 10 GHz − ∆, where
+∆ = 10 ±5 MHz, and the synthesizer adds ∆. However,
+frequencies close to 5/10/15 MHz must be avoided for in-
+terference immunity. It is wise to keep a margin of at least
+10 kHz. The design turns out to be quite simple (Fig. 2), yet
+achieving µHz resolution at 10 GHz, and 10−4 tuning range.
+The specs for the time ﬂuctuation of the DDS are relaxed by
+the ratioν0/∆≈ 103. Thanks to this leverage factor, the DDS
+contributes≈10−17 to the stability.
+III. T HE MULTI-C HANNEL TRACKING DDS
+Our instrument is a multi-channel real-time phasemeter
+based on the TDDS technique [11], [15]. Figure 3 shows the
+scheme of one channel, and Fig. 4 shows the complete ma-
+chine. A Proportional-Integral control implemented in FPGA
+phase-locks the DDS to the input acting on the phase-control
+word. Controlling the phase, instead of the frequency, requires
+a phase accumulator that counts the multiple cycles. The
+discriminator is a double-balanced mixer Mini Circuits ADE-
+1. The acquisition and lock range is 5. . . 400 MHz. The lower
+limit is set by the mixer, and the upper limit by the sampling
+frequency of the DDS (1 GHz).
+The phase error is digitized on 16 bits at 500 kS/s. This is
+also the sampling frequency of the digital control. The loop
+bandwidth is of 2–20 kHz, depending on internal parameters.
+Anyway, the value is not critical. Within the feedback-loop
+Fig. 5. Thermal image of the tracking DDS.
+Fig. 6. Noise budget of the Tracking DDS at 100 MHz.
+bandwidth, the phase-control word is equal to the phase
+difference between the input and the local clock. The FPGA
+guarantees that all the measures are simultaneous. This is
+necessary to cancel the ﬂuctuation of the internal 1 GHz clock,
+common to all the channels.
+The phase error is converted into a stream of phase-time data
+x(t), low-passed at the cutoff frequency fH = 5 Hz, sampled
+at 10 S/s and transferred to the external PC by a V oCore2
+Linux computer [33].
+For best stability, we care about low dissipated power
+and geometrical symmetry. The DDS is an Analog Devices
+AD9912, which has a typical dissipation of 650 mW, smaller
+than that of other high-frequency DDSs. The FPGA is an
+Altera CYCLONE III with 25000 logic elements, 30% of
+which are actually used. For low dissipation, the 125 MHz
+clock is down converted to 10 MHz using an internal PLL. The
+V oCore2 dissipates 1 W. The complete instrument takes 10 W
+power from a single +12 V supply. Figure 5 shows the thermal
+image of the six channels. The temperature sensitivity is of
+about 1 ps/K (B-type uncertainty) on each channel, limited by
+the mixer.
+Figure 6 shows the noise budget of the Tracking DDS at
+νDDS = 100 MHz carrier. At low Fourier frequency, the 1/f
+PM noise of the DDS ( b−1 =−110 dBrad2) dominates, being
+4
+20 dB higher than the noise of the clock distribution, and ≈30
+dB higher than the noise of the mixer and the ampliﬁer. The
+DDS ﬂicker noise is of the time type. The 1/f term of Sx(f)
+is k−1 = b−1/(2πνDDS)2 = 2.5×10−29 s2, independent of
+νDDS, while b−1 scales proportionally to νDDS. Conversely, the
+1/f noise of mixer and ampliﬁer is of the phase type, with
+b−1 independent of νDDS in a wide range, and k−1∝ 1/νDDS.
+The DDS 1/f noise is dominant from νDDS = 10 MHz to the
+maximum carrier frequency. AtνDDS < 10 MHz, the 1/f noise
+of the mixer and of the ampliﬁer is no longer negligible, and
+the background noise starts degrading. The quantity
+√
+k−1 =
+5 fs is the ﬂicker ﬂuctuation of the DDS. Converting the phase
+noise into frequency stability, with fH = 5 Hz we get σ =
+1.5×10−14 at τ = 1 s and 100 MHz carrier, with slope close
+to 1/τ. This is the background noise of the instrument, one
+channel.
+IV. S TATISTICS
+The Allan variance can be written as
+σ2
+y (τ) = E
+{
+(y2− y1)2
+2
+}
+= E
+{
+(x2− 2x1 + x0)2
+2τ
+}
+, (1)
+where E{} is the mathematical expectation, y is the fractional
+frequency ﬂuctuation averaged over the measurement time τ,
+and the subscripts ‘1’ and ‘2’ refer to contiguous time slots.
+The alternate formulation in terms of the phase time x sampled
+at regular intervals τ relates to the ‘second difference’ method
+[34], equivalent to the method used here. Making x2−2x1+x0
+explicit emphasizes that there is no dead time in y2−y1. Since
+all the variances in this article are σ2
+y (τ), we will omit τ and
+the subscript y, with no ambiguity. We will have numerous
+occurrences of y2− y1 in the same formula, referring to
+different oscillators and instruments. It is therefore appropriate
+to deﬁne the fractional frequency difference
+z = y2− y1 = 1
+τ
+(
+x2− 2x1 + x0
+)
+. (2)
+Accordingly, the Allan variance is
+σ2 = 1
+2 E
+{
+z2}
+. (3)
+The obvious extension to the two-sample covariance is
+σij = 1
+2 E{zizj} . (4)
+We denote the oscillators with the subscripts A, B and C
+(Capital); the instrument inputs with a, b and c (lowercase);
+and the instrument readouts with α, β and γ (Greek), as seen
+on Fig. 7. Following the path ‘A,’ the oscillator’s zA is sent to
+the instrument, which contributes za, and delivers the readout
+zα = zA + za. (5)
+This is similar to the Shannon channel, where the received
+signal is equal to the transmitted signal plus noise.
+All our statistical measurements rely on the hypothesis
+that all oscillators and instrument channels have statistically
+independent noise processes, so that E{zizj} = 0 for i̸= j.
+Accordingly,
+σ2
+α =σ2
+A +σ2
+a, (6)
+and likewise for the other channels.
+synthA
+synthB
+synthC
+6-channel
+TDDS
+A
+B
+C
+A
+counter
+a’
+a”
+b’
+b”
+c’
+c”
+ab
+bc
+ca
+≈9.99
+GHz
+≈100
+MHz
+beat notes
+Marmotte
+Uliss
+Absolut
+9.988
+9.987
+9.995
+α’
+α”
+β’
+β”
+γ’
+γ”
+0.9 
+MHz
+7.9 
+MHz
+7.0 
+MHz
+α–β
+β–γ
+γ–α
+(1)
+(2)
+(3)
+(4)
+(5)
+(6)
+(divider)
+Fig. 7. Block diagram of the experiment.
+A. Three-Cornered Hat Method
+The TCH is a well established method to measure the
+variance of each oscillator by comparing three units [35].
+The method is better understood by provisionally admitting
+that the counter noise is low enough to enable the direct
+measurement. Because the internal reference of the instrument
+does not have sufﬁcient stability for absolute measurements,
+we rely on the differences xβ−α = xβ− xα, xγ−β = xγ− xβ
+and xα−γ = xα− xγ taken simultaneously. Using the corre-
+sponding fractional frequency differences, we calculate the
+variances
+σ2
+β−α = 1
+2 E
+{(
+zβ− zα
+)2}
+=σ2
+B +σ2
+A +σ2
+b +σ2
+a (7)
+σ2
+γ−β = 1
+2 E
+{(
+zγ− zβ
+)2}
+=σ2
+C +σ2
+B +σ2
+c +σ2
+b (8)
+σ2
+α−γ = 1
+2 E
+{(
+zα− zγ
+)2}
+=σ2
+A +σ2
+C +σ2
+a +σ2
+c. (9)
+This is immediately seen by expanding the terms inside the
+E{} operator. In (7), (zβ− zα)2 = (zB + zb− zA− za)2. The
+four ‘z’-s are statistically independent (separate oscillators and
+separate channels of the instrument), thus E{zizj} = 0 for all
+the cross terms 2zizj, i̸=j. Likewise, (8) and (9).
+Notice that the subscripts form a group A→B→C→A... ,
+thus we can derive all equations for B from the homologous
+equation for A by replacing A→B, a→b and α→β in the
+same equation for A. Likewise for C fromB, and for A from
+C. This is clearly seen on (7), (8) and (9). Hereafter, we will
+write only the equations for the oscillator A, because the other
+two equations can be written with the above rule.
+Solving (7)-(9), the variance of the the oscillator A is
+σ2
+A = 1
+2
+(
+σ2
+β−α−σ2
+γ−β +σ2
+α−γ
+)
+− 1
+2σ2
+a. (10)
+The terms σ2
+a, σ2
+b and σ2
+c in (7), (8) and (9) are the white
+and ﬂicker PM noise introduced by the instrument, thus they
+roll off as 1/τ 2. Nonetheless, they are annoying because no
+5
+instrument has noise low enough to measure the short-term
+stability of our cryogenic oscillators. For this reason, we have
+to combine the TCH with the beat method (the lower part of
+Fig. 7). Beating the ν0 output (≈10 GHz) down to the MHz
+region relaxes the stability requirement by a factor νbeat/ν0,
+which is 10−4... 10−3.
+B. Covariance Method
+The two-sample covariance method is a different way to
+process of the same data, xβ−α, xγ−β and xα−γ, measured
+simultaneously [36], [24]. In this case, we exploit the product
+of fractional frequency differences
+1
+2 E
+{(
+zβ− zα
+)(
+zγ− zα
+)}
+= 1
+2 E
+{
+z2
+α
+}
+=σ2
+A +σ2
+a (11)
+for the oscillator A, and likewise for the oscillators B and
+C. The proof is immediate. Assuming that zα, zβ and zγ are
+statistically independent (separate oscillators and instrument
+channels), all the cross terms in E{(... )(... )} are equal to
+zero, and only the square term remains. The result is the same
+of the TCH, and not suitable to our purposes for the same
+reasons.
+The background noise can be rejected by using two channels
+per oscillator. Let us start with A, which splits into ‘prime’
+and ‘second’ channel. Thus E{(zβ− zα)(zγ− zα)} of (11)
+becomes E{(zβ− zα′)(zγ− zα′′)}. Assuming that za′ and
+za′′ are statistically independent, it holds that E{zα′zα′′} =
+E
+{
+z2
+A
+}
+. This solves the problem.
+A more efﬁcient use of the hardware is possible. Replacing
+zβ→ (zβ′ + zβ′′)/2 and zγ→ (zγ′ + zγ′′)/2 results in lower
+background noise, hence in faster convergence
+1
+2 E
+{( zβ′ + zβ′′
+2 − zα′
+)( zγ′ + zγ′′
+2 − zα′′
+)}
+=σ2
+A. (12)
+Averaging (12) with the same after interchanging α′ with
+α′′ results in lower background noise. Accordingly, the ﬁnal
+equation we use is
+1
+4 E
+{( zβ′ + zβ′′
+2 − zα′
+)( zγ′ + zγ′′
+2 − zα′′
+)
++
++
+( zβ′ + zβ′′
+2 − zα′′
+)( zγ′ + zγ′′
+2 − zα′
+)}
+=σ2
+A. (13)
+C. Averaging on a Finite Data Record
+The mathematical expectation is replaced with the average
+on a ﬁnite time series of m samples. We use the overlapped
+Allan variance in all cases. The ultimate limit to the detection
+of fractional frequency ﬂuctuations is
+σ = σ0
+τ
+1
+m1/4 , (14)
+where σ0 is the background at τ = 1 s, m is the number of
+averages, and the ratio σ0/τ is the usual ‘ 1/τ’ law for white
+and ﬂicker PM noise. In turn, m results from the durationT of
+the time series according to m =T/τ. Combining the latter
+with (14), we get
+σ = σ0
+T 1/4
+1
+τ 3/4 . (15)
+The averaging process uses a large amount of samples at the
+shorterτ, where the background noise is higher, and progres-
+sively smaller amount of samples at longer τ. According to
+(14), it takes m = 104 (2 H 47 M) to reduce the background
+noise by a factor 10, from 2.1×10−14 to 2.1×10−15 atτ = 1
+s.
+V. T HE EXPERIMENT
+The block diagram of the experiment follows Fig. 7. The
+100 MHz output of the three CSOs is measured with the
+TDDS in 6-channel mode, using the covariance. The 10 GHz
+outputs are beaten down to HF and measured with a multi-
+channel counter. The latter is a dedicated “Time and Frequency
+Monitor” made by K&K Messtechnik (now Lange-Electronic
+[37]), originally described in [38], [39]. The data averaged
+on τ = 1 s are directly available at the output of the the
+K&K. With the TDDS, the average on τ = 1 s is obtained
+by decimation of the 10 S/s output stream. We collected all
+the data measured simultaneously for a duration of 4.7×105
+s (5.5 days).
+The cutoff frequency fH is 5 Hz for the TDDS and 0.5 Hz
+for the K &,K. This difference is irrelevant because there is
+no white PM in our results (Sec. VI), thus fH does not get in
+the noise equations [40].
+We had only two synthesizers, thus we used a frquency
+divider (Hittite) instead. This divider, at the output of the
+oscillator B, does not have a thermal shield.
+The oscillator B had the power control not operating
+properly. This problem was discovered when the experiment
+were already running.
+The most common correlated phenomena, breaking the
+hypothesis of statistically independent noise processes, are
+microwave leakage and temperature ﬂuctuations of the en-
+vironment. The microwave leakage is in principle absent in
+our CSOs because the resonator bandwidth is of the order of
+10 Hz, a few orders of magnitude smaller than the frequency
+difference between the oscillators. Crosstalk in the instruments
+is a lesser problem because it impact on the phase, instead of
+on the frequency. Nonetheless, we set the synthesizers at three
+different frequencies slightly off the nominal value of 100
+MHz. We observed that spurs are also reduced in this way.
+The HF beat notes are substantially immune from leakage,
+being well separated.
+The experimental setup is shown on Fig. 8. The He pumps
+are located in a nearby room. The thermal ﬂuctuations are
+strongly reduced by a sophisticated air-conditioning installa-
+tion. A proportional integral control guarantees a temperature
+of 22±0.5 ◦C, with a maximum drift of 0.2 ◦C/H, and
+humidity of 50%±10%. The operators are not present in the
+room during the measurements.
+VI. R ESULTS
+We analyze the results step by step going through con-
+sistency checks. This is necessary because the two-sample
+variance still being little used, thus we cannot take beneﬁt
+from the general experience.
+6
+control electronics
+control electronicscontrol electronics
+CSO C
+Uliss
+CSO A
+Marmotte
+tracking DDS
+µwave electron.
+µwave 
+electronics
+Proportional-Integral control
+22±0.5 ºC, <0.2 ºC/H
+50±10% humidity CSO B
+Absolut
+K&Kcounter
+He pipes
+He pipes pulse 
+tube
+pulse 
+tubepulse 
+tube
+Fig. 8. The experiment in its environment. The Helium pumps are in the next
+room
+↵00
+ 
+ 00
+<latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit>
+ 00
+  00
+<latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit>
+ 00
+ ↵00
+<latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit>
+↵
+00
+ 
+ 
+00
+<latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit>
+ 
+00
+ 
+ 
+00
+<latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit>
+ 
+00
+ 
+↵
+00
+<latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit>
+ 
+00  
+ 
+00
+<latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit>
+ 
+00  
+↵
+00
+<latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit>
+↵00
+  00
+<latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit>
+↵
+00   
+00
+<latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit>
+ 00
+  00
+<latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit>
+ 00
+ ↵00
+<latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit>
+Fig. 9. Time ﬂuctuation of the differences (xα′′− xβ′′ ), (xβ′′− xγ′′ ), and
+(xγ′′− xα′′ ) taken from the TDDS.
+The ﬁrst result (Fig. 9) is the time ﬂuctuation of the
+differences (xα′′− xβ′′), (xβ′′− xγ′′), and (xγ′′− xα′′) taken
+from the outputs α′′, β′′ and γ′′ of the TDDS. Text colors
+are consistent with the plots. At the scale shown, the same
+differences taken from the outputs α′, β′ and γ′ overlap, and
+provide no useful information. A visual comparison between
+Fig. 9 and a set of simulated random time series indicates that
+the oscillators are mainly affected by white FM and ﬂicker
+FM, with some drift showing up. The peak-to-peak difference
+is within 100 ps in the ﬁrst 4 days, and increases slightly
+afterwards.
+The curves are clearly correlated. By visual inspection on
+Fig. 9, the following sums reveal correlation
+(xα′′− xβ′′) + (xβ′′− xγ′′)≈ ‘small’ C,A anticorrelated
+(xα′′− xβ′′) + (xγ′′− xα′′)≈ ‘small’ B,C correlated
+(xβ′′− xγ′′) + (xγ′′− xα′′)≈ ‘large’ A,B anticorrelated.
+We believe that this is still a thermal effect on the oscillators,
+despite the careful conditioning of the room.
+ 00
+ 
+ 00
+<latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit>
+↵00
+ 
+ 00
+<latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit>
+ 00
+ 
+↵00
+<latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit>
+↵00
+  00
+<latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit>
+ 00
+ ↵00
+<latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit>
+ 00
+ ↵00
+<latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit>
+ 00
+  00
+<latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="ufeBKNL5w6GeJ9UYysnQidqT1y0=">AAAB03icZZDNSgMxFIXv1L86Vq1rN8EiuChlxo0uBTcuK9gfaIeSydxpQ5PMkGSEMnQvbkR8LV/AtzHTdqHthZCPcxPuPSfOBTc2CH682t7+weFR/dg/afinZ+fNRt9khWbYY5nI9DCmBgVX2LPcChzmGqmMBQ7i+WPVH7yiNjxTL3aRYyTpVPGUM2qd1J00W0EnWBXZhXADLdjUpPk9TjJWSFSWCWrMKAxyG5VUW84ELv1xYTCnbE6nOHKoqEQTlas1l+TaKQlJM+2OsmSl/v1RUmkktbO2u6sXpgKzkHE7lu2qoU1qtmbY9D4qucoLi4qtR6SFIDYjlVuScI3MioUDyjR3WxI2o5oy6zLxnftw2+su9G87YdAJnwOowyVcwQ2EcAcP8ARd6AGDBN7hy4u9N+9jnVLN28R1Af/K+/wFmtCIMQ==</latexit><latexit sha1_base64="Ri4mpxgh252aEig9tCCbvK9IFJc=">AAAB6nicZZDNTgIxFIXv4B8iKrJ10wgGF0hm3OjSxI1LTOQnYSakUzrQ0HYmbUclEx5FV0Z9GF/At7EDLBRO0vTLuW3uvSdMONPGdX+cwtb2zu5ecb90UD48Oq6clLs6ThWhHRLzWPVDrClnknYMM5z2E0WxCDnthdO7vN57okqzWD6aWUIDgceSRYxgY61hpVr3Q2pwo3Hpj7EQFurDSs1tuQuhTfBWUIOV2sPKtz+KSSqoNIRjrQeem5ggw8owwum85KeaJphM8ZgOLEosqA6yxexzdG6dEYpiZY80aOH+/ZFhoQU2k6a98xc6Bz0TYTMUzbygdKTXepjoJsiYTFJDJVm2iFKOTIzyCNCIKUoMn1nARDE7JSITrDAxNqiSXd9bX3YTulctz215Dy4U4RTO4AI8uIZbuIc2dIDAC7zBJ3w5z86r874MquCsEqvCPzkfv2iBj1o=</latexit><latexit sha1_base64="sf9BGiC+By+5KrveWw6WG0g8AAA=">AAAB6nicdZDLTgIxFIbPeEVEHdm6aQSDCyQzKBd3Jm5cYiKXBAjplA40tDOTtqMSwqPoyqgP4wv4NnYAEzXxT5p++U+bc87vRZwp7Tif1tr6xubWdmonvZvZ2z+wDzMtFcaS0CYJeSg7HlaUs4A2NdOcdiJJsfA4bXuT66TevqdSsTC409OI9gUeBcxnBGtjDexsvudRjQuFs94IC2EgP7BzTsmtnVdrdeSULsqVymXVgOu41WoduSVnoRys1BjYH71hSGJBA004VqrrOpHuz7DUjHA6T/diRSNMJnhEuwYDLKjqzxazz9GJcYbID6U5gUYL9+ePGRZKYD0umjt5oRJQU+EVPVFMClL56k8P7df7MxZEsaYBWbbwY450iJII0JBJSjSfGsBEMjMlImMsMdEmqLRZ/3tH9D+0yiaQknvrQAqO4BhOwYUaXMENNKAJBB7hGd7g3XqwnqyXZVBr1iqxLPyS9foF3fuPrw==</latexit><latexit sha1_base64="171J8jbmlK8+rLe+Jf3mbmkJFAA=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jponx4I/HiERMREiCkW7rQ0O5u2q5KNjyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/m7ImdIIfVqpldW19Y30ZmZre2d3L7ufu1VBJAltkYAHsuNiRTnzaUszzWknlBQLl9O2O7lM8u07KhUL/Bs9DWlf4JHPPEawNtIgmyv0XKpxsXjaG2EhDBQG2TyyndpZtVaHyD4vVyoXVQMOcqrVOnRsNI88WEZzkP3oDQMSCeprwrFSXQeFuh9jqRnhdJbpRYqGmEzwiHYN+lhQ1Y/nu8/gsVGG0Aukeb6Gc/VnR4yFEliPS+ZPKlQCairckitKSUIqT/2Zob16P2Z+GGnqk8UIL+JQBzCxAA6ZpETzqQFMJDNbQjLGEhNtjMqY879vhP/DbdkYYjvXKN8oL41Ig0NwBE6AA2qgAa5AE7QAAQ/gCbyCN+veerSerZdFacpa9hyAX2G9fwEWQ5D7</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit>
+↵
+00 
+ 
+00
+<latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit><latexit sha1_base64="L9lBd18JfITMBX/Kjglqy9xUlBs=">AAAB9XicdVBNS8NAEN3Ur1q/Yj16WWylHmpIQkvjreDFYwVbC00om+2mXbr5YHejltCfoidRb/4R/4D/xk1bQQUfDPN4M8PMPD9hVEjT/NQKa+sbm1vF7dLO7t7+gX5Y7ok45Zh0ccxi3veRIIxGpCupZKSfcIJCn5Fbf3qZ12/vCBc0jm7kLCFeiMYRDShGUklDvVx1EUsmqFY7d30iVa4O9YppOE7TNm1oGpZpNxtL0rpoONAyzAUqYIXOUP9wRzFOQxJJzJAQA8tMpJchLilmZF5yU0EShKdoTAaKRigkwssWt8/hqVJGMIi5ikjChfpzIkOhCJGc1FXOO0ROxCz0635YzwtcBOLPDhk4XkajJJUkwssVQcqgjGFuARxRTrBkM0UQ5lRdCfEEcYSlMqqk3v/+Ef5PerYyxLCu7UrbXhlRBMfgBJwBC7RAG1yBDugCDB7AE3gFb9q99qg9ay/L1oK2mjkCv6C9fwED1JDv</latexit>
+ 
+00  
+↵
+00
+<latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit><latexit sha1_base64="mSfCj1LfTxiE/kGfFbdi8+VIRjY=">AAAB9nicdZDNTgIxEMe7+IX4hXL00ggGD0h20US5kXjxiIl8JCwhs6ULDe3upu0aN4RX0ZNRbz6IL+Db2AVM0MRJmv7yn5nMzN+LOFPatr+szNr6xuZWdju3s7u3f5A/PGqrMJaEtkjIQ9n1QFHOAtrSTHPajSQF4XHa8SY3ab7zQKViYXCvk4j2BYwC5jMC2kiDfKHkjkAIKJfPXeDR2EBpkC/aVXseeAXql3X7oo6dpVJEy2gO8p/uMCSxoIEmHJTqOXak+1OQmhFOZzk3VjQCMoER7RkMQFDVn86Xn+FTowyxH0rzAo3n6mrHFIQSoMcV86cVKgWVCK/iiUqakMpXf2Zo/7o/ZUEUaxqQxQg/5liHOPUAD5mkRPPEABDJzJaYjEEC0capnDn/50b8P7RrVceuOne1YqO2NCKLjtEJOkMOukINdIuaqIUIStAzekPv1qP1ZL1Yr4vSjLXsKaBfYX18A5dTkT4=</latexit>
+ 
+00  
+ 
+00
+<latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="ufeBKNL5w6GeJ9UYysnQidqT1y0=">AAAB03icZZDNSgMxFIXv1L86Vq1rN8EiuChlxo0uBTcuK9gfaIeSydxpQ5PMkGSEMnQvbkR8LV/AtzHTdqHthZCPcxPuPSfOBTc2CH682t7+weFR/dg/afinZ+fNRt9khWbYY5nI9DCmBgVX2LPcChzmGqmMBQ7i+WPVH7yiNjxTL3aRYyTpVPGUM2qd1J00W0EnWBXZhXADLdjUpPk9TjJWSFSWCWrMKAxyG5VUW84ELv1xYTCnbE6nOHKoqEQTlas1l+TaKQlJM+2OsmSl/v1RUmkktbO2u6sXpgKzkHE7lu2qoU1qtmbY9D4qucoLi4qtR6SFIDYjlVuScI3MioUDyjR3WxI2o5oy6zLxnftw2+su9G87YdAJnwOowyVcwQ2EcAcP8ARd6AGDBN7hy4u9N+9jnVLN28R1Af/K+/wFmtCIMQ==</latexit><latexit sha1_base64="Ri4mpxgh252aEig9tCCbvK9IFJc=">AAAB6nicZZDNTgIxFIXv4B8iKrJ10wgGF0hm3OjSxI1LTOQnYSakUzrQ0HYmbUclEx5FV0Z9GF/At7EDLBRO0vTLuW3uvSdMONPGdX+cwtb2zu5ecb90UD48Oq6clLs6ThWhHRLzWPVDrClnknYMM5z2E0WxCDnthdO7vN57okqzWD6aWUIDgceSRYxgY61hpVr3Q2pwo3Hpj7EQFurDSs1tuQuhTfBWUIOV2sPKtz+KSSqoNIRjrQeem5ggw8owwum85KeaJphM8ZgOLEosqA6yxexzdG6dEYpiZY80aOH+/ZFhoQU2k6a98xc6Bz0TYTMUzbygdKTXepjoJsiYTFJDJVm2iFKOTIzyCNCIKUoMn1nARDE7JSITrDAxNqiSXd9bX3YTulctz215Dy4U4RTO4AI8uIZbuIc2dIDAC7zBJ3w5z86r874MquCsEqvCPzkfv2iBj1o=</latexit><latexit sha1_base64="sf9BGiC+By+5KrveWw6WG0g8AAA=">AAAB6nicdZDLTgIxFIbPeEVEHdm6aQSDCyQzKBd3Jm5cYiKXBAjplA40tDOTtqMSwqPoyqgP4wv4NnYAEzXxT5p++U+bc87vRZwp7Tif1tr6xubWdmonvZvZ2z+wDzMtFcaS0CYJeSg7HlaUs4A2NdOcdiJJsfA4bXuT66TevqdSsTC409OI9gUeBcxnBGtjDexsvudRjQuFs94IC2EgP7BzTsmtnVdrdeSULsqVymXVgOu41WoduSVnoRys1BjYH71hSGJBA004VqrrOpHuz7DUjHA6T/diRSNMJnhEuwYDLKjqzxazz9GJcYbID6U5gUYL9+ePGRZKYD0umjt5oRJQU+EVPVFMClL56k8P7df7MxZEsaYBWbbwY450iJII0JBJSjSfGsBEMjMlImMsMdEmqLRZ/3tH9D+0yiaQknvrQAqO4BhOwYUaXMENNKAJBB7hGd7g3XqwnqyXZVBr1iqxLPyS9foF3fuPrw==</latexit><latexit sha1_base64="171J8jbmlK8+rLe+Jf3mbmkJFAA=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jponx4I/HiERMREiCkW7rQ0O5u2q5KNjyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/m7ImdIIfVqpldW19Y30ZmZre2d3L7ufu1VBJAltkYAHsuNiRTnzaUszzWknlBQLl9O2O7lM8u07KhUL/Bs9DWlf4JHPPEawNtIgmyv0XKpxsXjaG2EhDBQG2TyyndpZtVaHyD4vVyoXVQMOcqrVOnRsNI88WEZzkP3oDQMSCeprwrFSXQeFuh9jqRnhdJbpRYqGmEzwiHYN+lhQ1Y/nu8/gsVGG0Aukeb6Gc/VnR4yFEliPS+ZPKlQCairckitKSUIqT/2Zob16P2Z+GGnqk8UIL+JQBzCxAA6ZpETzqQFMJDNbQjLGEhNtjMqY879vhP/DbdkYYjvXKN8oL41Ig0NwBE6AA2qgAa5AE7QAAQ/gCbyCN+veerSerZdFacpa9hyAX2G9fwEWQ5D7</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit><latexit sha1_base64="P2O675YPQORpAYw7e+NEZsPQwh0=">AAAB9XicdZDNTgIxEMe7+IX4hXj00ggGD7jZRfnwRuLFIyYiJLAh3dKFhra7absqITyKnox680V8Ad/GLmCiJk7S9Jf/zGRm/n7EqNKO82mlVlbX1jfSm5mt7Z3dvex+7laFscSkhUMWyo6PFGFUkJammpFOJAniPiNtf3yZ5Nt3RCoaihs9iYjH0VDQgGKkjdTP5go9n2hULJ72hohzA4V+Nu/Ybu2sWqtDxz4vVyoXVQOu41ardejazjzyYBnNfvajNwhxzInQmCGluq4TaW+KpKaYkVmmFysSITxGQ9I1KBAnypvOd5/BY6MMYBBK84SGc/VnxxRxxZEelcyfVKgE1IT7JZ+XkoRUgfozQwd1b0pFFGsi8GJEEDOoQ5hYAAdUEqzZxADCkpotIR4hibA2RmXM+d83wv/htmwMsd3rcr5RXhqRBofgCJwAF9RAA1yBJmgBDB7AE3gFb9a99Wg9Wy+L0pS17DkAv8J6/wIW45D9</latexit>
+Fig. 10. Allan deviation of the difference between oscillators.
+The second result (Fig. 10) is the overlapped Allan deviation
+of some relevant differences, taken at the output of the TDDS.
+On this ﬁgure, we identify three groups of plots. The ﬁrst
+group (the squares, going down to 10−18) represent σα′−α′′,
+σβ′−β′′ andσγ′−γ′′. Each curve is the difference between the
+two channels measuring the same oscillator. The oscillator
+ﬂuctuation cancels, and the curve gives the total ﬂuctuation
+of a pair of channels. The value σy = 2.1×10−14 at τ = 1 s
+is consistent with the ﬂicker PM of the DDS ( b1 =−110
+dBrad2, Fig. 6), within 1 dB. The curves σα′−α′′ andσγ′−γ′′
+match the prediction based on the dominance of ﬂicker PM,
+σ2 = h−1(3γ−ln(2)+3 ln(2πfHτ))/(2πτ )2. The third curve,
+σβ′−β′′, gets slightly higher beyond τ ≈ 1000 s. This is
+due to a defect in channel β′, clearly identiﬁed but still not
+understood.
+The second group of plots (the thick dots on Fig. 10) is
+σα′′−β′′, σβ′′−γ′′, and σγ′′−α′′ of the 100 MHz signal, drift
+removed. These two-sample deviation is dominated by the
+background noise for τ <100 s. Beyond, the curves converge
+toσA−B,σB−C, andσC−A, that is, the combined ﬂuctuations
+of two oscillators each.
+The third group of plots (the circles on Fig. 10) is the same
+as the second, but the drift is not removed. The drift is clearly
+visible on the right-hand side of the plot, where the curves
+are proportional to τ. Two of these curves, σA−B and σB−C
+reveal a signiﬁcantly higher drift, due to the oscillator B. This
+is a consequence of the power control not working. Using
+σ2 = (1/2)D2
+yτ 2, the drift of B is Dy = 4.5×10−18/s, or
+3.9×10−13/day.
+7
+TCH, 10 GHz beaten to HF
+Covariance, 100 MHz
+B
+A
+C
+B
+C
+A
+C
+A
+A
+A
+B
+C
+B C
+C
+B
+Fig. 11. Allan deviation of the three oscillators, measured with the Three-
+Cornered Hat method on the HF beat notes (top), and with the covariance
+method on the 100 MHz outputs (bottom).
+Figure 11 shows the ADEV of the three oscillators, mea-
+sured with the TCH method on the beat notes (top), and
+(bottom) with the covariance method on the 100 MHz outputs.
+The drift is removed in both cases. The results are substantially
+equivalent for τ >100 s, while the noise of the synthesizers
+shows up for shorter τ. The Allan deviation plot of the
+oscillator B has a bump at τ = 20 on the covariance plot
+(Fig. 11 bottom), not present on the TCH plot (Fig. 11
+top). This is probably due to the frequency divider, which
+has no thermal shield. The oscillator B has also irregular
+behavior and signiﬁcantly higher instability than the other
+oscillators for τ > 1000 s. This is ascribed to the failure
+in the power control. The blue line (Oscillator C) is dashed
+forτ >5×104 s because a negative covariance appears in the
+evaluation, and the result makes no sense. This can be ascribed
+to the insufﬁcient number of data, or to the presence of slow
+correlated terms, probably induced by the temperature.
+VII. C ONCLUSIONS
+Figure 12 summarizes the relevant results obtained with the
+TDDS and the covariance at the 100 MHz output of the CSOs.
+The gold dashed line shows the background noise of the
+TDDS, accounting for two channels. This is fair because the
+♇☿
+♁
+♃̧ ♄☾ ̦ ♆⛢
+semi-major axes
+1-m G shiftat gnd level
+A
+B
+C
+C (neg)
+8×10–16
+/τ3/4
+Overlapped ADEV
+A
+B C B
+A
+C
+B
+A
+B
+2.1×10–14
+/τ,  two channels
+Fig. 12. The Allan deviation of our oscillators (100 MHz output) compared
+to some relevant quantities discussed in the text.
+simplest measurement, with no correlation, takes two channels.
+The background noise is low enough for the measurement of H
+masers and the other classical atomic standards. Additionally,
+the CSOs can be measured in the correlation mode, using two
+channels per oscillator and the covariance method.
+The statistical limit is set by the duration T of the
+time series according to (15). Taking σ0 = 2 .1×10−14,
+which is the combined background of two channels, we ﬁnd
+σ = 8×10−16/τ 3/4. The theoretical prediction (grey dash-dot
+line) ﬁts well the observed residuals (dotted line with black
+squares).
+The RF/microwave hardware can be a serious limitation
+at this level. The phase ﬂuctuation of the oscillator C, σ =
+1.5×10−15 at τ = 1 s, corresponds to a time stability of 1.5
+fs, or a length stability of 400 nm on a coaxial cable (velocity
+factor of 0.88 for a 1/2” Heliax cable).
+The CSO instability is in the low 10−15 at 1 s, and below
+10−15 for τ ≥ 10 s up to one day. For reference, the
+gravitational shift g/c2 is of 1.09×10−16 when a clock is
+raised by 1 m at the ground level.
+The highest stability is seen for τ between seconds and
+hours, which is the travel time of the light at interplanetary
+distances (semi-major axes of the planet orbits on Fig. 12).
+This feature makes the CSO an ideal clock for applications
+related to the exploration of the solar system.
+ACKNOWLEDGEMENTS
+This work is partially funded by (1) the ANR Programme
+d’Investissement d’Avenir (PIA) under the Oscillator IMP
+project and the First-TF network, (2) by grants from the
+Région Bourgogne Franche Comté intended to support the
+PIA, (3) FEDER, (4) EMRP program (IND55 Mclocks). A
+special thank to the European Space Agency for supporting
+this activity.
+REFERENCES
+[1] J. G. Hartnett, N. R. Nand, C. Wang, and J.-M. Le Floch, “Cryogenic
+sapphire oscillator using a low-vibration design pulse-tube cryocooler:
+8
+First results,” IEEE Trans. Ultras. Ferroelec. Freq. Contr., vol. 57, no. 5,
+pp. 1034–1038, May 2010.
+[2] C. Fluhr, S. Grop, B. Dubois, Y . Kersalé, E. Rubiola, and V . Giordano,
+“Characterization of the individual short-term frequency stability of
+cryogenic sapphire oscillators at the 10−16 level,” IEEE Trans. Ultras.
+Ferroelec. Freq. Contr., vol. 63, pp. 915–921, Jun. 2016.
+[3] N. R. Nand, J. G. Hartnett, E. N. Ivanov, and G. Santarelli, “Ultra-stable
+very-low phase-noise signal source for very long baseline interferometry
+using a cryocooled sapphire oscillator,” IEEE Trans. Microw. Theory
+Tech., vol. 59, no. 11, pp. 2978–2986, Nov. 2011.
+[4] S. Doeleman, T. Mai, A. E. E. Rogers, J. G. Hartnett, M. E. Tobar,
+and N. Nand, “Adapting a cryogenic sapphire oscillator for very long
+baseline interferometry,” Astronom. Soc. Paciﬁc, vol. 123, no. 903, pp.
+582–595, May 2011.
+[5] R. Bara, J.-M. Le Floch, M. E. Tobar, P. L. Stanwix, S. R. Parker, J. G.
+Hartnett, and E. N. Ivanov, “Generation of 103.75 GHz CW source with
+5×10−16 frequency instability using cryogenic sapphire oscillators,”
+Microw. Wireless Components Lett., vol. 22, no. 2, pp. 85–87, Feb. 2012.
+[6] G. J. Dick and R. T. Wang, “Stability and phase noise tests of two
+cryo-cooled sapphire oscillators,” IEEE Trans. Ultras. Ferroelec. Freq.
+Contr., vol. 47, no. 5, pp. 1098–1101, Sep. 2000.
+[7] V . Giordano, S. Grop, B. Dubois, P.-Y . Bourgeois, Y . Kersalé, G. Haye,
+V . Dolgovskiy, N. Bucalovic, G. Di Domenico, S. Schilt, J. Chauvin,
+D. Valat, and E. Rubiola, “New-generation of cryogenic sapphire mi-
+crowave oscillators for space, metrology, and scientiﬁc applications,”
+Rev. Sci. Instrum., vol. 83, no. 8, p. 085113, Aug. 2012.
+[8] M.-S. Heo et al., “Drift-compensated low-noise frequency synthesis
+based on a cryocso for the KRISS-F1,” IEEE Trans. Instrum. Meas. ,
+vol. 66, pp. 1343–1348, Jun. 2016.
+[9] M. Abgrall, J. Guéna, M. Lours, G. Santarelli, M. E. Tobar, S. Bize,
+S. Grop, B. Dubois, C. Fluhr, and V . Giordano, “High-stability compari-
+son of atomic fountains using two different cryogenic oscillators,” IEEE
+Trans. Ultras. Ferroelec. Freq. Contr. , vol. 63, no. 8, pp. 1198–1203,
+Aug. 2016.
+[10] T. Ikegami, K. ichi Watabe, S. Yanagimachi, A. Takamizawa, and J. G.
+Hartnett, “Autonomous cryogenic sapphire oscillators employing low
+vibration pulse-tube cryocoolers at NMIJ,” J. Phys. Conference Series ,
+vol. 723, no. 1, p. 012032, 2016.
+[11] C. E. Calosso, “Tracking DDS in time and frequency metrology,” in
+Proc. Europ. Freq. Time Forum , Prague, Czech Republic, Jul. 21–25,
+2013, pp. 747–749.
+[12] D. W. Allan and H. Daams, “Picosecond time difference measurement
+system,” in Proc. Int’l Freq. Control Symp. , Atlantic City, NJ, USA,
+May 28–30, 1975, pp. 404–411.
+[13] D. W. Allan, “Report on the dual mixer time difference system (DMTD)
+built for the time-domain measurements associated with phase 1 of
+GPS,” NBS (now NIST), Boulder, CO, USA, Technical Note 75-827,
+Jan. 1976.
+[14] G. Brida, “High resolution frequency stability measurement system,”
+Rev. Sci. Instrum., vol. 73, no. 5, pp. 2171–2174, May 2002.
+[15] M. Calligaris, G. A. Costanzo, and C. E. Calosso, “6/12-channel
+synchronous digital phasemeter for ultrastable signal characterization
+and use,” in Proc. Europ. Freq. Time Forum, Denver, CO, USA, Apr. 12–
+16, 2015, pp. 681–683.
+[16] J. Grove, J. Hein, J. Retta, P. Schweiger, W. Solbrig, and S. R. Stein,
+“Direct-digital phase-noise measurement,” in Proc. Int’l Freq. Control
+Symp., Montreal, Quebec, Canada, Aug. 23-27, 2004, pp. 287–291.
+[17] A. C. Ecker, “A digital method for phase noise measurement,” PhD
+Thesis, University of Washington, Seattle, W A, USA, Apr. 2014.
+[18] J. A. Sherman and R. Jördens, “Oscillator metrology with software
+deﬁned radio,” Rev. Sci. Instrum., vol. 87, no. 5, p. 054711, May 2016.
+[19] R. G. DeV oe, “Measuring the allan variance by sinusoidal ﬁtting,” Rev.
+Sci. Instrum., vol. 89, no. 2, p. 024702, Jan. 2018.
+[20] S. J. Yu, E. Fajeau, L. Q. Liu, D. J. Jones, and M. K. W., “The
+performance and limitations of FPGA-based digital servos for atomic,
+molecular, and optical physics experiments,” Rev. Sci. Instrum., vol. 89,
+no. 2, p. 025107, Feb. 2018.
+[21] C. E. Calosso, Y . Gruson, and E. Rubiola, “Phase noise and amplitude
+noise in DDS,” in Proc. Int’l Freq. Control Symp., Baltimore, MD, USA,
+May 21–25, 2012, pp. 777–782.
+[22] A. C. Cárdenas Olaya, E. Rubiola, J.-M. Friedt, P.-Y . Bourgeois,
+M. Ortolano, S. Micalizio, and C. E. Calosso, “Noise characterization
+of analog to digital converters for amplitude and phase noise measure-
+ments,” Rev. Sci. Instrum., vol. 88, no. 6, p. 065108, Jun. 2017.
+[23] A. C. Cárdenas Olaya, “Digital instrumentation for the measurement of
+high spectral purity signals,” PhD Thesis, University of Bourgogne and
+Franche Comté, and Politecnico di Torino, Besançon, France, Jul. 2018.
+[24] F. Vernotte, C. E. Calosso, and E. Rubiola, “Three-cornered hat versus
+Allan covariance,” in Proc. Int’l Freq. Control Symp., New Orleans (LA,
+USA), May 9–12, 2016, pp. 282–287.
+[25] V . Giordano, S. Grop, C. Fluhr, B. Dubois, Y . Kersalé, and E. Rubi-
+ola, “The autonomous cryocooled sapphire oscillator: a reference for
+frequency stability and phase noise measurements,” J. Phys. Conference
+Series, vol. 723, no. 1, p. 012030, Jul. 2016.
+[26] C. R. Locke, E. N. Ivanov, J. G. Hartnett, P. L. Stanwix, and M. E.
+Tobar, “Design techniques and noise properties of ultrastable cryogeni-
+cally cooled sapphire-dielectric resonator oscillators,” Rev. Sci. Instrum.,
+vol. 79, no. 5, pp. 051 301 1–12, May 2008.
+[27] S. Jones, D. Blair, and M. Buckingham, “Effect of paramagnetic impuri-
+ties on frequency of sapphire-loaded superconducting cavity resonators,”
+Electronics Lett., vol. 24, no. 6, pp. 346–347, 1988.
+[28] V . Giordano, C. Fluhr, S. Grop, and B. Dubois, “Tests of sapphire
+crystals manufactured with different growth processes for ultra-stable
+microwave oscillators,” IEEE Trans. Microw. Theory Tech. , vol. 64,
+no. 1, pp. 78–85, Jan. 2016.
+[29] C. Wang, “Numerical analysis of 4 K pulse tube coolers: Part II.
+performances and internal processes,” Cryogenics, vol. 37, no. 4, pp.
+215–220, 1997.
+[30] R. V . Pound, “Electronic frequency stabilization of microwave oscilla-
+tors,” Rev. Sci. Instrum., vol. 17, no. 11, pp. 490–505, Nov. 1946.
+[31] Z. Galani, M. J. Bianchini, R. C. Waterman, Jr., R. Dibiase, R. W. Laton,
+and J. Bradford Cole, “Analysis and design of a single-resonator GaAs
+FET oscillator with noise degeneration,” IEEE Trans. Microw. Theory
+Tech., vol. 32, no. 12, pp. 1556–1565, Dec. 1984.
+[32] S. Chang, A. G. Mann, A. N. Luiten, and D. G. Blair, “Measurements
+of radiation pressure effect in cryogenic sapphire dielectric resonators,”
+Phys. Rev. Lett., vol. 79, no. 11, pp. 2141–2144, Sep. 15, 1997.
+[33] V oCore2, The Coin-sized Linux Computer. [Online]. Available:
+http://vocore.io/v2.html
+[34] C. A. Greenhall, “A method for using time interval counters to measure
+frequency stability,” IEEE Trans. Ultras. Ferroelec. Freq. Contr., vol. 36,
+no. 5, pp. 478–480, Sep. 1989.
+[35] J. E. Gray and D. W. Allan, “A method for estimating the frequency
+stability of an individual oscillator,” in Proc. Int’l Freq. Control Symp. ,
+Atlantic City, NJ, USA, May 29–31, 1974, pp. 243–246.
+[36] D. Fest, J. Groslambert, and J.-J. Gagnepain, “Individual characterization
+of an oscillator by means of cross-correlation or cross covariance
+method,” IEEE Trans. Instrum. Meas., vol. 32, no. 3, pp. 447–450, Sep.
+1983.
+[37] Lange-Electronic GmbH, Rudolf-Diesel-Str. 29a, 82216 Gernlinden,
+Germany. [Online]. Available: http://lange-electronic.de/
+[38] G. Kramer and W. Klische, “Extra high precision digital phase recorder,”
+in Proc. Europ. Freq. Time Forum, Guildford, UK, Apr. 5–7, 2004, pp.
+595–602.
+[39] ——, “Multi-channel synchronous digital phase recorder,” in Proc. Int’l
+Freq. Control Symp., Seattle, W A, USA, Jun. 6–8, 2001, pp. 144–151.
+[40] C. E. Calosso, C. Clivati, and S. Micalizio, “Avoiding aliasing in Allan
+variance: An application to ﬁber link data analysis,” IEEE Trans. Ultras.
+Ferroelec. Freq. Contr., vol. 63, no. 4, pp. 646–655, Apr. 2016.

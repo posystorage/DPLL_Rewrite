@@ -1,0 +1,545 @@
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26014
+Absolute frequency readout derived from ULE
+cavity for next generation geodesy missions
+EMILY ROSE REES ,1,2,*
+ ANDREW R. W ADE ,1,2
+ ANDREW J.
+SUTTON ,1,2
+ ROBERT E. S PERO ,3 DANIEL A. S HADDOCK ,1,2 AND
+KIRK MCKENZIE 1,2
+1Centre for Gravitational Astrophysics (CGA), Research School of Physics, The Australian National
+University, Canberra ACT 2601, Australia
+2 ARC Centre of Excellence for Gravitational Wave Discovery (OzGrav), Research School of Physics, The
+Australian National University, Canberra ACT 2601, Australia
+3Jet Propulsion Laboratory (JPL), California Institute of Technology, 4800 Oak Grove Drive Pasadena, CA
+91109, USA
+*emilyrose.rees@anu.edu.au
+Abstract: The next generation of Gravity Recovery and Climate Experiment (GRACE)-like
+dual-satellite geodesy missions proposals will rely on inter-spacecraft laser interferometry as the
+primaryinstrumenttorecovergeodesysignals. Laserfrequencystabilityisoneofthemainlimits
+of this measurement and is important at two distinct timescales: short timescales over 10-1000
+seconds to measure the local gravity below the satellites, and at the month to year timescales,
+where the subsequent gravity measurements are compared to indicate loss or gain of mass (or
+water and ice) over that period. This paper demonstrates a simple phase modulation scheme
+to directly measure laser frequency change over long timescales by comparing an on-board
+Ultra-Stable Oscillator (USO) clocked frequency reference to the Free Spectral Range (FSR) of
+the on-board optical cavity. By recording the fractional frequency variations the scale correction
+factor may be computed for a laser locked to a known longitudinal mode of the optical cavity.
+The experimental results demonstrate a fractional absolute laser frequency stability at the 10
+ppb level (10−8) at time scales greater than 10 000 seconds, likely sufficient for next generation
+mission requirements.
+© 2021 Optical Society of America under the terms of the OSA Open Access Publishing Agreement
+The Gravity Recovery and Climate Experiment (GRACE) missions [1,2] tracklocalized changes
+in Earth’s gravity field over months and years. These fluctuations in the local gravity field are
+representative of mass transport processes, and are primarily driven by hydrological changes: the
+accumulation and melting of ice, changes in ground water levels through seasonal variation and
+extraordinary events such as drought. The importance of such data has led to significant interest
+within the Earth Science community, ranking GRACE-like missions as one of the top priorities
+[3]. Emphasis has been placed on the need for continuity of data and improvements to sensitivity
+going forward. Future GRACE-like missions, including NASA’s Mass-Change mission study [4]
+and the Next-Generation Gravity Mission [5], are in the planning phase but expected to launch in
+the mid-2020’s to achieve continuity with GRACE Follow-On [2].
+In GRACE-like missions, two identical satellites are placed into an approximately 500 km
+altitude near-polar orbit (89°) with a separation of 220 km. Inter-spacecraft ranging is used to
+precisely track the relative satellite separation at micrometer precision or better. When combined
+with GPS location and on-board accelerometer measurements (to remove atmospheric drag), the
+gravitational variations on the Earth can be inferred with spatial resolution of about 300 km.
+Global maps of Earth’s gravitational changes are published monthly, revealing the motion of
+water on the Earth due to local, seasonal and climatic changes over years and decades. GRACE
+(2002) and GRACE Follow-On (GRACE-FO, 2018) used K/Ka-Band microwave ranging for
+#434483 https://doi.org/10.1364/OE.434483
+Journal © 2021 Received 18 Jun 2021; revised 12 Jul 2021; accepted 12 Jul 2021; published 28 Jul 2021
+
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26015
+their primary science, however GRACE-FO included a Laser Ranging Interferometer (LRI)
+technologydemonstration[6]. TheGRACE-FOLRImetallofthetechnologygoalsandhasbeen
+producing scientific quality data for the mission. Recent work shows that the higher precision
+and lower noise of the LRI system can reveal new insights [7] and this trend is expected to
+continue. At a sensitivity noise floor of approximately 10nm/
+√
+Hz [6], it resolved range some
+two orders of magnitude better than the primary Microwave Instrument equivalent [2]. This
+improved sensitivity makes a LRI the leading choice for primary instrument selection on next
+generation gravity sensing missions.
+To qualify a LRI as the prime and only inter-spacecraft ranging measurement for the next
+mission, NASA’s Mass Change Study [4] identifies three areas requiring further work: increased
+robustness to thruster activation, system redundancy, and development of a method to read out
+the LRI Scale Correction or ‘scale factor’ to correct for long term drifts in laser frequency. Of
+these three items, the latter is the only new technology item. Without a Microwave Instrument
+on board, the LRI requires a new technique to mitigate the effect of laser frequency drift over
+timescales of a month and longer. The final mission requirement for absolute knowledge of the
+laser frequency is not decided but it is expected to demand fractional sensitivity on the order of
+10 ppb (10−8) or better [4,8].
+Thispaperprovidesadetailedinvestigationofa‘scale-factor’measurementtechniquedescribed
+in the Mass Change study, first developed at NASA/JPL [4] based on an extension of a proposal
+by Devoe and Brewer [9]. The scheme directly compares the frequency stability of an RF source,
+such as an on-board Ultra-Stable Oscillator (USO), against the mode spacing (c/2L) of an optical
+cavity. The experimental results demonstrate a fractional absolute laser frequency stability at
+about 1 ppb (10−9), likely sufficient for next generations mission requirements.
+The inclusion of such a technique in the next GRACE mission is predicated on two important
+factors: a relatively simple implementation requiring only low risk changes to flight-heritage
+LRI hardware, and that the addition of the scale-factor measurement does not compromise the
+short-term laser frequency stability demonstrated by the LRI on orbit. This paper addresses both
+factors, presenting a possible configuration for integration into the mission and a demonstration
+of unaffected laser stability at the short timescales.
+The paper is laid out as follows; in Section 1 the motivation for the scale-factor is introduced.
+Sections 2 and 3 introduce the concept and a specific implementation that may be useful for
+future space missions. Section 4 presents an experimental demonstration and results of this
+concept using optical cavities and lasers.
+1. Motivation for the scale-factor measurement
+The GRACE-FO mission reports a scale-correction,ϵ(t), to correct for laser frequency change
+over time [10], derived by comparing the microwave and laser ranging measurements. This scale
+factor is of critical importance in calibrating measurements for monthly and yearly gravity maps,
+where changes of laser frequency can be misinterpreted as a change in gravity. The sampled
+phase of individual samples at the same ground position will include contributions from the
+standing static gravity field as well as changes due to the movement of mass (mainly water). In
+order to meet the mission requirements the LRI laser must remain within a certain fractional
+frequency band in order for the residual month-to-month change signals to not be masked by the
+static gravity signal being scaled into the measurement.
+On the GRACE Follow-On mission, the scale factor for the LRI is calculated from the residual
+difference between the microwave and laser range measurements. The microwave frequency is
+derived from on-board Ultra-Stable Oscillators (USO), and is known with very high accuracy
+(10−11 per day [11]). The laser frequency stability (<10−13) significantly exceeds that of the
+USO over shorter timescales (10-1000 seconds [12]) by referencing and stabilizing its optical
+frequencyagainstaresonantopticalmodewithinanUltra-LowExpansion(ULE)glasscavity. At
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26016
+longer timescales the cavity length systematically drifts, influenced by the spacecraft temperature
+and aging of the glass, which results in a corresponding drift of laser absolute frequency. The
+time-varying laser frequency,ν, can be related to the initial laser frequency,ν0 = 2.8 ×1014[Hz],
+by the scale-factorν = (1 + ϵ(t))ν0.
+Such an un-calibrated, slow change in the laser frequency degrades the subtraction of the large
+static gravity signal,S(f ), from the science data when two time separated measurements are
+subtracted, as given by the following equation:
+∆LScaling Noise = S(f ) νσ(τ)
+ν0
+. (1)
+Hereonecanwritethelaserabsolutefrequencyasameanvalueplussomestatisticalvariationat
+measurementtimeseparation τ, νi = ν0 + νσ(τ). Figure1showsthenominalrangemeasurement,
+represented as a range spectral density, extracted from the GRACE Follow-On LRI on-orbit data,
+along with the laser frequency displacement noise requirement. The blue curve shows that the
+residual coupling of the static gravitational field for a scale-factor errorϵ = 10−8. At this level
+the coupling of static signal induced by a scale-factor error is smaller than the LRI instrument
+requirement, except at the once- and twice-per-orbit tone frequencies (0.18mHz and 0.36mHz).
+This error is likely sufficient for the next GRACE-like mission and, thus, for this article we
+estimate the scale factor accuracy requirement to beϵ = 10−8. We define the requirement in
+terms of fractional laser frequency change as an Allan Deviation over the time scale 10 000
+seconds and above as
+νσ(τ)
+ν0
+= 10−8, for τ>10 000 seconds. (2)
+Fig. 1. The static gravity field amplitude spectral density measured by the LRI from Abich
+et al. [6] (red trace). The laser frequency noise requirement for GRACE Follow-On was
+30 nm/
+√
+Hz ×NSF(f) (yellow solid trace). The scale factor correction produced by the
+GRACE-FO mission is on the order of 1.2e-7 [13] and derived by comparing the stabilised
+microwave system to the laser. The required error in the scale factor for the next GRACE
+mission is expected to be less than 10−8, with the corresponding residual range error shown
+by the blue trace.
+2. Scale factor measurement system for the next GRACE mission
+To directly readout the scale factor in a future laser-only ranging instrument, it is necessary to
+develop a technique that can tie the absolute frequency of the laser light to an external reference,
+such as an iodine absorption line [4] or a USO [5]. With a view to minimizing changes to the
+LRI flight-heritage (NASA TRL9) hardware, such an approach should leverage existing LRI
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26017
+resources wherever possible. We demonstrate a concept to sample the frequency spacing of the
+optical reference cavity with existing resources; a single laser, a single phase modulator and a
+single Megahertz bandwidth photoreceiver. The concept relies upon the fixed relationship of
+the laser’s absolute frequency,νLaser, with the cavity longitudinal mode spacing,νFSR, when the
+laser is locked onto a specific resonant mode.
+The scheme applies an optical phase modulation to infer the laser frequency change (or
+scale-factor) over long timescales by directly comparing the frequency stability of a reference
+oscillator to the Free Spectral Range (FSR) of an on-board optical cavity. In addition to a
+conventional PDH lock of the laser to a cavity resonant mode [14], the technique multiplies up
+an Ultra-Stable reference Oscillator (USO) signal from≈38.66 MHz to coincide with the LRI
+flight cavity’s FSR of≈ 1.94 GHz and modulates this signal onto the phase of the light incident
+on the optical cavity. The modulation signal generates frequency-shifted optical sidebands which
+interactwiththeadjacentcavityresonantmodes. Readoutofanyfrequencydifferencebetweenthe
+actualcavityFSRandthegeneratedGigahertzsidebandsusesalock-inmodulation-demodulation
+technique at a few Megahertz to give a PDH-like detuning readout, all using only a Megahertz
+bandwidth photodetector.
+Lockingthelasertoacavityresonancesetsthelaserfrequencytobeanintegermultiple( nmode)
+ofthecavitylongitudinalmodespacingfrequency,theFree-SpectralRange(FSR) νFSR = c/2L ≈
+1.94 GHz, whereL is the absolute cavity length andc the speed of light in vacuum. Accordingly,
+the laser’s optical frequency and FSR are related by the mode numbernmode ≡ νLaser/FSR.
+Feedback locking then ensures that changes in cavity lengthδL are proportionally replicated in
+both laser frequency and cavity FSR,δL/L = δνLaser/νLaser = δνFSR/νFSR.
+Calibrationofthemodenumber nmode priortolaunchallowsconversionoffractionalfrequency
+changesofthecavityFSRintoarealtimeabsolutefrequencychangeby νLaser = nmode × νFSR [Hz].
+Thus, with a minimum number of components, the proposed RF measurement of the cavity
+FSR is able to infer the scale factor using only local measurements on-board a single satellite,
+with measurement of the on-board USO’s frequency drift calculated after data down-link by
+referencing GPS time measurements.
+Figure 2 shows the current PDH laser locking scheme implemented on the GRACE Follow-On
+LRI, with the addition of the proposed Scale Factor Unit (SFU) electronics/hardware and
+associated FSR Firmware block diagram components. On the GRACE Follow-On LRI, the
+PDH locking scheme running on the Laser Ranging Processor (LRP) [12] directly drives a 1.5
+MHz modulation into the phase modulator and uses a digital demodulation of the reflected
+photodetector signal from a cavity to derive a feedback signal [15][16].
+The proposed SFU generates and adds a second modulation tone onto the LRP PDH signal
+priortothePhaseModulator. ThetonefrequencyisconfiguredbytheOBCtomatchtheestimated
+FSR frequency (ΥFSR ≈ νFSR [Hz]). A Megahertz phase modulation of the Gigahertz FSR
+tone provides a lock-in error signal sensitive to the difference between the actual and estimated
+cavity FSR frequency, as compared against the USO. The proposed readout closely mirrors the
+LRP’s digital PDH lock-in implementation, including use of a common photodetector-digitizer
+chain, and allows for either closed- or open-loop correction of the FSR estimate from within
+the LRP or via ground telemetry. Required modifications to legacy-LRI hardware include an
+additional hardware-based frequency synthesizer to multiply the USO frequency up to the FSR
+frequency(∼2 GHz), a Gigahertz bandwidth phase modulator in place of the current 150 MHz
+bandwidth device, additional digital lock-in readout implemented in the firmware of the LRP,
+and power, telemetry, and USO interfaces for the FSR readout electronics to interface with the
+spacecraft.
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26018
+Fig. 2. Showing a possible block diagram for the laser sub-system of a future MCM
+mission, where scale-factor (SF) and PDH firmware are operated from a single FPGA.
+The laser has two output ports; the first is routed to the Optical Bench Assembly (OBA)
+which implements the inter-satellite interferometer link, while the second is routed to the
+optical cavity for laser frequency stabilization. The scale-factor measurement requires a new
+external unit, the Scale-Factor Unit (SFU), to implement the FSR Numerically Controlled
+Oscillator (NCO) for generation of the scale-factor measurement’s Gigahertz tone (matched
+to the cavity FSR) and analog summation with the LRP’s PDH modulation signal. The
+FSR tone is phase modulated using a Quadrature Mixer (QM) by the output of a second
+NCO, the Scale-Factor NCO (SF NCO), which generates a Megahertz modulation used to
+sense changes in cavity FSR. The LRP’s FSR firmware implements lock-in detection at
+the SF NCO’s phase modulation frequency (ΥSF) for readout of cavity FSR changes. The
+dashed line linking the LRP FSR firmware with the SF NCO represents an optional phased
+synchronization which may simplify lock-in detection. The configuration shown here is
+an open-loop readout, whereby the changes in FSR are sent to ground as part of regular
+telemetry data. This scheme permits regular/periodic updates to the estimated FSR by a
+ground-to-satellite parameter upload, or an alternate software-based closed loop feedback
+to the Scale Factor Unit’s FSR oscillator frequency via communication with the satellite
+On-Board Computer (OBC).
+3. Cavity FSR readout
+This section presents a derivation of the lock-in Scale Factor readout scheme detailed in the
+previous section. At a high level, the measurement relies upon generation of frequency-offset
+sub-carriers to sense the frequency-spacing of optical cavity resonances above and below the
+PDH resonant mode. Sub-carriers are generated by theFSR tone applied as phase modulation
+priortothecavityatafrequencyapproximatingtheFSR ΥFSR ≈ νFSR ≈ 2 GHz. TheScaleFactor
+readout senses the offset∆ ˆνFSR = ΥFSR − νFSR between the FSR sub-carriers and their associated
+upper/lowerresonancesbyananglemodulationatauniqueMHz-scale‘SFtone’. Thisadditional
+nested angle-modulation provided by the SF tone generates phase modulation side bands about
+each FSR sub-carrier, butnot at the carrier frequency of the laser.
+Detuning of the FSR sub-carriers relative to their respective cavity resonances results from a
+change in cavity FSR and, accordingly, a change in Scale Factor. This change is measured via a
+mechanism analogous to PDH, where interaction of the FSR sub-carrier with the cavity response
+causesphaserotationofthesub-carrierrelativetothenon-resonantsidebandmodulation. Forthis
+reason the SF tone frequency is selected to be greater than the cavity linewidth. The sub-carrier
+phase rotation provides conversion of Phase to Amplitude modulation for subsequent lock-in
+detection. Since the SF readout is referenced to the USO, uncontrolled changes in the FSR
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26019
+modulation frequency due to USO drift will mimic scale factor changes, however correction is
+readily available by tracking the absolute USO frequency against e.g. GPS timestamps as part of
+regular mission function [10].
+Practically, the LRP’s PDH output can be summed with the FSR waveform within the SFU
+priortothecavity’sphasemodulator. Linearityofthephasemodulator(voltage)inputmeansthat
+the waveform summation is equivalent to independent, series modulators drive by the respective
+PDH and FSR waveforms, and eliminates the need for a second (new) modulator. Further, the SF
+tonefrequency ΥSF isselectedas ΥSF ≠ ΥPDH todifferentiateitfromPDHmodulationfrequency.
+The electric field of the light exiting the optical phase modulator is given by
+E(t) = E0eiω0t eiα sin(2πΥPDHt)
+⏞ˉˉˉˉˉˉˉˉˉˉˉ⏟⏟ˉˉˉˉˉˉˉˉˉˉˉ⏞
+PDH
+eiβ sin(2πΥFSRt+γ sin(2πΥSFt))
+⏞ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏟⏟ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏞
+Scale Factor
+(3)
+where E0 is the input field amplitude,ω0 is the laser carrier frequency,ΥPDH [Hz] is the PDH
+frequency with associated modulation depthα [rad], ΥFSR [Hz] is the FSR tone modulation with
+modulation depthβ [rad], andΥSF [Hz] is SF frequency of angle modulation applied to the FSR
+tone waveform, with depthγ [rad]. To first order, the field can be expanded as:
+E(t) = E0 eiω0t
+{︄
+J0(α)J0(β) + J0(β)J1(α)ei2πΥPDHt − J0(β)J1(α)e−i2πΥPDHt
+⏞ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏟⏟ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏞
+Carrier−PDH
++ J1(β)ei2πΥFSRt
+(︂
+J0(α)J0(γ) + J1(α)J0(γ)ei2πΥPDHt − J1(α)J0(γ)e−i2πΥPDHt
+⏞ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏟⏟ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏞
+Upper FSR−PDH
++ J0(α)J1(γ)ei2πΥSFt − J0(α)J1(γ)e−i2πΥSFt
+⏞ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏟⏟ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏞
+Upper FSR−SF
+)︂
+− J1(β)e−i2πΥFSRt
+(︂
+J0(α)J0(γ) + J1(α)J0(γ)ei2πΥPDHt − J1(α)J0(γ)e−i2πΥPDHt
+⏞ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏟⏟ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏞
+Lower FSR−PDH
+− J0(α)J1(γ)ei2πΥSFt + J0(α)J1(γ)e−i2πΥSFt
+⏞ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏟⏟ˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉˉ⏞
+Lower FSR−SF
+)︂}︄
+,
+(4)
+where Jn(x) denotes then-th Bessel function of the first kind. Here we assume that PDH and
+FSR modulation is small (typically<1 rad), and that higher order side bands may be ignored.
+This is a reasonable assumption for the modulation depths that might be expected for mission.
+The resulting output of the modulator is the convolution product of the two modulations
+summed and injected into the phase modulator (PDH and SF). The modulation pattern is
+illustrated in Fig. 3. A conventional phase modulation pattern for the PDH side bands is present
+about both the laser fundamental frequency and FSR Gigahertz sub-carriers. Demodulation of
+detected photo-current atΥPDH will produce an error signal proportional to the absolute laser
+offset from the closest cavity fringe. Conversely, the scale factor readout side bands are only
+present on the FSR sub-carriers and exhibit an odd symmetry with respect to the Gigahertz
+products about the carrier frequency. This asymmetry inverts the demodulated lock-in signals
+sampledatresonancesaboveandbelowthecarrier,makingthereadoutsensitivetothedifferential
+effect of mode spacing change (scale factor) and insensitive to common optical carrier frequency
+changes. Beat components from the resonances above and below the carrier frequency will sum
+coherently and when demodulated atΥSF will form a single scale factor readout proportional to
+∆ = ΥFSR − νFSR, with a mathematical form equivalent to that of a PDH error signal. This Scale
+Factor error signal samples the difference in frequency between reference oscillator tone and the
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26020
+true frequency of the cavity FSR spacing. Thus, with a laser stabilised to a known cavity fringe
+and a readout of the mode spacing referenced against an external oscillator, a readout of absolute
+frequency drift can be made. From this, fractional frequency changes of the laser’s absolute
+frequency can be estimated and factored into the interferometrically derived ranging signals of a
+GRACE-FO like instrument.
+Fig. 3. Frequency-Phasor diagram of first order terms of optical modulator output. PDH
+sidebandshaveanoffsetfrequencyof ΥPDHateachofthecarrierandsub-carriercomponents.
+The external reference oscillator frequencyΥFSR sets the sub-carrier frequency and is set
+closetothecavityfreespectralrange νFSR. Tothiselectronicswaveformananglemodulation
+ΥSF applied to provide sidebands to readout Scale Factor (SF). An error signal is generated
+by demodulating at both the PDH modulation frequency (for locking to a cavity fringe)
+and at the scale factor modulation frequency to extract a readout out of∆ = ΥFSR − νFSR
+(the change of cavity longitudinal mode spacing relative to our externally clocked reference
+tone). The illustration shows a modeled error signal for the scale factor readout and a scaled
+response of the scale factor response to carrier offset from cavity resonant fringe at the 100
+Hz level.
+4. Experimental verification of concept
+The experimental layout used to verify this readout scheme is illustrated in Fig. 4. A single
+laser (1064 nm NPRO, Innolight Prometheus) was stabilised to an optical reference cavity using
+a conventional Pound-Drever-Hall (PDH) feedback loop [14]. Here the optical cavity was a
+moderate finesse (∼9400) traveling wave optical cavity with an FSR of 1.78 GHz and Full
+Width Half Maximium (FWHM) of 190 kHz and demonstrated performance compatible with
+GRACE-FO requirements [17]. This cavity was constructed from Ultra Low Expansion (ULE)
+glass (spacer and mirrors), with a mean coefficient of thermal expansion of order 0± 30 ppb/°C
+from 5−35 °C [18], and housed within a thermally isolated and controlled vacuum vessel. A
+Liquid Instruments Moku:Lab provided a digital PDH controller for frequency feedback to the
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26021
+NPRO PZT and Thermal frequency control actuators. A list of further experimental parameters
+is provided in Table 1.
+Fig. 4. Schematic of FSR readout experiment. An NPRO 1064 nm laser is locked to
+a resonance of a traveling wave triangular cavity using conventional Pound-Drever-Hall
+locking; a 1 MHz tone is used to generate phase modulation side bands that convert to
+amplitude (AM) as the cavity drifts off resonance, this signal is sensed on reflection by a
+Megahertz bandwidth photo detector and demodulated to generate an error signal that is
+fed back to the laser to hold it on resonance. For the FSR readout, a 1.78 GHz signal is
+angle modulated with a 2.1 MHz base band waveform, using a Quadrature Mixer (QM), to
+generate a nested modulation with the sideband pattern illustrated in Fig. 3. As the cavity
+free spectral range changes relative to the reference external Gigahertz carrier the upper
+and lower Gigahertz sidebands each convert phase modulation at 2.1 MHz into AM that is
+detected, digitised and demodulated within a FPGA signal processing chain. The result is an
+error signal similar to the well known PDH error signal, however due to the odd symmetry
+of the Gigahertz components around resonance it is, to first order, sensitive to changes in
+mode spacing rather than absolute frequency. Thus we have a pair of error signals that
+independently sense the absolute frequency of the laser relative to a resonance, and also the
+spacing of modes relative to an external non-optical absolute reference.
+Table 1. List of experimental parameters
+Parameter Experimental Value
+Cavity input power (P0) 700 µ W
+Laser wavelength (approx.) 1064 nm
+Cavity FSR (νFSR) 1.78 GHz
+Cavity finesse (approx.) 9400
+PDH sidebands (ΥPDH) 1.0 MHz
+PDH sideband modulation depth (α) 0.04 rad
+FSR carrier tone (ΥFSR) 1.78 GHz
+FSR carrier modulation depth (β) 0.75 rad
+Scale factor modulation tone (ΥSF) 2.1 MHz
+Scale factor modulation depth (γ) 0.3 rad
+Phasemodulationwasappliedusingasinglewide-bandwidth(10GHz)fibercoupledwaveguide
+Lithium Niobate phase modulator (iXblue, NIR-MPX-LN-10), chosen for its low AM residuals,
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26022
+high stability and low drive voltage requirements. TheΥSF ≈ 1.78 GHzFSR tone (matched to
+the nominal cavity FSR), was generated using a Rhode & Schwartz SMB100B signal generator,
+with an internal OCXO frequency reference. The FSR tone was directly phase modulated within
+the signal generator with the sinusoidal SF tone of 0.3 rad applied atΥSF = 2.1 MHz. An RF
+resistive combiner component (Mini-Circuits ZFRSC-42-S+) was used for waveform summation
+for (∼MHz) PDH and (∼GHz) FSR electronic voltage waveforms.
+Modulated light was mode matched into the optical cavity and the reflected field detected
+on an InGaAs 150 MHz bandwidth fixed gain photodetector (Thorlabs PDA05CF2). A digital
+lock-in amplifier running on a second Liquid Instruments Moku:Lab FPGA unit was used to
+demodulate and log the Scale Factor measurement. This mixed the reflected photodetector signal
+with a 2.1 MHz tone derived from the Gigahertz FSR signal generator, low pass filtered with a
+10.1 Hz 18 dB/oct filter and digitally amplified by+90 dB gain before being logged to disk. A
+calibration of the scale factor slope sensitivity around the zero crossing point (e.g. 0 Hz FSR
+estimation error) was carried out by stepping the FSR tone by a series of 10 Hz offsets, resulting
+in a calibration coefficient of 230 Hz/V which was used to scale the logged data [V] into input
+referred FSR frequency detuning [Hz].
+An example sweep of the SF readout signal was obtained by sweeping the FSR tone over a 6
+MHzrangeaboutthenominalcavityFSR.TheresultingreadoutisshowninFig.5,demonstrating
+the near linear sensitivity to FSR tone frequency error (recorded with+40 dB Gain). On orbit,
+the FSR detuning is expected to have very small signal dynamics over mission lifetime of
+δνFSR/νFSR ∼ 10−7 or δνFSR ∼ 200 Hz, as estimated from the published scale factor data for
+GRACE-FO [13,19]. For this reason, data acquisition was performed with an optimized+90 dB
+gain which provided a narrow-but-sufficient (unsaturated) measurement range of± 100 Hz within
+the linear region around the true FSR.
+Fig. 5. Example sweep of FSR readout signal as a function of external reference oscillator
+frequency. Here gain of the lock-in amplifier was reduced to+40 dB (from+90 dB) to
+allow us to see the full peak-to-peak of the error signal within the dynamic range of the
+instrument. Reported ‘Volts’ are in equivalent units of the Moku:Lab input ADC. The
+following measurements presented in this Section utilise only narrow± 100 Hz linear region
+of the signal about the center zero crossing point. A slight asymmetry is observed in the
+upperandlowersingle-sidebandcomponentsoftheerrorsignalsweepduetothemodulation
+frequency being within an order of magnitude of the reference cavity linewidth.
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26023
+TheFSRreadoutsignalwasrecordedforaperiodof30days,duringwhichtimeourlaboratory
+remainedundisturbed. Theresultingcalibratedreadoutsignalofcavitymodespacingshowedthe
+relative stability of the passive thermally isolated cavity against the frequency reference provided
+by our signal generator. The full time series data for this 30 day period is given in Fig. 6. The
+fractional frequency change during this time period did not exceed 10−8.
+Fig. 6. Full time series data; 800 hours represents 33 days of unbroken data. The cavity
+temperature was not actively controlled for this measurement. The fractional frequency
+changeshowninthismeasurementdoesnotexceed ± 10 ppb. Thisdemonstratesperformance
+an order of magnitude better than the current scale factor for GRACE-FO (10−7).
+The Allan Deviation of the FSR readout data is shown in Fig. 7, achieving performance an
+order of magnitude below the expected next mission requirement. For comparison, a PDH
+readout with two lasers locked to a single cavity one FSR apart is also plotted, as is an external
+clock measurement which shows the FSR readout is not limited by clock noise.
+Toverifythefrequencystabilizationperformanceisnotimpactedbythescale-factorreadout,a
+tap-offofthelaserwasinterferedwithasecond,independentlaserstabilisedtoasecondreference
+optical cavity on a high-bandwidth photo-detector. The relative frequency of the two lasers was
+trackedusingadigitalphasemeter(LiquidInstruments, Moku:Lab). Figure8showsthisbeatnote
+measurement, taken simultaneously with an FSR readout measurement, is able to be maintained
+below the GRACE-FO mission requirement curve.
+Whilstthemeasuredchangesarecomparabletotheanticipatedon-orbitenvironment(fractional
+changes ∼ 10−8),theabsenceofanexternalabsolutefrequencyreference(seeSection5.) requires
+a dedicated test to verify the readout sensitivity to FSR (& scale factor) changes over other
+potentially confounding factors, such as electronics noise and reference oscillator drift. To
+accomplish this, a 5°C step/offset was added to the optical cavity’s thermal set-point of the
+cavity’s thermal shield enclosure to induce change in cavity FSR via thermal expansion. The
+correspondingchangeinFSRreadoutispresentedinFig.9,fromwhichanestimated ∼12ppb/ °C
+fractional length change has occurred in the cavity (within the 0± 30 ppb/°C expected from the
+ULE spacer material at 5-35°C [18]). Accurate measurement of the FSR change verifies the
+method’s sensitivity to a scale-factor perturbation.
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26024
+Fig. 7. Measured Allan deviation of frequency readout relative to stable Oven Controlled
+Oscillator (OCOX) reference and PDH readout. The FSR readout is performing an order of
+magnitude below the expected next mission requirement, and is not limited by clock noise.
+Fig. 8. Frequency noise [Hz/√Hz] of the beatnote of two cavity stabilised lasers. The
+two traces show the performance with (blue) and without (orange) the FSR readout (GHz
+sidebands)enabled-showingtheprimary(PDH)laserstabilisationsystemmeetsperformance
+requirements in either case. The frequency noise is calculated by taking the square root of
+the Power Spectral Density (PSD), and is also referred to as the root psd or rpsd.
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26025
+Fig. 9. Cavity Temperature step test. A temperature step of+5 °C was applied, and a
+corresponding change in the readout equivalent to 12 ppb/°C of fractional length change of
+the cavity is seen. This demonstrates that the readout responds to the changes in the optical
+setup and is not just an artifact of reference oscillator drift or electronic readout drift. The
+cavity beatnote was used as verification of the FSR readout, with much higher precision.
+5. Discussion
+5.1. Open-loop vs closed-loop operation
+The results presented here show sufficient performance to meet expected mission requirements in
+open-loop monitoring of FSR changes, as the estimated FSR carrier frequency is kept constant
+throughoutthemeasurement. However, long-termsystematicdriftwillintroduceastaticoffsetof
+the FSR sub-carriers from resonance, which can increase the coupling of noise sources such as
+laser intensity noise. On the other handclosed-loop tracking, where the FSR estimate is updated
+onaquasi-continuousbasiscanbeusedtocontinuouslynulltheFSRestimationerror,potentially
+delivering improved performance. Similarly, residual amplitude modulation (RAM) introduced
+by the electro-optic modulator (EOM) can also introduce offsets of the FSR sub-carriers from
+resonance. When characterised for this system there was no significant RAM at the scale factor
+modulation frequency due to the fact that there is no modulation signal driven to the EOM at
+this frequency. Further, the effects of RAM would affect closed and open loop implementations
+equally. Answering this question will be the subject of future work, however the authors note
+that the dynamics anticipated to affect the scale-factor likely occur at the time scale of days
+(thermal) or longer (aging), indicating that semi-regular/periodic update of the FSR frequency
+via OBC/ground-command will likely be sufficient if further investigation reveals noise coupling
+to be a limiting factor in scale-factor determination.
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26026
+5.2. Verifying absolute frequency
+This paper has discussed the frequency readout scheme as absolute. During the commissioning
+and initial acquisition of the GRACE-FO LRI link, the lasers were successfully locked to their
+respective optical cavity with negligible deviation from ground-calibrated offsets [6]. This
+indicates that neither the laser nor cavities experienced a significant shift in emission or resonant
+mode frequencies during launch. For future missions, should such a shift occur, the absolute
+optical frequency can be estimated in orbit by comparison of the laser range measurement with
+an independent range, likely provided by GPS position information. For GRACE-FO, a≈1000
+m time-varying relative-range signal exists at the orbital frequency due to the orbit mismatch
+and other effects. On board differential-GPS measurements are estimated to measure the inter-
+spacecraft range with<700 µm precision [20], providing better than<1 mm/1 km ≈ 1 : 106
+fractional uncertainty. Such uncertainty is sufficient to resolve the 282 THz laser frequency to
+within 300 MHz, well below the cavity FSR of≈2 GHz, such that the cavity mode numbernmode,
+and therefore absolute laser frequency, can be unambiguously determined.
+5.3. Demodulation phase
+The proposed implementation illustrated in Fig. 2 shows a dashed line showing an optional
+phase synchronisation between the LRP FSR firmware and the SF NCO. Should the phase
+synchronisationnotbeimplemented,theFSRreadoutbecomessensitivetoanyphaseorfrequency
+drift/offsets between the LRP and SF NCOs. Synchronisation of the LRP and SF NCOs to a
+fraction of the SF modulation frequency (Megahertz) would require timing synchronisation of
+better than<100 nano-seconds, which is un-achievable with the micro-second synchronization
+provided by the GRACE-FO ‘pulse-per-second’ timing reference distributed to modules. Instead,
+the SF data can be streamed to the ground from both lock-in demodulation quadratures (cosine
+and sine), allowing for the correct phase to be determined in post processing. Verification of
+dual-quadrature readout, long with the specification of any associated calibration signals will be
+addressed in future work.
+6. Conclusions
+Laser-only geodesy missions will require a new method to track long term changes in laser
+frequency to provide coherence of measured range data over multi-year mission lifetimes. The
+readout technique proposed in this paper offers an elegant method of determining fractional
+frequency(orlength)changesofastabilisedlaser(cavity)againstanexternalultra-stableexternal
+standard(USO).Whencoupledwithcalibrationknowledgeofthecavitymodenumber,theresults
+presented here experimentally demonstrated at a fractional absolute laser frequency stability
+at <10−9 over a 30 day measurement, exceeding the anticipated 10−8 specification for future
+satellite-geodesy missions. Further, the presented readout scheme introduces minimal additional
+parts to the flight heritage GRACE-FO LRI baseline design, with the addition of Gigahertz
+bandwidth parts only in the waveform synthesizer and a high speed modulator (no major LRP
+modifications are anticipated).
+Funding. Australian Research Council (OzGrav CE170100004, EQUS CE170100009); Australian Government
+Research Training Program (RTP Scholarship); Jet Propulsion Laboratory (NASA JPL/Caltech).
+Disclosures. The authors declare no conflicts of interest.
+Data availability. Data underlying the results presented in this paper are not publicly available at this time but may
+be obtained from the authors upon reasonable request.
+References
+1. B. D. Tapley, S. Bettadpur, J. C. Ries, P. F. Thompson, and M. M. Watkins, “GRACE measurements of mass
+variability in the Earth system,” Science305(5683), 503–505 (2004).
+Research Article Vol. 29, No. 16 / 2 August 2021 / Optics Express 26027
+2. R. P. Kornfeld, B. W. Arnold, M. A. Gross, N. T. Dahya, W. Klipstein, P. F. Gath, and S. Bettadpur, “GRACE-FO:
+The Gravity Recovery and Climate Experiment Follow-On Mission,” J. Spacecr. Rockets56(3), 931–951 (2019).
+3. National Academies of Sciences, Engineering and Medicine,Thriving on Our Changing Planet: A Decadal Strategy
+for Earth Observation from Space (National Academies, 2018).
+4. J.Conklin,T.Yu,F.Guzman,B.Klipstein,J.Lee,J.Leitch,K.Numata,S.Petroy,R.E.Spero,B.Ware,andG.Yang,
+“LRI Technology Summary and Roadmap for Mass Change Mission, May 2020,” Tech. rep., NASA Jet Propulsion
+Laboratory, (2020).
+5. K. Nicklaus, S. Cesare, L. Massotti, L. Bonino, S. Mottini, M. Pisani, and P. Silvestrin, “Laser metrology concept
+consolidation for NGGM,” CEAS Space J.12(3), 313–330 (2020).
+6. K. Abich, A. Abramovici, B. Amparan, A. Baatzsch, B. B. Okihiro, D. C. Barr, M. P. Bize, C. Bogan, C. Braxmaier,
+M. J. Burke, K. C. Clark, C. Dahl, K. Dahl, K. Danzmann, M. A. Davis, G. de Vine, J. A. Dickson, S. Dubovitsky, A.
+Eckardt, T. Ester, G. F. Barranco, R. Flatscher, F. Flechtner, W. M. Folkner, S. Francis, M. S. Gilbert, F. Gilles, M.
+Gohlke, N. Grossard, B. Guenther, P. Hager, J. Hauden, F. Heine, G. Heinzel, M. Herding, M. Hinz, J. Howell, M.
+Katsumura, M. Kaufer, W. Klipstein, A. Koch, M. Kruger, K. Larsen, A. Lebeda, T. Leikert, C. C. Liebe, J. Liu, L.
+Lobmeyer, C. Mahrdt, T. Mangoldt, K. McKenzie, M. Misfeldt, P. R. Morton, V. Muller, A. T. Murray, D. J. Nguyen,
+K. Nicklaus, R. Pierce, J. A. Ravich, G. Reavis, J. Reiche, J. Sanjuan, D. Schutze, C. Seiter, D. Shaddock, B. Sheard,
+M. Sileo, R. E. Spero, G. Spiers, G. Stede, M. Stephens, A. Sutton, J. Trinh, K. Voss, D. Wang, R. T. Wang, B. Ware,
+H. Wegener, S. Windisch, C. Woodruff, B. Zender, and M. Zimmermann, “In-Orbit Performance of the GRACE
+Follow-on Laser Ranging Interferometer,” Phys. Rev. Lett.123(3), 031101 (2019).
+7. K. Ghobadi-Far, S. C. Han, C. M. McCullough, D. N. Wiese, D. N. Yuan, F. W. Landerer, J. Sauber, and M. M.
+Watkins, “GRACE Follow-On Laser Ranging Interferometer Measurements Uniquely Distinguish Short-Wavelength
+Gravitational Perturbations,” Geophys. Res. Lett.47(16), e2020GL089445 (2020).
+8. NASA, “ORCLS - Optical-Radio Coherence for Laser Stability,” https://techport.nasa.gov/view/94040.
+9. R. G. DeVoe and R. G. Brewer, “Laser-frequency division and stabilization,” Phys. Rev. A30(5), 2827–2829 (1984).
+10. H. Y. Wen, G. Kruizinga, M. Paik, F. Landerer, W. Bertiger, C. Sakumura, T. Bandikova, and C. Mccullough,
+“Gravityrecoveryandclimateexperimentfollow-on(GRACE-FO)level-1dataproductuserhandbook,”JPLD-56935
+(URS270772) 11, (2019).
+11. G. Weaver, M. Reinhart, and R. Wallis, “Enhancing the art of space operations-progress in JHU/APL ultra-stable
+oscillator capabilities,” inProceedings of the 40th Annual Precise Time and Time Interval Systems and Applications
+Meeting(2008), pp. 57–68.
+12. B. Bachman, G. de Vine, J. Dickson, S. Dubovitsky, J. Liu, W. Klipstein, K. McKenzie, R. E. Spero, A. J. Sutton, B.
+Ware, and C. Woodruff, “Flight phasemeter on the Laser Ranging Interferometer on the GRACE Follow-On mission,”
+J. Phys.: Conf. Ser.840, 012011 (2017).
+13. M. Misfeldt, V. Muller, H. Wegener, L. Muller, and G. Heinzel, “Scale factor of the laser ranging interferometer in
+GRACE follow-on,” GRACE Science Team Meeting, (2020).
+14. R. W. P. Drever, J. L. Hall, F. V. Kowalski, J. Hough, G. M. Ford, A. J. Munley, and H. Ward, “Laser phase and
+frequency stabilization using an optical resonator,” Appl. Phys. B31(2), 97–105 (1983).
+15. T. T. Y. Lam, B. J. J. Slagmolen, J. H. Chow, I. C. M. Littler, D. E. McClelland, and D. Shaddock, “Digital Laser
+Frequency Stabilization Using an Optical Cavity,” IEEE J. Quantum Electron.46(8), 1178–1183 (2010).
+16. R. Thompson, W. M. Folkner, G. de Vine, W. Klipstein, K. McKenzie, R. E. Spero, N. Yu, M. Stephens, J. Leitch, R.
+Pierce, T. T. Y. Lam, and D. Shaddock, “A flight-like optical reference cavity for GRACE follow-on laser frequency
+stabilization,” in2011 Joint Conference of the IEEE International Frequency Control and the European Frequency
+and Time Forum (FCS) Proceedings (2011), pp. 1–3.
+17. N. Chabbra, A. R. Wade, E. R. Rees, A. J. Sutton, A. Stochino, R. L. Ward, D. A. Shaddock, and K. McKenzie,
+“High stability laser locking to an optical cavity using tilt locking,” Opt. Lett.46(13), 3199–3202 (2021).
+18. Incorporated Corning, 7972 ULE Product Information https://www.corning.com/media/worldwide/csm/documents/
+7972%20ULE%20Product%20Information%20Jan%202016.pdf (2016).
+19. GRACE-FO Level 1A/B data is available at http://podaac.jpl.nasa.gov.
+20. D. Gu, B. Ju, J. Liu, and J. Tu, “Enhanced GPS-based GRACE baseline determination by using a new strategy for
+ambiguity resolution and relative phase center variation corrections,” Acta Astronaut.138, 176–184 (2017).

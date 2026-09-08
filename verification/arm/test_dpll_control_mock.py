@@ -190,6 +190,17 @@ class DpllArmControlContractTest(unittest.TestCase):
         ):
             self.assertIn(address, read)
 
+    def test_pc_command_gate_accepts_debug_dac_read_and_echoes_errors(self):
+        parser = function_body(self.arm, "PC_HOST_CMD_Get")
+        self.assertIn(
+            "(Uart0_RX_Buff[2]>0x1E)",
+            parser,
+        )
+        self.assertNotIn("(Uart0_RX_Buff[2]>0x1D)", parser)
+        command_capture = parser.index("PC_HOST_CMD_GET = Uart0_RX_Buff[2];")
+        command_range_check = parser.index("PC_HOST_CMD_ASK = 0xF3;")
+        self.assertLess(command_capture, command_range_check)
+
     def test_debug_dac_presets_match_frozen_table_and_old_default(self):
         for row in (
             "{0U, 0x0100U, 0U, 0x5000U}",

@@ -1,0 +1,4 @@
+[2026-09-04  18:58:37.382] : D10016U3_Driver.py-__init__[line:33] - INFO: DAQ dll path:E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\util\z100x2u.dll
+[2026-09-04  18:58:37.382] : Data_acquisition.py-__init__[line:17] - INFO: DAQ cord using D10016U3.
+[2026-09-04  19:00:36.026] : D10016U3_Driver.py-__init__[line:33] - INFO: DAQ dll path:E:\JiangSiyi\FPGA\DPLL_Low_Freq_Track\util\z100x2u.dll
+[2026-09-04  19:00:36.026] : Data_acquisition.py-__init__[line:17] - INFO: DAQ cord using D10016U3.

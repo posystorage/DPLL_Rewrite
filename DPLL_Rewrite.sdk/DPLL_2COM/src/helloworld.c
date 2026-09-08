@@ -563,7 +563,10 @@ void PC_HOST_CMD_Get(void)
 		//print("Err F2 nums\r\n");
 		return;
 	}
-	if(((Uart0_RX_Buff[2]<0x80)&&(Uart0_RX_Buff[2]>0x1D))||(Uart0_RX_Buff[2]>0x9B))
+	/* Preserve the received command for error responses.  Otherwise an
+	 * unsupported command is reported under the previous command number. */
+	PC_HOST_CMD_GET = Uart0_RX_Buff[2];
+	if(((Uart0_RX_Buff[2]<0x80)&&(Uart0_RX_Buff[2]>0x1E))||(Uart0_RX_Buff[2]>0x9B))
 	{
 		PC_HOST_CMD_ASK = 0xF3;
 		//print("Err F3 cmd\r\n");
@@ -579,7 +582,6 @@ void PC_HOST_CMD_Get(void)
 		//print("Err F4 checksum\r\n");
 		return;
 	}
-	PC_HOST_CMD_GET = Uart0_RX_Buff[2];
 	if(Uart0_RX_Buff[3]>1)
 	for(i=0;i<Uart0_RX_Num;i++)
 	{
